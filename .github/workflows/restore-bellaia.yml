@@ -1,0 +1,59 @@
+name: Restaurer arborescence Bellaïa
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Tape OUI pour lancer"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dépôt
+        uses: actions/checkout@v4
+
+      - name: Vérifier confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "OUI" ]; then
+            echo "Confirmation incorrecte. Tape OUI."
+            exit 1
+          fi
+
+      - name: Vérifier le ZIP source
+        run: |
+          test -f bellaia-source.zip || (echo "bellaia-source.zip introuvable à la racine" && exit 1)
+
+      - name: Nettoyer ancienne arborescence
+        run: |
+          rm -rf src public package.json next.config.js vercel.json tsconfig.json
+
+      - name: Extraire Bellaïa
+        run: |
+          unzip -o bellaia-source.zip -d bellaia-temp
+          shopt -s dotglob
+          if [ -d "bellaia-temp/bellaia-source" ]; then
+            mv bellaia-temp/bellaia-source/* .
+          else
+            mv bellaia-temp/* .
+          fi
+          rm -rf bellaia-temp
+
+      - name: Vérifier fichiers critiques
+        run: |
+          test -f package.json
+          test -f src/components/BellaiaApp.tsx
+          test -f src/components/PaymentSelector.tsx
+          test -f src/app/page.tsx
+
+      - name: Commit restauration
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Restaurer arborescence Bellaïa" || echo "Aucun changement"
+          git push
