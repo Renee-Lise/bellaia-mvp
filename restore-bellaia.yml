@@ -1,0 +1,91 @@
+name: Restaurer arborescence Bellaïa
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Tapez OUI pour confirmer la restauration"
+        required: true
+        default: "NON"
+
+jobs:
+  restore:
+    if: ${{ github.event.inputs.confirm == 'OUI' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout dépôt
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Vérifier que bellaia-source.zip est présent
+        run: |
+          if [ ! -f bellaia-source.zip ]; then
+            echo "❌ bellaia-source.zip introuvable à la racine du dépôt"
+            echo "Uploadez bellaia-source.zip à la racine puis relancez ce workflow."
+            exit 1
+          fi
+          echo "✅ bellaia-source.zip trouvé ($(du -h bellaia-source.zip | cut -f1))"
+
+      - name: Extraire et restaurer l'arborescence
+        run: |
+          echo "--- Extraction du ZIP ---"
+          mkdir -p _restore_tmp
+          unzip -o bellaia-source.zip -d _restore_tmp/
+
+          echo "--- Suppression des anciens dossiers src/ et public/ ---"
+          rm -rf src/ public/
+
+          echo "--- Restauration depuis le ZIP ---"
+          cp -r _restore_tmp/src       ./src
+          cp -r _restore_tmp/public    ./public
+
+          for f in package.json next.config.js tsconfig.json vercel.json README.md; do
+            if [ -f "_restore_tmp/$f" ]; then
+              cp "_restore_tmp/$f" "./$f"
+              echo "  ✅ $f restauré"
+            fi
+          done
+
+          rm -rf _restore_tmp/
+          echo "--- Arborescence restaurée ---"
+          find src public -type f | sort
+
+      - name: Vérifier les fichiers critiques
+        run: |
+          MISSING=0
+          for f in \
+            src/app/page.tsx \
+            src/app/layout.tsx \
+            src/components/BellaiaApp.tsx \
+            src/components/ClientWrapper.tsx \
+            src/components/PaymentSelector.tsx \
+            src/lib/supabase.ts \
+            package.json \
+            next.config.js; do
+            if [ ! -f "$f" ]; then
+              echo "❌ MANQUANT : $f"
+              MISSING=1
+            else
+              echo "✅ $f"
+            fi
+          done
+          if [ "$MISSING" = "1" ]; then
+            echo "Restauration incomplète — vérifiez bellaia-source.zip"
+            exit 1
+          fi
+          echo "✅ Tous les fichiers critiques sont présents"
+
+      - name: Commit automatique sur main
+        run: |
+          git config user.name  "Bellaïa Bot"
+          git config user.email "bellaia@bella-studio.fr"
+          git add -A
+          git status
+          git diff --cached --quiet && echo "Aucun changement à committer" && exit 0
+          git commit -m "Restauration arborescence Bellaïa $(date '+%Y-%m-%d %H:%M')"
+          git push origin main
+          echo "✅ Commit et push réussis — Vercel redéploie automatiquement"
