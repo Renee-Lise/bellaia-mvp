@@ -1,0 +1,58 @@
+{
+  "name": "Bellaïa — Bella'Studio",
+  "short_name": "Bellaïa",
+  "description": "L'application Bella'Studio — Boutique, réservations, événements",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#0d0b12",
+  "theme_color": "#0d0b12",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "categories": ["shopping", "lifestyle", "beauty"],
+  "shortcuts": [
+    {
+      "name": "Mon espace client",
+      "short_name": "Mon espace",
+      "description": "Accéder directement à votre espace client",
+      "url": "/?espace=client",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Bella'Studio — Espace client"
+    }
+  ]
+}
