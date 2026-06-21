@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES — Variables d'environnement (aucune coordonnée en dur)
 // Configurer dans Vercel → Settings → Environment Variables
@@ -1118,10 +1118,310 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+// ACTIVITÉS CLIENT — CRM Phase 1
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// FICHE CLIENT COMPLÈTE — Historique chronologique complet
+// ═══════════════════════════════════════════════════════════
+function FicheClientF({ client, onClose }) {
+  const [ong, setOng] = useState("apercu");
+  const [invoices, setInvoices]   = useState([]);
+  const [quotes, setQuotes]       = useState([]);
+  const [payments, setPayments]   = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [cmds, setCmds]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    if (!client?.id) return;
+    const load = async () => {
+      setLoading(true);
+      const [inv, quo, pay, act, cmd] = await Promise.all([
+        sbGet("invoices",          { select:"*", order:"date_emission.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id||x.client_nom===`${client.prenom||""} ${client.nom||""}`.trim())),
+        sbGet("quotes",            { select:"*", order:"date_emission.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id||x.client_nom===`${client.prenom||""} ${client.nom||""}`.trim())),
+        sbGet("payments",          { select:"*", order:"date_paiement.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id)),
+        sbGet("client_activities", { select:"*", order:"date_activite.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id)),
+        sbGet("events_commandes",  { select:"*", order:"created_at.desc",   limit:50 }).then(d=>(d||[]).filter(x=>x.client_email===client.email||x.client_nom===`${client.prenom||""} ${client.nom||""}`.trim())),
+      ]);
+      setInvoices(inv); setQuotes(quo); setPayments(pay);
+      setActivities(act); setCmds(cmd);
+      setLoading(false);
+    };
+    load();
+  }, [client?.id]);
+
+  const totalEncaisse = payments.filter(p=>p.statut==="reçu").reduce((s,p)=>s+(parseFloat(p.montant)||0),0);
+  const totalFacture  = invoices.reduce((s,i)=>s+(parseFloat(i.total_ttc)||0),0);
+
+  const ONGS = [
+    {id:"apercu",    l:"📊 Aperçu"},
+    {id:"factures",  l:`💰 Factures (${invoices.length})`},
+    {id:"devis",     l:`📋 Devis (${quotes.length})`},
+    {id:"paiements", l:`💳 Paiements (${payments.length})`},
+    {id:"commandes", l:`🛒 Commandes (${cmds.length})`},
+    {id:"activites", l:`⚡ Activités (${activities.length})`},
+  ];
+
+  const nomComplet = `${client.prenom||""} ${client.nom||""}`.trim() || client.email || "—";
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{background:B.deep,borderBottom:`1px solid ${B.border}`,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:800,color:B.cream,fontFamily:FS}}>{nomComplet}</div>
+          <div style={{fontSize:11,color:B.muted,marginTop:2}}>{client.email||"—"} · {client.ville||"—"} · {client.vip_level||"Bronze"}</div>
+        </div>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:10,padding:"8px 14px",color:B.cream,cursor:"pointer",fontSize:14,fontFamily:SA}}>✕</button>
+      </div>
+
+      {/* Navigation onglets */}
+      <div style={{display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch",padding:"10px 14px",borderBottom:`1px solid ${B.border}`,background:B.deep,flexShrink:0}}>
+        {ONGS.map(o=>(
+          <button key={o.id} onClick={()=>setOng(o.id)}
+            style={{padding:"5px 11px",borderRadius:99,border:`1px solid ${ong===o.id?B.gold:B.border}`,background:ong===o.id?`${B.gold}18`:"transparent",color:ong===o.id?B.gold:B.muted,cursor:"pointer",fontSize:10,fontWeight:ong===o.id?700:400,whiteSpace:"nowrap",fontFamily:SA}}>
+            {o.l}
+          </button>
+        ))}
+      </div>
+
+      {/* Contenu */}
+      <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+        {loading && <div style={{textAlign:"center",color:B.muted,padding:30}}>Chargement…</div>}
+
+        {/* Aperçu */}
+        {!loading && ong==="apercu" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {[
+                {l:"Total facturé",  v:`${totalFacture.toFixed(2)}€`,  c:B.gold},
+                {l:"Total encaissé", v:`${totalEncaisse.toFixed(2)}€`, c:"#4ade80"},
+                {l:"Devis",          v:quotes.length,                   c:B.violetL},
+                {l:"Commandes",      v:cmds.length,                     c:"#0d9488"},
+              ].map(k=>(
+                <div key={k.l} style={{flex:1,minWidth:70,background:`${k.c}12`,border:`1px solid ${k.c}30`,borderRadius:12,padding:"12px 10px",textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:k.c,fontFamily:FS}}>{k.v}</div>
+                  <div style={{fontSize:9,color:B.muted,marginTop:2}}>{k.l}</div>
+                </div>
+              ))}
+            </div>
+            {/* Infos client */}
+            <div style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+              <div style={{fontSize:11,fontWeight:700,color:B.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.05em"}}>Informations</div>
+              {[
+                ["Email",        client.email],
+                ["Téléphone",    client.telephone],
+                ["Ville",        client.ville],
+                ["Canal",        client.canal_acquisition],
+                ["Client depuis",client.created_at?.slice(0,10)],
+                ["Notes",        client.notes_internes],
+              ].filter(([,v])=>v).map(([l,v])=>(
+                <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
+                  <span style={{color:B.muted}}>{l}</span>
+                  <span style={{color:B.cream,fontWeight:500,maxWidth:"60%",textAlign:"right"}}>{v}</span>
+                </div>
+              ))}
+            </div>
+            {/* Chronologie récente */}
+            <div style={{fontSize:11,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginTop:4}}>Activité récente</div>
+            {[
+              ...invoices.slice(0,3).map(i=>({date:i.date_emission,ico:"💰",txt:`Facture ${i.numero||i.id?.slice(0,8)||"—"} — ${parseFloat(i.total_ttc||0).toFixed(0)}€`,statut:i.statut})),
+              ...quotes.slice(0,2).map(q=>({date:q.date_emission,ico:"📋",txt:`Devis ${q.numero||q.id?.slice(0,8)||"—"} — ${parseFloat(q.total_ttc||0).toFixed(0)}€`,statut:q.statut})),
+              ...activities.slice(0,3).map(a=>({date:a.date_activite,ico:"⚡",txt:a.notes||a.type_activite,statut:""})),
+            ].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,6).map((item,i)=>(
+              <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 0",borderBottom:`1px solid ${B.border}`}}>
+                <span style={{fontSize:16,flexShrink:0}}>{item.ico}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:B.cream}}>{item.txt}</div>
+                  {item.statut&&<span style={{fontSize:9,color:B.muted}}>{item.statut}</span>}
+                </div>
+                <div style={{fontSize:10,color:B.muted,flexShrink:0}}>{item.date||"—"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Factures */}
+        {!loading && ong==="factures" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {invoices.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucune facture</div>:
+            invoices.map(inv=>(
+              <div key={inv.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{inv.numero||inv.id?.slice(0,8)||"—"}</div><div style={{fontSize:10,color:B.muted}}>{inv.objet||"—"} · {inv.date_emission||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:B.gold}}>{parseFloat(inv.total_ttc||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{inv.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Devis */}
+        {!loading && ong==="devis" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {quotes.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucun devis</div>:
+            quotes.map(q=>(
+              <div key={q.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{q.numero||q.id?.slice(0,8)||"—"}</div><div style={{fontSize:10,color:B.muted}}>{q.objet||"—"} · {q.date_emission||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:B.gold}}>{parseFloat(q.total_ttc||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{q.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Paiements */}
+        {!loading && ong==="paiements" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {payments.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucun paiement</div>:
+            payments.map(p=>(
+              <div key={p.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{p.mode_paiement||p.provider||"—"}</div><div style={{fontSize:10,color:B.muted}}>{p.date_paiement||"—"} · {p.reference||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:p.statut==="reçu"?"#4ade80":B.gold}}>{parseFloat(p.montant||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{p.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Commandes */}
+        {!loading && ong==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {cmds.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucune commande</div>:
+            cmds.map(cmd=>(
+              <div key={cmd.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{cmd.type_evenement||"Commande"}</div><div style={{fontSize:10,color:B.muted}}>{cmd.date_evenement||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:B.gold}}>{parseFloat(cmd.montant_total||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{cmd.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Activités */}
+        {!loading && ong==="activites" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {activities.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucune activité enregistrée</div>:
+            activities.map(a=>(
+              <div key={a.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px",borderLeft:`3px solid ${B.violetL}`}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream,textTransform:"capitalize"}}>{a.type_activite}</div><div style={{fontSize:10,color:B.muted}}>{a.notes||"—"}</div></div>
+                  <div style={{fontSize:10,color:B.muted}}>{a.date_activite||"—"}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActivitesCrmF() {
+  const [activites, setActivites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+
+  const TYPES_ACT = ["appel","email","rdv","devis","commande","paiement","relance","note","autre"];
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await sbGet("client_activities", {
+          select: "*, clients(nom,prenom)",
+          order: "date_activite.desc",
+          limit: 100,
+        });
+        setActivites(data || []);
+      } catch {}
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const save = async () => {
+    if (!form.type_activite) return;
+    await sbPost("client_activities", {
+      ...form,
+      date_activite: form.date_activite || new Date().toISOString().split("T")[0],
+    });
+    setModal(false);
+    setForm({});
+    // Recharger
+    const data = await sbGet("client_activities", { select: "*, clients(nom,prenom)", order: "date_activite.desc", limit: 100 });
+    setActivites(data || []);
+  };
+
+  const TYPE_ICO = {appel:"📞",email:"📧",rdv:"📅",devis:"📋",commande:"🛒",paiement:"💳",relance:"🔔",note:"📝",autre:"⚡"};
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:800,color:B.cream,fontFamily:FS}}>⚡ Activités clients</div>
+          <div style={{fontSize:10,color:B.muted}}>{activites.length} activité{activites.length>1?"s":""} enregistrée{activites.length>1?"s":""}</div>
+        </div>
+        <Btn v="gold" onClick={()=>{setForm({type_activite:"note",date_activite:new Date().toISOString().split("T")[0]});setModal(true);}}>
+          + Activité
+        </Btn>
+      </div>
+
+      {loading && <div style={{textAlign:"center",color:B.muted,padding:20}}>Chargement…</div>}
+
+      {!loading && activites.length === 0 && (
+        <div style={{textAlign:"center",color:B.muted,padding:24,fontSize:13}}>
+          Aucune activité enregistrée.<br/>
+          <span style={{fontSize:11}}>Enregistrez vos appels, emails, rdv et notes clients ici.</span>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {activites.map(a => (
+          <div key={a.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"10px 13px",borderLeft:`3px solid ${B.violetL}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                  <span style={{fontSize:14}}>{TYPE_ICO[a.type_activite]||"⚡"}</span>
+                  <span style={{fontSize:11,fontWeight:700,color:B.cream,textTransform:"capitalize"}}>{a.type_activite}</span>
+                  {a.clients?.nom&&<span style={{fontSize:10,color:B.muted}}>· {a.clients.prenom||""} {a.clients.nom}</span>}
+                </div>
+                {a.notes&&<div style={{fontSize:11,color:B.muted,lineHeight:1.5}}>{a.notes}</div>}
+              </div>
+              <div style={{fontSize:10,color:B.muted,flexShrink:0,marginLeft:8}}>{a.date_activite||"—"}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modal&&(
+        <Mdl title="Nouvelle activité" onClose={()=>setModal(false)}>
+          <Fld label="Type *">
+            <Sel value={form.type_activite||"note"} onChange={e=>setForm({...form,type_activite:e.target.value})} options={TYPES_ACT}/>
+          </Fld>
+          <Fld label="Date"><Inp type="date" value={form.date_activite||""} onChange={e=>setForm({...form,date_activite:e.target.value})}/></Fld>
+          <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Description de l'activité" rows={3}/></Fld>
+          <Fld label="Résultat"><Inp value={form.resultat||""} onChange={e=>setForm({...form,resultat:e.target.value})} placeholder="Ex : devis envoyé, RDV confirmé…"/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={save} full v="gold">Enregistrer</Btn>
+            <Btn onClick={()=>setModal(false)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
 function CrmF({ user }) {
   const [ong, setOng] = useState("clients");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
+  const [ficheClient, setFicheClient] = useState(null); // FicheClientF ouverte
   const [search, setSearch] = useState("");
   const [poles, setPoles] = useState([]);
 
@@ -1149,6 +1449,35 @@ function CrmF({ user }) {
     rCli(); setModal(null);
   };
 
+  const convertirProspect = async (prospect) => {
+    if (!confirm(`Convertir ${prospect.prenom||""} ${prospect.nom} en client ?`)) return;
+    // 1. Créer le client depuis le prospect
+    const clientData = {
+      nom:               prospect.nom,
+      prenom:            prospect.prenom || "",
+      email:             prospect.email  || "",
+      telephone:         prospect.telephone || "",
+      ville:             prospect.ville  || "",
+      type_client:       "cliente",
+      statut:            "actif",
+      canal_acquisition: prospect.source || "WhatsApp",
+      notes_internes:    prospect.notes  || "",
+      fondatrice_id:     getFondId(),
+    };
+    await sbPost("clients", clientData);
+    // 2. Marquer le prospect comme converti
+    await sbPatch("prospects", prospect.id, { statut: "converti", updated_at: new Date().toISOString() });
+    // 3. Enregistrer l'activité
+    await sbPost("client_activities", {
+      type_activite: "note",
+      notes:         `Converti depuis prospect le ${today()}`,
+      date_activite: today(),
+      fondatrice_id: getFondId(),
+    });
+    rPro();
+    alert(`✅ ${prospect.prenom||""} ${prospect.nom} converti en client !`);
+  };
+
   const saveProspect = async () => {
     if (!form.nom?.trim()) return;
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
@@ -1174,7 +1503,7 @@ function CrmF({ user }) {
 
       {/* Onglets */}
       <div style={{display:"flex",gap:6}}>
-        {[["clients","👥 Clientes"],["prospects","🎯 Prospects"],["relances","🔔 Relances"]].map(([id,l])=>(
+        {[["clients","👥 Clientes"],["prospects","🎯 Prospects"],["relances","🔔 Relances"],["activites","⚡ Activités"]].map(([id,l])=>(
           <button key={id} onClick={()=>setOng(id)} style={{padding:"6px 12px",borderRadius:99,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:ong===id?B.violet:B.card,color:ong===id?"#fff":B.muted,fontFamily:SA}}>{l}</button>
         ))}
       </div>
@@ -1206,6 +1535,7 @@ function CrmF({ user }) {
                   {(c.ca_total||0)>0&&<div style={{fontSize:14,fontWeight:700,color:B.gold,marginBottom:4}}>{c.ca_total}€</div>}
                   <Bdg s={c.statut||"actif"}/>
                   <div style={{display:"flex",gap:4,marginTop:6,justifyContent:"flex-end"}}>
+                    <Btn sm v="ghost" onClick={()=>setFicheClient(c)}>📋 Fiche</Btn>
                     <Btn sm v="ghost" onClick={()=>{setForm({...c,_edit:c.id});setModal("cli");}}>✏</Btn>
                     <Btn sm v="danger" onClick={()=>delClient(c.id)}>✕</Btn>
                   </div>
@@ -1237,6 +1567,7 @@ function CrmF({ user }) {
                   <Bdg s={p.statut||"nouveau"}/>
                   {p.probabilite&&<div style={{fontSize:10,color:B.muted,marginTop:3}}>{p.probabilite}% conv.</div>}
                   <div style={{display:"flex",gap:4,marginTop:6,justifyContent:"flex-end"}}>
+                    {p.statut!=="converti"&&<Btn sm v="gold" onClick={()=>convertirProspect(p)}>→ Client</Btn>}
                     <Btn sm v="ghost" onClick={()=>{setForm({...p,_edit:p.id});setModal("pro");}}>✏</Btn>
                     <Btn sm v="danger" onClick={()=>delProspect(p.id)}>✕</Btn>
                   </div>
@@ -1313,7 +1644,14 @@ function CrmF({ user }) {
           <div style={{display:"flex",gap:8}}><Btn onClick={saveProspect} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
         </Mdl>
       )}
+      {ong==="activites"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <ActivitesCrmF/>
+        </div>
+      )}
     </div>
+    {/* Fiche client complète — modale plein écran */}
+    {ficheClient && <FicheClientF client={ficheClient} onClose={()=>setFicheClient(null)}/>}
   );
 }
 
@@ -1348,16 +1686,120 @@ function FinancesP1({ user }) {
   const statutInvColor = s => ({payée:"rgba(80,180,120,0.2)",partiellement_payée:"rgba(201,168,76,0.2)",envoyée:"rgba(124,58,237,0.2)",en_retard:"rgba(180,80,80,0.2)",annulée:"rgba(80,80,80,0.2)",brouillon:"rgba(139,127,168,0.15)"}[s]||"rgba(139,127,168,0.15)");
   const statutInvText = s => ({payée:B.success,partiellement_payée:B.warning,envoyée:B.violetL,en_retard:B.danger,annulée:B.muted,brouillon:B.muted}[s]||B.muted);
 
+  // ── Items multi-lignes (état partagé pour devis et factures)
+  const [formItems, setFormItems] = useState([]);
+
+  const addItem = () => setFormItems(it => [...it, {desc:"",qte:1,pu:0,tva:20}]);
+  const removeItem = (i) => setFormItems(it => it.filter((_,j)=>j!==i));
+  const updateItem = (i, k, v) => setFormItems(it => it.map((x,j)=>j===i?{...x,[k]:v}:x));
+  const calcTotalHT = () => formItems.reduce((s,i)=>(parseFloat(i.qte)||0)*(parseFloat(i.pu)||0)+s,0);
+  const calcTotalTTC = () => formItems.reduce((s,i)=>{
+    const ht=(parseFloat(i.qte)||0)*(parseFloat(i.pu)||0);
+    const tva=ht*(parseFloat(i.tva)||20)/100;
+    return s+ht+tva;
+  },0);
+
+  // ── Ouvrir modal avec items vides
+  const ouvrirModalInv = (doc=null) => {
+    setForm(doc||{});
+    setFormItems(doc?[{desc:doc.objet||"",qte:1,pu:parseFloat(doc.total_ttc)||0,tva:20}]:[{desc:"",qte:1,pu:0,tva:20}]);
+    setModal("inv");
+  };
+  const ouvrirModalDev = (doc=null) => {
+    setForm(doc||{});
+    setFormItems(doc?[{desc:doc.objet||"",qte:1,pu:parseFloat(doc.total_ttc)||0,tva:20}]:[{desc:"",qte:1,pu:0,tva:20}]);
+    setModal("dev");
+  };
+
   const createInvoice = async () => {
     if (!form.client_nom?.trim()) return;
-    await sbPost("invoices", { ...form, fondatrice_id: getFondId(), solde_restant: form.total_ttc || 0 });
-    rInv(); setModal(null);
+    const totalTTC = formItems.length > 0 ? calcTotalTTC() : parseFloat(form.total_ttc)||0;
+    const totalHT  = formItems.length > 0 ? calcTotalHT()  : totalTTC/1.2;
+    const inv = await sbPost("invoices", {
+      ...form,
+      fondatrice_id: getFondId(),
+      total_ht:      parseFloat(totalHT.toFixed(2)),
+      total_ttc:     parseFloat(totalTTC.toFixed(2)),
+      solde_restant: parseFloat(totalTTC.toFixed(2)),
+      objet:         formItems.map(i=>i.desc).filter(Boolean).join(", ") || form.objet || "",
+    });
+    // Sauvegarder les items
+    if (inv?.id && formItems.length > 0) {
+      for (const [idx, item] of formItems.entries()) {
+        if (!item.desc) continue;
+        await sbPost("invoice_items", {
+          invoice_id:   inv.id,
+          designation:  item.desc,
+          quantite:     parseFloat(item.qte)||1,
+          prix_unitaire:parseFloat(item.pu)||0,
+          taux_tva:     parseFloat(item.tva)||20,
+          montant_ht:   (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0),
+          montant_ttc:  (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0)*(1+(parseFloat(item.tva)||20)/100),
+          ordre:        idx+1,
+        });
+      }
+    }
+    rInv(); setModal(null); setFormItems([]);
   };
 
   const createQuote = async () => {
     if (!form.client_nom?.trim()) return;
-    await sbPost("quotes", { ...form, fondatrice_id: getFondId() });
-    rQuo(); setModal(null);
+    const totalTTC = formItems.length > 0 ? calcTotalTTC() : parseFloat(form.total_ttc)||0;
+    const totalHT  = formItems.length > 0 ? calcTotalHT()  : totalTTC/1.2;
+    const q = await sbPost("quotes", {
+      ...form,
+      fondatrice_id: getFondId(),
+      total_ht:      parseFloat(totalHT.toFixed(2)),
+      total_ttc:     parseFloat(totalTTC.toFixed(2)),
+      objet:         formItems.map(i=>i.desc).filter(Boolean).join(", ") || form.objet || "",
+    });
+    if (q?.id && formItems.length > 0) {
+      for (const [idx, item] of formItems.entries()) {
+        if (!item.desc) continue;
+        await sbPost("quote_items", {
+          quote_id:     q.id,
+          designation:  item.desc,
+          quantite:     parseFloat(item.qte)||1,
+          prix_unitaire:parseFloat(item.pu)||0,
+          taux_tva:     parseFloat(item.tva)||20,
+          montant_ht:   (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0),
+          montant_ttc:  (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0)*(1+(parseFloat(item.tva)||20)/100),
+          ordre:        idx+1,
+        });
+      }
+    }
+    rQuo(); setModal(null); setFormItems([]);
+  };
+
+  // ── Export PDF (window.print avec mise en forme)
+  const exportPDF = (doc, type) => {
+    const lignes = formItems.length > 0 ? formItems : [{desc:doc.objet||"—",qte:1,pu:parseFloat(doc.total_ttc)||0,tva:20}];
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${type} ${doc.numero||doc.id?.slice(0,8)||""}</title>
+<style>
+  body{font-family:Georgia,serif;padding:40px;color:#1a1a1a;max-width:700px;margin:auto}
+  h1{font-size:24px;color:#7c3aed;margin-bottom:4px}
+  .meta{font-size:12px;color:#666;margin-bottom:24px}
+  .client{background:#f5f5f5;padding:12px 16px;border-radius:8px;margin-bottom:24px}
+  table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  th{background:#7c3aed;color:#fff;padding:8px 10px;text-align:left;font-size:12px}
+  td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}
+  .total{text-align:right;font-size:14px;font-weight:700;margin-top:8px}
+  .footer{margin-top:40px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}
+</style></head><body>
+<h1>Bella'Studio — ${type}</h1>
+<div class="meta">N° ${doc.numero||doc.id?.slice(0,8)||"—"} · ${doc.date_emission||new Date().toLocaleDateString("fr-FR")} · Pôle : ${doc.pole||"—"}</div>
+<div class="client"><strong>Client :</strong> ${doc.client_nom||"—"}<br/><strong>Objet :</strong> ${doc.objet||"—"}</div>
+<table>
+<thead><tr><th>Désignation</th><th>Qté</th><th>PU HT</th><th>TVA</th><th>Total TTC</th></tr></thead>
+<tbody>${lignes.map(i=>`<tr><td>${i.desc||"—"}</td><td>${i.qte||1}</td><td>${parseFloat(i.pu||0).toFixed(2)}€</td><td>${i.tva||20}%</td><td>${((parseFloat(i.qte)||1)*(parseFloat(i.pu)||0)*(1+(parseFloat(i.tva)||20)/100)).toFixed(2)}€</td></tr>`).join("")}</tbody>
+</table>
+<div class="total">Total TTC : <span style="color:#7c3aed">${parseFloat(doc.total_ttc||0).toFixed(2)} €</span></div>
+${doc.conditions?`<p style="font-size:11px;color:#666;margin-top:16px">Conditions : ${doc.conditions}</p>`:""}
+<div class="footer">Bella'Studio · Sinnamary, Guyane française · bella.studio973@hotmail.com</div>
+</body></html>`;
+    const win = window.open("","_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
 
   const createPayment = async () => {
@@ -1398,7 +1840,7 @@ function FinancesP1({ user }) {
       {/* ── FACTURES ── */}
       {ong==="factures"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setModal("inv");}}>+ Facture</Btn></div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setouvrirModalInv();}}>+ Facture</Btn></div>
           {lInv&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {invoices.map(inv=>(
             <div key={inv.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
@@ -1420,6 +1862,7 @@ function FinancesP1({ user }) {
               <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                 {inv.statut==="envoyée"&&<Btn sm v="gold" onClick={()=>{setForm({invoice_id:inv.id,client_id:inv.client_id,montant:inv.solde_restant,type_paiement:"paiement",date_paiement:today(),statut:"reçu"});setModal("pay");}}>+ Paiement</Btn>}
                 {inv.statut==="brouillon"&&<Btn sm v="ghost" onClick={()=>patchInvoiceStatut(inv.id,"envoyée")}>Marquer envoyée</Btn>}
+                <Btn sm v="ghost" onClick={()=>exportPDF(inv,"Facture")}>📄 PDF</Btn>
                 <Btn sm v="ghost" onClick={()=>{setForm({...inv,_edit:inv.id});setModal("inv");}}>✏</Btn>
                 <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("invoices",inv.id).then(rInv);}}>✕</Btn>
               </div>
@@ -1431,7 +1874,7 @@ function FinancesP1({ user }) {
       {/* ── DEVIS ── */}
       {ong==="devis"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setModal("dev");}}>+ Devis</Btn></div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setouvrirModalDev();}}>+ Devis</Btn></div>
           {lQuo&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {quotes.map(q=>(
             <div key={q.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
@@ -1448,6 +1891,7 @@ function FinancesP1({ user }) {
                 <div style={{fontSize:16,fontWeight:900,color:B.gold,fontFamily:FS}}>{(q.total_ttc||0).toLocaleString("fr")}€</div>
               </div>
               <div style={{display:"flex",gap:5}}>
+                <Btn sm v="ghost" onClick={()=>exportPDF(q,"Devis")}>📄 PDF</Btn>
                 <Btn sm v="ghost" onClick={()=>{setForm({...q,_edit:q.id});setModal("dev");}}>✏</Btn>
                 <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("quotes",q.id).then(rQuo);}}>✕</Btn>
               </div>
@@ -1499,40 +1943,82 @@ function FinancesP1({ user }) {
 
       {/* MODALS */}
       {modal==="inv"&&(
-        <Mdl title={form._edit?"Modifier facture":"Nouvelle facture"} onClose={()=>setModal(null)}>
+        <Mdl title={form._edit?"Modifier facture":"Nouvelle facture"} onClose={()=>{setModal(null);setFormItems([])}}>
           <Fld label="Client *"><Inp value={form.client_nom||""} onChange={e=>setForm({...form,client_nom:e.target.value})} placeholder="Nom du client"/></Fld>
-          <Fld label="Objet"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet de la facture"/></Fld>
-          <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
+          <Fld label="Objet (résumé)"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet global"/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Fld label="Total TTC (€)"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0,total_ht:parseFloat(e.target.value)||0})}/></Fld>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
             <Fld label="Statut"><Sel value={form.statut||"brouillon"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS_INV}/></Fld>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Date émission"><Inp type="date" value={form.date_emission||today()} onChange={e=>setForm({...form,date_emission:e.target.value})}/></Fld>
-            <Fld label="Échéance"><Inp type="date" value={form.date_echeance||""} onChange={e=>setForm({...form,date_echeance:e.target.value})}/></Fld>
+            <Fld label="Date échéance"><Inp type="date" value={form.date_echeance||""} onChange={e=>setForm({...form,date_echeance:e.target.value})}/></Fld>
           </div>
-          <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
+          {/* Lignes multi-produits */}
+          <div style={{marginTop:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:11,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Lignes de facturation</div>
+              <button onClick={addItem} style={{fontSize:11,padding:"3px 10px",borderRadius:8,border:`1px solid ${B.gold}`,background:`${B.gold}18`,color:B.gold,cursor:"pointer",fontFamily:SA}}>+ Ligne</button>
+            </div>
+            {formItems.map((it,i)=>(
+              <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1fr 1fr 1fr auto",gap:5,marginBottom:5,alignItems:"center"}}>
+                <Inp value={it.desc} onChange={e=>updateItem(i,"desc",e.target.value)} placeholder="Désignation"/>
+                <Inp type="number" value={it.qte} onChange={e=>updateItem(i,"qte",e.target.value)} placeholder="Qté"/>
+                <Inp type="number" value={it.pu} onChange={e=>updateItem(i,"pu",e.target.value)} placeholder="PU HT"/>
+                <Inp type="number" value={it.tva} onChange={e=>updateItem(i,"tva",e.target.value)} placeholder="TVA%"/>
+                <button onClick={()=>removeItem(i)} style={{background:"rgba(239,68,68,0.15)",border:"none",borderRadius:6,padding:"4px 7px",color:"#ef4444",cursor:"pointer",fontSize:12}}>✕</button>
+              </div>
+            ))}
+            {formItems.length===0&&<div style={{fontSize:11,color:B.muted,padding:"8px 0"}}>Aucune ligne — cliquez "+ Ligne" ou saisissez un total manuel ci-dessous.</div>}
+            {formItems.length>0&&(
+              <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.gold,marginTop:6}}>
+                Total TTC calculé : {calcTotalTTC().toFixed(2)}€
+              </div>
+            )}
+          </div>
+          {formItems.length===0&&<Fld label="Total TTC (€) — manuel"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0})}/></Fld>}
+          <Fld label="Conditions"><Inp value={form.conditions||"Paiement à réception."} onChange={e=>setForm({...form,conditions:e.target.value})}/></Fld>
           <div style={{display:"flex",gap:8}}>
-            <Btn onClick={createInvoice} full>Enregistrer</Btn>
+            <Btn onClick={createInvoice} full v="gold">Enregistrer</Btn>
             <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
           </div>
         </Mdl>
       )}
       {modal==="dev"&&(
-        <Mdl title={form._edit?"Modifier devis":"Nouveau devis"} onClose={()=>setModal(null)}>
+        <Mdl title={form._edit?"Modifier devis":"Nouveau devis"} onClose={()=>{setModal(null);setFormItems([])}}>
           <Fld label="Client *"><Inp value={form.client_nom||""} onChange={e=>setForm({...form,client_nom:e.target.value})} placeholder="Nom du client"/></Fld>
-          <Fld label="Objet"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet du devis"/></Fld>
-          <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
+          <Fld label="Objet (résumé)"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet global"/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Fld label="Total TTC (€)"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0,total_ht:parseFloat(e.target.value)||0})}/></Fld>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
             <Fld label="Statut"><Sel value={form.statut||"brouillon"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS_DEV}/></Fld>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Date émission"><Inp type="date" value={form.date_emission||today()} onChange={e=>setForm({...form,date_emission:e.target.value})}/></Fld>
             <Fld label="Validité"><Inp type="date" value={form.date_validite||""} onChange={e=>setForm({...form,date_validite:e.target.value})}/></Fld>
           </div>
-          <Fld label="Conditions"><Inp value={form.conditions||"30% d'acompte à la signature."} onChange={e=>setForm({...form,conditions:e.target.value})} rows={2}/></Fld>
-          <div style={{display:"flex",gap:8}}><Btn onClick={createQuote} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+          <div style={{marginTop:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:11,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Lignes du devis</div>
+              <button onClick={addItem} style={{fontSize:11,padding:"3px 10px",borderRadius:8,border:`1px solid ${B.gold}`,background:`${B.gold}18`,color:B.gold,cursor:"pointer",fontFamily:SA}}>+ Ligne</button>
+            </div>
+            {formItems.map((it,i)=>(
+              <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1fr 1fr 1fr auto",gap:5,marginBottom:5,alignItems:"center"}}>
+                <Inp value={it.desc} onChange={e=>updateItem(i,"desc",e.target.value)} placeholder="Désignation"/>
+                <Inp type="number" value={it.qte} onChange={e=>updateItem(i,"qte",e.target.value)} placeholder="Qté"/>
+                <Inp type="number" value={it.pu} onChange={e=>updateItem(i,"pu",e.target.value)} placeholder="PU HT"/>
+                <Inp type="number" value={it.tva} onChange={e=>updateItem(i,"tva",e.target.value)} placeholder="TVA%"/>
+                <button onClick={()=>removeItem(i)} style={{background:"rgba(239,68,68,0.15)",border:"none",borderRadius:6,padding:"4px 7px",color:"#ef4444",cursor:"pointer",fontSize:12}}>✕</button>
+              </div>
+            ))}
+            {formItems.length===0&&<div style={{fontSize:11,color:B.muted,padding:"8px 0"}}>Aucune ligne — cliquez "+ Ligne" ou saisissez un total manuel.</div>}
+            {formItems.length>0&&<div style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.gold,marginTop:6}}>Total TTC : {calcTotalTTC().toFixed(2)}€</div>}
+          </div>
+          {formItems.length===0&&<Fld label="Total TTC (€) — manuel"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0})}/></Fld>}
+          <Fld label="Conditions"><Inp value={form.conditions||"30% d\'acompte à la signature."} onChange={e=>setForm({...form,conditions:e.target.value})}/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={createQuote} full v="gold">Enregistrer</Btn>
+            <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
+          </div>
         </Mdl>
       )}
       {modal==="pay"&&(
@@ -4368,6 +4854,11 @@ const NAV_F = [
   {id:"erp_taches",  ico:"✔",  l:"Tâches"},
   {id:"stocks",      ico:"📦", l:"Stocks"},
   {id:"biblio",      ico:"📚", l:"Éditions"},
+  {id:"odyssee",     ico:"💅", l:"Odyssée"},
+  {id:"apercu_ux",   ico:"👁",  l:"Aperçu"},
+  {id:"studio",      ico:"✦",  l:"Studio IA"},
+  {id:"editorial",   ico:"📖", l:"Éditorial"},
+  {id:"food",        ico:"🍃", l:"Food"},
   {id:"ia",          ico:"◎",  l:"IA"},
 ];
 
@@ -4383,6 +4874,265 @@ function PlaceholderModule({ ico, nom, desc }) {
       </div>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODE APERÇU UTILISATEUR — Dashboard fondatrice
+// Visualiser Bellaïa comme si on était un utilisateur final
+// Sans modifier les vraies données
+// ═══════════════════════════════════════════════════════════
+function ApercuUXF({ user, setPreview, setActiveUnivers }) {
+  const [deviceMode, setDeviceMode] = useState("iphone");   // iphone | android | desktop
+  const [contextActif, setContextActif] = useState(null);   // null = liste, sinon config aperçu
+
+  // Contextes disponibles
+  const CONTEXTES = [
+    {
+      id: "cliente_portail",
+      ico: "👤", label: "Portail client",
+      desc: "Vue générale espace client — commandes, factures, réservations",
+      couleur: B.violetL,
+      preview: "client", univers: null,
+    },
+    {
+      id: "cliente_bsh",
+      ico: "✦", label: "Cliente BSH",
+      desc: "Boutique Bella'Secret Home avec contrôle +18",
+      couleur: "#be185d",
+      preview: "client", univers: "bsh",
+      note: "⚠️ Le contrôle +18 s'affiche côté client uniquement",
+    },
+    {
+      id: "cliente_odyssee",
+      ico: "💅", label: "Cliente Odyssée",
+      desc: "Réservations prestations beauté et catalogue produits",
+      couleur: "#7c3aed",
+      preview: "client", univers: "bo",
+    },
+    {
+      id: "cliente_events",
+      ico: "✨", label: "Cliente Bella'Even's",
+      desc: "Catalogue événementiel, demande de devis, commandes",
+      couleur: "#0d9488",
+      preview: "client", univers: "events",
+    },
+    {
+      id: "cliente_structure",
+      ico: "🗂", label: "Cliente Bella'Structure",
+      desc: "Modèles numériques, téléchargements, commandes graphiques",
+      couleur: "#d97706",
+      preview: "client", univers: "struct",
+    },
+    {
+      id: "cliente_mtp",
+      ico: "🌺", label: "Cliente Mo Ti-Péyi",
+      desc: "Livres et produits pédagogiques jeunesse",
+      couleur: "#b45309",
+      preview: "client", univers: "mtp",
+    },
+    {
+      id: "cliente_vilo",
+      ico: "📋", label: "Cliente Vilo'Assistance",
+      desc: "Services administratifs, devis, dossiers",
+      couleur: "#0369a1",
+      preview: "client", univers: "vilo",
+    },
+    {
+      id: "prospect",
+      ico: "🎯", label: "Prospect",
+      desc: "Vue publique sans compte — formulaire de contact",
+      couleur: B.gold,
+      preview: "client", univers: null,
+      note: "Navigation sans login actif",
+    },
+    {
+      id: "hote",
+      ico: "🏠", label: "Espace hôte",
+      desc: "Vue partenaire hébergeur ou prestataire",
+      couleur: "#059669",
+      preview: "hote", univers: null,
+    },
+    {
+      id: "partenaire",
+      ico: "🤝", label: "Espace partenaire",
+      desc: "Vue partenaire / fournisseur",
+      couleur: "#6b7280",
+      preview: "partenaire", univers: null,
+    },
+  ];
+
+  // Devices
+  const DEVICES = [
+    { id:"iphone",  ico:"📱", label:"iPhone",  w:390,  h:844 },
+    { id:"android", ico:"📱", label:"Android", w:412,  h:917 },
+    { id:"desktop", ico:"🖥", label:"Desktop", w:"100%", h:600 },
+  ];
+
+  const device = DEVICES.find(d=>d.id===deviceMode) || DEVICES[0];
+
+  // Lancer l'aperçu — ne modifie aucune donnée réelle
+  const lancerApercu = (ctx) => {
+    setPreview(ctx.preview);
+    if (ctx.univers !== undefined) setActiveUnivers(ctx.univers);
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:800,color:B.cream,fontFamily:FS}}>👁 Mode aperçu utilisateur</div>
+          <div style={{fontSize:10,color:B.muted}}>Visualisez Bellaïa depuis la perspective de chaque utilisateur · Aucune donnée modifiée</div>
+        </div>
+      </div>
+
+      {/* Avertissement */}
+      <div style={{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:"10px 13px",display:"flex",gap:10,alignItems:"flex-start"}}>
+        <span style={{fontSize:16,flexShrink:0}}>ℹ️</span>
+        <div style={{fontSize:11,color:B.muted,lineHeight:1.6}}>
+          Le mode aperçu vous permet de visualiser exactement ce que voient vos utilisateurs. Vos données réelles ne sont pas modifiées. Vous retournez au Dashboard en appuyant sur <strong style={{color:B.gold}}>← Retour fondatrice</strong> dans l'aperçu.
+        </div>
+      </div>
+
+      {/* Sélecteur device */}
+      <div>
+        <div style={{fontSize:10,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Appareil simulé</div>
+        <div style={{display:"flex",gap:6}}>
+          {DEVICES.map(d=>(
+            <button key={d.id} onClick={()=>setDeviceMode(d.id)}
+              style={{flex:1,padding:"8px 6px",borderRadius:10,border:`2px solid ${deviceMode===d.id?B.gold:B.border}`,background:deviceMode===d.id?`${B.gold}15`:"transparent",color:deviceMode===d.id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:deviceMode===d.id?700:400,fontFamily:SA,textAlign:"center"}}>
+              <div style={{fontSize:18,marginBottom:3}}>{d.ico}</div>
+              <div>{d.label}</div>
+              {d.id!=="desktop"&&<div style={{fontSize:9,color:B.muted,marginTop:1}}>{d.w}×{d.h}</div>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grille des contextes */}
+      <div>
+        <div style={{fontSize:10,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Choisir un contexte utilisateur</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {CONTEXTES.map(ctx=>(
+            <div key={ctx.id}
+              style={{background:B.card,border:`1px solid ${ctx.couleur}25`,borderRadius:12,padding:"12px 14px",borderLeft:`3px solid ${ctx.couleur}`,cursor:"pointer",transition:"all 0.15s"}}
+              onClick={()=>setContextActif(ctx)}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                    <span style={{fontSize:18}}>{ctx.ico}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:B.cream}}>{ctx.label}</span>
+                  </div>
+                  <div style={{fontSize:11,color:B.muted,lineHeight:1.5}}>{ctx.desc}</div>
+                  {ctx.note&&(
+                    <div style={{fontSize:10,color:"#f59e0b",marginTop:4,fontWeight:600}}>{ctx.note}</div>
+                  )}
+                </div>
+                <div style={{flexShrink:0,marginLeft:12}}>
+                  <div style={{background:`${ctx.couleur}20`,border:`1px solid ${ctx.couleur}40`,borderRadius:8,padding:"5px 12px",color:ctx.couleur,fontSize:11,fontWeight:700,fontFamily:SA,textAlign:"center"}}>
+                    Aperçu →
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Modal confirmation aperçu */}
+      {contextActif && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div style={{background:"#13111a",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"20px 16px 32px"}}>
+            <div style={{textAlign:"center",marginBottom:16}}>
+              <div style={{fontSize:36,marginBottom:8}}>{contextActif.ico}</div>
+              <div style={{fontSize:16,fontWeight:800,color:B.cream,fontFamily:FS}}>{contextActif.label}</div>
+              <div style={{fontSize:11,color:B.muted,marginTop:4}}>{contextActif.desc}</div>
+            </div>
+
+            {/* Info device */}
+            <div style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${B.border}`,borderRadius:12,padding:"10px 14px",marginBottom:14}}>
+              <div style={{fontSize:11,color:B.muted}}>
+                {device.ico} Aperçu en mode <strong style={{color:B.cream}}>{device.label}</strong>
+                {device.id!=="desktop"&&<span> ({device.w}×{device.h}px)</span>}
+              </div>
+            </div>
+
+            {/* Rappels */}
+            <div style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:10,padding:"10px 13px",marginBottom:16}}>
+              <div style={{fontSize:10,color:B.gold,fontWeight:700,marginBottom:4}}>Rappels mode aperçu</div>
+              <div style={{fontSize:10,color:B.muted,lineHeight:1.7}}>
+                ✅ Aucune donnée réelle ne sera modifiée<br/>
+                ✅ Les commandes passées en aperçu sont simulées<br/>
+                ✅ Retour Dashboard via ← Retour fondatrice<br/>
+                {contextActif.id==="cliente_bsh"&&"✅ Le contrôle +18 s'affichera comme pour une vraie cliente"}
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>lancerApercu(contextActif)}
+                style={{flex:2,padding:"13px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${contextActif.couleur},${B.violet})`,color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:SA}}>
+                🚀 Lancer l'aperçu
+              </button>
+              <button onClick={()=>setContextActif(null)}
+                style={{flex:1,padding:"13px",borderRadius:12,border:`1px solid ${B.border}`,background:"transparent",color:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Wrapper Studio IA (chargement dynamique)
+function StudioIAWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/StudioIAF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Studio IA…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Calculateur
+function CalculateurWrapper({ pole, onPrixRetenu }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/CalculateurUI").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement calculateur…</div>;
+  return <Comp pole={pole} onPrixRetenu={onPrixRetenu}/>;
+}
+
+// ── Wrapper Bella'Food
+function FoodWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/food/FoodF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella\'Food…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Générateur éditorial
+function EditorialWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/editorial/GenerateurEditorial").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Éditorial…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Odyssée (chargement dynamique du module)
+function OdysseeWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/odyssee/OdysseeF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Odyssée…</div>;
+  return <Comp user={user}/>;
 }
 
 export default function BellaiaApp() {
@@ -4466,18 +5216,29 @@ export default function BellaiaApp() {
     : role; // "fondatrice" → passe directement
 
   // ── Prévisualisations fondatrice
+  // ── Bandeau retour fondatrice en mode aperçu
+  const BandeauApercu = () => (
+    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:"linear-gradient(90deg,#7c3aed,#c9a84c)",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>👁 Mode aperçu utilisateur</div>
+      <button onClick={()=>{setPreview(null);setActiveUnivers(null);}}
+        style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,padding:"4px 12px",color:"#fff",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"Inter,system-ui,sans-serif"}}>
+        ← Retour fondatrice
+      </button>
+    </div>
+  );
+
   if (preview === "client") {
-    if (!activeUnivers) return <PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
+    if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:36}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
-      onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
-    if (activeUnivers==="bsh")    return <ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
+      onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
+    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
     if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="events") return <ClientEventsPortail onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
   }
-  if (preview === "hote")       return <EspaceHote user={user} onLogout={()=>setPreview(null)}/>;
-  if (preview === "partenaire") return <EspacePartenaire user={user} onLogout={()=>setPreview(null)}/>;
+  if (preview === "hote")       return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
+  if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
 
   // ── Routage par rôle
   if (espaceEffectif === "client")
@@ -4506,9 +5267,15 @@ export default function BellaiaApp() {
     erp_taches: <ErpTachesF user={user}/>,
     // Stocks (vue Supabase v_stocks_critiques)
     stocks:      <StocksF user={user}/>,
+    // Bella'Odyssée — module complet
+    odyssee:     <OdysseeWrapper user={user}/>,
+    // Mode aperçu utilisateur
+    apercu_ux:   <ApercuUXF user={user} setPreview={setPreview} setActiveUnivers={setActiveUnivers}/>,
+    // Studio IA — module central
+    studio:      <StudioIAWrapper user={user}/>,
     // Pôles Phase 2
-    odyssee:     <PlaceholderModule ico="💅" nom="Bella'Odyssée" desc="Gestion RDV, prestations beauté — Phase 2"/>,
-    food:        <PlaceholderModule ico="🍃" nom="Bella'Food" desc="Traiteur et menus — Phase 2"/>,
+    food:        <FoodWrapper user={user}/>,
+    editorial:   <EditorialWrapper user={user}/>,
     vilo:        <PlaceholderModule ico="📋" nom="Vilo'Assistance" desc="Assistance administrative — Phase 2"/>,
     mtp:         <PlaceholderModule ico="🌺" nom="Mo Ti-Péyi" desc="Livres jeunesse — Bibliothèque Éditoriale"/>,
   };
