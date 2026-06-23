@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirmation:
-        description: "Tape OUI pour lancer"
+        description: "Taper OUI pour restaurer Bellaïa"
         required: true
 
 permissions:
@@ -13,6 +13,7 @@ permissions:
 jobs:
   restore:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout dépôt
         uses: actions/checkout@v4
@@ -20,40 +21,49 @@ jobs:
       - name: Vérifier confirmation
         run: |
           if [ "${{ github.event.inputs.confirmation }}" != "OUI" ]; then
-            echo "Confirmation incorrecte. Tape OUI."
+            echo "Confirmation invalide."
             exit 1
           fi
 
-      - name: Vérifier le ZIP source
+      - name: Vérifier ZIP
         run: |
-          test -f bellaia-source.zip || (echo "bellaia-source.zip introuvable à la racine" && exit 1)
+          test -f bellaia-source.zip || (echo "bellaia-source.zip introuvable" && exit 1)
+          mkdir -p /tmp/bellaia_restore
+          cp bellaia-source.zip /tmp/bellaia_restore/bellaia-source.zip
 
       - name: Nettoyer ancienne arborescence
         run: |
-          rm -rf src public package.json next.config.js vercel.json tsconfig.json
+          rm -rf src/
+          rm -rf public/
+          rm -rf .next/
+          rm -rf node_modules/
+          rm -f *.tar.gz *.bak
 
-      - name: Extraire Bellaïa
+      - name: Extraire nouvelle version
         run: |
-          unzip -o bellaia-source.zip -d bellaia-temp
-          shopt -s dotglob
-          if [ -d "bellaia-temp/bellaia-source" ]; then
-            mv bellaia-temp/bellaia-source/* .
-          else
-            mv bellaia-temp/* .
+          mkdir -p _restore_tmp
+          unzip -o /tmp/bellaia_restore/bellaia-source.zip -d _restore_tmp/
+
+          test -d _restore_tmp/src || (echo "src manquant dans le ZIP" && exit 1)
+
+          cp -r _restore_tmp/src ./src
+
+          if [ -d _restore_tmp/public ]; then
+            cp -r _restore_tmp/public ./public
           fi
-          rm -rf bellaia-temp
 
-      - name: Vérifier fichiers critiques
-        run: |
-          test -f package.json
-          test -f src/components/BellaiaApp.tsx
-          test -f src/components/PaymentSelector.tsx
-          test -f src/app/page.tsx
+          for f in package.json package-lock.json next.config.js tsconfig.json vercel.json README.md; do
+            if [ -f "_restore_tmp/$f" ]; then
+              cp "_restore_tmp/$f" "./$f"
+            fi
+          done
+
+          rm -rf _restore_tmp
 
       - name: Commit restauration
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add .
-          git commit -m "Restaurer arborescence Bellaïa" || echo "Aucun changement"
+          git commit -m "Restauration propre Bellaïa" || echo "Aucun changement à commit"
           git push
