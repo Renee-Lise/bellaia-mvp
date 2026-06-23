@@ -5237,15 +5237,31 @@ export default function BellaiaApp() {
     </div>
   );
 
-  if (preview === "client") {
+    if (preview === "client") {
     if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:36}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
       onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
-    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
+
+    if (activeUnivers==="bsh")
+  return (
+    <>
+      <BandeauApercu/>
+      <div style={{paddingTop:36}}>
+        <ClientBSH
+          produits={bshProd}
+          evenements={bshEvts}
+          onBack={()=>setActiveUnivers(null)}
+          onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}
+        />
+      </div>
+    </>
+  );
+
     if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="events") return <ClientEventsPortail onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
+  
   }
   if (preview === "hote")       return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
   if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
