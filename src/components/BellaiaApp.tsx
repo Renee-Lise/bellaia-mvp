@@ -1644,16 +1644,26 @@ function CrmF({ user }) {
           <div style={{display:"flex",gap:8}}><Btn onClick={saveProspect} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
         </Mdl>
       )}
-      {ong==="activites"&&(
+            {ong==="activites"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <ActivitesCrmF/>
         </div>
       )}
+
+      {/* Fiche client complète — modale plein écran */}
+      {ficheClient && (
+        <FicheClientF
+          client={ficheClient}
+          onClose={() => setFicheClient(null)}
+        />
+      )}
     </div>
-    {/* Fiche client complète — modale plein écran */}
-    {ficheClient && <FicheClientF client={ficheClient} onClose={()=>setFicheClient(null)}/>}
   );
 }
+
+// ═══════════════════════════════════════════════════════════
+// FINANCES — Phase 1 Supabase
+// ═══════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════
 // FINANCES — Phase 1 Supabase
