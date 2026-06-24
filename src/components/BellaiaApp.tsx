@@ -2,6 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 // ═══════════════════════════════════════════════════════════
+// MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
+// Si ce texte apparaît sur l'écran de connexion, le build est à jour.
+// ═══════════════════════════════════════════════════════════
+const BUILD_VERSION = "BUILD 2026-06-23 · CrmF+Panier OK";
+// ═══════════════════════════════════════════════════════════
 // CONSTANTES — Variables d'environnement (aucune coordonnée en dur)
 // Configurer dans Vercel → Settings → Environment Variables
 // ═══════════════════════════════════════════════════════════
@@ -267,22 +272,28 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
   const [sumupErreur, setSumupErreur] = useState(null);
 
   const confirmerCommande = async () => {
+    // ── Uniquement les articles sélectionnés
+    const selectionnes = cart.filter(i => i.selected !== false);
+    if (selectionnes.length === 0) return;
+
     const id = genId();
-    const produitStr = cart.map(i=>`${i.name} ×${i.qty}`).join(", ");
+    const produitStr = selectionnes.map(i=>`${i.name} ×${i.qty}`).join(", ");
+    const totalSel   = selectionnes.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
+
     const cmd = {
       id,
-      client: nomClient || "Client web",
+      client:  nomClient || "Client web",
       produit: produitStr,
-      montant: cartT,
+      montant: totalSel,
       acompte: 0,
-      statut: "Demande reçue",
-      date: today(),
-      pmt: pmtChoisi,
-      notes: `Commande web — ${new Date().toLocaleString("fr-FR")}`,
+      statut:  "Demande reçue",
+      date:    today(),
+      pmt:     pmtChoisi,
+      notes:   `Commande web — ${new Date().toLocaleString("fr-FR")}`,
     };
     if (onNewCommande) await onNewCommande(cmd);
 
-    // ── SumUp : paiement direct — jamais WhatsApp
+    // ── SumUp : paiement direct
     if (pmtChoisi === "SumUp") {
       setSumupLoading(true);
       setSumupErreur(null);
@@ -291,14 +302,17 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            montant: cartT,
+            montant:     totalSel,
             description: `Commande BSH ${id} — ${produitStr}`,
-            univers: "BSH",
+            univers:     "BSH",
+            items:       selectionnes.map(i=>({nom:i.name,qty:i.qty,prix:(i.promo||i.prix)})),
           }),
         });
         const d = await r.json();
         if (d.url) {
-          setCart([]); setNomClient(""); setModal(null);
+          // Conserver les articles non sélectionnés dans le panier
+          setCart(c => c.filter(i => i.selected === false));
+          setNomClient(""); setModal(null);
           window.location.href = d.url;
         } else {
           setSumupErreur(d.error || "Erreur SumUp — réessayez ou choisissez un autre mode.");
@@ -311,16 +325,18 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
       return;
     }
 
-    // ── Tous les autres modes → WhatsApp ou information
-    setCart([]); setNomClient(""); setModal(null);
+    // ── Autres modes → WhatsApp
+    // Conserver les articles non sélectionnés
+    setCart(c => c.filter(i => i.selected === false));
+    setNomClient(""); setModal(null);
     const pmtInfo = pmtChoisi === "PayPal"
       ? `\nPayPal : ${ENV.PAYPAL}`
       : pmtChoisi === "WhatsApp"
       ? `\nPaiement à confirmer avec la fondatrice`
       : `\nMode de paiement : ${pmtChoisi}`;
-    const msg = `🌹 *NOUVELLE COMMANDE ${id}*\n\nClient : ${nomClient || "Non renseigné"}\nProduits : ${produitStr}\nTotal : ${cartT}€\nPaiement : ${pmtChoisi}${pmtInfo}\nDate : ${new Date().toLocaleString("fr-FR")}\n\nMerci de confirmer ma commande.`;
+    const msg = `🌹 *NOUVELLE COMMANDE ${id}*\n\nClient : ${nomClient || "Non renseigné"}\nProduits : ${produitStr}\nTotal : ${totalSel}€${pmtInfo}`;
     window.open(WA(msg), "_blank");
-  };
+  }
 
   // Gate +18
   if (!gate) return (
@@ -486,66 +502,139 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
       {/* MODALS */}
       {modal === "cart" && (
         <Mdl title="Ma commande 🛍️" onClose={() => setModal(null)}>
-          {cart.length === 0 ? <p style={{color:B.muted,textAlign:"center",padding:"16px"}}>Votre panier est vide.</p> : <>
-            {/* Récap produits */}
-            {cart.map(i => (
-              <div key={i.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${B.border}`}}>
-                <div style={{display:"flex",gap:9,alignItems:"center"}}><span style={{fontSize:20}}>{i.ico}</span><span style={{fontSize:12,color:B.cream}}>{i.name} ×{i.qty}</span></div>
-                <div style={{display:"flex",gap:9,alignItems:"center"}}>
-                  <span style={{fontSize:13,color:B.gold,fontWeight:700}}>{(i.promo||i.prix)*i.qty}€</span>
-                  <button onClick={() => setCart(c=>c.filter(x=>x.id!==i.id))} style={{background:"none",border:"none",color:B.danger,cursor:"pointer",fontSize:16}}>✕</button>
+          {cart.length === 0
+            ? <p style={{color:B.muted,textAlign:"center",padding:"16px"}}>Votre panier est vide.</p>
+            : <>
+              {/* ── Légende */}
+              <div style={{fontSize:10,color:B.muted,marginBottom:8,lineHeight:1.6}}>
+                Cochez les articles à payer. Les autres restent dans le panier.
+              </div>
+
+              {/* ── Liste articles avec sélection + quantités */}
+              {cart.map(i => {
+                const prixU = i.promo || i.prix;
+                const selected = i.selected !== false; // true par défaut
+                return (
+                  <div key={i.id} style={{display:"flex",gap:8,alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${BSH.line}`}}>
+                    {/* Checkbox sélection */}
+                    <input type="checkbox" checked={selected}
+                      onChange={() => setCart(c => c.map(x => x.id===i.id ? {...x, selected:!selected} : x))}
+                      style={{width:18,height:18,accentColor:BSH.or,flexShrink:0,cursor:"pointer"}}/>
+                    {/* Icône + nom */}
+                    <span style={{fontSize:20,flexShrink:0}}>{i.ico}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:600,color:selected?BSH.creme:B.muted,lineHeight:1.3}}>{i.name}</div>
+                      <div style={{fontSize:11,color:B.gold}}>{prixU}€/u</div>
+                    </div>
+                    {/* Contrôles quantité */}
+                    <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+                      <button
+                        onClick={() => {
+                          if (i.qty <= 1) {
+                            if (window.confirm(`Supprimer "${i.name}" du panier ?`)) {
+                              setCart(c => c.filter(x => x.id !== i.id));
+                            }
+                          } else {
+                            setCart(c => c.map(x => x.id===i.id ? {...x, qty:x.qty-1} : x));
+                          }
+                        }}
+                        style={{width:28,height:28,borderRadius:8,border:`1px solid ${BSH.line}`,background:"rgba(255,255,255,0.07)",color:BSH.creme,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:SA}}>
+                        −
+                      </button>
+                      <span style={{minWidth:20,textAlign:"center",fontSize:13,fontWeight:700,color:selected?BSH.creme:B.muted}}>{i.qty}</span>
+                      <button
+                        onClick={() => setCart(c => c.map(x => x.id===i.id ? {...x, qty:x.qty+1} : x))}
+                        style={{width:28,height:28,borderRadius:8,border:`1px solid ${BSH.line}`,background:"rgba(255,255,255,0.07)",color:BSH.creme,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:SA}}>
+                        +
+                      </button>
+                    </div>
+                    {/* Sous-total article */}
+                    <div style={{textAlign:"right",flexShrink:0,minWidth:48}}>
+                      <div style={{fontSize:13,fontWeight:700,color:selected?B.gold:B.muted}}>{prixU*i.qty}€</div>
+                      <button onClick={() => setCart(c => c.filter(x => x.id !== i.id))}
+                        style={{background:"none",border:"none",cursor:"pointer",color:B.muted,fontSize:11,marginTop:2,fontFamily:SA,padding:0}}>
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* ── Total sélectionnés */}
+              <div style={{margin:"14px 0 6px",padding:"10px 12px",background:`${BSH.bord}15`,border:`1px solid ${BSH.line}`,borderRadius:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:12,color:B.muted}}>
+                    Total sélectionné ({cart.filter(i=>i.selected!==false).length} article{cart.filter(i=>i.selected!==false).length!==1?"s":""})
+                  </span>
+                  <span style={{fontSize:22,fontWeight:700,color:B.gold,fontFamily:FS}}>
+                    {cart.filter(i=>i.selected!==false).reduce((s,i)=>(s+(i.promo||i.prix)*i.qty),0)}€
+                  </span>
                 </div>
-              </div>
-            ))}
-            <div style={{display:"flex",justifyContent:"space-between",margin:"14px 0 16px"}}>
-              <span style={{fontSize:16,color:B.cream,fontFamily:FS}}>Total</span>
-              <span style={{fontSize:22,fontWeight:700,color:B.gold,fontFamily:FS}}>{cartT}€</span>
-            </div>
-            {/* Nom client */}
-            <div style={{marginBottom:12}}>
-              <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Votre prénom</label>
-              <input value={nomClient} onChange={e=>setNomClient(e.target.value)} placeholder="Prénom (facultatif)" style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
-            </div>
-            {/* Mode de paiement */}
-            <div style={{marginBottom:18}}>
-              <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:8}}>Mode de paiement</label>
-              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-                {[
-                  {id:"WhatsApp",ico:"💬",label:"WhatsApp"},
-                  {id:"SumUp",ico:"💳",label:"SumUp"},
-                  {id:"PayPal",ico:"🅿",label:"PayPal"},
-                  {id:"Revolut",ico:"🔵",label:"Revolut"},
-                  {id:"Espèces",ico:"💵",label:"Espèces"},
-                ].map(p => (
-                  <button key={p.id} onClick={() => setPmtChoisi(p.id)} style={{padding:"7px 12px",borderRadius:9,border:`2px solid ${pmtChoisi===p.id?BSH.or:BSH.line}`,background:pmtChoisi===p.id?`${BSH.or}22`:"transparent",color:pmtChoisi===p.id?BSH.or:BSH.cremeD,cursor:"pointer",fontSize:12,fontWeight:pmtChoisi===p.id?700:400,fontFamily:SA}}>
-                    {p.ico} {p.label}
-                  </button>
-                ))}
-              </div>
-              {pmtChoisi === "PayPal" && <div style={{fontSize:11,color:B.gold,marginTop:8}}>📧 ${ENV.PAYPAL}</div>}
-            </div>
-            {/* Bouton confirmer — dynamique selon mode paiement */}
-            {pmtChoisi === "SumUp" ? (
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                <Btn v="gold" full onClick={confirmerCommande} disabled={sumupLoading}>
-                  {sumupLoading ? "⏳ Redirection SumUp…" : `💳 Payer maintenant par SumUp — ${cartT}€`}
-                </Btn>
-                {sumupErreur && (
-                  <div style={{fontSize:11,color:"#ef4444",textAlign:"center",padding:"6px 8px",background:"rgba(239,68,68,0.08)",borderRadius:8}}>
-                    {sumupErreur}
+                {cart.some(i=>i.selected===false) && (
+                  <div style={{fontSize:10,color:B.muted,marginTop:4}}>
+                    {cart.filter(i=>i.selected===false).length} article{cart.filter(i=>i.selected===false).length!==1?"s":""} non sélectionné{cart.filter(i=>i.selected===false).length!==1?"s":""} conservé{cart.filter(i=>i.selected===false).length!==1?"s":""} dans le panier.
                   </div>
                 )}
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
               </div>
-            ) : (
-              <Btn v="gold" full onClick={confirmerCommande}>
-                {pmtChoisi === "WhatsApp" ? "💬 Envoyer la commande sur WhatsApp →" : `✅ Confirmer la commande — ${pmtChoisi}`}
-              </Btn>
-            )}
-            <p style={{textAlign:"center",fontSize:10,color:B.muted,marginTop:8,lineHeight:1.6}}>
-              Un numéro de commande sera généré automatiquement.<br/>La fondatrice recevra votre commande en temps réel.
-            </p>
-          </>}
+
+              {/* ── Nom client */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Votre prénom (facultatif)</label>
+                <input value={nomClient} onChange={e=>setNomClient(e.target.value)} placeholder="Prénom" style={{width:"100%",background:"rgba(255,255,255,0.05)",border:`1px solid ${BSH.line}`,borderRadius:10,padding:"9px 12px",color:BSH.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+              </div>
+
+              {/* ── Mode de paiement */}
+              <div style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:7}}>Mode de paiement</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                  {[
+                    {id:"WhatsApp",ico:"💬",label:"WhatsApp"},
+                    {id:"SumUp",ico:"💳",label:"SumUp"},
+                    {id:"PayPal",ico:"🅿",label:"PayPal"},
+                    {id:"Revolut",ico:"🔵",label:"Revolut"},
+                    {id:"Espèces",ico:"💵",label:"Espèces"},
+                  ].map(p => (
+                    <button key={p.id} onClick={() => setPmtChoisi(p.id)}
+                      style={{padding:"7px 12px",borderRadius:9,border:`1px solid ${pmtChoisi===p.id?BSH.or:BSH.line}`,background:pmtChoisi===p.id?`${BSH.or}22`:"transparent",color:pmtChoisi===p.id?BSH.or:BSH.cremeD,cursor:"pointer",fontSize:12,fontFamily:SA,fontWeight:pmtChoisi===p.id?700:400}}>
+                      {p.ico} {p.label}
+                    </button>
+                  ))}
+                </div>
+                {pmtChoisi === "PayPal" && <div style={{fontSize:11,color:B.gold,marginTop:8}}>📧 {ENV.PAYPAL}</div>}
+              </div>
+
+              {/* ── Bouton payer */}
+              {(() => {
+                const selectionnes = cart.filter(i => i.selected !== false);
+                const totalSel = selectionnes.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
+                const disabled = selectionnes.length === 0 || totalSel <= 0;
+                if (pmtChoisi === "SumUp") return (
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    <Btn v="gold" full onClick={confirmerCommande} disabled={sumupLoading||disabled}>
+                      {sumupLoading ? "⏳ Redirection SumUp…" : `💳 Payer par SumUp — ${totalSel}€`}
+                    </Btn>
+                    {sumupErreur && (
+                      <div style={{fontSize:11,color:"#ef4444",textAlign:"center",padding:"6px 8px",background:"rgba(239,68,68,0.1)",borderRadius:8}}>
+                        {sumupErreur}
+                      </div>
+                    )}
+                    <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
+                  </div>
+                );
+                return (
+                  <Btn v="gold" full onClick={confirmerCommande} disabled={disabled}>
+                    {disabled
+                      ? "Sélectionnez au moins un article"
+                      : pmtChoisi === "WhatsApp"
+                        ? `💬 Envoyer la commande — ${totalSel}€`
+                        : `✅ Confirmer — ${totalSel}€ · ${pmtChoisi}`}
+                  </Btn>
+                );
+              })()}
+              <p style={{textAlign:"center",fontSize:10,color:B.muted,marginTop:8,lineHeight:1.6}}>
+                Un numéro de commande sera généré automatiquement.<br/>La fondatrice recevra votre commande en temps réel.
+              </p>
+            </>}
         </Mdl>
       )}
       {modal?.type === "prod" && (
@@ -1644,13 +1733,11 @@ function CrmF({ user }) {
           <div style={{display:"flex",gap:8}}><Btn onClick={saveProspect} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
         </Mdl>
       )}
-            {ong==="activites"&&(
+      {ong==="activites"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <ActivitesCrmF/>
         </div>
       )}
-
-      {/* Fiche client complète — modale plein écran */}
       {ficheClient && (
         <FicheClientF
           client={ficheClient}
@@ -1660,10 +1747,6 @@ function CrmF({ user }) {
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════
-// FINANCES — Phase 1 Supabase
-// ═══════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════
 // FINANCES — Phase 1 Supabase
@@ -2724,6 +2807,7 @@ function EcranConnexion({ onConnecte }) {
         </div>
 
         <div style={{marginTop:20,fontSize:10,color:B.muted}}>Bella'Studio · ${ENV.VILLE}, ${ENV.PAYS} française</div>
+        <div style={{marginTop:8,fontSize:9,color:B.gold,letterSpacing:"0.1em",fontWeight:700}}>{BUILD_VERSION}</div>
       </div>
     </div>
   );
@@ -4857,6 +4941,7 @@ const NAV_F = [
   {id:"dashboard",   ico:"◈",  l:"Accueil"},
   {id:"crm",         ico:"👥", l:"CRM"},
   {id:"finances",    ico:"€",  l:"Finances"},
+  {id:"compta",      ico:"📒", l:"Compta"},
   {id:"events",      ico:"✨", l:"Events"},
   {id:"bsh",         ico:"✦",  l:"BSH"},
   {id:"struct",      ico:"🗂",  l:"Structure"},
@@ -5095,6 +5180,16 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
   );
 }
 
+// ── Wrapper Pré-comptabilité
+function ComptaWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/compta/ComptaF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Pré-comptabilité…</div>;
+  return <Comp user={user}/>;
+}
+
 // ── Wrapper Studio IA (chargement dynamique)
 function StudioIAWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
@@ -5237,31 +5332,15 @@ export default function BellaiaApp() {
     </div>
   );
 
-    if (preview === "client") {
+  if (preview === "client") {
     if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:36}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
       onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
-
-    if (activeUnivers==="bsh")
-  return (
-    <>
-      <BandeauApercu/>
-      <div style={{paddingTop:36}}>
-        <ClientBSH
-          produits={bshProd}
-          evenements={bshEvts}
-          onBack={()=>setActiveUnivers(null)}
-          onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}
-        />
-      </div>
-    </>
-  );
-
+    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="events") return <ClientEventsPortail onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
-  
   }
   if (preview === "hote")       return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
   if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
@@ -5280,6 +5359,7 @@ export default function BellaiaApp() {
     dashboard:   <DashF user={user} goto={setActiveF}/>,
     crm:         <CrmF user={user}/>,
     finances:    <FinancesP1 user={user}/>,
+    compta:      <ComptaWrapper user={user}/>,
     calendrier:  <CalendrierP1 user={user}/>,
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
