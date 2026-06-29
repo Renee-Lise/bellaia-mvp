@@ -4535,7 +4535,7 @@ function ClientEvents({ onBack, onNewCommande }) {
     const acompte = Math.round(montant * (p.acompte_pct||30) / 100);
     const cmd = {
       id: ref,
-      client: "${form.prenom} ${form.nom}".trim(),
+      client: form.prenom+" "+form.nom.trim(),
       tel: form.tel, email: form.email,
       produit: p.nom,
       categorie: p.categorie, sous: p.sous, type: p.type||"prestation",
@@ -4552,7 +4552,7 @@ function ClientEvents({ onBack, onNewCommande }) {
       message: form.message,
       pmt: "À confirmer",
       pole: "Events",
-      notes: "${type} — ${p.nom} — ${new Date().toLocaleString("fr-FR")}",
+      notes: type+" — "+p.nom+" — "+new Date().toLocaleString("fr-FR"),
       delai: p.delai_minimum || "",
     };
     if (onNewCommande) onNewCommande(cmd);
@@ -4570,7 +4570,7 @@ function ClientEvents({ onBack, onNewCommande }) {
     const catObj = EVENTS_CATEGORIES.find(c => c.id === cat);
     const prestas = EVENTS_PRESTATIONS.filter(p => p.categorie === cat || p.sous === cat);
     return (
-      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,${EV.night},#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
         <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:22}}>{catObj?.ico}</span>
@@ -4580,7 +4580,7 @@ function ClientEvents({ onBack, onNewCommande }) {
         </div>
         <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:12}}>
           {/* Bannière catégorie */}
-          <div style={{background:"linear-gradient(135deg,${EV.or}22,transparent)",border:"1px solid "+(EV.line),borderRadius:14,padding:"16px 18px"}}>
+          <div style={{background:"linear-gradient(135deg,"+EV.or+"22,transparent)",border:"1px solid "+(EV.line),borderRadius:14,padding:"16px 18px"}}>
             <div style={{fontSize:13,color:EV.cremeD,lineHeight:1.6}}>{catObj?.desc}</div>
           </div>
           {prestas.length === 0 && <div style={{textAlign:"center",color:EV.cremeD,fontSize:13,padding:20}}>Prestations bientôt disponibles · contactez-nous pour un devis.</div>}
@@ -4594,7 +4594,7 @@ function ClientEvents({ onBack, onNewCommande }) {
             <div style={{background:EV.verre,border:"1px solid "+(EV.line),borderRadius:14,padding:"14px 16px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
                 <div style={{fontFamily:FS,fontSize:14,fontWeight:700,color:EV.creme,flex:1}}>{p.nom}</div>
-                <span style={{background:"${EV.or}22",border:"1px solid "+(EV.or)+("55"),color:EV.or,borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,whiteSpace:"nowrap",marginLeft:8}}>{prixAff(p)}</span>
+                <span style={{background:EV.or+"22",border:"1px solid "+(EV.or)+("55"),color:EV.or,borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,whiteSpace:"nowrap",marginLeft:8}}>{prixAff(p)}</span>
               </div>
               <div style={{fontSize:12,color:EV.cremeD,marginBottom:8,lineHeight:1.5}}>{p.desc}</div>
               {p.note && <div style={{fontSize:10,color:EV.acc,marginBottom:10,fontStyle:"italic"}}>ℹ️ {p.note}</div>}
@@ -4626,18 +4626,18 @@ function ClientEvents({ onBack, onNewCommande }) {
       </div>
     );
     return (
-      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,${EV.night},#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
         <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
           <div style={{fontFamily:FS,fontSize:13,color:EV.or}}>✨ {type}</div>
           <button onClick={()=>setModal(null)} style={{background:"none",border:"1px solid "+(EV.line),borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>✕ Annuler</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:16}}>
           {/* Récap prestation */}
-          <div style={{background:"${EV.or}15",border:"1px solid "+(EV.line),borderRadius:12,padding:"12px 14px",marginBottom:16}}>
+          <div style={{background:EV.or+"15",border:"1px solid "+(EV.line),borderRadius:12,padding:"12px 14px",marginBottom:16}}>
             <div style={{fontSize:11,color:EV.cremeD,marginBottom:3}}>Prestation sélectionnée</div>
             <div style={{fontSize:14,fontWeight:700,color:EV.creme}}>{p.nom}</div>
             <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
-              <span style={{fontSize:10,color:EV.or,background:"${EV.or}20",borderRadius:4,padding:"2px 7px"}}>{prixAff(p)}</span>
+              <span style={{fontSize:10,color:EV.or,background:EV.or+"20",borderRadius:4,padding:"2px 7px"}}>{prixAff(p)}</span>
               <span style={{fontSize:10,color:EV.cremeD,background:"rgba(255,255,255,0.06)",borderRadius:4,padding:"2px 7px"}}>Acompte {p.acompte_pct||30}%</span>
               <span style={{fontSize:10,color:EV.cremeD,background:"rgba(255,255,255,0.06)",borderRadius:4,padding:"2px 7px"}}>Pôle Events</span>
             </div>
@@ -4664,7 +4664,7 @@ function ClientEvents({ onBack, onNewCommande }) {
           {inp("Message / précisions","message",{textarea:true,ph:"Décrivez votre projet, vos envies..."})}
           {/* Boutons */}
           <button onClick={soumettre} disabled={envoi} style={{width:"100%",background:EV.or,border:"none",borderRadius:10,padding:"13px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:envoi?"not-allowed":"pointer",fontFamily:SA,marginBottom:10,opacity:envoi?0.7:1}}>
-            {envoi?"Envoi en cours…":"✓ Envoyer ma ${type.toLowerCase()}"}
+            {envoi?"Envoi en cours…":"✓ Envoyer ma "+type.toLowerCase()}
           </button>
           <button onClick={()=>{
             const msg="✨ *${type.toUpperCase()} BELLA'EVENTS*
@@ -4686,7 +4686,7 @@ Thème : ${form.theme||"À définir"}";
 
   // Écran de succès
   if (succes) return (
-    <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,${EV.night},#070d0a 65%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center",fontFamily:SA}}>
+    <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center",fontFamily:SA}}>
       <div style={{fontSize:48,marginBottom:16}}>✨</div>
       <div style={{fontFamily:FS,fontSize:20,color:EV.or,marginBottom:8}}>Demande envoyée !</div>
       <div style={{fontSize:13,color:EV.cremeD,marginBottom:8,lineHeight:1.6}}>Votre demande a bien été reçue.</div>
@@ -4698,7 +4698,7 @@ Thème : ${form.theme||"À définir"}";
 
   // Vue liste des catégories
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,${EV.night},#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:EV.or,letterSpacing:2}}>✨ Bella'Events</div>
@@ -4708,7 +4708,7 @@ Thème : ${form.theme||"À définir"}";
       </div>
       <div style={{flex:1,overflowY:"auto",padding:16}}>
         {/* Bannière principale */}
-        <div style={{background:"linear-gradient(135deg,${EV.or}33,transparent)",border:"1px solid "+(EV.line),borderRadius:16,padding:"20px",marginBottom:16,textAlign:"center"}}>
+        <div style={{background:"linear-gradient(135deg,"+EV.or+"33,transparent)",border:"1px solid "+(EV.line),borderRadius:16,padding:"20px",marginBottom:16,textAlign:"center"}}>
           <div style={{fontSize:32,marginBottom:8}}>✨</div>
           <div style={{fontFamily:FS,fontSize:18,color:EV.or,marginBottom:6}}>Vos événements sur mesure</div>
           <div style={{fontSize:12,color:EV.cremeD,lineHeight:1.6}}>Décoration, papeterie, gâteaux et coordination. Demandez votre devis personnalisé.</div>
@@ -4761,7 +4761,7 @@ function ClientEventsPortail({ onBack }) {
   const TYPE_ICO = {prestation:"⚡",location:"🔑",creation:"✨",pack:"📦"};
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a14,${B.night} 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a14,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       {/* Header */}
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(6,95,70,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
@@ -4800,7 +4800,7 @@ function ClientEventsPortail({ onBack }) {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",gap:5,alignItems:"center",marginBottom:4}}>
-                    <span style={{background:"${TYPE_COL[i.type_item]}33",color:TYPE_COL[i.type_item],borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{TYPE_ICO[i.type_item]} {i.type_item}</span>
+                    <span style={{background:TYPE_COL[i.type_item]+"33",color:TYPE_COL[i.type_item],borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{TYPE_ICO[i.type_item]} {i.type_item}</span>
                   </div>
                   <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{i.nom}</div>
                   {i.description&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)",lineHeight:1.5}}>{i.description.slice(0,90)}{i.description.length>90?"…":""}</div>}
@@ -4825,7 +4825,7 @@ function ClientEventsPortail({ onBack }) {
       {modal&&(
         <Mdl title={modal.nom} onClose={()=>setModal(null)}>
           <div style={{textAlign:"center",marginBottom:14}}>
-            <span style={{background:"${TYPE_COL[modal.type_item]}33",color:TYPE_COL[modal.type_item],borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700}}>{TYPE_ICO[modal.type_item]} {modal.type_item}</span>
+            <span style={{background:TYPE_COL[modal.type_item]+"33",color:TYPE_COL[modal.type_item],borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700}}>{TYPE_ICO[modal.type_item]} {modal.type_item}</span>
           </div>
           {modal.description&&<p style={{color:B.muted,fontSize:13,lineHeight:1.7,marginBottom:16}}>{modal.description}</p>}
           <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px",marginBottom:16,textAlign:"center"}}>
@@ -4849,7 +4849,7 @@ function ClientStructurePortail({ onBack }) {
   const CATS = [...new Set(modeles.map(m=>m.categorie))];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#12100d,${B.night} 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#12100d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(146,64,14,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:"#d97706",letterSpacing:2}}>🏗 Bella'Structure</div>
@@ -5128,7 +5128,7 @@ function BoutonSumup({ montant, description, commande_id, client_id, univers, di
           display:"flex",alignItems:"center",justifyContent:"center",gap:8,
           opacity:disabled?0.5:1,
         }}>
-        {loading ? "⏳ Redirection…" : "💳 Payer avec SumUp — ${montant}€"}
+        {loading ? "⏳ Redirection…" : "💳 Payer avec SumUp — "+montant+"€"}
       </button>
       {erreur&&<div style={{fontSize:11,color:"#ef4444",textAlign:"center"}}>{erreur}</div>}
       <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
@@ -5172,7 +5172,7 @@ function ErpProjetsF({ user }) {
   });
 
   const prioriteColor = p => ({ urgente:"#ef4444",haute:B.warning,normale:B.violetL,basse:B.muted })[p]||B.muted;
-  const statutColor   = s => ({ en_cours:"${B.violet}25",validé:"rgba(80,180,120,0.2)",backlog:"rgba(80,80,80,0.2)",en_attente:"rgba(201,168,76,0.2)",en_validation:"rgba(59,130,246,0.2)",archivé:"rgba(80,80,80,0.15)" })[s]||"transparent";
+  const statutColor   = s => ({ en_cours:B.violet+"25",validé:"rgba(80,180,120,0.2)",backlog:"rgba(80,80,80,0.2)",en_attente:"rgba(201,168,76,0.2)",en_validation:"rgba(59,130,246,0.2)",archivé:"rgba(80,80,80,0.15)" })[s]||"transparent";
   const statutTxt     = s => ({ en_cours:B.violetL,validé:B.success,backlog:B.muted,en_attente:B.warning,en_validation:"#60a5fa",archivé:B.muted })[s]||B.muted;
 
   const save = async () => {
@@ -5198,7 +5198,7 @@ function ErpProjetsF({ user }) {
 
       {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
-        {[{l:"En cours",v:k.en_cours||0,c:B.violetL},{l:"Urgents",v:k.urgents||0,c:"#ef4444"},{l:"En retard",v:k.en_retard||0,c:B.warning},{l:"Backlog",v:k.backlog||0},{l:"ChatGPT",v:k.depuis_chatgpt||0},{l:"Avancement",v:"${k.avancement_moyen||0}%",c:B.gold}].map(s=>(
+        {[{l:"En cours",v:k.en_cours||0,c:B.violetL},{l:"Urgents",v:k.urgents||0,c:"#ef4444"},{l:"En retard",v:k.en_retard||0,c:B.warning},{l:"Backlog",v:k.backlog||0},{l:"ChatGPT",v:k.depuis_chatgpt||0},{l:"Avancement",v:k.avancement_moyen||0+"%",c:B.gold}].map(s=>(
           <div key={s.l} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 10px",textAlign:"center"}}>
             <div style={{fontSize:17,fontWeight:900,color:s.c||B.cream,fontFamily:"'Cormorant Garamond',serif"}}>{s.v}</div>
             <div style={{fontSize:9,color:B.muted}}>{s.l}</div>
@@ -5217,13 +5217,13 @@ function ErpProjetsF({ user }) {
       {!loading&&projetsFiltres.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucun projet</div>}
 
       {projetsFiltres.map(p=>(
-        <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"12px 14px",borderLeft:"3px solid ${prioriteColor(p.priorite)}"}}>
+        <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"12px 14px",borderLeft:"3px solid "+prioriteColor(p.priorite)}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:3}}>{p.titre}</div>
               <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:4}}>
                 <span style={{background:statutColor(p.statut),color:statutTxt(p.statut),borderRadius:99,padding:"2px 7px",fontSize:9,fontWeight:700}}>{p.statut}</span>
-                {p.univers&&<span style={{background:"${B.violet}18",color:B.violetL,borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{p.univers}</span>}
+                {p.univers&&<span style={{background:B.violet+"18",color:B.violetL,borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{p.univers}</span>}
                 {p.source&&p.source!=="Interne"&&<span style={{background:"rgba(201,168,76,0.15)",color:B.gold,borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>📎 {p.source}</span>}
               </div>
               {p.echeance&&<div style={{fontSize:10,color:new Date(p.echeance)<new Date()?B.danger:B.muted}}>📅 {fmt(p.echeance)}</div>}
@@ -5238,7 +5238,7 @@ function ErpProjetsF({ user }) {
           </div>
           {/* Barre d'avancement */}
           <div style={{background:"rgba(255,255,255,0.08)",borderRadius:4,height:5,overflow:"hidden"}}>
-            <div style={{background:"linear-gradient(90deg,${B.violet},${B.gold})",height:"100%",width:"${p.avancement||0}%",borderRadius:4,transition:"width 0.3s"}}/>
+            <div style={{background:"linear-gradient(90deg,"+B.violet+","+B.gold+")",height:"100%",width:p.avancement||0+"%",borderRadius:4,transition:"width 0.3s"}}/>
           </div>
           <div style={{fontSize:9,color:B.muted,marginTop:3}}>{p.avancement||0}% complété</div>
         </div>
@@ -5258,7 +5258,7 @@ function ErpProjetsF({ user }) {
             <Fld label="Priorité"><Sel value={form.priorite||"normale"} onChange={e=>setForm({...form,priorite:e.target.value})} options={PRIORITES}/></Fld>
           </div>
           <Fld label="Échéance"><Inp type="date" value={form.echeance||""} onChange={e=>setForm({...form,echeance:e.target.value})}/></Fld>
-          <Fld label={"Avancement : ${form.avancement||0}%"}>
+          <Fld label={"Avancement : "+form.avancement||0+"%"}>
             <input type="range" min={0} max={100} value={form.avancement||0} onChange={e=>setForm({...form,avancement:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/>
           </Fld>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
@@ -5319,7 +5319,7 @@ function ErpTachesF({ user }) {
       {!loading&&tachesFiltres.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>✅ Aucune tâche en attente</div>}
 
       {tachesFiltres.map(t=>(
-        <div key={t.id} style={{background:B.card,border:"1px solid "+(urgenceColor(t.niveau_urgence))+("33"),borderRadius:12,padding:"11px 13px",borderLeft:"3px solid ${urgenceColor(t.niveau_urgence)}"}}>
+        <div key={t.id} style={{background:B.card,border:"1px solid "+(urgenceColor(t.niveau_urgence))+("33"),borderRadius:12,padding:"11px 13px",borderLeft:"3px solid "+urgenceColor(t.niveau_urgence)}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{flex:1}}>
               <div style={{fontSize:12,fontWeight:700,color:B.cream,marginBottom:2}}>{prioriteIco(t.priorite)} {t.titre}</div>
@@ -5405,16 +5405,16 @@ function StocksF({ user }) {
       const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const token = getToken();
       if (form._edit) {
-        await fetch("${SB_URL}/rest/v1/stocks?id=eq.${form._edit}", {
+        await fetch(SB_URL+"/rest/v1/stocks?id=eq."+form._edit, {
           method: "PATCH",
-          headers: { apikey: token, Authorization: "Bearer ${token}", "Content-Type": "application/json", Prefer: "return=minimal" },
+          headers: { apikey: token, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=minimal" },
           body: JSON.stringify({...payload, updated_at: new Date().toISOString()}),
         });
         setStocks(s => s.map(x => x.id === form._edit ? {...x,...payload,id:form._edit} : x));
       } else {
-        const r = await fetch("${SB_URL}/rest/v1/stocks", {
+        const r = await fetch(SB_URL+"/rest/v1/stocks", {
           method: "POST",
-          headers: { apikey: token, Authorization: "Bearer ${token}", "Content-Type": "application/json", Prefer: "return=representation" },
+          headers: { apikey: token, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
           body: JSON.stringify(payload),
         });
         const [created] = await r.json();
@@ -5433,7 +5433,7 @@ function StocksF({ user }) {
           <div style={{fontSize:10,color:B.muted}}>{stocks.length} articles · {critiques.length} critiques · {Math.round(valeurTotale)}€ valeur</div>
         </div>
         <button onClick={()=>{setForm({univers:"BSH",unite:"unité",quantite:0,quantite_min:1,statut:"actif"});setModal("edit");}}
-          style={{background:"linear-gradient(135deg,${B.violet},#9333ea)",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:SA}}>
+          style={{background:"linear-gradient(135deg,"+B.violet+",#9333ea)",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:SA}}>
           + Stock
         </button>
       </div>
@@ -5456,10 +5456,10 @@ function StocksF({ user }) {
         {[
           {l:"Total articles",v:stocks.length,c:B.violetL},
           {l:"Critiques",v:critiques.length,c:"#ef4444"},
-          {l:"Valeur stock",v:"${Math.round(valeurTotale)}€",c:B.gold},
+          {l:"Valeur stock",v:Math.round(valeurTotale)+"€",c:B.gold},
           {l:"Pôles",v:new Set(stocks.map(s=>s.univers)).size,c:"#0d9488"},
         ].map(k=>(
-          <div key={k.l} style={{flex:1,minWidth:70,background:"${k.c}12",border:"1px solid "+(k.c)+("30"),borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
+          <div key={k.l} style={{flex:1,minWidth:70,background:k.c+"12",border:"1px solid "+(k.c)+("30"),borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
             <div style={{fontSize:17,fontWeight:700,color:k.c,fontFamily:FS}}>{k.v}</div>
             <div style={{fontSize:9,color:B.muted,marginTop:2}}>{k.l}</div>
           </div>
@@ -5488,13 +5488,13 @@ function StocksF({ user }) {
           {stocksFiltres.map(s => {
             const critique = parseFloat(s.quantite) <= parseFloat(s.quantite_min);
             return (
-              <div key={s.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(critique?"rgba(239,68,68,0.4)":B.border),borderRadius:12,padding:"11px 13px",borderLeft:"3px solid ${critique?"#ef4444":B.violetL}"}}>
+              <div key={s.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(critique?"rgba(239,68,68,0.4)":B.border),borderRadius:12,padding:"11px 13px",borderLeft:"3px solid "+critique?"#ef4444":B.violetL}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:600,color:B.cream}}>{s.nom}</div>
                     <div style={{fontSize:10,color:B.muted,marginTop:2}}>{s.univers} · {s.categorie||"—"}</div>
                     <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
-                      {s.prix_vente>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"${B.gold}15",color:B.gold,fontWeight:700}}>Vente {s.prix_vente}€</span>}
+                      {s.prix_vente>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:B.gold+"15",color:B.gold,fontWeight:700}}>Vente {s.prix_vente}€</span>}
                       {s.prix_achat>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(255,255,255,0.07)",color:B.muted}}>Achat {s.prix_achat}€</span>}
                     </div>
                   </div>
@@ -5569,7 +5569,7 @@ function PlaceholderModule({ ico, nom, desc }) {
       <div style={{fontSize:52}}>{ico}</div>
       <div style={{fontFamily:FS,fontSize:18,fontWeight:800,color:B.cream,textAlign:"center"}}>{nom}</div>
       <div style={{fontSize:13,color:B.muted,textAlign:"center",lineHeight:1.6}}>{desc}</div>
-      <div style={{background:"${B.violet}18",border:"1px solid "+(B.border),borderRadius:12,padding:"12px 16px",textAlign:"center"}}>
+      <div style={{background:B.violet+"18",border:"1px solid "+(B.border),borderRadius:12,padding:"12px 16px",textAlign:"center"}}>
         <div style={{fontSize:11,color:B.mutedL}}>Module en préparation</div>
       </div>
     </div>
@@ -5715,7 +5715,7 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {CONTEXTES.map(ctx=>(
             <div key={ctx.id}
-              style={{background:B.card,border:"1px solid "+(ctx.couleur)+("25"),borderRadius:12,padding:"12px 14px",borderLeft:"3px solid ${ctx.couleur}",cursor:"pointer",transition:"all 0.15s"}}
+              style={{background:B.card,border:"1px solid "+(ctx.couleur)+("25"),borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+ctx.couleur,cursor:"pointer",transition:"all 0.15s"}}
               onClick={()=>setContextActif(ctx)}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div style={{flex:1}}>
@@ -5729,7 +5729,7 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
                   )}
                 </div>
                 <div style={{flexShrink:0,marginLeft:12}}>
-                  <div style={{background:"${ctx.couleur}20",border:"1px solid "+(ctx.couleur)+("40"),borderRadius:8,padding:"5px 12px",color:ctx.couleur,fontSize:11,fontWeight:700,fontFamily:SA,textAlign:"center"}}>
+                  <div style={{background:ctx.couleur+"20",border:"1px solid "+(ctx.couleur)+("40"),borderRadius:8,padding:"5px 12px",color:ctx.couleur,fontSize:11,fontWeight:700,fontFamily:SA,textAlign:"center"}}>
                     Aperçu →
                   </div>
                 </div>
@@ -5770,7 +5770,7 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
 
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>lancerApercu(contextActif)}
-                style={{flex:2,padding:"13px",borderRadius:12,border:"none",background:"linear-gradient(135deg,${contextActif.couleur},${B.violet})",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:SA}}>
+                style={{flex:2,padding:"13px",borderRadius:12,border:"none",background:"linear-gradient(135deg,"+contextActif.couleur+","+B.violet+")",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:SA}}>
                 🚀 Lancer l'aperçu
               </button>
               <button onClick={()=>setContextActif(null)}
@@ -5997,7 +5997,7 @@ export default function BellaiaApp() {
       {/* Header Fondatrice */}
       <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <div style={{width:30,height:30,borderRadius:9,background:"linear-gradient(135deg,${B.violet},${B.gold})",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
+          <div style={{width:30,height:30,borderRadius:9,background:"linear-gradient(135deg,"+B.violet+","+B.gold+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
           <div>
             <div style={{fontSize:13,fontWeight:900,color:B.cream,fontFamily:FS}}>Bellaïa</div>
             <div style={{fontSize:7,color:B.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
