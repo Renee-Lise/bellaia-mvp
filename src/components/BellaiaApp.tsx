@@ -3861,8 +3861,7 @@ function BibliothequeF({ user }) {
                     </div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:11,color:B.violetL,fontWeight:700}}>{pp.length} projet{pp.length!==1?"s":""}</div>
-                    <div style={{display:"flex",gap:4,marginTop:4}}>
+                    <div style={{display:"flex",gap:4}}>
                       <Btn sm v="ghost" onClick={()=>{setForm({...c,_edit:c.id});setModal("col");}}>✏</Btn>
                       <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("collections",c.id).then(rCol);}}>✕</Btn>
                     </div>
@@ -5011,12 +5010,10 @@ function ClientEvents({ onBack, onNewCommande }) {
         <div style={{fontSize:11,color:EV.cremeD,fontWeight:700,letterSpacing:"0.08em",marginBottom:10}}>NOS CATÉGORIES</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           {EVENTS_CATEGORIES.map(c => {
-            const nb = EVENTS_PRESTATIONS.filter(p => p.categorie===c.id || p.sous===c.id).length;
             return (
               <div key={c.id} onClick={()=>setCat(c.id)} style={{background:EV.verre,border:"1px solid "+(EV.line),borderRadius:14,padding:"16px 12px",cursor:"pointer",textAlign:"center"}}>
                 <div style={{fontSize:28,marginBottom:8}}>{c.ico}</div>
-                <div style={{fontSize:12,fontWeight:700,color:EV.creme,marginBottom:3}}>{c.nom}</div>
-                <div style={{fontSize:9,color:EV.cremeD}}>{nb>0 ? (nb)+" prestation"+(nb>1?"s":"") : "Sur devis"}</div>
+                <div style={{fontSize:12,fontWeight:700,color:EV.creme}}>{c.nom}</div>
               </div>
             );
           })}
