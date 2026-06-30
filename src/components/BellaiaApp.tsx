@@ -4552,7 +4552,7 @@ function ClientEvents({ onBack, onNewCommande }) {
       message: form.message,
       pmt: "À confirmer",
       pole: "Events",
-      notes: type+" — "+p.nom+" — "+new Date().toLocaleString("fr-FR"),
+      notes: type + " — " + p.nom + " — " + new Date().toLocaleString("fr-FR"),
       delai: p.delai_minimum || "",
     };
     if (onNewCommande) onNewCommande(cmd);
@@ -4667,14 +4667,16 @@ function ClientEvents({ onBack, onNewCommande }) {
             {envoi?"Envoi en cours…":"✓ Envoyer ma "+type.toLowerCase()}
           </button>
           <button onClick={()=>{
-            const msg="✨ *${type.toUpperCase()} BELLA'EVENTS*
-
-Prestation : ${p.nom}
-Tarif : ${prixAff(p)}
-Prénom : ${form.prenom}
-Tél : ${form.tel}
-Date : ${form.date||"À définir"}
-Thème : ${form.theme||"À définir"}";
+            const msg = [
+              "✨ *" + type.toUpperCase() + " BELLA'EVENTS*",
+              "",
+              "Prestation : " + p.nom,
+              "Tarif : " + prixAff(p),
+              "Prénom : " + form.prenom,
+              "Tél : " + form.tel,
+              "Date : " + (form.date || "À définir"),
+              "Thème : " + (form.theme || "À définir")
+            ].join("\n");
             window.open(WA(msg),"_blank");
           }} style={{width:"100%",background:"transparent",border:"1px solid "+(EV.line),borderRadius:10,padding:"11px",color:EV.cremeD,fontSize:12,cursor:"pointer",fontFamily:SA}}>
             💬 Contacter sur WhatsApp (optionnel)
