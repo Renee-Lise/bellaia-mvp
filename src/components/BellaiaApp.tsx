@@ -203,8 +203,8 @@ const EVENTS_ANNIV_FAMILLES = [
 const EVENTS_PRESTATIONS = [
   {id:"ev_kit_anniv", categorie:"papeterie", sous:"anniv", nom:"Kit anniversaire personnalisé", desc:"Papeterie complète (invitations, étiquettes, déco de table).", prix:22, unite:"kit", min_qte:10, acompte_pct:30, sur_devis:false, cout_revient:null, fournisseur:null, stock_lie:null, note:"Minimum 10 kits."},
   {id:"ev_gateau",    categorie:"gateaux",   sous:"gateaux", nom:"Gâteau personnalisé", desc:"Création sucrée sur mesure, pâte à sucre possible.", prix:45, unite:"pièce", min_qte:1, acompte_pct:50, sur_devis:false, prix_des:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"À partir de 45€ · acompte 50% · délai 1 mois si pâte à sucre."},
-  {id:"ev_deco_std",  categorie:"deco",      sous:"deco", nom:"Décoration complète", desc:"Mise en scène complète de votre événement.", prix:80, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, prix_des:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"À partir de 80€."},
-  {id:"ev_deco_prem", categorie:"deco",      sous:"deco", nom:"Décoration premium", desc:"Décoration haut de gamme selon l'ampleur du projet.", prix:200, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, prix_jusqua:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"Jusqu'à 200€ selon le projet."},
+  {id:"ev_deco_std",  categorie:"deco",      sous:"deco", nom:"Décoration complète", desc:"Mise en scène complète de votre événement.", prix:80, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, prix_des:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"À partir de 80€.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"ev_deco_prem", categorie:"deco",      sous:"deco", nom:"Décoration premium", desc:"Décoration haut de gamme selon l'ampleur du projet.", prix:200, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, prix_jusqua:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"Jusqu'à 200€ selon le projet.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   // Sur devis (prix non validés)
   {id:"ev_baby",      categorie:"baby",      sous:"baby", nom:"Pack Baby Shower", desc:"Décoration et papeterie pour baby shower.", prix:null, acompte_pct:30, sur_devis:true},
   {id:"ev_bapteme",   categorie:"bapteme",   sous:"bapteme", nom:"Pack Baptême", desc:"Décoration et papeterie pour baptême.", prix:null, acompte_pct:30, sur_devis:true},
@@ -212,74 +212,74 @@ const EVENTS_PRESTATIONS = [
   {id:"ev_gender",    categorie:"gender",    sous:"gender", nom:"Pack Gender Reveal", desc:"Mise en scène révélation de genre.", prix:null, acompte_pct:30, sur_devis:true},
   {id:"ev_mariage",   categorie:"mariage",   sous:"mariage", nom:"Prestations Mariage", desc:"Décoration, papeterie et coordination mariage.", prix:null, acompte_pct:30, sur_devis:true},
   {id:"ev_location",  categorie:"location",  sous:"location", nom:"Location de matériel", desc:"Arches, mobilier, accessoires événementiels.", prix:null, acompte_pct:30, sur_devis:true},
-  {id:"ev_ballons",   categorie:"ballons",   sous:"ballons", nom:"Arche de ballons", desc:"Compositions et arches de ballons sur mesure.", prix:null, acompte_pct:30, sur_devis:true},
-  {id:"ev_cadeaux",   categorie:"cadeaux",   sous:"cadeaux", nom:"Cadeaux invités", desc:"Petites attentions personnalisées.", prix:null, acompte_pct:30, sur_devis:true},
+  {id:"ev_ballons",   categorie:"ballons",   sous:"ballons", nom:"Arche de ballons", desc:"Compositions et arches de ballons sur mesure.", prix:null, acompte_pct:30, sur_devis:true, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"ev_cadeaux",   categorie:"cadeaux",   sous:"cadeaux", nom:"Cadeaux invités", desc:"Petites attentions personnalisées.", prix:null, acompte_pct:30, sur_devis:true, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
 
   // ── ARTICLES À L'UNITÉ (commandables seuls) ──
   // Gourmandises personnalisées
-  {id:"u_chips",     categorie:"unite", sous:"gourmandises", type:"unite", nom:"Chips personnalisés", desc:"Sachet de chips personnalisé.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_popcorn",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Popcorn personnalisé", desc:"Popcorn en contenant personnalisé.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_bonbons",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini bonbons", desc:"Sachets de mini bonbons personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_haribo",    categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini Haribo", desc:"Mini sachets Haribo personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_nutella",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini Nutella", desc:"Mini pots Nutella personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_kinder",    categorie:"unite", sous:"gourmandises", type:"unite", nom:"Kinder Bueno", desc:"Kinder Bueno personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_choco",     categorie:"unite", sous:"gourmandises", type:"unite", nom:"Chocolats", desc:"Chocolats personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_pringles",  categorie:"unite", sous:"gourmandises", type:"unite", nom:"Pringles", desc:"Pringles personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_chips",     categorie:"unite", sous:"gourmandises", type:"unite", nom:"Chips personnalisés", desc:"Sachet de chips personnalisé.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_popcorn",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Popcorn personnalisé", desc:"Popcorn en contenant personnalisé.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_bonbons",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini bonbons", desc:"Sachets de mini bonbons personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_haribo",    categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini Haribo", desc:"Mini sachets Haribo personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_nutella",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini Nutella", desc:"Mini pots Nutella personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_kinder",    categorie:"unite", sous:"gourmandises", type:"unite", nom:"Kinder Bueno", desc:"Kinder Bueno personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_choco",     categorie:"unite", sous:"gourmandises", type:"unite", nom:"Chocolats", desc:"Chocolats personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_pringles",  categorie:"unite", sous:"gourmandises", type:"unite", nom:"Pringles", desc:"Pringles personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   // Boissons personnalisées
-  {id:"u_eau",       categorie:"unite", sous:"boissons", type:"unite", nom:"Bouteille d'eau personnalisée", desc:"Étiquette personnalisée sur bouteille d'eau.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_caprisun",  categorie:"unite", sous:"boissons", type:"unite", nom:"Capri-Sun personnalisé", desc:"Capri-Sun avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_fruitshoot",categorie:"unite", sous:"boissons", type:"unite", nom:"Fruit Shoot personnalisé", desc:"Fruit Shoot personnalisé.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_champomy",  categorie:"unite", sous:"boissons", type:"unite", nom:"Champomy personnalisé", desc:"Champomy avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_jus",       categorie:"unite", sous:"boissons", type:"unite", nom:"Jus personnalisé", desc:"Jus avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_minibouteille",categorie:"unite", sous:"boissons", type:"unite", nom:"Mini bouteilles", desc:"Mini bouteilles personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_eau",       categorie:"unite", sous:"boissons", type:"unite", nom:"Bouteille d'eau personnalisée", desc:"Étiquette personnalisée sur bouteille d'eau.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_caprisun",  categorie:"unite", sous:"boissons", type:"unite", nom:"Capri-Sun personnalisé", desc:"Capri-Sun avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"u_fruitshoot",categorie:"unite", sous:"boissons", type:"unite", nom:"Fruit Shoot personnalisé", desc:"Fruit Shoot personnalisé.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"u_champomy",  categorie:"unite", sous:"boissons", type:"unite", nom:"Champomy personnalisé", desc:"Champomy avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","mariage"]},
+  {id:"u_jus",       categorie:"unite", sous:"boissons", type:"unite", nom:"Jus personnalisé", desc:"Jus avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_minibouteille",categorie:"unite", sous:"boissons", type:"unite", nom:"Mini bouteilles", desc:"Mini bouteilles personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   // Contenants
-  {id:"u_boitepop",  categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes popcorn", desc:"Boîtes à popcorn personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_boitecad",  categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes cadeaux", desc:"Boîtes cadeaux personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_gablebox",  categorie:"unite", sous:"contenants", type:"unite", nom:"Gable box", desc:"Boîtes gable box personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_sacs",      categorie:"unite", sous:"contenants", type:"unite", nom:"Sacs cadeaux", desc:"Sacs cadeaux personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_pyramides", categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes pyramides", desc:"Boîtes pyramides personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_sachets",   categorie:"unite", sous:"contenants", type:"unite", nom:"Sachets personnalisés", desc:"Sachets personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_boitepop",  categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes popcorn", desc:"Boîtes à popcorn personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_boitecad",  categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes cadeaux", desc:"Boîtes cadeaux personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_gablebox",  categorie:"unite", sous:"contenants", type:"unite", nom:"Gable box", desc:"Boîtes gable box personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_sacs",      categorie:"unite", sous:"contenants", type:"unite", nom:"Sacs cadeaux", desc:"Sacs cadeaux personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_pyramides", categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes pyramides", desc:"Boîtes pyramides personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_sachets",   categorie:"unite", sous:"contenants", type:"unite", nom:"Sachets personnalisés", desc:"Sachets personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   // Goodies
   {id:"u_bulles",    categorie:"unite", sous:"goodies", type:"unite", nom:"Bulles de savon", desc:"Tubes à bulles personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
   {id:"u_crayons",   categorie:"unite", sous:"goodies", type:"unite", nom:"Crayons", desc:"Crayons personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
   {id:"u_coloriages",categorie:"unite", sous:"goodies", type:"unite", nom:"Coloriages", desc:"Livrets de coloriage personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
   {id:"u_jeux",      categorie:"unite", sous:"goodies", type:"unite", nom:"Petits jeux", desc:"Petits jeux pour invités.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_cadeauxinv",categorie:"unite", sous:"goodies", type:"unite", nom:"Cadeaux invités", desc:"Cadeaux pour les invités.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_cadeauxinv",categorie:"unite", sous:"goodies", type:"unite", nom:"Cadeaux invités", desc:"Cadeaux pour les invités.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   // Papeterie simple
-  {id:"u_stickers",  categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Stickers", desc:"Stickers personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"u_etiquettes",categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Étiquettes", desc:"Étiquettes personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_stickers",  categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Stickers", desc:"Stickers personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_etiquettes",categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Étiquettes", desc:"Étiquettes personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   {id:"u_toppers",   categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Toppers", desc:"Toppers personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
   // Options décoratives
   {id:"u_minidecor", categorie:"unite", sous:"options_deco", type:"option", nom:"Mini décor", desc:"Petits éléments décoratifs.", prix:null, sur_devis:true, acompte_pct:30},
 
   // ── DÉTAIL DES CATÉGORIES (prestations spécifiques) ──
   // Anniversaires (détail)
-  {id:"an_kit",      categorie:"anniv", sous:"anniv", type:"pack", nom:"Kit invité personnalisé", desc:"Kit complet pour chaque invité.", prix:22, unite:"kit", min_qte:10, acompte_pct:30, sur_devis:false, note:"Minimum 10 kits."},
+  {id:"an_kit",      categorie:"anniv", sous:"anniv", type:"pack", nom:"Kit invité personnalisé", desc:"Kit complet pour chaque invité.", prix:22, unite:"kit", min_qte:10, acompte_pct:30, sur_devis:false, note:"Minimum 10 kits.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   {id:"an_formule",  categorie:"anniv", sous:"anniv", type:"prestation", nom:"Formule complète anniversaire", desc:"Organisation complète sur devis.", prix:null, sur_devis:true, acompte_pct:30},
   // Papeterie (détail)
-  {id:"pa_invit_num",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitations numériques", desc:"Invitations au format numérique.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"pa_invit_imp",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitations imprimées", desc:"Invitations imprimées personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"pa_remerc",   categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Cartes de remerciement", desc:"Cartes de remerciement personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"pa_menus",    categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Menus buffet", desc:"Menus de buffet personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"pa_affiches", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Affiches", desc:"Affiches personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"pa_fanions",  categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Fanions", desc:"Guirlandes de fanions personnalisées.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"pa_marqueplace",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Marque-place", desc:"Marque-places personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"pa_invit_num",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitations numériques", desc:"Invitations au format numérique.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"pa_invit_imp",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitations imprimées", desc:"Invitations imprimées personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"pa_remerc",   categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Cartes de remerciement", desc:"Cartes de remerciement personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"pa_menus",    categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Menus buffet", desc:"Menus de buffet personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","bapteme","commu","mariage"]},
+  {id:"pa_affiches", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Affiches", desc:"Affiches personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"pa_fanions",  categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Fanions", desc:"Guirlandes de fanions personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"pa_marqueplace",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Marque-place", desc:"Marque-places personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["bapteme","commu","mariage"]},
   // Décoration (détail)
   {id:"de_minidecor",categorie:"deco", sous:"deco", type:"prestation", nom:"Mini décor", desc:"Décoration légère.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"de_table",    categorie:"deco", sous:"deco", type:"prestation", nom:"Décoration de table", desc:"Mise en scène de table.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"de_backdrop", categorie:"deco", sous:"deco", type:"prestation", nom:"Backdrop", desc:"Toile de fond décorative.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"de_sweettable",categorie:"deco", sous:"deco", type:"prestation", nom:"Sweet table", desc:"Table sucrée décorée.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"de_sceno",    categorie:"deco", sous:"deco", type:"prestation", nom:"Scénographie complète", desc:"Mise en scène complète de l'événement.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"de_table",    categorie:"deco", sous:"deco", type:"prestation", nom:"Décoration de table", desc:"Mise en scène de table.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"de_backdrop", categorie:"deco", sous:"deco", type:"prestation", nom:"Backdrop", desc:"Toile de fond décorative.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"de_sweettable",categorie:"deco", sous:"deco", type:"prestation", nom:"Sweet table", desc:"Table sucrée décorée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"de_sceno",    categorie:"deco", sous:"deco", type:"prestation", nom:"Scénographie complète", desc:"Mise en scène complète de l'événement.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   // Gâteaux (détail)
   {id:"ga_classique",categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Gâteau classique", desc:"Gâteau personnalisé classique.", prix:45, prix_des:true, sur_devis:false, acompte_pct:50, note:"À partir de 45€ · acompte 50%."},
-  {id:"ga_cakedesign",categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Cake design thème", desc:"Gâteau cake design sur thème.", prix:null, sur_devis:true, acompte_pct:50},
+  {id:"ga_cakedesign",categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Cake design thème", desc:"Gâteau cake design sur thème.", prix:null, sur_devis:true, acompte_pct:50, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   {id:"ga_sculpte",  categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Gâteau sculpté", desc:"Gâteau sculpté sur mesure.", prix:null, sur_devis:true, acompte_pct:50},
-  {id:"ga_cupcakes", categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Cupcakes", desc:"Cupcakes personnalisés.", prix:null, sur_devis:true, acompte_pct:50},
-  {id:"ga_toppers",  categorie:"gateaux", sous:"gateaux", type:"option", nom:"Toppers gâteau", desc:"Toppers décoratifs pour gâteau.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"ga_cupcakes", categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Cupcakes", desc:"Cupcakes personnalisés.", prix:null, sur_devis:true, acompte_pct:50, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"ga_toppers",  categorie:"gateaux", sous:"gateaux", type:"option", nom:"Toppers gâteau", desc:"Toppers décoratifs pour gâteau.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   // Location (détail)
-  {id:"lo_supports", categorie:"location", sous:"location", type:"prestation", nom:"Supports", desc:"Location de supports.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"lo_presentoirs",categorie:"location", sous:"location", type:"prestation", nom:"Présentoirs", desc:"Location de présentoirs.", prix:null, sur_devis:true, acompte_pct:30},
-  {id:"lo_arches",   categorie:"location", sous:"location", type:"prestation", nom:"Arches", desc:"Location d'arches.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"lo_supports", categorie:"location", sous:"location", type:"prestation", nom:"Supports", desc:"Location de supports.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"lo_presentoirs",categorie:"location", sous:"location", type:"prestation", nom:"Présentoirs", desc:"Location de présentoirs.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"lo_arches",   categorie:"location", sous:"location", type:"prestation", nom:"Arches", desc:"Location d'arches.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   {id:"lo_table",    categorie:"location", sous:"location", type:"prestation", nom:"Matériel de table", desc:"Location de matériel de table.", prix:null, sur_devis:true, acompte_pct:30},
   {id:"lo_deco",     categorie:"location", sous:"location", type:"prestation", nom:"Éléments décoratifs", desc:"Location d'éléments décoratifs.", prix:null, sur_devis:true, acompte_pct:30},
 
@@ -337,12 +337,12 @@ const EVENTS_PRESTATIONS = [
   {id:"fo_mariage_signature", categorie:"formules", sous:"formules", type:"pack", nom:"Pack mariage signature", desc:"Formule mariage avec décoration et papeterie coordonnées.", prix:500, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 500€."},
 
   // ── À L'UNITÉ — Options tarifées ajoutées ──
-  {id:"u_tube_bulles",   categorie:"unite", sous:"goodies", type:"unite", nom:"Tube à bulles personnalisé", desc:"Tube à bulles de savon personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
-  {id:"u_assiette",      categorie:"unite", sous:"contenants", type:"unite", nom:"Assiette personnalisée", desc:"Assiette jetable personnalisée.", prix:1.8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
-  {id:"u_timbale",       categorie:"unite", sous:"contenants", type:"unite", nom:"Timbale personnalisée", desc:"Gobelet/timbale personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
-  {id:"u_popcorn_unite", categorie:"unite", sous:"gourmandises", type:"unite", nom:"Pop-corn personnalisé", desc:"Pop-corn en contenant personnalisé, à l'unité.", prix:3, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
-  {id:"u_sac_invite",    categorie:"unite", sous:"contenants", type:"unite", nom:"Sac cadeau invité", desc:"Sac cadeau personnalisé pour invités.", prix:4, prix_max:8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, note:"De 4€ à 8€ selon le format."},
-  {id:"u_cake_topper",   categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Cake topper personnalisé", desc:"Topper décoratif personnalisé pour gâteau.", prix:10, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"u_tube_bulles",   categorie:"unite", sous:"goodies", type:"unite", nom:"Tube à bulles personnalisé", desc:"Tube à bulles de savon personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_assiette",      categorie:"unite", sous:"contenants", type:"unite", nom:"Assiette personnalisée", desc:"Assiette jetable personnalisée.", prix:1.8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_timbale",       categorie:"unite", sous:"contenants", type:"unite", nom:"Timbale personnalisée", desc:"Gobelet/timbale personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_popcorn_unite", categorie:"unite", sous:"gourmandises", type:"unite", nom:"Pop-corn personnalisé", desc:"Pop-corn en contenant personnalisé, à l'unité.", prix:3, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_sac_invite",    categorie:"unite", sous:"contenants", type:"unite", nom:"Sac cadeau invité", desc:"Sac cadeau personnalisé pour invités.", prix:4, prix_max:8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, note:"De 4€ à 8€ selon le format.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_cake_topper",   categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Cake topper personnalisé", desc:"Topper décoratif personnalisé pour gâteau.", prix:10, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   {id:"u_etiquette_sticker", categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Étiquette bouteille / sticker", desc:"Étiquette ou sticker personnalisé.", prix:1, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
 ];
 
@@ -4319,6 +4319,8 @@ const BE_STATUTS_CMD = ["Demande reçue","Devis envoyé","Acompte reçu","En pr�
 
 function BellaEventsF({ user }) {
   const [ong, setOng] = useState("demandes");
+  const [modalDevis, setModalDevis] = useState(false);
+  const [formDevis, setFormDevis] = useState({});
   // Demandes reçues via le formulaire client (table events_demandes)
   const { data: demandesEvents, loading: lDem, reload: rDem } = useP1Data("events_demandes", { select:"*", order:"created_at.desc", limit:100 }, []);
   const nbNouvelles = demandesEvents.filter(c => c.statut === "Nouvelle demande").length;
@@ -4341,6 +4343,44 @@ function BellaEventsF({ user }) {
       module: "events_demandes", entiteId: d.id, entiteRef: d.reference,
       action: "changement_statut", ancienStatut, nouveauStatut: statut, user,
     });
+    rDem();
+  };
+
+  // Création manuelle d'un devis interne par la fondatrice — écrit dans events_demandes
+  const creerDevisInterne = async () => {
+    if (!formDevis.client?.trim() || !formDevis.tel?.trim()) { alert("Client et téléphone requis."); return; }
+    const ref = "EV" + Date.now().toString().slice(-6);
+    const reference = await genererReference("BE");
+    const montant = parseFloat(formDevis.montant) || 0;
+    const acompte = parseFloat(formDevis.acompte) || 0;
+    const demande = {
+      id: ref,
+      reference,
+      client_prenom: formDevis.client.trim(),
+      client_nom: "",
+      client_tel: formDevis.tel.trim(),
+      client_email: formDevis.email || "",
+      presta_nom: formDevis.prestation || "Devis interne",
+      presta_categorie: formDevis.categorie || "",
+      montant, acompte, solde: montant - acompte,
+      type_demande: "Devis interne",
+      statut: formDevis.statut || "À traiter",
+      date_souhaitee: formDevis.date || null,
+      heure_souhaitee: formDevis.heure || "",
+      nb_invites: formDevis.invites || "",
+      theme: formDevis.theme || "",
+      couleurs: formDevis.couleurs || "",
+      budget: formDevis.budget || "",
+      notes_internes: "Créé manuellement par "+(user?.role==="assistante"?"l'assistante":"la fondatrice"),
+    };
+    await sbPost("events_demandes", demande);
+    await ecrireAudit({
+      module: "events_demandes", entiteId: ref, entiteRef: reference,
+      action: "creation", nouveauStatut: demande.statut,
+      commentaire: "Devis créé manuellement côté fondatrice", user,
+    });
+    setModalDevis(false);
+    setFormDevis({});
     rDem();
   };
 
@@ -4386,7 +4426,10 @@ function BellaEventsF({ user }) {
       {/* Onglet Demandes */}
       {ong==="demandes" && (
         <div style={{display:"flex",flexDirection:"column",gap:9}}>
-          <div style={{fontSize:13,fontWeight:800,color:B.cream,marginBottom:4}}>Demandes de devis & réservations ({demandesEvents.length})</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <div style={{fontSize:13,fontWeight:800,color:B.cream}}>Demandes de devis & réservations ({demandesEvents.length})</div>
+            <Btn sm v="gold" onClick={()=>{setFormDevis({statut:"À traiter"});setModalDevis(true);}}>+ Créer un devis</Btn>
+          </div>
           {lDem && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {!lDem && demandesEvents.length===0 && <div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucune demande reçue — elles apparaîtront ici dès qu'un client utilisera le formulaire Bella'Events.</div>}
           {demandesEvents.map(c=>(
@@ -4423,6 +4466,38 @@ function BellaEventsF({ user }) {
       {ong==="catalogue" && <BellaEventsCatalogue user={user}/>}
       {ong==="commandes" && <BellaEventsCommandes user={user}/>}
       {ong==="documents" && <BellaEventsDocuments user={user}/>}
+
+      {/* Modale création devis interne fondatrice */}
+      {modalDevis && (
+        <Mdl title="Créer un devis" onClose={()=>{setModalDevis(false);setFormDevis({});}}>
+          <Fld label="Client *"><Inp value={formDevis.client||""} onChange={e=>setFormDevis({...formDevis,client:e.target.value})} placeholder="Nom du client"/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Téléphone *"><Inp value={formDevis.tel||""} onChange={e=>setFormDevis({...formDevis,tel:e.target.value})} placeholder="+594..."/></Fld>
+            <Fld label="Email"><Inp type="email" value={formDevis.email||""} onChange={e=>setFormDevis({...formDevis,email:e.target.value})} placeholder="email@..."/></Fld>
+          </div>
+          <Fld label="Prestation"><Inp value={formDevis.prestation||""} onChange={e=>setFormDevis({...formDevis,prestation:e.target.value})} placeholder="Nom de la prestation"/></Fld>
+          <Fld label="Catégorie"><Sel value={formDevis.categorie||""} onChange={e=>setFormDevis({...formDevis,categorie:e.target.value})} options={["", ...EVENTS_CATEGORIES.map(c=>c.id)]}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Date"><Inp type="date" value={formDevis.date||""} onChange={e=>setFormDevis({...formDevis,date:e.target.value})}/></Fld>
+            <Fld label="Heure"><Inp value={formDevis.heure||""} onChange={e=>setFormDevis({...formDevis,heure:e.target.value})} placeholder="14h00"/></Fld>
+          </div>
+          <Fld label="Nombre d'invités"><Inp type="number" value={formDevis.invites||""} onChange={e=>setFormDevis({...formDevis,invites:e.target.value})}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Thème"><Inp value={formDevis.theme||""} onChange={e=>setFormDevis({...formDevis,theme:e.target.value})}/></Fld>
+            <Fld label="Couleurs"><Inp value={formDevis.couleurs||""} onChange={e=>setFormDevis({...formDevis,couleurs:e.target.value})}/></Fld>
+          </div>
+          <Fld label="Budget annoncé (€)"><Inp type="number" value={formDevis.budget||""} onChange={e=>setFormDevis({...formDevis,budget:e.target.value})}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Montant (€)"><Inp type="number" value={formDevis.montant||""} onChange={e=>setFormDevis({...formDevis,montant:e.target.value})}/></Fld>
+            <Fld label="Acompte (€)"><Inp type="number" value={formDevis.acompte||""} onChange={e=>setFormDevis({...formDevis,acompte:e.target.value})}/></Fld>
+          </div>
+          <Fld label="Statut"><Sel value={formDevis.statut||"À traiter"} onChange={e=>setFormDevis({...formDevis,statut:e.target.value})} options={STATUTS_EV}/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={creerDevisInterne} full v="gold">Créer le devis</Btn>
+            <Btn onClick={()=>{setModalDevis(false);setFormDevis({});}} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
     </div>
   );
 }
@@ -4722,6 +4797,7 @@ function ClientEvents({ onBack, onNewCommande }) {
       budget: form.budget || "",
       message: form.message || "",
     };
+    let echecEnregistrement = false;
     try {
       await sbPost("events_demandes", demande);
       await ecrireAudit({
@@ -4729,7 +4805,14 @@ function ClientEvents({ onBack, onNewCommande }) {
         action: "creation", nouveauStatut: "Nouvelle demande",
         commentaire: "Demande créée via formulaire client — "+p.nom,
       });
-    } catch {}
+    } catch {
+      echecEnregistrement = true;
+    }
+    if (echecEnregistrement) {
+      alert("Votre demande n'a pas pu être enregistrée (problème de connexion). Merci de réessayer, ou de nous contacter directement via WhatsApp.");
+      setEnvoi(false);
+      return;
+    }
     // Compat state local — alimente aussi l'affichage immédiat côté fondatrice
     const cmd = {
       id: ref,
@@ -4763,10 +4846,10 @@ function ClientEvents({ onBack, onNewCommande }) {
   // Ouvrir le formulaire
   const ouvrir = (p, type) => { setModal({prestation:p, type}); setForm(FORM_INIT); setSucces(null); };
 
-  // Vue détail catégorie
-  if (cat) {
+  // Vue détail catégorie — seulement si aucune modale ni écran de succès actif
+  if (cat && !modal && !succes) {
     const catObj = EVENTS_CATEGORIES.find(c => c.id === cat);
-    const prestas = EVENTS_PRESTATIONS.filter(p => p.categorie === cat || p.sous === cat);
+    const prestas = EVENTS_PRESTATIONS.filter(p => p.categorie === cat || p.sous === cat || (p.categories && p.categories.includes(cat)));
     return (
       <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
         <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
