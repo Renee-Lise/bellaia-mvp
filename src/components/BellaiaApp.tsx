@@ -1332,6 +1332,103 @@ async function ecrireAudit({ module, entiteId, entiteRef, action, ancienStatut, 
   } catch {}
 }
 
+// ═══════════════════════════════════════════════════════════
+// PLANNING CENTRAL — Moteur de détection de conflits
+// Réutilisable par tous les pôles (Events, Odyssée, Food, BSH...)
+// ═══════════════════════════════════════════════════════════
+
+// Marges par défaut par pôle — utilisées si planning_config_marges
+// n'est pas (encore) chargée en base.
+const PLANNING_MARGES_DEFAUT = {
+  ODYSSEE:   { prepa:10, nettoyage:10, deplacement:20, marge:15 },
+  EVENTS:    { prepa:30, nettoyage:30, deplacement:30, marge:30 },
+  FOOD:      { prepa:30, nettoyage:20, deplacement:25, marge:20 },
+  BSH:       { prepa:10, nettoyage:10, deplacement:20, marge:15 },
+  VILO:      { prepa:5,  nettoyage:5,  deplacement:15, marge:10 },
+  STRUCTURE: { prepa:0,  nettoyage:0,  deplacement:0,  marge:10 },
+  GENERAL:   { prepa:0,  nettoyage:0,  deplacement:0,  marge:10 },
+};
+
+// Récupère la config de marges pour un pôle (base si possible, sinon défaut local)
+async function getPlanningMarges(pole) {
+  try {
+    const rows = await sbGet("planning_config_marges", { select:"*", filters:{pole}, order:null, limit:1 });
+    if (rows && rows[0]) {
+      const r = rows[0];
+      return { prepa:r.temps_preparation_min, nettoyage:r.temps_nettoyage_min, deplacement:r.temps_deplacement_min, marge:r.marge_securite_min };
+    }
+  } catch {}
+  return PLANNING_MARGES_DEFAUT[pole] || PLANNING_MARGES_DEFAUT.GENERAL;
+}
+
+// Calcule les bornes de blocage réelles (début préparation → fin nettoyage + marge)
+// à partir d'un créneau brut et des temps additionnels.
+function calculerBlocagePlanning(dateDebut, dateFin, temps) {
+  const debut = new Date(dateDebut);
+  const fin = new Date(dateFin);
+  const blocageDebut = new Date(debut.getTime() - (temps.deplacement + temps.prepa) * 60000);
+  const blocageFin = new Date(fin.getTime() + (temps.nettoyage + temps.marge) * 60000);
+  return { blocageDebut, blocageFin };
+}
+
+// Vérifie si un créneau est en conflit avec un événement existant du planning.
+// Retourne le ou les événements en conflit (tableau vide = aucun conflit).
+async function verifierConflitPlanning(blocageDebut, blocageFin, excludeId) {
+  try {
+    const url = (SB_URL)+"/rest/v1/planning_events?select=*&statut=neq.annulé"
+      +"&blocage_debut=lt."+(encodeURIComponent(blocageFin.toISOString()))
+      +"&blocage_fin=gt."+(encodeURIComponent(blocageDebut.toISOString()));
+    const token = getToken();
+    const r = await fetch(url, { headers: { apikey: SB_KEY, Authorization: "Bearer "+(token), "Content-Type": "application/json" } });
+    if (!r.ok) return [];
+    const rows = await r.json();
+    return (rows || []).filter(ev => ev.id !== excludeId);
+  } catch {
+    return [];
+  }
+}
+
+// Crée un événement planning après vérification de conflit.
+// Si conflit détecté et force=false → ne crée rien, retourne {ok:false, conflits}.
+// Si force=true (passage outre, fondatrice uniquement) → crée quand même, marque conflit_force.
+async function creerEvenementPlanning(params, { force = false, user } = {}) {
+  const { pole, titre, dateDebut, dateFin, typeActivite, sourceTable, sourceId, lieu, necessitePresence } = params;
+  const temps = await getPlanningMarges(pole);
+  const { blocageDebut, blocageFin } = calculerBlocagePlanning(dateDebut, dateFin, temps);
+
+  const conflits = await verifierConflitPlanning(blocageDebut, blocageFin, null);
+  if (conflits.length > 0 && !force) {
+    return { ok: false, conflits };
+  }
+
+  const reference = await genererReference("PL");
+  const evt = {
+    reference,
+    type_activite: typeActivite || "evenement",
+    pole, titre,
+    source_table: sourceTable || null, source_id: sourceId || null,
+    date_debut: new Date(dateDebut).toISOString(),
+    date_fin: new Date(dateFin).toISOString(),
+    temps_preparation_min: temps.prepa, temps_nettoyage_min: temps.nettoyage,
+    temps_deplacement_min: temps.deplacement, marge_securite_min: temps.marge,
+    blocage_debut: blocageDebut.toISOString(), blocage_fin: blocageFin.toISOString(),
+    lieu: lieu || null,
+    statut: "confirmé",
+    necessite_presence_fondatrice: necessitePresence !== false,
+    conflit_force: conflits.length > 0,
+    conflit_commentaire: conflits.length > 0 ? "Créé malgré "+(conflits.length)+" conflit(s) détecté(s) — validé manuellement" : null,
+    fondatrice_id: user?.id || null,
+  };
+  const res = await sbPost("planning_events", evt);
+  if (res?.ok !== false) {
+    await ecrireAudit({
+      module: "planning_events", entiteId: res?.data?.[0]?.id || reference, entiteRef: reference,
+      action: "creation", commentaire: titre + (conflits.length>0 ? " (conflit forcé)" : ""), user,
+    });
+  }
+  return { ok: true, conflits, reference };
+}
+
 // ── Hook BSH Supabase avec fallback localStorage
 function useBSHSupabase(table, localKey, init, mapRow = r => r) {
   const [data, setData] = useState(init);
@@ -2490,6 +2587,163 @@ function FinancesP1({ user }) {
           <Fld label="Date"><Inp type="date" value={form.date_depense||today()} onChange={e=>setForm({...form,date_depense:e.target.value})}/></Fld>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
           <div style={{display:"flex",gap:8}}><Btn onClick={createExpense} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLANNING CENTRAL BELLAÏA — Vue unifiée tous pôles
+// Distinct de CalendrierP1 (agenda général) — celui-ci est
+// alimenté par planning_events avec détection de conflits.
+// ═══════════════════════════════════════════════════════════
+function PlanningCentralF({ user }) {
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({});
+  const [filtrePole, setFiltrePole] = useState("tous");
+  const [conflitApercu, setConflitApercu] = useState(null);
+
+  const { data: events, loading, reload } = useP1Data("planning_events", { select:"*", order:"date_debut.asc", limit:200 }, []);
+
+  const POLES_PLANNING = ["tous","ODYSSEE","EVENTS","FOOD","BSH","VILO","STRUCTURE","GENERAL"];
+  const POLE_ICO = { ODYSSEE:"💅", EVENTS:"✨", FOOD:"🍃", BSH:"✦", VILO:"📋", STRUCTURE:"🏗", GENERAL:"◈" };
+  const POLE_COL = { ODYSSEE:"#3730a3", EVENTS:"#065f46", FOOD:"#15803d", BSH:"#6B1A2B", VILO:"#1d4ed8", STRUCTURE:"#0f766e", GENERAL:B.violet };
+
+  const aVenir = events.filter(e => new Date(e.date_fin) >= new Date() && e.statut !== "annulé" && (filtrePole==="tous" || e.pole===filtrePole));
+
+  const ouvrirNouveau = () => {
+    setForm({ pole:"GENERAL", typeActivite:"tache", date:today(), heure:"10:00", dureeMin:60, necessitePresence:true });
+    setModal("nouveau");
+  };
+
+  const creer = async () => {
+    if (!form.titre?.trim() || !form.date) { alert("Titre et date requis."); return; }
+    const dateDebut = new Date(form.date+"T"+(form.heure||"10:00"));
+    const dateFin = new Date(dateDebut.getTime() + (parseInt(form.dureeMin)||60)*60000);
+    const res = await creerEvenementPlanning({
+      pole: form.pole, titre: form.titre, dateDebut, dateFin,
+      typeActivite: form.typeActivite || "tache", lieu: form.lieu,
+      necessitePresence: form.necessitePresence !== false,
+    }, { user });
+    if (!res.ok) {
+      setConflitApercu({ conflits: res.conflits, form: {...form} });
+      return;
+    }
+    setModal(null); setForm({});
+    reload();
+  };
+
+  const forcer = async () => {
+    if (!conflitApercu) return;
+    const f = conflitApercu.form;
+    const dateDebut = new Date(f.date+"T"+(f.heure||"10:00"));
+    const dateFin = new Date(dateDebut.getTime() + (parseInt(f.dureeMin)||60)*60000);
+    await creerEvenementPlanning({
+      pole: f.pole, titre: f.titre, dateDebut, dateFin,
+      typeActivite: f.typeActivite || "tache", lieu: f.lieu,
+      necessitePresence: f.necessitePresence !== false,
+    }, { force: true, user });
+    setConflitApercu(null); setModal(null); setForm({});
+    reload();
+  };
+
+  const annulerEvenement = async (ev) => {
+    if (!confirm("Annuler cet événement du planning ?")) return;
+    await sbPatch("planning_events", ev.id, { statut: "annulé" });
+    await ecrireAudit({ module:"planning_events", entiteId:ev.id, entiteRef:ev.reference, action:"changement_statut", ancienStatut:ev.statut, nouveauStatut:"annulé", user });
+    reload();
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <SH t="Planning central" s="Tous les pôles · Détection automatique des conflits"/>
+        <Btn sm onClick={ouvrirNouveau}>+ Activité</Btn>
+      </div>
+
+      {/* Filtres pôle */}
+      <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2}}>
+        {POLES_PLANNING.map(p=>(
+          <button key={p} onClick={()=>setFiltrePole(p)} style={{padding:"5px 11px",borderRadius:99,border:"1px solid "+(B.border),cursor:"pointer",fontSize:10,fontWeight:700,background:filtrePole===p?B.surface:"transparent",color:filtrePole===p?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>
+            {p==="tous"?"Tous":(POLE_ICO[p]||"◈")+" "+p}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
+      {!loading && aVenir.length===0 && <div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune activité planifiée.</div>}
+
+      {aVenir.map(ev=>(
+        <div key={ev.id} style={{background:B.card,border:"1px solid "+(ev.conflit_force?"rgba(180,80,80,0.5)":B.border),borderRadius:13,padding:"13px 14px",borderLeft:"3px solid "+(POLE_COL[ev.pole]||B.violet)}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
+                <span style={{fontSize:14}}>{POLE_ICO[ev.pole]||"◈"}</span>
+                <span style={{fontSize:13,fontWeight:700,color:B.cream}}>{ev.titre}</span>
+                {ev.conflit_force && <span style={{fontSize:8,background:"rgba(180,80,80,0.2)",color:B.danger,borderRadius:4,padding:"2px 6px",fontWeight:700}}>⚠ Conflit forcé</span>}
+              </div>
+              <div style={{fontSize:10,color:B.muted}}>
+                {new Date(ev.date_debut).toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"short"})} · {new Date(ev.date_debut).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} → {new Date(ev.date_fin).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+              </div>
+              {ev.lieu && <div style={{fontSize:10,color:B.muted,marginTop:1}}>📍 {ev.lieu}</div>}
+              <div style={{fontSize:9,color:B.muted,marginTop:3}}>
+                Préparation {ev.temps_preparation_min}min · Nettoyage {ev.temps_nettoyage_min}min · Marge {ev.marge_securite_min}min
+              </div>
+            </div>
+            <Btn sm v="danger" onClick={()=>annulerEvenement(ev)}>✕</Btn>
+          </div>
+        </div>
+      ))}
+
+      {/* Modal nouvelle activité */}
+      {modal==="nouveau" && (
+        <Mdl title="Nouvelle activité planning" onClose={()=>setModal(null)}>
+          <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})} placeholder="Titre de l'activité"/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_PLANNING.slice(1)}/></Fld>
+            <Fld label="Type"><Sel value={form.typeActivite||"tache"} onChange={e=>setForm({...form,typeActivite:e.target.value})} options={["prestation","evenement","livraison","production","tache"]}/></Fld>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Date *"><Inp type="date" value={form.date||""} onChange={e=>setForm({...form,date:e.target.value})}/></Fld>
+            <Fld label="Heure"><Inp type="time" value={form.heure||"10:00"} onChange={e=>setForm({...form,heure:e.target.value})}/></Fld>
+          </div>
+          <Fld label="Durée (minutes)"><Inp type="number" value={form.dureeMin||60} onChange={e=>setForm({...form,dureeMin:e.target.value})}/></Fld>
+          <Fld label="Lieu"><Inp value={form.lieu||""} onChange={e=>setForm({...form,lieu:e.target.value})} placeholder="Lieu (optionnel)"/></Fld>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <input type="checkbox" checked={form.necessitePresence!==false} onChange={e=>setForm({...form,necessitePresence:e.target.checked})} style={{accentColor:B.violet,width:16,height:16}}/>
+            <label style={{fontSize:12,color:B.cream,cursor:"pointer"}}>Nécessite la présence de la fondatrice</label>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={creer} full v="gold">Créer</Btn>
+            <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+
+      {/* Modal conflit (création directe planning) */}
+      {conflitApercu && (
+        <Mdl title="⚠ Conflit de planning détecté" onClose={()=>setConflitApercu(null)}>
+          <div style={{background:"rgba(180,80,80,0.12)",border:"1px solid rgba(180,80,80,0.35)",borderRadius:12,padding:"12px 14px",marginBottom:14}}>
+            <div style={{fontSize:12,color:B.danger,fontWeight:700,marginBottom:6}}>Ce créneau chevauche déjà :</div>
+            {conflitApercu.conflits.map(c=>(
+              <div key={c.id} style={{fontSize:12,color:B.cream,marginBottom:4,paddingLeft:6,borderLeft:"2px solid "+B.danger}}>
+                <strong>{c.titre}</strong> ({c.pole})<br/>
+                <span style={{fontSize:10,color:B.muted}}>{new Date(c.date_debut).toLocaleString("fr-FR")} → {new Date(c.date_fin).toLocaleString("fr-FR")}</span>
+              </div>
+            ))}
+          </div>
+          {user?.role !== "assistante" ? (
+            <div style={{display:"flex",gap:8}}>
+              <Btn v="danger" full onClick={forcer}>Forcer malgré le conflit</Btn>
+              <Btn v="ghost" onClick={()=>setConflitApercu(null)}>Choisir une autre date</Btn>
+            </div>
+          ) : (
+            <div>
+              <div style={{fontSize:11,color:B.warning,marginBottom:10}}>Seule la fondatrice peut forcer un créneau en conflit.</div>
+              <Btn v="ghost" full onClick={()=>setConflitApercu(null)}>Choisir une autre date</Btn>
+            </div>
+          )}
         </Mdl>
       )}
     </div>
@@ -4320,6 +4574,7 @@ function BellaEventsF({ user }) {
   const [ong, setOng] = useState("demandes");
   const [modalDevis, setModalDevis] = useState(false);
   const [formDevis, setFormDevis] = useState({});
+  const [modalConflit, setModalConflit] = useState(null); // {demande, conflits, dateDebut, dateFin}
   // Demandes reçues via le formulaire client (table events_demandes)
   const { data: demandesEvents, loading: lDem, reload: rDem } = useP1Data("events_demandes", { select:"*", order:"created_at.desc", limit:100 }, []);
   const nbNouvelles = demandesEvents.filter(c => c.statut === "Nouvelle demande").length;
@@ -4406,6 +4661,34 @@ function BellaEventsF({ user }) {
       action: "creation", commentaire: "Convertie depuis demande "+(d.reference||d.id), user,
     });
     await changerStatut(d, "Converti en commande");
+
+    // Création automatique dans le planning si une date est connue
+    if (d.date_souhaitee) {
+      const heure = d.heure_souhaitee || "10:00";
+      const dateDebut = new Date(d.date_souhaitee+"T"+(heure.replace("h",":").padEnd(5,"0")));
+      const dureeMin = d.duree_estimee_min || 120;
+      const dateFin = new Date(dateDebut.getTime() + dureeMin*60000);
+      const res = await creerEvenementPlanning({
+        pole: "EVENTS", titre: (d.presta_nom||"Événement")+" — "+(d.client_prenom||""),
+        dateDebut, dateFin, typeActivite: "evenement",
+        sourceTable: "events_commandes", sourceId: referenceCmd,
+      }, { user });
+      if (!res.ok) {
+        setModalConflit({ demande: d, conflits: res.conflits, dateDebut, dateFin, referenceCmd });
+      }
+    }
+  };
+
+  // Forcer la création planning malgré le conflit (fondatrice uniquement)
+  const forcerCreationPlanning = async () => {
+    if (!modalConflit) return;
+    const { demande, dateDebut, dateFin, referenceCmd } = modalConflit;
+    await creerEvenementPlanning({
+      pole: "EVENTS", titre: (demande.presta_nom||"Événement")+" — "+(demande.client_prenom||""),
+      dateDebut, dateFin, typeActivite: "evenement",
+      sourceTable: "events_commandes", sourceId: referenceCmd,
+    }, { force: true, user });
+    setModalConflit(null);
   };
 
   return (
@@ -4495,6 +4778,35 @@ function BellaEventsF({ user }) {
             <Btn onClick={creerDevisInterne} full v="gold">Créer le devis</Btn>
             <Btn onClick={()=>{setModalDevis(false);setFormDevis({});}} v="ghost">Annuler</Btn>
           </div>
+        </Mdl>
+      )}
+
+      {/* Modale conflit planning */}
+      {modalConflit && (
+        <Mdl title="⚠ Conflit de planning détecté" onClose={()=>setModalConflit(null)}>
+          <div style={{background:"rgba(180,80,80,0.12)",border:"1px solid rgba(180,80,80,0.35)",borderRadius:12,padding:"12px 14px",marginBottom:14}}>
+            <div style={{fontSize:12,color:B.danger,fontWeight:700,marginBottom:6}}>Ce créneau chevauche déjà une activité prévue :</div>
+            {modalConflit.conflits.map(c=>(
+              <div key={c.id} style={{fontSize:12,color:B.cream,marginBottom:4,paddingLeft:6,borderLeft:"2px solid "+B.danger}}>
+                <strong>{c.titre}</strong> ({c.pole})<br/>
+                <span style={{fontSize:10,color:B.muted}}>{new Date(c.date_debut).toLocaleString("fr-FR")} → {new Date(c.date_fin).toLocaleString("fr-FR")}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:12,color:B.muted,marginBottom:16,lineHeight:1.6}}>
+            La commande a bien été créée, mais elle n'a pas été ajoutée au planning pour éviter un double engagement. Choisissez une autre date depuis la fiche commande, ou forcez l'ajout si vous confirmez pouvoir gérer ce chevauchement.
+          </div>
+          {user?.role !== "assistante" ? (
+            <div style={{display:"flex",gap:8}}>
+              <Btn v="danger" full onClick={forcerCreationPlanning}>Forcer malgré le conflit</Btn>
+              <Btn v="ghost" onClick={()=>setModalConflit(null)}>Choisir une autre date</Btn>
+            </div>
+          ) : (
+            <div>
+              <div style={{fontSize:11,color:B.warning,marginBottom:10}}>Seule la fondatrice peut forcer un créneau en conflit.</div>
+              <Btn v="ghost" full onClick={()=>setModalConflit(null)}>Choisir une autre date</Btn>
+            </div>
+          )}
         </Mdl>
       )}
     </div>
@@ -5736,6 +6048,7 @@ const NAV_F = [
   {id:"struct",      ico:"🗂",  l:"Structure"},
   {id:"erp_projets", ico:"🎯", l:"Projets"},
   {id:"erp_taches",  ico:"✔",  l:"Tâches"},
+  {id:"planning",    ico:"📅", l:"Planning"},
   {id:"stocks",      ico:"📦", l:"Stocks"},
   {id:"biblio",      ico:"📚", l:"Éditions"},
   {id:"odyssee",     ico:"💅", l:"Odyssée"},
@@ -6160,6 +6473,7 @@ export default function BellaiaApp() {
     catalogue_ia:<CatalogueIAF user={user} gotoEvents={()=>setActiveF("events")}/>,
     erp_projets:<ErpProjetsF user={user}/>,
     erp_taches: <ErpTachesF user={user}/>,
+    planning:   <PlanningCentralF user={user}/>,
     // Stocks (vue Supabase v_stocks_critiques)
     stocks:      <StocksF user={user}/>,
     // Bella'Odyssée — module complet
