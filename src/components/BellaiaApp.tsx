@@ -1264,13 +1264,20 @@ async function sbGet(table, params = {}) {
 
 async function sbPost(table, data) {
   const token = getToken();
-  const r = await fetch((SB_URL)+"/rest/v1/"+(table), {
-    method: "POST",
-    headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json", "Prefer": "return=representation" },
-    body: JSON.stringify(data),
-  });
-  const d = await r.json();
-  return { ok: r.ok, data: d };
+  const url = (SB_URL)+"/rest/v1/"+(table);
+  const headers = { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json", "Prefer": "return=representation" };
+  console.log("[sbPost] URL:", url);
+  console.log("[sbPost] Headers:", headers);
+  console.log("[sbPost] Payload:", JSON.stringify(data, null, 2));
+  const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(data) });
+  let d = null;
+  try { d = await r.json(); } catch { d = null; }
+  console.log("[sbPost] HTTP status:", r.status);
+  console.log("[sbPost] Réponse Supabase:", JSON.stringify(d, null, 2));
+  if (!r.ok) {
+    console.error("[sbPost] Erreur Supabase table="+table+" status="+r.status, d);
+  }
+  return { ok: r.ok, status: r.status, data: d, error: r.ok ? null : d };
 }
 
 async function sbPatch(table, id, data) {
@@ -5301,11 +5308,15 @@ function ClientEvents({ onBack, onNewCommande }) {
       message: form.message || "",
     };
     let echecEnregistrement = false;
+    let erreurSb = null;
     try {
       const res = await sbPost("events_demandes", demande);
+      console.log("Payload :", demande);
+      console.log("Réponse Supabase :", res);
       if (!res.ok) {
         echecEnregistrement = true;
-        console.error("[Bellaïa] Échec création events_demandes:", res.data);
+        erreurSb = res;
+        console.error("Erreur Supabase :", res.error);
       } else {
         await ecrireAudit({
           module: "events_demandes", entiteId: ref, entiteRef: reference,
@@ -5315,10 +5326,19 @@ function ClientEvents({ onBack, onNewCommande }) {
       }
     } catch (e) {
       echecEnregistrement = true;
-      console.error("[Bellaïa] Erreur réseau création demande:", e);
+      console.error("Erreur Supabase :", e);
     }
     if (echecEnregistrement) {
-      alert("Votre demande n'a pas pu être enregistrée (problème de connexion). Merci de réessayer, ou de nous contacter directement via WhatsApp.");
+      const sb = erreurSb?.error;
+      const lignes = [
+        "Erreur HTTP "+erreurSb?.status,
+        sb?.message    ? "Message : "+sb.message    : null,
+        sb?.details    ? "Détails : "+sb.details    : null,
+        sb?.hint       ? "Hint : "+sb.hint           : null,
+        sb?.code       ? "Code : "+sb.code           : null,
+        !sb            ? "Réponse : "+JSON.stringify(erreurSb?.data) : null,
+      ].filter(Boolean).join("\n");
+      alert("Échec enregistrement Supabase :\n\n"+lignes+"\n\nConsultez la console pour le diagnostic complet.");
       setEnvoi(false);
       return;
     }
