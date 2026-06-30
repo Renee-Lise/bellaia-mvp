@@ -179,6 +179,7 @@ const EVENTS_CATEGORIES = [
   {id:"gateaux", nom:"Gâteaux personnalisés",  ico:"🧁", desc:"Créations sucrées sur mesure, pâte à sucre."},
   {id:"ballons", nom:"Ballons et arches",      ico:"🎈", desc:"Arches de ballons et compositions."},
   {id:"cadeaux", nom:"Cadeaux invités",        ico:"🎁", desc:"Petites attentions personnalisées pour vos invités."},
+  {id:"formules",nom:"Formules combinées / Offres",ico:"⭐", desc:"Combinaisons gâteau, décoration et kits — offres complètes."},
   {id:"unite",   nom:"À l'unité",              ico:"🛒", desc:"Commandez certains articles seuls, sans pack complet."},
 ];
 
@@ -190,6 +191,12 @@ const EVENTS_UNITE_FAMILLES = [
   {id:"goodies",      nom:"Goodies",                     ico:"🎈"},
   {id:"papeterie_s",  nom:"Papeterie simple",            ico:"🏷"},
   {id:"options_deco", nom:"Options décoratives",         ico:"🎀"},
+];
+
+// Sous-familles de la catégorie "Anniversaires" — packs non remplis / remplis
+const EVENTS_ANNIV_FAMILLES = [
+  {id:"anniv_non_rempli", nom:"Packs non remplis", ico:"📦"},
+  {id:"anniv_rempli",     nom:"Packs remplis",     ico:"🎁"},
 ];
 
 // Prestations (prix validés ou null = "Sur devis")
@@ -275,6 +282,68 @@ const EVENTS_PRESTATIONS = [
   {id:"lo_arches",   categorie:"location", sous:"location", type:"prestation", nom:"Arches", desc:"Location d'arches.", prix:null, sur_devis:true, acompte_pct:30},
   {id:"lo_table",    categorie:"location", sous:"location", type:"prestation", nom:"Matériel de table", desc:"Location de matériel de table.", prix:null, sur_devis:true, acompte_pct:30},
   {id:"lo_deco",     categorie:"location", sous:"location", type:"prestation", nom:"Éléments décoratifs", desc:"Location d'éléments décoratifs.", prix:null, sur_devis:true, acompte_pct:30},
+
+  // ── PACKS ANNIVERSAIRE — Non remplis (10 paliers, prix validés) ──
+  {id:"an_nr_1",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 1", desc:"Kit anniversaire non rempli, palier 1.", prix:25,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_2",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 2", desc:"Kit anniversaire non rempli, palier 2.", prix:45,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_3",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 3", desc:"Kit anniversaire non rempli, palier 3.", prix:65,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_4",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 4", desc:"Kit anniversaire non rempli, palier 4.", prix:85,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_5",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 5", desc:"Kit anniversaire non rempli, palier 5.", prix:105, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_6",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 6", desc:"Kit anniversaire non rempli, palier 6.", prix:125, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_7",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 7", desc:"Kit anniversaire non rempli, palier 7.", prix:145, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_8",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 8", desc:"Kit anniversaire non rempli, palier 8.", prix:165, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_9",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 9", desc:"Kit anniversaire non rempli, palier 9.", prix:185, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_10", categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 10",desc:"Kit anniversaire non rempli, palier 10.",prix:205, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+
+  // ── PACKS ANNIVERSAIRE — Remplis (10 paliers, prix validés) ──
+  {id:"an_r_1",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 1", desc:"Kit anniversaire rempli, palier 1.", prix:40,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_2",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 2", desc:"Kit anniversaire rempli, palier 2.", prix:75,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_3",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 3", desc:"Kit anniversaire rempli, palier 3.", prix:110, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_4",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 4", desc:"Kit anniversaire rempli, palier 4.", prix:145, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_5",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 5", desc:"Kit anniversaire rempli, palier 5.", prix:180, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_6",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 6", desc:"Kit anniversaire rempli, palier 6.", prix:215, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_7",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 7", desc:"Kit anniversaire rempli, palier 7.", prix:250, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_8",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 8", desc:"Kit anniversaire rempli, palier 8.", prix:285, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_9",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 9", desc:"Kit anniversaire rempli, palier 9.", prix:320, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_10", categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 10",desc:"Kit anniversaire rempli, palier 10.",prix:355, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+
+  // ── PAPETERIE — Invitations, faire-part, suite coordonnée ──
+  {id:"pa_invit_num_classique",   categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitation numérique classique", desc:"Invitation digitale au design classique.", prix:15, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_num_animee",      categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitation numérique animée", desc:"Invitation digitale avec animation.", prix:25, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_num_interactive", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitation numérique interactive", desc:"Invitation digitale interactive (RSVP intégré).", prix:35, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_s10", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"10 cartes simples imprimées", desc:"Invitations imprimées simples, lot de 10.", prix:25, unite:"lot de 10", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_s20", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"20 cartes simples imprimées", desc:"Invitations imprimées simples, lot de 20.", prix:40, unite:"lot de 20", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_p10", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"10 cartes premium imprimées", desc:"Invitations imprimées premium, lot de 10.", prix:35, unite:"lot de 10", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_p20", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"20 cartes premium imprimées", desc:"Invitations imprimées premium, lot de 20.", prix:55, unite:"lot de 20", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_fp_digital",  categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Faire-part digital", desc:"Faire-part au format numérique.", prix:30, prix_des:true, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 30€."},
+  {id:"pa_fp_imprime",  categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Faire-part imprimé", desc:"Faire-part imprimé classique.", prix:50, prix_des:true, unite:"lot", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 50€."},
+  {id:"pa_fp_luxe",     categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Faire-part collection luxe", desc:"Faire-part haut de gamme, finitions premium.", prix:75, prix_des:true, unite:"lot", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 75€."},
+  {id:"pa_suite_coord", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Suite papeterie coordonnée", desc:"Ensemble papeterie assorti (invitations, menus, étiquettes).", prix:60, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 60€."},
+  {id:"pa_mariage",     categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Papeterie mariage", desc:"Papeterie complète dédiée mariage.", prix:75, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 75€."},
+
+  // ── DÉCORATION — Signature, scénographie, prestige ──
+  {id:"de_signature",  categorie:"deco", sous:"deco", type:"prestation", nom:"Décoration signature", desc:"Décoration personnalisée à forte identité visuelle.", prix:150, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 150€."},
+  {id:"de_sceno_complete", categorie:"deco", sous:"deco", type:"prestation", nom:"Scénographie complète prestige", desc:"Mise en scène complète et immersive de l'événement.", prix:250, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 250€."},
+  {id:"de_prestige_mesure", categorie:"deco", sous:"deco", type:"prestation", nom:"Prestation prestige sur mesure", desc:"Création entièrement personnalisée haut de gamme.", prix:450, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 450€."},
+
+  // ── FORMULES COMBINÉES / OFFRES ──
+  {id:"fo_gateau_deco",  categorie:"formules", sous:"formules", type:"pack", nom:"Formule Gâteau + Décoration", desc:"Combinaison gâteau personnalisé et décoration complète.", prix:120, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 120€."},
+  {id:"fo_gateau_kits",  categorie:"formules", sous:"formules", type:"pack", nom:"Formule Gâteau + Kits invités", desc:"Combinaison gâteau personnalisé et kits invités.", prix:250, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 250€."},
+  {id:"fo_deco_kits",    categorie:"formules", sous:"formules", type:"pack", nom:"Formule Décoration + Kits invités", desc:"Combinaison décoration complète et kits invités.", prix:300, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 300€."},
+  {id:"fo_offre_complete", categorie:"formules", sous:"formules", type:"pack", nom:"Offre complète événement", desc:"Décoration, gâteau et kits invités réunis pour un événement clé en main.", prix:400, prix_max:800, sur_devis:false, unite:"formule", min_qte:1, acompte_pct:30, note:"De 400€ à 800€ selon l'ampleur du projet."},
+  {id:"fo_bapteme_signature", categorie:"formules", sous:"formules", type:"pack", nom:"Baptême signature", desc:"Formule baptême avec décoration et papeterie assorties.", prix:300, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 300€."},
+  {id:"fo_bapteme_prestige",  categorie:"formules", sous:"formules", type:"pack", nom:"Baptême prestige", desc:"Formule baptême haut de gamme, scénographie incluse.", prix:550, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 550€."},
+  {id:"fo_welcome_favors", categorie:"formules", sous:"formules", type:"pack", nom:"Welcome favors invités", desc:"Cadeaux de bienvenue personnalisés pour les invités.", prix:120, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 120€."},
+  {id:"fo_mariage_signature", categorie:"formules", sous:"formules", type:"pack", nom:"Pack mariage signature", desc:"Formule mariage avec décoration et papeterie coordonnées.", prix:500, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 500€."},
+
+  // ── À L'UNITÉ — Options tarifées ajoutées ──
+  {id:"u_tube_bulles",   categorie:"unite", sous:"goodies", type:"unite", nom:"Tube à bulles personnalisé", desc:"Tube à bulles de savon personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"u_assiette",      categorie:"unite", sous:"contenants", type:"unite", nom:"Assiette personnalisée", desc:"Assiette jetable personnalisée.", prix:1.8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"u_timbale",       categorie:"unite", sous:"contenants", type:"unite", nom:"Timbale personnalisée", desc:"Gobelet/timbale personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"u_popcorn_unite", categorie:"unite", sous:"gourmandises", type:"unite", nom:"Pop-corn personnalisé", desc:"Pop-corn en contenant personnalisé, à l'unité.", prix:3, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"u_sac_invite",    categorie:"unite", sous:"contenants", type:"unite", nom:"Sac cadeau invité", desc:"Sac cadeau personnalisé pour invités.", prix:4, prix_max:8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, note:"De 4€ à 8€ selon le format."},
+  {id:"u_cake_topper",   categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Cake topper personnalisé", desc:"Topper décoratif personnalisé pour gâteau.", prix:10, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"u_etiquette_sticker", categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Étiquette bouteille / sticker", desc:"Étiquette ou sticker personnalisé.", prix:1, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
 ];
 
 const sCo = s => ({
@@ -1221,6 +1290,46 @@ async function sbDelete(table, id) {
     headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token) },
   });
   return { ok: r.ok };
+}
+
+// ═══════════════════════════════════════════════════════════
+// FONDATIONS TRANSVERSES — Références métier + journal d'audit
+// Réutilisables par tous les pôles (Events, Odyssée, BSH, Food...)
+// ═══════════════════════════════════════════════════════════
+
+// Génère une référence lisible via la fonction SQL prochaine_reference()
+// Ex: genererReference("BE") → "BE-2026-000001"
+async function genererReference(prefixe) {
+  const token = getToken();
+  try {
+    const r = await fetch((SB_URL)+"/rest/v1/rpc/prochaine_reference", {
+      method: "POST",
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ p_prefixe: prefixe }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      if (typeof d === "string") return d;
+    }
+  } catch {}
+  // Fallback local si RPC indisponible (jamais bloquant pour l'utilisateur)
+  const annee = new Date().getFullYear();
+  return prefixe+"-"+annee+"-"+String(Date.now()).slice(-6);
+}
+
+// Écrit une entrée dans le journal d'audit (audit_log)
+// module: ex "events_demandes" | action: ex "changement_statut"
+async function ecrireAudit({ module, entiteId, entiteRef, action, ancienStatut, nouveauStatut, champ, ancienneValeur, nouvelleValeur, commentaire, user }) {
+  try {
+    await sbPost("audit_log", {
+      module, entite_id: entiteId, entite_ref: entiteRef || null,
+      action,
+      ancien_statut: ancienStatut || null, nouveau_statut: nouveauStatut || null,
+      champ: champ || null, ancienne_valeur: ancienneValeur || null, nouvelle_valeur: nouvelleValeur || null,
+      commentaire: commentaire || null,
+      user_id: user?.id || null, user_nom: user ? ((user.prenom||"")+" "+(user.nom||"")).trim() : null, user_role: user?.role || null,
+    });
+  } catch {}
 }
 
 // ── Hook BSH Supabase avec fallback localStorage
@@ -4208,10 +4317,10 @@ function BellaStructureF({ user }) {
 const BE_FILTRES = ["Tous","Anniversaire","Baptême","Baby Shower","Communion","Retraite","Réception privée","Gender Reveal","Événement pro"];
 const BE_STATUTS_CMD = ["Demande reçue","Devis envoyé","Acompte reçu","En préparation","Livraison / Installation","Réalisé","Archivé","Annulé"];
 
-function BellaEventsF({ user, commandes=[] }) {
+function BellaEventsF({ user }) {
   const [ong, setOng] = useState("demandes");
-  // Demandes venant du formulaire client (pole:"Events")
-  const demandesEvents = commandes.filter(c => c.pole === "Events" || c.statut === "Nouvelle demande" && c.notes?.includes("Events"));
+  // Demandes reçues via le formulaire client (table events_demandes)
+  const { data: demandesEvents, loading: lDem, reload: rDem } = useP1Data("events_demandes", { select:"*", order:"created_at.desc", limit:100 }, []);
   const nbNouvelles = demandesEvents.filter(c => c.statut === "Nouvelle demande").length;
 
   const STATUTS_EV = ["Nouvelle demande","À traiter","Devis envoyé","Accepté","Refusé","Converti en commande"];
@@ -4223,6 +4332,41 @@ function BellaEventsF({ user, commandes=[] }) {
   const TXT_STATUT = {
     "Nouvelle demande":B.warning,"À traiter":B.violetL,"Devis envoyé":"#3b82f6",
     "Accepté":B.success,"Refusé":B.danger,"Converti en commande":B.success
+  };
+
+  const changerStatut = async (d, statut) => {
+    const ancienStatut = d.statut;
+    await sbPatch("events_demandes", d.id, { statut, updated_at: new Date().toISOString() });
+    await ecrireAudit({
+      module: "events_demandes", entiteId: d.id, entiteRef: d.reference,
+      action: "changement_statut", ancienStatut, nouveauStatut: statut, user,
+    });
+    rDem();
+  };
+
+  // Convertir une demande en commande validée (events_commandes)
+  const convertirEnCommande = async (d) => {
+    const referenceCmd = await genererReference("BEC");
+    const cmd = {
+      reference: referenceCmd,
+      client_nom: (d.client_prenom+" "+(d.client_nom||"")).trim(),
+      client_tel: d.client_tel,
+      type_evenement: d.type_evenement || d.presta_nom,
+      date_evenement: d.date_souhaitee,
+      nb_invites: d.nb_invites ? parseInt(d.nb_invites)||null : null,
+      detail_besoin: d.message || d.presta_nom,
+      montant_total: d.montant || null,
+      acompte: d.acompte || null,
+      statut: "Demande reçue",
+      notes: "Convertie depuis demande "+(d.reference||d.id),
+      fondatrice_id: user?.id,
+    };
+    await sbPost("events_commandes", cmd);
+    await ecrireAudit({
+      module: "events_commandes", entiteId: d.id, entiteRef: referenceCmd,
+      action: "creation", commentaire: "Convertie depuis demande "+(d.reference||d.id), user,
+    });
+    await changerStatut(d, "Converti en commande");
   };
 
   return (
@@ -4243,31 +4387,38 @@ function BellaEventsF({ user, commandes=[] }) {
       {ong==="demandes" && (
         <div style={{display:"flex",flexDirection:"column",gap:9}}>
           <div style={{fontSize:13,fontWeight:800,color:B.cream,marginBottom:4}}>Demandes de devis & réservations ({demandesEvents.length})</div>
-          {demandesEvents.length===0 && <div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucune demande reçue — elles apparaîtront ici dès qu'un client utilisera le formulaire Bella'Events.</div>}
+          {lDem && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
+          {!lDem && demandesEvents.length===0 && <div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucune demande reçue — elles apparaîtront ici dès qu'un client utilisera le formulaire Bella'Events.</div>}
           {demandesEvents.map(c=>(
             <div key={c.id} style={{background:B.card,border:"1px solid "+B.border,borderRadius:13,padding:"14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                 <div>
-                  <span style={{fontSize:10,color:B.gold,fontWeight:700,marginRight:6}}>{c.id}</span>
+                  <span style={{fontSize:10,color:B.gold,fontWeight:700,marginRight:6}}>{c.reference || c.id}</span>
                   <span style={{background:COL_STATUT[c.statut]||"rgba(255,255,255,0.05)",color:TXT_STATUT[c.statut]||B.muted,fontSize:9,fontWeight:700,borderRadius:4,padding:"2px 7px"}}>{c.statut}</span>
                 </div>
-                <span style={{fontSize:11,color:B.muted}}>{c.date}</span>
+                <span style={{fontSize:11,color:B.muted}}>{c.created_at ? fmt(c.created_at.split("T")[0]) : ""}</span>
               </div>
-              <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{c.client}</div>
-              <div style={{fontSize:11,color:B.muted,marginBottom:4}}>{c.produit}</div>
-              {c.tel && <div style={{fontSize:10,color:B.muted}}>📞 {c.tel}</div>}
-              {c.typeEvt && <div style={{fontSize:10,color:B.muted}}>{"🎉 "+c.typeEvt+(c.invites?" · "+c.invites+" invités":"")}</div>}
+              <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{c.client_prenom} {c.client_nom}</div>
+              <div style={{fontSize:11,color:B.muted,marginBottom:4}}>{c.presta_nom} · {c.prix_affiche}</div>
+              {c.client_tel && <div style={{fontSize:10,color:B.muted}}>📞 {c.client_tel}</div>}
+              {c.type_evenement && <div style={{fontSize:10,color:B.muted}}>{"🎉 "+c.type_evenement+(c.nb_invites?" · "+c.nb_invites+" invités":"")}</div>}
               {c.theme && <div style={{fontSize:10,color:B.muted}}>🎨 Thème : {c.theme}</div>}
               {c.budget && <div style={{fontSize:10,color:B.muted}}>💰 Budget : {c.budget}€</div>}
               {c.message && <div style={{fontSize:10,color:B.muted,marginTop:4,fontStyle:"italic"}}>"{c.message}"</div>}
               <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
                 {STATUTS_EV.map(s=>(
-                  <button key={s} onClick={()=>{}} style={{fontSize:9,padding:"3px 7px",borderRadius:4,border:"1px solid "+(s===c.statut?"#10b981":"rgba(255,255,255,0.1)"),background:s===c.statut?"rgba(16,185,129,0.15)":"transparent",color:s===c.statut?"#10b981":B.muted,cursor:"pointer",fontFamily:SA}}>{s}</button>
+                  <button key={s} onClick={()=>changerStatut(c, s)} style={{fontSize:9,padding:"3px 7px",borderRadius:4,border:"1px solid "+(s===c.statut?"#10b981":"rgba(255,255,255,0.1)"),background:s===c.statut?"rgba(16,185,129,0.15)":"transparent",color:s===c.statut?"#10b981":B.muted,cursor:"pointer",fontFamily:SA}}>{s}</button>
                 ))}
               </div>
+              {c.statut!=="Converti en commande" && (
+                <div style={{marginTop:8}}>
+                  <Btn sm v="gold" onClick={()=>convertirEnCommande(c)}>→ Convertir en commande</Btn>
+                </div>
+              )}
             </div>
           ))}
         </div>
+
       )}
       {ong==="catalogue" && <BellaEventsCatalogue user={user}/>}
       {ong==="commandes" && <BellaEventsCommandes user={user}/>}
@@ -4381,10 +4532,20 @@ function BellaEventsCommandes({ user }) {
 
   const save = async () => {
     if (!form.client_nom?.trim()) return;
+    const ancienStatut = form._edit ? cmds.find(x=>x.id===form._edit)?.statut : null;
     const d = {...form, fondatrice_id:user?.id};
     delete d._edit;
-    if (form._edit) await sbPatch("events_commandes", form._edit, d);
-    else await sbPost("events_commandes", d);
+    if (form._edit) {
+      await sbPatch("events_commandes", form._edit, d);
+      if (ancienStatut && ancienStatut !== d.statut) {
+        await ecrireAudit({ module:"events_commandes", entiteId:form._edit, entiteRef:d.reference, action:"changement_statut", ancienStatut, nouveauStatut:d.statut, user });
+      }
+    } else {
+      const reference = await genererReference("BEC");
+      d.reference = reference;
+      await sbPost("events_commandes", d);
+      await ecrireAudit({ module:"events_commandes", entiteId:reference, entiteRef:reference, action:"creation", nouveauStatut:d.statut, user });
+    }
     reload(); setModal(null);
   };
 
@@ -4399,6 +4560,7 @@ function BellaEventsCommandes({ user }) {
         <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"12px 14px"}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
             <div>
+              {c.reference && <div style={{fontSize:10,color:B.gold,fontWeight:700,marginBottom:2}}>{c.reference}</div>}
               <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{c.client_nom}</div>
               <div style={{fontSize:10,color:B.muted}}>{c.type_evenement} · {c.date_evenement?fmt(c.date_evenement):"Date à définir"}</div>
               {c.nb_invites&&<div style={{fontSize:10,color:B.muted}}>👥 {c.nb_invites} invités</div>}
@@ -4519,20 +4681,56 @@ function ClientEvents({ onBack, onNewCommande }) {
   // Prix d'affichage
   const prixAff = (p) => {
     if (p.sur_devis || p.prix == null) return "Sur devis";
+    if (p.prix_max) return p.prix+"€ à "+p.prix_max+"€";
     if (p.prix_des) return "À partir de "+p.prix+"€";
     if (p.prix_jusqua) return "Jusqu'à "+p.prix+"€";
     return p.prix+"€"+(p.unite ? " / "+p.unite : "");
   };
 
-  // Soumettre le formulaire devis/réservation
-  const soumettre = () => {
+  // Soumettre le formulaire devis/réservation — écrit en base (events_demandes)
+  const soumettre = async () => {
     if (!form.prenom.trim() || !form.tel.trim()) { alert("Prénom et téléphone requis."); return; }
     setEnvoi(true);
     const p = modal.prestation;
     const type = modal.type;
     const ref = "EV" + Date.now().toString().slice(-6);
+    const reference = await genererReference("BE");
     const montant = p.prix || 0;
     const acompte = Math.round(montant * (p.acompte_pct||30) / 100);
+    const demande = {
+      id: ref,
+      reference,
+      client_prenom: form.prenom.trim(),
+      client_nom: form.nom.trim(),
+      client_tel: form.tel.trim(),
+      client_email: form.email.trim(),
+      presta_nom: p.nom,
+      presta_categorie: p.categorie || "",
+      presta_sous: p.sous || "",
+      presta_type: p.type || "prestation",
+      prix_affiche: prixAff(p),
+      montant, acompte_pct: p.acompte_pct||30, acompte,
+      solde: montant - acompte,
+      type_demande: type,
+      statut: "Nouvelle demande",
+      date_souhaitee: form.date || null,
+      heure_souhaitee: form.heure || "",
+      type_evenement: form.typeEvt || "",
+      nb_invites: form.invites || "",
+      theme: form.theme || "",
+      couleurs: form.couleurs || "",
+      budget: form.budget || "",
+      message: form.message || "",
+    };
+    try {
+      await sbPost("events_demandes", demande);
+      await ecrireAudit({
+        module: "events_demandes", entiteId: ref, entiteRef: reference,
+        action: "creation", nouveauStatut: "Nouvelle demande",
+        commentaire: "Demande créée via formulaire client — "+p.nom,
+      });
+    } catch {}
+    // Compat state local — alimente aussi l'affichage immédiat côté fondatrice
     const cmd = {
       id: ref,
       client: form.prenom+" "+form.nom.trim(),
@@ -4556,7 +4754,7 @@ function ClientEvents({ onBack, onNewCommande }) {
       delai: p.delai_minimum || "",
     };
     if (onNewCommande) onNewCommande(cmd);
-    setSucces(ref);
+    setSucces(reference);
     setModal(null);
     setForm(FORM_INIT);
     setEnvoi(false);
@@ -4585,8 +4783,9 @@ function ClientEvents({ onBack, onNewCommande }) {
           </div>
           {prestas.length === 0 && <div style={{textAlign:"center",color:EV.cremeD,fontSize:13,padding:20}}>Prestations bientôt disponibles · contactez-nous pour un devis.</div>}
           {prestas.map((p, idx) => {
-            const fam = cat === "unite" && p.sous !== prestas[idx-1]?.sous
-              ? EVENTS_UNITE_FAMILLES.find(f => f.id === p.sous)
+            const familles = cat === "unite" ? EVENTS_UNITE_FAMILLES : cat === "anniv" ? EVENTS_ANNIV_FAMILLES : null;
+            const fam = familles && p.sous !== prestas[idx-1]?.sous
+              ? familles.find(f => f.id === p.sous)
               : null;
             return (
             <React.Fragment key={p.id}>
@@ -4740,103 +4939,6 @@ function ClientEvents({ onBack, onNewCommande }) {
           })}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// PORTAIL CLIENT BELLA'EVENTS — Catalogue commercial (legacy Supabase)
-// ═══════════════════════════════════════════════════════════
-function ClientEventsPortail({ onBack }) {
-  const [filtre, setFiltre] = useState("Tous");
-  const [search, setSearch] = useState("");
-  const [modal, setModal] = useState(null);
-  const { data: items } = useP1Data("events_catalogue", { select:"*", filters:{statut:"actif",visible_client:true}, order:"ordre.asc", limit:200 }, []);
-
-  const itemsFiltres = items.filter(i => {
-    const matchF = filtre==="Tous" || i.sous_categorie===filtre || i.categorie===filtre;
-    const matchS = !search || i.nom.toLowerCase().includes(search.toLowerCase());
-    return matchF && matchS;
-  });
-
-  const TYPE_COL = {prestation:"#065f46",location:"#0d9488",creation:"#92400e",pack:"#1d4ed8"};
-  const TYPE_ICO = {prestation:"⚡",location:"🔑",creation:"✨",pack:"📦"};
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a14,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
-      {/* Header */}
-      <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(6,95,70,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
-        <div>
-          <div style={{fontFamily:FS,fontSize:14,color:"#10b981",letterSpacing:2}}>✨ Bella'Events</div>
-          <div style={{fontSize:9,color:"rgba(16,185,129,0.7)",letterSpacing:3}}>PAPETERIE · DÉCORATION · COORDINATION</div>
-        </div>
-        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
-      </div>
-
-      {/* Hero */}
-      <div style={{padding:"16px 14px 10px",background:"linear-gradient(180deg,rgba(6,95,70,0.2) 0%,transparent 100%)"}}>
-        <div style={{fontFamily:FS,fontSize:20,fontWeight:900,color:B.cream,marginBottom:4}}>Nos prestations ✨</div>
-        <div style={{fontSize:12,color:B.muted,marginBottom:12}}>Papeterie · Créations · Décoration · Location · Packs</div>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher une prestation..." style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(6,95,70,0.3)",borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
-      </div>
-
-      {/* Filtres */}
-      <div style={{display:"flex",gap:5,overflowX:"auto",padding:"6px 14px",borderBottom:"1px solid rgba(6,95,70,0.2)",flexShrink:0}}>
-        {BE_FILTRES.map(f=>(
-          <button key={f} onClick={()=>setFiltre(f)} style={{padding:"4px 10px",borderRadius:99,border:"1px solid "+(filtre===f?"#065f46":"rgba(255,255,255,0.1)"),background:filtre===f?"#065f46":"transparent",color:filtre===f?"#fff":"rgba(255,255,255,0.5)",cursor:"pointer",fontSize:10,fontWeight:700,flexShrink:0,fontFamily:SA}}>{f}</button>
-        ))}
-      </div>
-
-      {/* Catalogue */}
-      <div style={{flex:1,overflowY:"auto",padding:"12px 14px 24px"}}>
-        {itemsFiltres.length===0&&(
-          <div style={{textAlign:"center",padding:"40px 20px",color:B.muted}}>
-            <div style={{fontSize:40,marginBottom:12}}>✨</div>
-            <div style={{fontSize:14,color:B.mutedL,marginBottom:8}}>Prestations bientôt disponibles</div>
-            <button onClick={()=>window.open(WA("Bonjour, je souhaite en savoir plus sur les prestations Bella'Events"),"_blank")} style={{background:"#065f46",border:"none",borderRadius:10,padding:"10px 20px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:SA}}>💬 Nous contacter</button>
-          </div>
-        )}
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {itemsFiltres.map(i=>(
-            <div key={i.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(6,95,70,0.25)",borderRadius:13,padding:"13px 14px",cursor:"pointer"}} onClick={()=>setModal(i)}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",gap:5,alignItems:"center",marginBottom:4}}>
-                    <span style={{background:TYPE_COL[i.type_item]+"33",color:TYPE_COL[i.type_item],borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{TYPE_ICO[i.type_item]} {i.type_item}</span>
-                  </div>
-                  <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{i.nom}</div>
-                  {i.description&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)",lineHeight:1.5}}>{i.description.slice(0,90)}{i.description.length>90?"…":""}</div>}
-                </div>
-                <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
-                  <div style={{fontSize:14,fontWeight:700,color:"#10b981"}}>{i.prix_unitaire ? (i.prix_unitaire)+"€" : i.prix_note||"Sur devis"}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* CTA WhatsApp */}
-        <div style={{marginTop:20,background:"rgba(6,95,70,0.15)",border:"1px solid rgba(6,95,70,0.3)",borderRadius:14,padding:"16px",textAlign:"center"}}>
-          <div style={{fontFamily:FS,fontSize:14,color:"#10b981",marginBottom:6}}>Une question ? Un projet ? ✨</div>
-          <div style={{fontSize:12,color:B.muted,marginBottom:12}}>Contactez-nous pour un devis personnalisé.</div>
-          <button onClick={()=>window.open(WA("Bonjour, je souhaite un devis pour Bella'Events"),"_blank")} style={{background:"linear-gradient(135deg,#065f46,#0d9488)",border:"none",borderRadius:10,padding:"12px 24px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:SA}}>💬 Demander un devis</button>
-        </div>
-      </div>
-
-      {/* Modal détail prestation */}
-      {modal&&(
-        <Mdl title={modal.nom} onClose={()=>setModal(null)}>
-          <div style={{textAlign:"center",marginBottom:14}}>
-            <span style={{background:TYPE_COL[modal.type_item]+"33",color:TYPE_COL[modal.type_item],borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700}}>{TYPE_ICO[modal.type_item]} {modal.type_item}</span>
-          </div>
-          {modal.description&&<p style={{color:B.muted,fontSize:13,lineHeight:1.7,marginBottom:16}}>{modal.description}</p>}
-          <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px",marginBottom:16,textAlign:"center"}}>
-            <div style={{fontSize:22,fontWeight:900,color:"#10b981",fontFamily:FS}}>{modal.prix_unitaire ? (modal.prix_unitaire)+"€" : modal.prix_note||"Sur devis"}</div>
-            {modal.unite&&modal.prix_unitaire&&<div style={{fontSize:11,color:B.muted}}>par {modal.unite}</div>}
-          </div>
-          <button onClick={()=>{setModal(null);window.open(WA("Bonjour, je suis intéressée par : "+(modal.nom)+". Pouvez-vous me faire un devis ?"),"_blank");}} style={{width:"100%",background:"linear-gradient(135deg,#065f46,#0d9488)",border:"none",borderRadius:10,padding:"12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:SA}}>💬 Demander ce service →</button>
-        </Mdl>
-      )}
     </div>
   );
 }
@@ -5945,7 +6047,7 @@ export default function BellaiaApp() {
       onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
-    if (activeUnivers==="events") return <ClientEventsPortail onBack={()=>setActiveUnivers(null)}/>;
+    if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:36}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
   }
@@ -5973,7 +6075,7 @@ export default function BellaiaApp() {
     bsh:         <BSHF produits={bshProd} setProduits={setBshProd} commandes={bshCmds} setCommandes={setBshCmds} clientes={bshCli} setClientes={setBshCli} evenements={bshEvts} setEvenements={setBshEvts}/>,
     ia:          <IAF user={user} bshCmds={bshCmds} bshProduits={bshProd}/>,
     // Pôles opérationnels
-    events:      <BellaEventsF user={user} commandes={bshCmds}/>,
+    events:      <BellaEventsF user={user}/>,
     struct:      <BellaStructureF user={user}/>,
     catalogue_ia:<CatalogueIAF user={user} gotoEvents={()=>setActiveF("events")}/>,
     erp_projets:<ErpProjetsF user={user}/>,
