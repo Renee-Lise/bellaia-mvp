@@ -2603,12 +2603,56 @@ function PlanningCentralF({ user }) {
   const [form, setForm] = useState({});
   const [filtrePole, setFiltrePole] = useState("tous");
   const [conflitApercu, setConflitApercu] = useState(null);
+  const [vue, setVue] = useState("semaine"); // "jour" | "semaine" | "liste"
+  const [dateRef, setDateRef] = useState(new Date());
 
   const { data: events, loading, reload } = useP1Data("planning_events", { select:"*", order:"date_debut.asc", limit:200 }, []);
 
   const POLES_PLANNING = ["tous","ODYSSEE","EVENTS","FOOD","BSH","VILO","STRUCTURE","GENERAL"];
   const POLE_ICO = { ODYSSEE:"💅", EVENTS:"✨", FOOD:"🍃", BSH:"✦", VILO:"📋", STRUCTURE:"🏗", GENERAL:"◈" };
   const POLE_COL = { ODYSSEE:"#3730a3", EVENTS:"#065f46", FOOD:"#15803d", BSH:"#6B1A2B", VILO:"#1d4ed8", STRUCTURE:"#0f766e", GENERAL:B.violet };
+
+  // ── Helpers grille calendrier ──
+  const HEURE_DEBUT = 7;   // 7h
+  const HEURE_FIN = 21;    // 21h
+  const HEURES = Array.from({length: HEURE_FIN-HEURE_DEBUT+1}, (_,i) => HEURE_DEBUT+i);
+
+  const debutSemaine = (d) => { const x=new Date(d); const jour=x.getDay()||7; x.setDate(x.getDate()-jour+1); x.setHours(0,0,0,0); return x; };
+  const joursSemaine = (d) => { const lundi=debutSemaine(d); return Array.from({length:7},(_,i)=>{ const j=new Date(lundi); j.setDate(lundi.getDate()+i); return j; }); };
+  const memeJour = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+
+  const eventsDuJour = (jour) => events.filter(e => e.statut!=="annulé" && memeJour(new Date(e.date_debut), jour) && (filtrePole==="tous"||e.pole===filtrePole));
+
+  // Position verticale en % depuis HEURE_DEBUT, pour placer un événement dans la grille
+  const positionEvt = (ev) => {
+    const debut = new Date(ev.date_debut);
+    const fin = new Date(ev.date_fin);
+    const minDebut = (debut.getHours()-HEURE_DEBUT)*60 + debut.getMinutes();
+    const minFin = (fin.getHours()-HEURE_DEBUT)*60 + fin.getMinutes();
+    const totalMin = (HEURE_FIN-HEURE_DEBUT)*60;
+    const top = Math.max(0, (minDebut/totalMin)*100);
+    const height = Math.max(2, ((minFin-minDebut)/totalMin)*100);
+    return { top, height };
+  };
+
+  const conflitsDuJour = (jour) => {
+    const evs = eventsDuJour(jour);
+    const conf = new Set();
+    for (let i=0;i<evs.length;i++) for (let j=i+1;j<evs.length;j++) {
+      const a=evs[i], b=evs[j];
+      if (new Date(a.blocage_debut||a.date_debut) < new Date(b.blocage_fin||b.date_fin) && new Date(a.blocage_fin||a.date_fin) > new Date(b.blocage_debut||b.date_debut)) {
+        conf.add(a.id); conf.add(b.id);
+      }
+    }
+    return conf;
+  };
+
+  const naviguer = (sens) => {
+    const d = new Date(dateRef);
+    if (vue==="jour") d.setDate(d.getDate()+sens);
+    else d.setDate(d.getDate()+sens*7);
+    setDateRef(d);
+  };
 
   const aVenir = events.filter(e => new Date(e.date_fin) >= new Date() && e.statut !== "annulé" && (filtrePole==="tous" || e.pole===filtrePole));
 
@@ -2662,6 +2706,27 @@ function PlanningCentralF({ user }) {
         <Btn sm onClick={ouvrirNouveau}>+ Activité</Btn>
       </div>
 
+      {/* Sélecteur de vue */}
+      <div style={{display:"flex",gap:5}}>
+        {[["jour","📆 Jour"],["semaine","🗓 Semaine"],["liste","📋 Liste"]].map(([id,l])=>(
+          <button key={id} onClick={()=>setVue(id)} style={{flex:1,padding:"7px 10px",borderRadius:10,border:"1px solid "+(vue===id?B.gold:B.border),background:vue===id?(B.gold+"18"):"transparent",color:vue===id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:vue===id?700:400,fontFamily:SA}}>{l}</button>
+        ))}
+      </div>
+
+      {/* Navigation temporelle (jour/semaine uniquement) */}
+      {vue!=="liste" && (
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:B.surface,border:"1px solid "+B.border,borderRadius:10,padding:"8px 12px"}}>
+          <button onClick={()=>naviguer(-1)} style={{background:"none",border:"none",color:B.cream,fontSize:16,cursor:"pointer",padding:"2px 8px"}}>‹</button>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:12,fontWeight:700,color:B.cream}}>
+              {vue==="jour" ? dateRef.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}) : (()=>{ const js=joursSemaine(dateRef); return js[0].toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" – "+js[6].toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}); })()}
+            </div>
+            <button onClick={()=>setDateRef(new Date())} style={{background:"none",border:"none",color:B.gold,fontSize:9,cursor:"pointer",marginTop:2}}>Aujourd'hui</button>
+          </div>
+          <button onClick={()=>naviguer(1)} style={{background:"none",border:"none",color:B.cream,fontSize:16,cursor:"pointer",padding:"2px 8px"}}>›</button>
+        </div>
+      )}
+
       {/* Filtres pôle */}
       <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2}}>
         {POLES_PLANNING.map(p=>(
@@ -2672,9 +2737,72 @@ function PlanningCentralF({ user }) {
       </div>
 
       {loading && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
-      {!loading && aVenir.length===0 && <div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune activité planifiée.</div>}
 
-      {aVenir.map(ev=>(
+      {/* ── VUE JOUR ── */}
+      {!loading && vue==="jour" && (()=>{ const conf = conflitsDuJour(dateRef); const evs = eventsDuJour(dateRef);
+        return (
+        <div style={{display:"flex",border:"1px solid "+B.border,borderRadius:12,overflow:"hidden",background:B.surface}}>
+          <div style={{width:42,flexShrink:0,borderRight:"1px solid "+B.border}}>
+            {HEURES.map(h=>(
+              <div key={h} style={{height:48,fontSize:9,color:B.muted,textAlign:"right",paddingRight:5,paddingTop:2,borderBottom:"1px solid "+B.border+"55"}}>{h}h</div>
+            ))}
+          </div>
+          <div style={{flex:1,position:"relative"}}>
+            {HEURES.map(h=>(<div key={h} style={{height:48,borderBottom:"1px solid "+B.border+"55"}}/>))}
+            {evs.map(ev=>{
+              const {top,height} = positionEvt(ev);
+              const totalPx = HEURES.length*48;
+              return (
+                <div key={ev.id} onClick={()=>setModal({type:"detail",ev})}
+                  style={{position:"absolute",top:(top/100*totalPx)+"px",height:Math.max(20,height/100*totalPx)+"px",left:4,right:4,background:(POLE_COL[ev.pole]||B.violet)+(conf.has(ev.id)?"cc":"dd"),border:conf.has(ev.id)?"2px solid "+B.danger:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"3px 6px",overflow:"hidden",cursor:"pointer"}}>
+                  <div style={{fontSize:9,fontWeight:700,color:"#fff",lineHeight:1.3}}>{POLE_ICO[ev.pole]} {ev.titre}</div>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,0.8)"}}>{new Date(ev.date_debut).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>
+                  {conf.has(ev.id) && <div style={{fontSize:8,color:"#fff",fontWeight:700}}>⚠ Conflit</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        ); })()}
+
+      {/* ── VUE SEMAINE ── */}
+      {!loading && vue==="semaine" && (
+        <div style={{display:"flex",border:"1px solid "+B.border,borderRadius:12,overflow:"hidden",background:B.surface,overflowX:"auto"}}>
+          <div style={{width:36,flexShrink:0,borderRight:"1px solid "+B.border,paddingTop:28}}>
+            {HEURES.map(h=>(<div key={h} style={{height:38,fontSize:8,color:B.muted,textAlign:"right",paddingRight:4,borderBottom:"1px solid "+B.border+"55"}}>{h}h</div>))}
+          </div>
+          {joursSemaine(dateRef).map(jour=>{
+            const conf = conflitsDuJour(jour);
+            const evs = eventsDuJour(jour);
+            const totalPx = HEURES.length*38;
+            return (
+              <div key={jour.toISOString()} style={{flex:1,minWidth:70,borderRight:"1px solid "+B.border+"55"}}>
+                <div style={{height:28,textAlign:"center",borderBottom:"1px solid "+B.border,background:memeJour(jour,new Date())?(B.gold+"15"):"transparent"}}>
+                  <div style={{fontSize:8,color:B.muted,textTransform:"uppercase"}}>{jour.toLocaleDateString("fr-FR",{weekday:"short"})}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:memeJour(jour,new Date())?B.gold:B.cream}}>{jour.getDate()}</div>
+                </div>
+                <div style={{position:"relative"}}>
+                  {HEURES.map(h=>(<div key={h} style={{height:38,borderBottom:"1px solid "+B.border+"33"}}/>))}
+                  {evs.map(ev=>{
+                    const {top,height} = positionEvt(ev);
+                    return (
+                      <div key={ev.id} onClick={()=>setModal({type:"detail",ev})}
+                        style={{position:"absolute",top:(top/100*totalPx)+"px",height:Math.max(14,height/100*totalPx)+"px",left:2,right:2,background:(POLE_COL[ev.pole]||B.violet)+(conf.has(ev.id)?"cc":"dd"),border:conf.has(ev.id)?"2px solid "+B.danger:"none",borderRadius:4,padding:"1px 3px",overflow:"hidden",cursor:"pointer"}}>
+                        <div style={{fontSize:7,fontWeight:700,color:"#fff",lineHeight:1.2}}>{POLE_ICO[ev.pole]}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── VUE LISTE (existante, conservée) ── */}
+      {!loading && vue==="liste" && aVenir.length===0 && <div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune activité planifiée.</div>}
+
+      {!loading && vue==="liste" && aVenir.map(ev=>(
         <div key={ev.id} style={{background:B.card,border:"1px solid "+(ev.conflit_force?"rgba(180,80,80,0.5)":B.border),borderRadius:13,padding:"13px 14px",borderLeft:"3px solid "+(POLE_COL[ev.pole]||B.violet)}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{flex:1}}>
@@ -2695,6 +2823,30 @@ function PlanningCentralF({ user }) {
           </div>
         </div>
       ))}
+
+      {/* Modal détail événement (clic sur un bloc de la grille) */}
+      {modal?.type==="detail" && (
+        <Mdl title={modal.ev.titre} onClose={()=>setModal(null)}>
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:12}}>
+            <span style={{fontSize:18}}>{POLE_ICO[modal.ev.pole]||"◈"}</span>
+            <span style={{fontSize:12,fontWeight:700,color:B.cream}}>{modal.ev.pole}</span>
+            {modal.ev.conflit_force && <span style={{fontSize:9,background:"rgba(180,80,80,0.2)",color:B.danger,borderRadius:4,padding:"2px 7px",fontWeight:700}}>⚠ Conflit forcé</span>}
+          </div>
+          <div style={{background:B.surface,border:"1px solid "+B.border,borderRadius:10,padding:"11px 13px",marginBottom:10}}>
+            <div style={{fontSize:11,color:B.muted,marginBottom:3}}>Horaire</div>
+            <div style={{fontSize:13,color:B.cream,fontWeight:600}}>
+              {new Date(modal.ev.date_debut).toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})}<br/>
+              → {new Date(modal.ev.date_fin).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+            </div>
+          </div>
+          {modal.ev.lieu && <div style={{fontSize:12,color:B.muted,marginBottom:8}}>📍 {modal.ev.lieu}</div>}
+          <div style={{fontSize:10,color:B.muted,marginBottom:14}}>
+            Préparation {modal.ev.temps_preparation_min}min · Déplacement {modal.ev.temps_deplacement_min}min · Nettoyage {modal.ev.temps_nettoyage_min}min · Marge {modal.ev.marge_securite_min}min
+          </div>
+          {modal.ev.reference && <div style={{fontSize:10,color:B.gold,marginBottom:14}}>Réf. {modal.ev.reference}</div>}
+          <Btn v="danger" full onClick={()=>{annulerEvenement(modal.ev);setModal(null);}}>Annuler cette activité</Btn>
+        </Mdl>
+      )}
 
       {/* Modal nouvelle activité */}
       {modal==="nouveau" && (
@@ -4576,7 +4728,34 @@ function BellaEventsF({ user }) {
   const [formDevis, setFormDevis] = useState({});
   const [modalConflit, setModalConflit] = useState(null); // {demande, conflits, dateDebut, dateFin}
   // Demandes reçues via le formulaire client (table events_demandes)
-  const { data: demandesEvents, loading: lDem, reload: rDem } = useP1Data("events_demandes", { select:"*", order:"created_at.desc", limit:100 }, []);
+  const [demandesEvents, setDemandesEvents] = useState([]);
+  const [lDem, setLDem] = useState(true);
+  const [erreurDem, setErreurDem] = useState(null);
+  const rDem = useCallback(async () => {
+    setLDem(true); setErreurDem(null);
+    try {
+      const token = getToken();
+      const r = await fetch((SB_URL)+"/rest/v1/events_demandes?select=*&order=created_at.desc&limit=100", {
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+(token), "Content-Type": "application/json" },
+      });
+      if (!r.ok) {
+        const errBody = await r.text();
+        console.error("[Bellaïa][events_demandes] Erreur lecture HTTP "+r.status+":", errBody);
+        setErreurDem("Impossible de charger les demandes (erreur "+r.status+"). Vérifiez la connexion ou la configuration Supabase.");
+        setDemandesEvents([]);
+      } else {
+        const rows = await r.json();
+        console.log("[Bellaïa][events_demandes] "+(rows?.length||0)+" demande(s) récupérée(s).");
+        setDemandesEvents(Array.isArray(rows) ? rows : []);
+      }
+    } catch (e) {
+      console.error("[Bellaïa][events_demandes] Erreur réseau:", e);
+      setErreurDem("Connexion impossible au serveur. Réessayez dans un instant.");
+      setDemandesEvents([]);
+    }
+    setLDem(false);
+  }, []);
+  useEffect(() => { rDem(); }, [rDem]);
   const nbNouvelles = demandesEvents.filter(c => c.statut === "Nouvelle demande").length;
 
   const STATUTS_EV = ["Nouvelle demande","À traiter","Devis envoyé","Accepté","Refusé","Converti en commande"];
@@ -4627,7 +4806,12 @@ function BellaEventsF({ user }) {
       budget: formDevis.budget || "",
       notes_internes: "Créé manuellement par "+(user?.role==="assistante"?"l'assistante":"la fondatrice"),
     };
-    await sbPost("events_demandes", demande);
+    const res = await sbPost("events_demandes", demande);
+    if (!res.ok) {
+      console.error("[Bellaïa] Échec création devis interne:", res.data);
+      alert("Le devis n'a pas pu être enregistré. Vérifiez que la table events_demandes existe bien et réessayez.");
+      return;
+    }
     await ecrireAudit({
       module: "events_demandes", entiteId: ref, entiteRef: reference,
       action: "creation", nouveauStatut: demande.statut,
@@ -4713,8 +4897,14 @@ function BellaEventsF({ user }) {
             <Btn sm v="gold" onClick={()=>{setFormDevis({statut:"À traiter"});setModalDevis(true);}}>+ Créer un devis</Btn>
           </div>
           {lDem && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
-          {!lDem && demandesEvents.length===0 && <div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucune demande reçue — elles apparaîtront ici dès qu'un client utilisera le formulaire Bella'Events.</div>}
-          {demandesEvents.map(c=>(
+          {!lDem && erreurDem && (
+            <div style={{background:"rgba(180,80,80,0.12)",border:"1px solid rgba(180,80,80,0.35)",borderRadius:12,padding:"14px",textAlign:"center"}}>
+              <div style={{fontSize:12,color:B.danger,fontWeight:700,marginBottom:6}}>⚠ {erreurDem}</div>
+              <Btn sm v="ghost" onClick={rDem}>Réessayer</Btn>
+            </div>
+          )}
+          {!lDem && !erreurDem && demandesEvents.length===0 && <div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucune demande reçue pour le moment</div>}
+          {!lDem && !erreurDem && demandesEvents.map(c=>(
             <div key={c.id} style={{background:B.card,border:"1px solid "+B.border,borderRadius:13,padding:"14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                 <div>
@@ -4724,11 +4914,13 @@ function BellaEventsF({ user }) {
                 <span style={{fontSize:11,color:B.muted}}>{c.created_at ? fmt(c.created_at.split("T")[0]) : ""}</span>
               </div>
               <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{c.client_prenom} {c.client_nom}</div>
-              <div style={{fontSize:11,color:B.muted,marginBottom:4}}>{c.presta_nom} · {c.prix_affiche}</div>
+              <div style={{fontSize:11,color:B.muted,marginBottom:4}}>{c.presta_nom}{c.presta_categorie?" · "+c.presta_categorie:""} · {c.prix_affiche}</div>
               {c.client_tel && <div style={{fontSize:10,color:B.muted}}>📞 {c.client_tel}</div>}
+              {c.client_email && <div style={{fontSize:10,color:B.muted}}>✉️ {c.client_email}</div>}
+              {(c.date_souhaitee || c.heure_souhaitee) && <div style={{fontSize:10,color:B.muted}}>📅 {c.date_souhaitee?fmt(c.date_souhaitee):"Date à définir"}{c.heure_souhaitee?" à "+c.heure_souhaitee:""}</div>}
               {c.type_evenement && <div style={{fontSize:10,color:B.muted}}>{"🎉 "+c.type_evenement+(c.nb_invites?" · "+c.nb_invites+" invités":"")}</div>}
               {c.theme && <div style={{fontSize:10,color:B.muted}}>🎨 Thème : {c.theme}</div>}
-              {c.budget && <div style={{fontSize:10,color:B.muted}}>💰 Budget : {c.budget}€</div>}
+              {c.budget && <div style={{fontSize:10,color:B.muted}}>💰 Budget : {c.budget}</div>}
               {c.message && <div style={{fontSize:10,color:B.muted,marginTop:4,fontStyle:"italic"}}>"{c.message}"</div>}
               <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
                 {STATUTS_EV.map(s=>(
@@ -5110,14 +5302,20 @@ function ClientEvents({ onBack, onNewCommande }) {
     };
     let echecEnregistrement = false;
     try {
-      await sbPost("events_demandes", demande);
-      await ecrireAudit({
-        module: "events_demandes", entiteId: ref, entiteRef: reference,
-        action: "creation", nouveauStatut: "Nouvelle demande",
-        commentaire: "Demande créée via formulaire client — "+p.nom,
-      });
-    } catch {
+      const res = await sbPost("events_demandes", demande);
+      if (!res.ok) {
+        echecEnregistrement = true;
+        console.error("[Bellaïa] Échec création events_demandes:", res.data);
+      } else {
+        await ecrireAudit({
+          module: "events_demandes", entiteId: ref, entiteRef: reference,
+          action: "creation", nouveauStatut: "Nouvelle demande",
+          commentaire: "Demande créée via formulaire client — "+p.nom,
+        });
+      }
+    } catch (e) {
       echecEnregistrement = true;
+      console.error("[Bellaïa] Erreur réseau création demande:", e);
     }
     if (echecEnregistrement) {
       alert("Votre demande n'a pas pu être enregistrée (problème de connexion). Merci de réessayer, ou de nous contacter directement via WhatsApp.");
