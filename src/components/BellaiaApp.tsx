@@ -5294,7 +5294,7 @@ function ClientEvents({ onBack, onNewCommande }) {
       presta_sous: p.sous || "",
       presta_type: p.type || "prestation",
       prix_affiche: prixAff(p),
-      montant, acompte_pct: p.acompte_pct||30, acompte,
+      montant, acompte,
       solde: montant - acompte,
       type_demande: type,
       statut: "Nouvelle demande",
