@@ -2790,6 +2790,32 @@ function PlanningCentralF({ user }) {
         ))}
       </div>
 
+      {/* ── Panneau Square Bookings ── */}
+      {(()=>{
+        const squareUrl = (typeof window !== "undefined" && (window as any).__ENV?.NEXT_PUBLIC_SQUARE_BOOKING_URL) || process?.env?.NEXT_PUBLIC_SQUARE_BOOKING_URL || "";
+        const squareConnecte = false; // Passer à true quand les clés OAuth Square sont configurées
+        return (
+          <div style={{background:squareConnecte?"rgba(6,95,70,0.12)":"rgba(255,255,255,0.04)",border:"1px solid "+(squareConnecte?"rgba(6,95,70,0.4)":"rgba(255,255,255,0.1)"),borderRadius:12,padding:"12px 14px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:squareConnecte?8:0}}>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{fontSize:14}}>□</span>
+                <span style={{fontSize:12,fontWeight:700,color:squareConnecte?B.success:B.muted}}>Square Bookings</span>
+                <span style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:squareConnecte?"rgba(16,185,129,0.15)":"rgba(255,255,255,0.06)",color:squareConnecte?B.success:B.muted,fontWeight:700}}>{squareConnecte?"Connecté":"Non connecté"}</span>
+              </div>
+              {squareUrl && <a href={squareUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:B.gold,textDecoration:"none"}}>Voir →</a>}
+            </div>
+            {!squareConnecte && (
+              <div style={{fontSize:11,color:B.muted,lineHeight:1.5,marginTop:4}}>
+                L'intégration Square pourra être activée dès que les identifiants OAuth seront disponibles. L'architecture de synchronisation (import/export, webhooks <span style={{fontFamily:"monospace",fontSize:10}}>booking.created / booking.updated</span>, détection de conflits) est prête.
+              </div>
+            )}
+            {squareConnecte && (
+              <div style={{fontSize:11,color:B.success}}>Synchronisation automatique active — conflits détectés en temps réel.</div>
+            )}
+          </div>
+        );
+      })()}
+
       {loading && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
 
       {/* ── VUE JOUR ── */}
@@ -3239,6 +3265,43 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             ))}
           </div>
           {crit.length>0&&<div style={{background:(BSH.rouge)+"15",border:"1px solid "+(BSH.rouge)+("40"),borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:11,fontWeight:700,color:BSH.rouge,marginBottom:6}}>⚠ Stock critique</div>{crit.map(p=><div key={p.id} style={{fontSize:11,color:BSH.creme,marginBottom:3}}>{p.name} — <span style={{color:BSH.rouge}}>{p.stock} restants</span></div>)}</div>}
+          {/* Mini-portail BSH — Accès rapide */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[
+              {ico:"🛍",l:"Boutique",   sub:"Produits & commandes", dest:"stock"},
+              {ico:"💎",l:"Espace VIP", sub:"Clientes fidèles",     dest:"crm"},
+              {ico:"📅",l:"Événements", sub:"Sessions privées",      dest:"evts"},
+              {ico:"❓",l:"FAQ",         sub:"Questions fréquentes",  dest:"params"},
+            ].map(c=>(
+              <div key={c.dest} onClick={()=>setSec(c.dest)} style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:12,padding:"12px 10px",cursor:"pointer",textAlign:"center"}}>
+                <div style={{fontSize:24,marginBottom:4}}>{c.ico}</div>
+                <div style={{fontSize:12,fontWeight:700,color:BSH.creme,marginBottom:2}}>{c.l}</div>
+                <div style={{fontSize:9,color:BSH.cremeD}}>{c.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Produits mis en avant — cliquables */}
+          {produits.filter(p=>p.stock>0).slice(0,3).length > 0 && (
+            <div style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:11,padding:"12px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>✦ Nouveautés / Produits</div>
+              <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                {produits.filter(p=>p.stock>0).slice(0,3).map(p=>(
+                  <div key={p.id} onClick={()=>{setForm({...p,_edit:p.id});setModal("prod");}} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 8px",background:"rgba(255,255,255,0.04)",borderRadius:8,cursor:"pointer",border:"1px solid "+BSH.line}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:600,color:BSH.creme}}>{p.ico||"✦"} {p.name}</div>
+                      <div style={{fontSize:9,color:BSH.cremeD}}>{p.cat} · {p.stock} en stock</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:14,fontWeight:700,color:BSH.or,fontFamily:FS}}>{p.prix}€</div>
+                      <div style={{fontSize:8,color:BSH.cremeD}}>Voir →</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Dernières commandes</div>{commandes.slice(0,4).map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+(BSH.line)}}><div><div style={{fontSize:11,color:BSH.creme}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div></div>)}</div>
         </div>}
         {sec==="cmds"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -5432,7 +5495,14 @@ function ClientEvents({ onBack, onNewCommande }) {
   };
 
   // Ouvrir le formulaire
-  const ouvrir = (p, type) => { setModal({prestation:p, type}); setForm(FORM_INIT); setSucces(null); };
+  const ouvrir = (p, type) => {
+    // Résoudre le nom lisible de la catégorie courante pour pré-remplir typeEvt
+    const catObj = cat ? EVENTS_CATEGORIES.find(c => c.id === cat) : null;
+    const typeEvtInit = catObj ? catObj.nom : "";
+    setModal({prestation:p, type});
+    setForm({...FORM_INIT, typeEvt: typeEvtInit});
+    setSucces(null);
+  };
 
   // Vue détail catégorie — seulement si aucune modale ni écran de succès actif
   if (cat && !modal && !succes) {
@@ -5559,12 +5629,22 @@ function ClientEvents({ onBack, onNewCommande }) {
   // Écran de succès
   if (succes) return (
     <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center",fontFamily:SA}}>
-      <div style={{fontSize:48,marginBottom:16}}>✨</div>
-      <div style={{fontFamily:FS,fontSize:20,color:EV.or,marginBottom:8}}>Demande envoyée !</div>
-      <div style={{fontSize:13,color:EV.cremeD,marginBottom:8,lineHeight:1.6}}>Votre demande a bien été reçue.</div>
-      <div style={{fontSize:12,color:EV.or,fontWeight:700,marginBottom:20}}>Réf. {succes}</div>
-      <div style={{fontSize:11,color:EV.cremeD,marginBottom:24}}>La fondatrice reviendra vers vous rapidement.</div>
-      <button onClick={()=>setSucces(null)} style={{background:EV.or,border:"none",borderRadius:10,padding:"12px 24px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:SA}}>← Retour à Bella'Events</button>
+      <div style={{fontSize:52,marginBottom:16}}>✨</div>
+      <div style={{fontFamily:FS,fontSize:22,color:EV.or,marginBottom:10}}>Demande envoyée !</div>
+      <div style={{fontSize:14,color:EV.cremeD,marginBottom:8,lineHeight:1.7,maxWidth:320}}>
+        Votre demande a bien été envoyée.
+      </div>
+      <div style={{background:"rgba(201,168,76,0.12)",border:"1px solid "+EV.or+"55",borderRadius:12,padding:"12px 24px",marginBottom:12}}>
+        <div style={{fontSize:11,color:EV.cremeD,marginBottom:3}}>Référence</div>
+        <div style={{fontSize:16,fontWeight:700,color:EV.or,fontFamily:FS}}>{succes}</div>
+      </div>
+      <div style={{fontSize:12,color:EV.cremeD,marginBottom:28,lineHeight:1.6,maxWidth:300}}>
+        Nous reviendrons vers vous rapidement pour confirmer les détails de votre projet.
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:280}}>
+        <button onClick={()=>{setCat(null);setSucces(null);}} style={{background:EV.or,border:"none",borderRadius:10,padding:"13px 24px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:SA}}>← Retour aux catégories</button>
+        <button onClick={()=>{setSucces(null);setModal(null);}} style={{background:"transparent",border:"1px solid "+EV.or+"66",borderRadius:10,padding:"12px 24px",color:EV.or,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:SA}}>+ Faire une autre demande</button>
+      </div>
     </div>
   );
 
