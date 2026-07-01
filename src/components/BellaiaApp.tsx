@@ -1244,14 +1244,94 @@ function PlaceholderUnivers({univers, onBack}) {
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
+// ── Gestion de session Supabase ─────────────────────────────
+// Clés localStorage
+const LS_TOKEN   = "bellaia_token";
+const LS_REFRESH = "bellaia_refresh";
+const LS_EXPIRY  = "bellaia_expiry";  // timestamp Unix (secondes)
+
+function saveSession(session) {
+  if (typeof window === "undefined" || !session) return;
+  if (session.access_token)  localStorage.setItem(LS_TOKEN,   session.access_token);
+  if (session.refresh_token) localStorage.setItem(LS_REFRESH, session.refresh_token);
+  if (session.expires_at)    localStorage.setItem(LS_EXPIRY,  String(session.expires_at));
+  else if (session.expires_in) {
+    const exp = Math.floor(Date.now()/1000) + session.expires_in - 60;
+    localStorage.setItem(LS_EXPIRY, String(exp));
+  }
+}
+
+function clearSession() {
+  if (typeof window === "undefined") return;
+  [LS_TOKEN, LS_REFRESH, LS_EXPIRY, "bellaia_user"].forEach(k => localStorage.removeItem(k));
+}
+
+function isTokenExpired() {
+  if (typeof window === "undefined") return false;
+  const expiry = localStorage.getItem(LS_EXPIRY);
+  if (!expiry) return false; // pas de date connue → on tente quand même
+  return Date.now()/1000 > parseInt(expiry, 10);
+}
+
+// Rafraîchit le token via l'API Supabase Auth
+async function refreshSessionSb() {
+  const refreshToken = typeof window !== "undefined" ? localStorage.getItem(LS_REFRESH) : null;
+  if (!refreshToken) {
+    console.warn("[Bellaïa][Auth] Refresh tenté — aucun refresh_token disponible");
+    return false;
+  }
+  console.log("[Bellaïa][Auth] Refresh tenté…");
+  try {
+    const r = await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SB_KEY },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const d = await r.json();
+    if (r.ok && d.access_token) {
+      saveSession(d);
+      console.log("[Bellaïa][Auth] Refresh réussi ✅");
+      return true;
+    }
+    console.error("[Bellaïa][Auth] Refresh échoué ❌", r.status, d);
+    clearSession();
+    return false;
+  } catch (e) {
+    console.error("[Bellaïa][Auth] Refresh — erreur réseau", e);
+    return false;
+  }
+}
+
+// Retourne le meilleur token disponible.
+// Si le token est expiré → tente un refresh automatique.
+// Si pas de token → retourne SB_KEY (mode anon, pour les clients non connectés).
+async function getTokenAsync() {
+  if (typeof window === "undefined") return SB_KEY;
+  const stored = localStorage.getItem(LS_TOKEN);
+  if (!stored) return SB_KEY; // mode anon
+  if (isTokenExpired()) {
+    console.log("[Bellaïa][Auth] JWT expiré — refresh automatique…");
+    const ok = await refreshSessionSb();
+    if (!ok) {
+      console.warn("[Bellaïa][Auth] Session expirée — retour en mode anon");
+      return SB_KEY;
+    }
+  }
+  const fresh = localStorage.getItem(LS_TOKEN);
+  console.log("[Bellaïa][Auth] Session actuelle — token OK");
+  return fresh || SB_KEY;
+}
+
+// Compatibilité synchrone (pour les rares cas qui ne peuvent pas await)
 function getToken() {
   if (typeof window === "undefined") return SB_KEY;
-  return localStorage.getItem("bellaia_token") || SB_KEY;
+  return localStorage.getItem(LS_TOKEN) || SB_KEY;
 }
+
 
 async function sbGet(table, params = {}) {
   const { select = "*", filters = {}, order = "created_at.desc", limit = 100 } = params;
-  const token = getToken();
+  const token = await getTokenAsync();
   let url = (SB_URL)+"/rest/v1/"+(table)+"?select="+(encodeURIComponent(select));
   Object.entries(filters).forEach(([k, v]) => { url += "&"+(k)+"=eq."+(encodeURIComponent(String(v))); });
   if (order) url += "&order="+(order);
@@ -1263,11 +1343,10 @@ async function sbGet(table, params = {}) {
 }
 
 async function sbPost(table, data) {
-  const token = getToken();
+  const token = await getTokenAsync();
   const url = (SB_URL)+"/rest/v1/"+(table);
   const headers = { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json", "Prefer": "return=representation" };
   console.log("[sbPost] URL:", url);
-  console.log("[sbPost] Headers:", headers);
   console.log("[sbPost] Payload:", JSON.stringify(data, null, 2));
   const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(data) });
   let d = null;
@@ -1281,7 +1360,7 @@ async function sbPost(table, data) {
 }
 
 async function sbPatch(table, id, data) {
-  const token = getToken();
+  const token = await getTokenAsync();
   const r = await fetch((SB_URL)+"/rest/v1/"+(table)+"?id=eq."+(id), {
     method: "PATCH",
     headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json", "Prefer": "return=representation" },
@@ -1291,7 +1370,7 @@ async function sbPatch(table, id, data) {
 }
 
 async function sbDelete(table, id) {
-  const token = getToken();
+  const token = await getTokenAsync();
   const r = await fetch((SB_URL)+"/rest/v1/"+(table)+"?id=eq."+(id), {
     method: "DELETE",
     headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token) },
@@ -1307,7 +1386,7 @@ async function sbDelete(table, id) {
 // Génère une référence lisible via la fonction SQL prochaine_reference()
 // Ex: genererReference("BE") → "BE-2026-000001"
 async function genererReference(prefixe) {
-  const token = getToken();
+  const token = await getTokenAsync();
   try {
     const r = await fetch((SB_URL)+"/rest/v1/rpc/prochaine_reference", {
       method: "POST",
@@ -1387,6 +1466,54 @@ async function ecrireAudit({ module, entiteId, entiteRef, action, ancienStatut, 
 }
 
 // ═══════════════════════════════════════════════════════════
+// MOTEUR NOTIFICATIONS — Réutilisable par tous les pôles
+// Canal 'interne' actif. Email/SMS/WhatsApp branchés en Phase 2.
+// ═══════════════════════════════════════════════════════════
+
+// Types de notifications disponibles
+const NOTIF_TYPES = [
+  "rappel_rdv",
+  "validation_devis",
+  "refus_devis",
+  "confirmation_commande",
+  "refus_commande",
+  "demande_paiement",
+  "rappel_prestation",
+  "message_post_prestation",
+  "autre",
+];
+
+// Crée une notification interne (et future email/SMS/WhatsApp)
+async function creerNotification({ pole, type, titre, message, canal, userId, clientEmail, clientTel, datePrevue, sourceTable, sourceId }) {
+  try {
+    const reference = await genererReference("NOTIF");
+    const payload = {
+      reference,
+      user_id:           userId     || null,
+      client_email:      clientEmail|| null,
+      client_tel:        clientTel  || null,
+      pole:              pole       || null,
+      type_notification: type       || "autre",
+      titre:             titre,
+      message:           message,
+      canal:             canal      || "interne",
+      statut:            "a_envoyer",
+      date_prevue:       datePrevue ? new Date(datePrevue).toISOString() : null,
+      source_table:      sourceTable|| null,
+      source_id:         sourceId   || null,
+    };
+    const res = await sbPost("notifications", payload);
+    if (!res.ok) {
+      console.error("[Bellaïa][creerNotification] Échec:", res.error);
+    }
+    return res;
+  } catch (e) {
+    console.error("[Bellaïa][creerNotification] Erreur réseau:", e);
+    return { ok: false };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // PLANNING CENTRAL — Moteur de détection de conflits
 // Réutilisable par tous les pôles (Events, Odyssée, Food, BSH...)
 // ═══════════════════════════════════════════════════════════
@@ -1432,7 +1559,7 @@ async function verifierConflitPlanning(blocageDebut, blocageFin, excludeId) {
     const url = (SB_URL)+"/rest/v1/planning_events?select=*&statut=neq.annulé"
       +"&blocage_debut=lt."+(encodeURIComponent(blocageFin.toISOString()))
       +"&blocage_fin=gt."+(encodeURIComponent(blocageDebut.toISOString()));
-    const token = getToken();
+    const token = await getTokenAsync();
     const r = await fetch(url, { headers: { apikey: SB_KEY, Authorization: "Bearer "+(token), "Content-Type": "application/json" } });
     if (!r.ok) return [];
     const rows = await r.json();
@@ -1492,13 +1619,13 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r) {
     // Essayer Supabase d'abord
     const load = async () => {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const key = getToken();
-      if (!url || !key) { setLoaded(true); return; }
+      const token = await getTokenAsync();
+      if (!url) { setLoaded(true); return; }
       try {
         const r = await fetch((url)+"/rest/v1/"+(table)+"?order=created_at.desc&limit=200", {
           headers: {
-            apikey: key,
-            Authorization: "Bearer "+(key),
+            apikey: SB_KEY,
+            Authorization: "Bearer "+(token),
             "Content-Type": "application/json",
           },
         });
@@ -2648,6 +2775,185 @@ function FinancesP1({ user }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// NOTIFICATIONS — Centre de notifications fondatrice
+// ═══════════════════════════════════════════════════════════
+function NotificationsF({ user }) {
+  const { data: notifs, loading, reload } = useP1Data("notifications", { select:"*", order:"created_at.desc", limit:100 }, []);
+  const CANAUX = ["tous","interne","email","whatsapp","sms"];
+  const STATUTS_NOTIF = ["brouillon","a_envoyer","envoye","echoue","lu"];
+  const COL_STATUT_N = {
+    brouillon:"rgba(255,255,255,0.08)", a_envoyer:"rgba(201,168,76,0.2)",
+    envoye:"rgba(16,185,129,0.2)", echoue:"rgba(180,80,80,0.2)", lu:"rgba(255,255,255,0.05)"
+  };
+  const TXT_STATUT_N = {
+    brouillon:B.muted, a_envoyer:B.warning, envoye:B.success, echoue:B.danger, lu:B.mutedL
+  };
+  const ICO_CANAL = { interne:"🔔", email:"✉️", whatsapp:"💬", sms:"📱" };
+  const [filtre, setFiltre] = useState("tous");
+  const [form, setForm] = useState({});
+  const [modal, setModal] = useState(false);
+
+  const affichees = notifs.filter(n => filtre==="tous" || n.canal===filtre);
+  const nbNonLues = notifs.filter(n => n.statut==="a_envoyer").length;
+
+  const marquerLu = async (n) => {
+    await sbPatch("notifications", n.id, { statut:"lu", date_envoi: new Date().toISOString() });
+    reload();
+  };
+
+  const creerManuelle = async () => {
+    if (!form.titre?.trim() || !form.message?.trim()) { alert("Titre et message requis."); return; }
+    await creerNotification({
+      pole: form.pole || null, type: form.type || "autre",
+      titre: form.titre, message: form.message, canal: form.canal || "interne",
+      clientEmail: form.client_email || null, clientTel: form.client_tel || null,
+      datePrevue: form.date_prevue || null,
+    });
+    setModal(false); setForm({}); reload();
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <SH t="Notifications" s="Alertes internes — Email / WhatsApp / SMS en Phase 2"/>
+          {nbNonLues>0 && <span style={{fontSize:10,background:"rgba(201,168,76,0.2)",color:B.warning,borderRadius:99,padding:"2px 10px",fontWeight:700}}>{nbNonLues} à envoyer</span>}
+        </div>
+        <Btn sm v="gold" onClick={()=>{setForm({canal:"interne",type:"autre"});setModal(true);}}>+ Créer</Btn>
+      </div>
+      <div style={{display:"flex",gap:5,overflowX:"auto"}}>
+        {CANAUX.map(c=>(
+          <button key={c} onClick={()=>setFiltre(c)} style={{padding:"4px 10px",borderRadius:99,border:"1px solid "+B.border,cursor:"pointer",fontSize:10,fontWeight:700,background:filtre===c?B.surface:"transparent",color:filtre===c?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>
+            {ICO_CANAL[c]||"◈"} {c==="tous"?"Toutes":c}
+          </button>
+        ))}
+      </div>
+      {loading && <div style={{textAlign:"center",padding:20,color:B.muted,fontSize:12}}>Chargement…</div>}
+      {!loading && affichees.length===0 && <div style={{textAlign:"center",padding:24,color:B.muted,fontSize:13}}>Aucune notification pour le moment.</div>}
+      {affichees.map(n=>(
+        <div key={n.id} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:"12px 14px",opacity:n.statut==="lu"?0.6:1}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:11}}>{ICO_CANAL[n.canal]||"🔔"}</span>
+              <span style={{fontSize:9,background:COL_STATUT_N[n.statut]||"rgba(255,255,255,0.05)",color:TXT_STATUT_N[n.statut]||B.muted,borderRadius:4,padding:"2px 7px",fontWeight:700}}>{n.statut}</span>
+              {n.pole && <span style={{fontSize:9,color:B.muted}}>{n.pole}</span>}
+            </div>
+            <span style={{fontSize:10,color:B.muted}}>{n.created_at?fmt(n.created_at.split("T")[0]):""}</span>
+          </div>
+          <div style={{fontSize:12,fontWeight:700,color:B.cream,marginBottom:3}}>{n.titre}</div>
+          <div style={{fontSize:11,color:B.muted,lineHeight:1.5,whiteSpace:"pre-line"}}>{n.message}</div>
+          {n.statut!=="lu" && (
+            <div style={{marginTop:8}}>
+              <Btn sm v="ghost" onClick={()=>marquerLu(n)}>✓ Marquer lu</Btn>
+            </div>
+          )}
+        </div>
+      ))}
+      {modal && (
+        <Mdl title="Nouvelle notification" onClose={()=>setModal(false)}>
+          <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})}/></Fld>
+          <Fld label="Message *"><Inp value={form.message||""} onChange={e=>setForm({...form,message:e.target.value})}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Canal"><Sel value={form.canal||"interne"} onChange={e=>setForm({...form,canal:e.target.value})} options={["interne","email","whatsapp","sms"]}/></Fld>
+            <Fld label="Type"><Sel value={form.type||"autre"} onChange={e=>setForm({...form,type:e.target.value})} options={NOTIF_TYPES}/></Fld>
+          </div>
+          <Fld label="Email client"><Inp type="email" value={form.client_email||""} onChange={e=>setForm({...form,client_email:e.target.value})}/></Fld>
+          <Fld label="Tél client"><Inp value={form.client_tel||""} onChange={e=>setForm({...form,client_tel:e.target.value})}/></Fld>
+          <Fld label="Date prévue (optionnel)"><Inp type="datetime-local" value={form.date_prevue||""} onChange={e=>setForm({...form,date_prevue:e.target.value})}/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={creerManuelle} full v="gold">Créer</Btn>
+            <Btn onClick={()=>setModal(false)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLANNING HORAIRES — Configuration des plages par pôle
+// ═══════════════════════════════════════════════════════════
+function PlanningHorairesF({ user }) {
+  const { data: horaires, loading, reload } = useP1Data("planning_horaires", { select:"*", order:"pole.asc,jour_semaine.asc", limit:100 }, []);
+  const [form, setForm] = useState({});
+  const [modal, setModal] = useState(false);
+  const JOURS = ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+  const POLES_H = ["GENERAL","ODYSSEE","EVENTS","FOOD","BSH","VILO","STRUCTURE"];
+
+  const sauvegarder = async () => {
+    const d = {
+      pole: form.pole, jour_semaine: parseInt(form.jour_semaine),
+      heure_ouverture: form.est_ferme ? null : (form.heure_ouverture||null),
+      heure_fermeture: form.est_ferme ? null : (form.heure_fermeture||null),
+      pause_debut: form.pause_debut || null, pause_fin: form.pause_fin || null,
+      est_ferme: !!form.est_ferme,
+    };
+    if (form._id) await sbPatch("planning_horaires", form._id, d);
+    else await sbPost("planning_horaires", d);
+    setModal(false); setForm({}); reload();
+  };
+
+  const groupes = POLES_H.map(pole => ({
+    pole, jours: horaires.filter(h => h.pole===pole).sort((a,b)=>a.jour_semaine-b.jour_semaine)
+  })).filter(g => g.jours.length > 0);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <SH t="Horaires & disponibilités" s="Configuration par pôle — compatibles Square Bookings"/>
+        <Btn sm v="gold" onClick={()=>{setForm({pole:"GENERAL",jour_semaine:1,est_ferme:false});setModal(true);}}>+ Ajouter</Btn>
+      </div>
+      {loading && <div style={{textAlign:"center",padding:20,color:B.muted,fontSize:12}}>Chargement…</div>}
+      {groupes.map(g=>(
+        <div key={g.pole} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:"12px 14px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:B.cream,marginBottom:8}}>{g.pole}</div>
+          {g.jours.map(h=>(
+            <div key={h.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid "+B.border+"33"}}>
+              <span style={{fontSize:11,color:B.muted,minWidth:80}}>{JOURS[h.jour_semaine]}</span>
+              <span style={{fontSize:11,color:h.est_ferme?B.danger:B.success,fontWeight:600}}>
+                {h.est_ferme ? "Fermé" : (h.heure_ouverture||"?")+" – "+(h.heure_fermeture||"?")}
+                {h.pause_debut && !h.est_ferme ? " (pause "+h.pause_debut+"–"+h.pause_fin+")" : ""}
+              </span>
+              <Btn sm v="ghost" onClick={()=>{setForm({...h,_id:h.id,pole:h.pole,jour_semaine:h.jour_semaine});setModal(true);}}>✏</Btn>
+            </div>
+          ))}
+        </div>
+      ))}
+      {!loading && groupes.length===0 && <div style={{textAlign:"center",padding:24,color:B.muted,fontSize:13}}>Aucun horaire configuré — exécutez d'abord planning_horaires.sql dans Supabase.</div>}
+      {modal && (
+        <Mdl title={(form._id?"Modifier":"Ajouter")+" un horaire"} onClose={()=>setModal(false)}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_H}/></Fld>
+            <Fld label="Jour"><Sel value={String(form.jour_semaine||1)} onChange={e=>setForm({...form,jour_semaine:e.target.value})} options={JOURS.map((j,i)=>({value:String(i),label:j}))}/></Fld>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <input type="checkbox" checked={!!form.est_ferme} onChange={e=>setForm({...form,est_ferme:e.target.checked})} style={{width:16,height:16,accentColor:B.danger}}/>
+            <label style={{fontSize:12,color:B.cream}}>Jour fermé</label>
+          </div>
+          {!form.est_ferme && (
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <Fld label="Ouverture"><Inp type="time" value={form.heure_ouverture||""} onChange={e=>setForm({...form,heure_ouverture:e.target.value})}/></Fld>
+                <Fld label="Fermeture"><Inp type="time" value={form.heure_fermeture||""} onChange={e=>setForm({...form,heure_fermeture:e.target.value})}/></Fld>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <Fld label="Pause début (opt.)"><Inp type="time" value={form.pause_debut||""} onChange={e=>setForm({...form,pause_debut:e.target.value})}/></Fld>
+                <Fld label="Pause fin (opt.)"><Inp type="time" value={form.pause_fin||""} onChange={e=>setForm({...form,pause_fin:e.target.value})}/></Fld>
+              </div>
+            </>
+          )}
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={sauvegarder} full v="gold">Sauvegarder</Btn>
+            <Btn onClick={()=>setModal(false)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // PLANNING CENTRAL BELLAÏA — Vue unifiée tous pôles
 // Distinct de CalendrierP1 (agenda général) — celui-ci est
 // alimenté par planning_events avec détection de conflits.
@@ -2657,6 +2963,7 @@ function PlanningCentralF({ user }) {
   const [form, setForm] = useState({});
   const [filtrePole, setFiltrePole] = useState("tous");
   const [conflitApercu, setConflitApercu] = useState(null);
+  const [ongletPlanning, setOngletPlanning] = useState("calendrier");
   const [vue, setVue] = useState("semaine"); // "jour" | "semaine" | "liste"
   const [dateRef, setDateRef] = useState(new Date());
 
@@ -2757,14 +3064,27 @@ function PlanningCentralF({ user }) {
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
         <SH t="Planning central" s="Tous les pôles · Détection automatique des conflits"/>
-        <Btn sm onClick={ouvrirNouveau}>+ Activité</Btn>
+        {ongletPlanning==="calendrier" && <Btn sm onClick={ouvrirNouveau}>+ Activité</Btn>}
       </div>
+
+      {/* Onglets principaux planning */}
+      <div style={{display:"flex",gap:5}}>
+        {[["calendrier","📅 Calendrier"],["horaires","🕐 Horaires"],["notifications","🔔 Notifications"]].map(([id,l])=>(
+          <button key={id} onClick={()=>setOngletPlanning(id)} style={{flex:1,padding:"7px 10px",borderRadius:10,border:"1px solid "+(ongletPlanning===id?B.gold:B.border),background:ongletPlanning===id?(B.gold+"18"):"transparent",color:ongletPlanning===id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:ongletPlanning===id?700:400,fontFamily:SA}}>{l}</button>
+        ))}
+      </div>
+
+      {ongletPlanning==="horaires" && <PlanningHorairesF user={user}/>}
+      {ongletPlanning==="notifications" && <NotificationsF user={user}/>}
+
+      {ongletPlanning==="calendrier" && <>
 
       {/* Sélecteur de vue */}
       <div style={{display:"flex",gap:5}}>
         {[["jour","📆 Jour"],["semaine","🗓 Semaine"],["liste","📋 Liste"]].map(([id,l])=>(
           <button key={id} onClick={()=>setVue(id)} style={{flex:1,padding:"7px 10px",borderRadius:10,border:"1px solid "+(vue===id?B.gold:B.border),background:vue===id?(B.gold+"18"):"transparent",color:vue===id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:vue===id?700:400,fontFamily:SA}}>{l}</button>
         ))}
+      </div>
       </div>
 
       {/* Navigation temporelle (jour/semaine uniquement) */}
@@ -2978,6 +3298,8 @@ function PlanningCentralF({ user }) {
           )}
         </Mdl>
       )}
+
+      </>}
     </div>
   );
 }
@@ -3678,7 +4000,7 @@ function EcranConnexion({ onConnecte }) {
       if (!r.ok) { setErreur(d.error || "Connexion échouée."); setLoading(false); return; }
       if (typeof window !== "undefined") {
         localStorage.setItem("bellaia_user", JSON.stringify(d.user));
-        if (d.session?.access_token) localStorage.setItem("bellaia_token", d.session.access_token);
+        saveSession(d.session);
       }
       onConnecte(d.user);
     } catch { setErreur("Erreur réseau. Réessayez."); }
@@ -3708,7 +4030,7 @@ function EcranConnexion({ onConnecte }) {
       } else {
         if (typeof window !== "undefined") {
           localStorage.setItem("bellaia_user", JSON.stringify(d.user));
-          if (d.session?.access_token) localStorage.setItem("bellaia_token", d.session.access_token);
+          saveSession(d.session);
         }
         onConnecte(d.user);
       }
@@ -4851,7 +5173,7 @@ function BellaEventsF({ user }) {
   const rDem = useCallback(async () => {
     setLDem(true); setErreurDem(null);
     try {
-      const token = getToken();
+      const token = await getTokenAsync();
       const r = await fetch((SB_URL)+"/rest/v1/events_demandes?select=*&order=created_at.desc&limit=100", {
         headers: { apikey: SB_KEY, Authorization: "Bearer "+(token), "Content-Type": "application/json" },
       });
@@ -5464,15 +5786,14 @@ function ClientEvents({ onBack, onNewCommande }) {
       setEnvoi(false);
       return;
     }
-    // Compat state local — alimente aussi l'affichage immédiat côté fondatrice
+    // Compat state local — alimente l'affichage immédiat côté fondatrice (en mémoire)
     const cmd = {
       id: ref,
       client: form.prenom+" "+form.nom.trim(),
       tel: form.tel, email: form.email,
       produit: p.nom,
-      categorie: p.categorie, sous: p.sous, type: p.type||"prestation",
-      prix: prixAff(p), montant, acompte_pct: p.acompte_pct||30, acompte,
-      solde: montant - acompte,
+      categorie: p.categorie, type: p.type||"prestation",
+      prix: prixAff(p), montant: montantNum, acompte: acompteNum,
       statut: "Nouvelle demande",
       date: form.date || today(),
       heure: form.heure,
@@ -5484,14 +5805,26 @@ function ClientEvents({ onBack, onNewCommande }) {
       message: form.message,
       pmt: "À confirmer",
       pole: "Events",
-      notes: type + " — " + p.nom + " — " + new Date().toLocaleString("fr-FR"),
-      delai: p.delai_minimum || "",
     };
     if (onNewCommande) onNewCommande(cmd);
+    // Notification interne → fondatrice alertée d'une nouvelle demande
+    creerNotification({
+      pole: "EVENTS",
+      type: "validation_devis",
+      titre: "Nouvelle demande Events — "+p.nom,
+      message: "Client : "+(form.prenom||"")+" "+(form.nom||"").trim()+"\nTél : "+(form.tel||"")+"\nPrestation : "+p.nom+"\nRéférence : "+reference,
+      canal: "interne",
+      clientEmail: form.email || null,
+      clientTel: form.tel || null,
+      sourceTable: "events_demandes",
+      sourceId: ref,
+    });
+    // setSucces en premier — garantit que le re-render affiche l'écran de confirmation
+    // avant que modal soit remis à null (évite le flash vers la vue catégorie)
     setSucces(reference);
+    setEnvoi(false);
     setModal(null);
     setForm(FORM_INIT);
-    setEnvoi(false);
   };
 
   // Ouvrir le formulaire
@@ -6255,19 +6588,19 @@ function StocksF({ user }) {
         unite: form.unite || "unité",
         statut: "actif", notes: form.notes || "",
       };
-      const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const token = getToken();
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const token = await getTokenAsync();
       if (form._edit) {
-        await fetch(SB_URL+"/rest/v1/stocks?id=eq."+form._edit, {
+        await fetch(SB_URL_local+"/rest/v1/stocks?id=eq."+form._edit, {
           method: "PATCH",
-          headers: { apikey: token, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=minimal" },
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=minimal" },
           body: JSON.stringify({...payload, updated_at: new Date().toISOString()}),
         });
         setStocks(s => s.map(x => x.id === form._edit ? {...x,...payload,id:form._edit} : x));
       } else {
-        const r = await fetch(SB_URL+"/rest/v1/stocks", {
+        const r = await fetch(SB_URL_local+"/rest/v1/stocks", {
           method: "POST",
-          headers: { apikey: token, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
           body: JSON.stringify(payload),
         });
         const [created] = await r.json();
@@ -6756,10 +7089,7 @@ export default function BellaiaApp() {
 
   const deconnexion = async () => {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("bellaia_user");
-      localStorage.removeItem("bellaia_token");
-    }
+    clearSession();
     setUser(null); setPreview(null); setActiveUnivers(null);
   };
 
