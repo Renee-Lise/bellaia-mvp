@@ -1324,6 +1324,53 @@ async function genererReference(prefixe) {
   return prefixe+"-"+annee+"-"+String(Date.now()).slice(-6);
 }
 
+// ── Helper events_demandes — aligne le payload sur la vraie structure Supabase
+// Colonnes réelles confirmées par information_schema (2026-07-01).
+// Ne jamais envoyer id (uuid auto), created_at, updated_at.
+function sanitizeEventsDemandePayload(p) {
+  // Convertisseurs
+  const toInt = (v) => { const n = parseInt(v, 10); return isNaN(n) ? null : n; };
+  const toNum = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+  const toHeure = (v) => {
+    if (!v) return null;
+    const s = String(v).replace("h", ":").trim();
+    return /^\d{1,2}:\d{2}$/.test(s) ? (s.length === 4 ? "0"+s : s) : null;
+  };
+  const toDate = (v) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+  return {
+    reference:        p.reference        || null,
+    statut:           p.statut           || "nouvelle_demande",
+    client_prenom:    p.client_prenom    || null,
+    client_nom:       p.client_nom       || null,
+    client_tel:       p.client_tel       || null,
+    client_email:     p.client_email     || null,
+    date_souhaitee:   toDate(p.date_souhaitee),
+    heure_souhaitee:  toHeure(p.heure_souhaitee),
+    type_evenement:   p.type_evenement   || null,
+    nb_invites:       toInt(p.nb_invites),
+    theme:            p.theme            || null,
+    couleurs:         p.couleurs         || null,
+    budget:           toNum(p.budget),
+    message:          p.message          || null,
+    pole:             p.pole             || "Bella'Events",
+    categorie:        p.categorie        || null,
+    prestation:       p.prestation       || null,
+    prix:             p.prix             || null,
+    acompte:          p.acompte          || null,
+    delai:            p.delai            || null,
+    type_prestation:  p.type_prestation  || null,
+    numero_devis:     p.numero_devis     || null,
+    montant_estime:   toNum(p.montant_estime),
+    montant_acompte:  toNum(p.montant_acompte),
+    montant_solde:    toNum(p.montant_solde),
+    mode_paiement:    p.mode_paiement    || null,
+    statut_paiement:  p.statut_paiement  || "non_paye",
+    liaison_comptable:p.liaison_comptable|| null,
+    // commande_id et planning_event_id : uuid, non envoyés à la création initiale
+  };
+}
+
 // Écrit une entrée dans le journal d'audit (audit_log)
 // module: ex "events_demandes" | action: ex "changement_statut"
 async function ecrireAudit({ module, entiteId, entiteRef, action, ancienStatut, nouveauStatut, champ, ancienneValeur, nouvelleValeur, commentaire, user }) {
@@ -4791,32 +4838,42 @@ function BellaEventsF({ user }) {
     if (!formDevis.client?.trim() || !formDevis.tel?.trim()) { alert("Client et téléphone requis."); return; }
     const ref = "EV" + Date.now().toString().slice(-6);
     const reference = await genererReference("BE");
-    const montant = parseFloat(formDevis.montant) || 0;
-    const acompte = parseFloat(formDevis.acompte) || 0;
-    const demande = {
-      id: ref,
+    const montantNum = parseFloat(formDevis.montant) || 0;
+    const acompteNum = parseFloat(formDevis.acompte) || 0;
+    const soldeNum   = montantNum - acompteNum;
+    const demande = sanitizeEventsDemandePayload({
       reference,
-      client_prenom: formDevis.client.trim(),
-      client_nom: "",
-      client_tel: formDevis.tel.trim(),
-      client_email: formDevis.email || "",
-      presta_nom: formDevis.prestation || "Devis interne",
-      presta_categorie: formDevis.categorie || "",
-      montant, acompte, solde: montant - acompte,
-      type_demande: "Devis interne",
-      statut: formDevis.statut || "À traiter",
-      date_souhaitee: formDevis.date || null,
-      heure_souhaitee: formDevis.heure || "",
-      nb_invites: formDevis.invites || "",
-      theme: formDevis.theme || "",
-      couleurs: formDevis.couleurs || "",
-      budget: formDevis.budget || "",
-      notes_internes: "Créé manuellement par "+(user?.role==="assistante"?"l'assistante":"la fondatrice"),
-    };
+      statut:          formDevis.statut || "nouvelle_demande",
+      client_prenom:   formDevis.client.trim(),
+      client_nom:      "",
+      client_tel:      formDevis.tel.trim(),
+      client_email:    formDevis.email || null,
+      date_souhaitee:  formDevis.date  || null,
+      heure_souhaitee: formDevis.heure || null,
+      nb_invites:      formDevis.invites || null,
+      theme:           formDevis.theme   || null,
+      couleurs:        formDevis.couleurs|| null,
+      budget:          formDevis.budget  || null,
+      pole:            "Bella'Events",
+      categorie:       formDevis.categorie || null,
+      prestation:      formDevis.prestation || "Devis interne",
+      type_prestation: "prestation",
+      acompte:         acompteNum > 0 ? acompteNum+"€" : null,
+      montant_estime:  montantNum || null,
+      montant_acompte: acompteNum || null,
+      montant_solde:   soldeNum   || null,
+    });
     const res = await sbPost("events_demandes", demande);
     if (!res.ok) {
-      console.error("[Bellaïa] Échec création devis interne:", res.data);
-      alert("Le devis n'a pas pu être enregistré. Vérifiez que la table events_demandes existe bien et réessayez.");
+      console.error("[Bellaïa] Échec création devis interne:", res.error);
+      const sb = res.error;
+      const msg = [
+        "Erreur HTTP "+res.status,
+        sb?.message ? "Message : "+sb.message : null,
+        sb?.details ? "Détails : "+sb.details : null,
+        sb?.hint    ? "Hint : "+sb.hint       : null,
+      ].filter(Boolean).join("\n");
+      alert("Le devis n'a pas pu être enregistré :\n\n"+msg);
       return;
     }
     await ecrireAudit({
@@ -4921,7 +4978,7 @@ function BellaEventsF({ user }) {
                 <span style={{fontSize:11,color:B.muted}}>{c.created_at ? fmt(c.created_at.split("T")[0]) : ""}</span>
               </div>
               <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{c.client_prenom} {c.client_nom}</div>
-              <div style={{fontSize:11,color:B.muted,marginBottom:4}}>{c.presta_nom}{c.presta_categorie?" · "+c.presta_categorie:""} · {c.prix_affiche}</div>
+              <div style={{fontSize:11,color:B.muted,marginBottom:4}}>{c.prestation}{c.categorie?" · "+c.categorie:""}{c.prix?" · "+c.prix:""}</div>
               {c.client_tel && <div style={{fontSize:10,color:B.muted}}>📞 {c.client_tel}</div>}
               {c.client_email && <div style={{fontSize:10,color:B.muted}}>✉️ {c.client_email}</div>}
               {(c.date_souhaitee || c.heure_souhaitee) && <div style={{fontSize:10,color:B.muted}}>📅 {c.date_souhaitee?fmt(c.date_souhaitee):"Date à définir"}{c.heure_souhaitee?" à "+c.heure_souhaitee:""}</div>}
@@ -5280,33 +5337,35 @@ function ClientEvents({ onBack, onNewCommande }) {
     const type = modal.type;
     const ref = "EV" + Date.now().toString().slice(-6);
     const reference = await genererReference("BE");
-    const montant = p.prix || 0;
-    const acompte = Math.round(montant * (p.acompte_pct||30) / 100);
-    const demande = {
-      id: ref,
+    const montantNum = p.prix || 0;
+    const acompteNum = Math.round(montantNum * (p.acompte_pct||30) / 100);
+    const soldeNum   = montantNum - acompteNum;
+    const demande = sanitizeEventsDemandePayload({
       reference,
-      client_prenom: form.prenom.trim(),
-      client_nom: form.nom.trim(),
-      client_tel: form.tel.trim(),
-      client_email: form.email.trim(),
-      presta_nom: p.nom,
-      presta_categorie: p.categorie || "",
-      presta_sous: p.sous || "",
-      presta_type: p.type || "prestation",
-      prix_affiche: prixAff(p),
-      montant, acompte,
-      solde: montant - acompte,
-      type_demande: type,
-      statut: "Nouvelle demande",
-      date_souhaitee: form.date || null,
-      heure_souhaitee: form.heure || "",
-      type_evenement: form.typeEvt || "",
-      nb_invites: form.invites || "",
-      theme: form.theme || "",
-      couleurs: form.couleurs || "",
-      budget: form.budget || "",
-      message: form.message || "",
-    };
+      statut:           "nouvelle_demande",
+      client_prenom:    form.prenom.trim(),
+      client_nom:       form.nom.trim(),
+      client_tel:       form.tel.trim(),
+      client_email:     form.email.trim(),
+      date_souhaitee:   form.date || null,
+      heure_souhaitee:  form.heure || null,
+      type_evenement:   form.typeEvt || null,
+      nb_invites:       form.invites || null,
+      theme:            form.theme || null,
+      couleurs:         form.couleurs || null,
+      budget:           form.budget || null,
+      message:          form.message || null,
+      pole:             "Bella'Events",
+      categorie:        p.categorie || null,
+      prestation:       p.nom,
+      prix:             prixAff(p),
+      acompte:          acompteNum > 0 ? acompteNum+"€" : null,
+      delai:            p.delai_minimum || null,
+      type_prestation:  p.type || "prestation",
+      montant_estime:   montantNum || null,
+      montant_acompte:  acompteNum || null,
+      montant_solde:    soldeNum   || null,
+    });
     let echecEnregistrement = false;
     let erreurSb = null;
     try {
