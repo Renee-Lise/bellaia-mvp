@@ -3085,7 +3085,6 @@ function PlanningCentralF({ user }) {
           <button key={id} onClick={()=>setVue(id)} style={{flex:1,padding:"7px 10px",borderRadius:10,border:"1px solid "+(vue===id?B.gold:B.border),background:vue===id?(B.gold+"18"):"transparent",color:vue===id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:vue===id?700:400,fontFamily:SA}}>{l}</button>
         ))}
       </div>
-      </div>
 
       {/* Navigation temporelle (jour/semaine uniquement) */}
       {vue!=="liste" && (
