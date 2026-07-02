@@ -3109,31 +3109,18 @@ function PlanningCentralF({ user }) {
         ))}
       </div>
 
-      {/* ── Panneau Square Bookings ── */}
-      {(()=>{
-        const squareUrl = (typeof window !== "undefined" && (window as any).__ENV?.NEXT_PUBLIC_SQUARE_BOOKING_URL) || process?.env?.NEXT_PUBLIC_SQUARE_BOOKING_URL || "";
-        const squareConnecte = false; // Passer à true quand les clés OAuth Square sont configurées
-        return (
-          <div style={{background:squareConnecte?"rgba(6,95,70,0.12)":"rgba(255,255,255,0.04)",border:"1px solid "+(squareConnecte?"rgba(6,95,70,0.4)":"rgba(255,255,255,0.1)"),borderRadius:12,padding:"12px 14px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:squareConnecte?8:0}}>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <span style={{fontSize:14}}>□</span>
-                <span style={{fontSize:12,fontWeight:700,color:squareConnecte?B.success:B.muted}}>Square Bookings</span>
-                <span style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:squareConnecte?"rgba(16,185,129,0.15)":"rgba(255,255,255,0.06)",color:squareConnecte?B.success:B.muted,fontWeight:700}}>{squareConnecte?"Connecté":"Non connecté"}</span>
-              </div>
-              {squareUrl && <a href={squareUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:B.gold,textDecoration:"none"}}>Voir →</a>}
-            </div>
-            {!squareConnecte && (
-              <div style={{fontSize:11,color:B.muted,lineHeight:1.5,marginTop:4}}>
-                L'intégration Square pourra être activée dès que les identifiants OAuth seront disponibles. L'architecture de synchronisation (import/export, webhooks <span style={{fontFamily:"monospace",fontSize:10}}>booking.created / booking.updated</span>, détection de conflits) est prête.
-              </div>
-            )}
-            {squareConnecte && (
-              <div style={{fontSize:11,color:B.success}}>Synchronisation automatique active — conflits détectés en temps réel.</div>
-            )}
+      {/* ── Panneau Square Bookings — synchronisation désactivée tant qu'OAuth non configuré ── */}
+      <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3}}>
+            <span style={{fontSize:12}}>□</span>
+            <span style={{fontSize:12,fontWeight:700,color:B.muted}}>Square Bookings</span>
+            <span style={{fontSize:9,padding:"2px 8px",borderRadius:99,background:"rgba(255,255,255,0.06)",color:B.muted,fontWeight:700}}>Non connecté</span>
           </div>
-        );
-      })()}
+          <div style={{fontSize:11,color:B.muted}}>Synchronisation à configurer plus tard — le planning Bellaïa reste pleinement utilisable.</div>
+        </div>
+        {ENV.SQUARE_BOOKING && <a href={ENV.SQUARE_BOOKING} target="_blank" rel="noreferrer" style={{fontSize:10,color:B.gold,textDecoration:"none",flexShrink:0,marginLeft:12}}>Voir →</a>}
+      </div>
 
       {loading && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
 
@@ -5696,8 +5683,206 @@ function BellaEventsDocuments({ user }) {
 // Couleurs Events (vert émeraude)
 const EV = {or:"#10b981",creme:"#e8f5ee",cremeD:"#a8d5be",line:"rgba(16,185,129,0.25)",verre:"rgba(16,185,129,0.06)",acc:"#34d399",night:"#0a1410"};
 
+// ─── Mapping statuts events_demandes → étapes de la timeline ───
+const ETAPES_SUIVI = [
+  {statut:"nouvelle_demande",    ico:"✅", label:"Demande reçue"},
+  {statut:"a_traiter",           ico:"⏳", label:"Étude de votre demande"},
+  {statut:"devis_en_preparation",ico:"📄", label:"Devis en préparation"},
+  {statut:"devis_envoye",        ico:"📩", label:"Devis envoyé"},
+  {statut:"accepte",             ico:"🎉", label:"Réservation confirmée"},
+];
+
+// Normalise un statut brut (espaces, accents, casse) vers une des clés ci-dessus
+function normaliserStatut(s) {
+  if (!s) return "nouvelle_demande";
+  const map = {
+    "nouvelle demande":     "nouvelle_demande",
+    "nouvelle_demande":     "nouvelle_demande",
+    "à traiter":            "a_traiter",
+    "a_traiter":            "a_traiter",
+    "devis en preparation": "devis_en_preparation",
+    "devis en préparation": "devis_en_preparation",
+    "devis_en_preparation": "devis_en_preparation",
+    "devis envoyé":         "devis_envoye",
+    "devis envoye":         "devis_envoye",
+    "devis_envoye":         "devis_envoye",
+    "accepté":              "accepte",
+    "accepte":              "accepte",
+    "réservation confirmée":"accepte",
+    "converti en commande": "accepte",
+  };
+  return map[s.toLowerCase().trim()] || "nouvelle_demande";
+}
+
+// ─── Timeline de suivi partagée (utilisée dans la confirmation et le portail) ─
+function TimelineSuivi({ statutBrut, style }) {
+  const statutNorm = normaliserStatut(statutBrut || "nouvelle_demande");
+  const idxActuel  = ETAPES_SUIVI.findIndex(e => e.statut === statutNorm);
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:0,...style}}>
+      {ETAPES_SUIVI.map((e, i) => {
+        const passe   = i <= idxActuel;
+        const actuel  = i === idxActuel;
+        const dernier = i === ETAPES_SUIVI.length - 1;
+        return (
+          <div key={e.statut} style={{display:"flex",alignItems:"stretch",gap:12}}>
+            {/* Colonne icône + fil */}
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:28,flexShrink:0}}>
+              <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,
+                background:passe?"rgba(16,185,129,0.2)":"rgba(255,255,255,0.05)",
+                border:"2px solid "+(actuel?"#10b981":passe?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.1)"),
+                boxShadow:actuel?"0 0 8px rgba(16,185,129,0.5)":"none",
+              }}>{passe?e.ico:"⚪"}</div>
+              {!dernier && <div style={{flex:1,width:2,background:passe?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.07)",margin:"3px 0"}}/>}
+            </div>
+            {/* Texte */}
+            <div style={{paddingBottom: dernier?0:16,paddingTop:4}}>
+              <div style={{fontSize:12,fontWeight:actuel?700:500,color:passe?"#10b981":actuel?"#34d399":"rgba(255,255,255,0.3)",lineHeight:1.4}}>{e.label}</div>
+              {actuel && <div style={{fontSize:9,color:"rgba(16,185,129,0.6)",marginTop:2,letterSpacing:1}}>EN COURS</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Portail "Suivre ma demande" (accessible depuis l'accueil Events) ───
+function PortailSuiviClient({ onBack }) {
+  const [ref,     setRef]     = useState("");
+  const [dossier, setDossier] = useState(null);
+  const [chargement, setChargement] = useState(false);
+  const [erreur,  setErreur]  = useState("");
+
+  const rechercher = async () => {
+    if (!ref.trim()) return;
+    setChargement(true); setErreur(""); setDossier(null);
+    try {
+      const token = await getTokenAsync();
+      const r = await fetch(
+        (SB_URL)+"/rest/v1/events_demandes?reference=eq."+encodeURIComponent(ref.trim())+"&select=*&limit=1",
+        { headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json" } }
+      );
+      const rows = await r.json();
+      if (!r.ok || !rows?.length) {
+        setErreur("Aucune demande trouvée pour la référence " + ref.trim() + ". Vérifiez la référence reçue par message.");
+      } else {
+        setDossier(rows[0]);
+      }
+    } catch {
+      setErreur("Connexion impossible. Réessayez dans un instant.");
+    }
+    setChargement(false);
+  };
+
+  const fmt24 = (s) => {
+    if (!s) return "";
+    const d = new Date(s);
+    return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"})+" à "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
+      {/* Header */}
+      <div style={{padding:"12px 16px",borderBottom:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)"}}>
+        <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>✨ Suivi de demande</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:20}}>
+        {/* Zone de recherche */}
+        <div style={{marginBottom:24}}>
+          <div style={{fontFamily:FS,fontSize:18,color:EV.or,marginBottom:6}}>Retrouvez votre dossier</div>
+          <div style={{fontSize:12,color:EV.cremeD,marginBottom:16,lineHeight:1.6}}>Saisissez la référence reçue après l'envoi de votre demande.</div>
+          <div style={{display:"flex",gap:8}}>
+            <input
+              value={ref} onChange={e=>setRef(e.target.value.toUpperCase())}
+              onKeyDown={e=>e.key==="Enter" && rechercher()}
+              placeholder="BE-2026-XXXXXX"
+              style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid "+EV.line,borderRadius:10,padding:"11px 14px",color:EV.creme,fontSize:14,fontFamily:SA,outline:"none",letterSpacing:1}}
+            />
+            <button onClick={rechercher} disabled={chargement} style={{background:EV.or,border:"none",borderRadius:10,padding:"11px 18px",color:"#062b1d",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA,opacity:chargement?0.6:1}}>
+              {chargement?"…":"Rechercher"}
+            </button>
+          </div>
+          {erreur && <div style={{fontSize:12,color:"#f87171",marginTop:8,lineHeight:1.5}}>{erreur}</div>}
+        </div>
+
+        {/* Dossier trouvé */}
+        {dossier && (
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            {/* Carte identité du dossier */}
+            <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:10,color:EV.cremeD,marginBottom:2}}>Référence</div>
+                  <div style={{fontSize:16,fontWeight:700,color:EV.or,fontFamily:FS}}>{dossier.reference}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:10,color:EV.cremeD,marginBottom:2}}>Créée le</div>
+                  <div style={{fontSize:11,color:EV.cremeD}}>{fmt24(dossier.created_at)}</div>
+                </div>
+              </div>
+              <div style={{borderTop:"1px solid "+EV.line,paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
+                {dossier.client_prenom && <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Client · </span>{dossier.client_prenom} {dossier.client_nom||""}</div>}
+                {dossier.prestation    && <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Projet · </span>{dossier.prestation}</div>}
+                {dossier.type_evenement&& <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Type · </span>{dossier.type_evenement}</div>}
+                {dossier.date_souhaitee&& <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Date souhaitée · </span>{new Date(dossier.date_souhaitee).toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"})}</div>}
+              </div>
+            </div>
+
+            {/* Statut actuel */}
+            <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{fontSize:11,color:EV.cremeD,marginBottom:10,fontWeight:700,letterSpacing:1}}>SUIVI DE VOTRE DEMANDE</div>
+              <TimelineSuivi statutBrut={dossier.statut}/>
+            </div>
+
+            {/* Historique — prêt pour les futures données d'audit_log */}
+            <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{fontSize:11,color:EV.cremeD,marginBottom:10,fontWeight:700,letterSpacing:1}}>HISTORIQUE</div>
+              <div style={{display:"flex",gap:10,paddingLeft:4}}>
+                <div style={{width:2,background:"rgba(16,185,129,0.2)",borderRadius:2}}/>
+                <div style={{flex:1,display:"flex",flexDirection:"column",gap:10}}>
+                  <div>
+                    <div style={{fontSize:10,color:EV.cremeD}}>{fmt24(dossier.created_at)}</div>
+                    <div style={{fontSize:12,color:EV.creme,marginTop:1}}>Demande créée</div>
+                  </div>
+                  {dossier.updated_at && dossier.updated_at !== dossier.created_at && (
+                    <div>
+                      <div style={{fontSize:10,color:EV.cremeD}}>{fmt24(dossier.updated_at)}</div>
+                      <div style={{fontSize:12,color:EV.creme,marginTop:1}}>Dossier mis à jour</div>
+                    </div>
+                  )}
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.2)",fontStyle:"italic"}}>L'historique détaillé sera disponible prochainement.</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Notifications à venir */}
+            <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{fontSize:11,color:EV.cremeD,marginBottom:10,fontWeight:700,letterSpacing:1}}>NOTIFICATIONS</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.25)",fontStyle:"italic"}}>🔔 Les notifications apparaîtront ici : nouveau message, devis disponible, confirmation de réservation…</div>
+            </div>
+
+            {/* Bouton de téléchargement (désactivé — bientôt disponible) */}
+            <button disabled style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"12px",color:"rgba(255,255,255,0.3)",fontSize:13,fontFamily:SA,cursor:"not-allowed"}}>
+              📄 Télécharger mon devis — Bientôt disponible
+            </button>
+
+            {/* Contact WhatsApp */}
+            <button onClick={()=>window.open(WA("Bonjour, ma référence est "+dossier.reference+". Je souhaite des informations sur mon dossier."),"_blank")} style={{width:"100%",background:"rgba(37,211,102,0.12)",border:"1px solid rgba(37,211,102,0.3)",borderRadius:10,padding:"12px",color:"#25d366",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>
+              💬 Contacter Bella'Events
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClientEvents({ onBack, onNewCommande }) {
   const [cat, setCat] = useState(null);
+  const [suivi, setSuivi] = useState(false);
   const [modal, setModal] = useState(null);   // {prestation, type} → ouvre le formulaire
   const [succes, setSucces] = useState(null); // référence après soumission
   const FORM_INIT = {prenom:"",nom:"",tel:"",email:"",date:"",heure:"",typeEvt:"",invites:"",theme:"",couleurs:"",budget:"",message:""};
@@ -5836,6 +6021,9 @@ function ClientEvents({ onBack, onNewCommande }) {
     setSucces(null);
   };
 
+  // Portail suivi de demande
+  if (suivi) return <PortailSuiviClient onBack={()=>setSuivi(false)}/>;
+
   // Vue détail catégorie — seulement si aucune modale ni écran de succès actif
   if (cat && !modal && !succes) {
     const catObj = EVENTS_CATEGORIES.find(c => c.id === cat);
@@ -5959,26 +6147,65 @@ function ClientEvents({ onBack, onNewCommande }) {
   }
 
   // Écran de succès
-  if (succes) return (
-    <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center",fontFamily:SA}}>
-      <div style={{fontSize:52,marginBottom:16}}>✨</div>
-      <div style={{fontFamily:FS,fontSize:22,color:EV.or,marginBottom:10}}>Demande envoyée !</div>
-      <div style={{fontSize:14,color:EV.cremeD,marginBottom:8,lineHeight:1.7,maxWidth:320}}>
-        Votre demande a bien été envoyée.
+  if (succes) {
+    const maintenant = new Date();
+    const dateEnvoi  = maintenant.toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
+    const heureEnvoi = maintenant.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    return (
+      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
+        {/* Header */}
+        <div style={{padding:"12px 16px",borderBottom:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)"}}>
+          <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>✨ Bella'Events</div>
+          <div style={{fontSize:9,color:EV.cremeD,letterSpacing:2}}>CONFIRMATION</div>
+        </div>
+
+        <div style={{flex:1,overflowY:"auto",padding:"24px 20px"}}>
+          {/* Icône + titre */}
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:52,marginBottom:12}}>✨</div>
+            <div style={{fontFamily:FS,fontSize:22,color:EV.or,marginBottom:8}}>Demande envoyée !</div>
+            <div style={{fontSize:14,color:EV.cremeD,lineHeight:1.7,maxWidth:320,margin:"0 auto"}}>Votre demande a bien été enregistrée.</div>
+          </div>
+
+          {/* Carte référence + date */}
+          <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid "+EV.or+"44",borderRadius:14,padding:"16px",marginBottom:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+              <div>
+                <div style={{fontSize:10,color:EV.cremeD,marginBottom:3,letterSpacing:1}}>RÉFÉRENCE</div>
+                <div style={{fontSize:18,fontWeight:700,color:EV.or,fontFamily:FS}}>{succes}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:10,color:EV.cremeD,marginBottom:3,letterSpacing:1}}>ENVOYÉE LE</div>
+                <div style={{fontSize:12,color:EV.creme}}>{dateEnvoi}</div>
+                <div style={{fontSize:11,color:EV.cremeD}}>à {heureEnvoi}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Message délai */}
+          <div style={{fontSize:13,color:EV.cremeD,lineHeight:1.7,marginBottom:24,textAlign:"center",padding:"0 8px"}}>
+            Nous reviendrons vers vous sous 24 à 48 heures ouvrées afin de confirmer les détails de votre projet.
+          </div>
+
+          {/* Timeline des prochaines étapes */}
+          <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px",marginBottom:20}}>
+            <div style={{fontSize:10,color:EV.cremeD,fontWeight:700,letterSpacing:1,marginBottom:14}}>PROCHAINES ÉTAPES</div>
+            <TimelineSuivi statutBrut="nouvelle_demande"/>
+          </div>
+
+          {/* Boutons */}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <button onClick={()=>{setCat(null);setSucces(null);}} style={{background:EV.or,border:"none",borderRadius:10,padding:"13px 24px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:SA}}>← Retour aux catégories</button>
+            <button onClick={()=>{setSucces(null);setModal(null);}} style={{background:"transparent",border:"1px solid "+EV.or+"66",borderRadius:10,padding:"12px 24px",color:EV.or,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:SA}}>+ Faire une autre demande</button>
+            <button onClick={()=>window.open(WA("Bonjour, ma référence est "+succes+". Je souhaite des informations sur mon dossier."),"_blank")} style={{background:"rgba(37,211,102,0.1)",border:"1px solid rgba(37,211,102,0.3)",borderRadius:10,padding:"12px 24px",color:"#25d366",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>💬 Contacter Bella'Events</button>
+            <button disabled style={{background:"rgba(255,255,255,0.06)",border:"1px dashed rgba(255,255,255,0.2)",borderRadius:10,padding:"12px",color:"rgba(255,255,255,0.45)",fontSize:13,fontFamily:SA,cursor:"not-allowed",width:"100%",textAlign:"center"}}>
+              📄 Télécharger mon devis — bientôt disponible
+            </button>
+          </div>
+        </div>
       </div>
-      <div style={{background:"rgba(201,168,76,0.12)",border:"1px solid "+EV.or+"55",borderRadius:12,padding:"12px 24px",marginBottom:12}}>
-        <div style={{fontSize:11,color:EV.cremeD,marginBottom:3}}>Référence</div>
-        <div style={{fontSize:16,fontWeight:700,color:EV.or,fontFamily:FS}}>{succes}</div>
-      </div>
-      <div style={{fontSize:12,color:EV.cremeD,marginBottom:28,lineHeight:1.6,maxWidth:300}}>
-        Nous reviendrons vers vous rapidement pour confirmer les détails de votre projet.
-      </div>
-      <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:280}}>
-        <button onClick={()=>{setCat(null);setSucces(null);}} style={{background:EV.or,border:"none",borderRadius:10,padding:"13px 24px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:SA}}>← Retour aux catégories</button>
-        <button onClick={()=>{setSucces(null);setModal(null);}} style={{background:"transparent",border:"1px solid "+EV.or+"66",borderRadius:10,padding:"12px 24px",color:EV.or,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:SA}}>+ Faire une autre demande</button>
-      </div>
-    </div>
-  );
+    );
+  }
 
   // Vue liste des catégories
   return (
@@ -5988,7 +6215,10 @@ function ClientEvents({ onBack, onNewCommande }) {
           <div style={{fontFamily:FS,fontSize:14,color:EV.or,letterSpacing:2}}>✨ Bella'Events</div>
           <div style={{fontSize:9,color:EV.cremeD,letterSpacing:2}}>ÉVÉNEMENTS · DÉCORATION · PAPETERIE</div>
         </div>
-        <button onClick={onBack} style={{background:"none",border:"1px solid "+(EV.line),borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <button onClick={()=>setSuivi(true)} style={{background:"rgba(16,185,129,0.1)",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.or,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>🔍 Suivi</button>
+          <button onClick={onBack} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:16}}>
         {/* Bannière principale */}
@@ -5997,6 +6227,16 @@ function ClientEvents({ onBack, onNewCommande }) {
           <div style={{fontFamily:FS,fontSize:18,color:EV.or,marginBottom:6}}>Vos événements sur mesure</div>
           <div style={{fontSize:12,color:EV.cremeD,lineHeight:1.6}}>Décoration, papeterie, gâteaux et coordination. Demandez votre devis personnalisé.</div>
         </div>
+
+        {/* Accès rapide Suivi — bien visible */}
+        <button onClick={()=>setSuivi(true)} style={{width:"100%",background:"rgba(16,185,129,0.08)",border:"1px solid "+EV.line,borderRadius:12,padding:"13px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",marginBottom:16,textAlign:"left",fontFamily:SA}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:EV.or}}>🔎 Suivre ma demande</div>
+            <div style={{fontSize:11,color:EV.cremeD,marginTop:2}}>Saisissez votre référence BE-2026-xxxxxx</div>
+          </div>
+          <span style={{color:EV.or,fontSize:16}}>›</span>
+        </button>
+
         {/* Conditions clés */}
         <div style={{background:EV.verre,border:"1px solid "+(EV.line),borderRadius:12,padding:"12px 14px",marginBottom:16}}>
           <div style={{fontSize:10,color:EV.or,fontWeight:700,marginBottom:6}}>📋 CONDITIONS</div>
@@ -6738,6 +6978,7 @@ const NAV_F = [
   {id:"erp_projets", ico:"🎯", l:"Projets"},
   {id:"erp_taches",  ico:"✔",  l:"Tâches"},
   {id:"planning",    ico:"📅", l:"Planning"},
+  {id:"notifications",  ico:"🔔", l:"Notifications"},
   {id:"stocks",      ico:"📦", l:"Stocks"},
   {id:"biblio",      ico:"📚", l:"Éditions"},
   {id:"odyssee",     ico:"💅", l:"Odyssée"},
@@ -7159,7 +7400,8 @@ export default function BellaiaApp() {
     catalogue_ia:<CatalogueIAF user={user} gotoEvents={()=>setActiveF("events")}/>,
     erp_projets:<ErpProjetsF user={user}/>,
     erp_taches: <ErpTachesF user={user}/>,
-    planning:   <PlanningCentralF user={user}/>,
+    planning:       <PlanningCentralF user={user}/>,
+    notifications:  <NotificationsF user={user}/>,
     // Stocks (vue Supabase v_stocks_critiques)
     stocks:      <StocksF user={user}/>,
     // Bella'Odyssée — module complet
