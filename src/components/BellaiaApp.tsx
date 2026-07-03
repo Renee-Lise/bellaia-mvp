@@ -5362,6 +5362,16 @@ function BellaEventsF({ user }) {
                   <button key={s} onClick={()=>changerStatut(c, s)} style={{fontSize:9,padding:"3px 7px",borderRadius:4,border:"1px solid "+(s===c.statut?"#10b981":"rgba(255,255,255,0.1)"),background:s===c.statut?"rgba(16,185,129,0.15)":"transparent",color:s===c.statut?"#10b981":B.muted,cursor:"pointer",fontFamily:SA}}>{s}</button>
                 ))}
               </div>
+              {/* Estimation devis automatique fondatrice */}
+              {(()=>{
+                const lg = analyserDemandeClient({
+                  prestation: c.prestation, message: c.message,
+                  theme: c.theme, couleurs: c.couleurs,
+                  nbInvites: c.nb_invites, typeEvt: c.type_evenement,
+                  budget: c.budget,
+                });
+                return lg.length > 0 ? <div style={{marginTop:8}}><LignesDevisAuto lignes={lg} nbInvites={parseInt(c.nb_invites)||0}/></div> : null;
+              })()}
               {c.statut!=="Converti en commande" && (
                 <div style={{marginTop:8}}>
                   <Btn sm v="gold" onClick={()=>convertirEnCommande(c)}>→ Convertir en commande</Btn>
@@ -5683,6 +5693,208 @@ function BellaEventsDocuments({ user }) {
 // Couleurs Events (vert émeraude)
 const EV = {or:"#10b981",creme:"#e8f5ee",cremeD:"#a8d5be",line:"rgba(16,185,129,0.25)",verre:"rgba(16,185,129,0.06)",acc:"#34d399",night:"#0a1410"};
 
+// Couleurs Events (vert émeraude)
+const EV = {or:"#10b981",creme:"#e8f5ee",cremeD:"#a8d5be",line:"rgba(16,185,129,0.25)",verre:"rgba(16,185,129,0.06)",acc:"#34d399",night:"#0a1410"};
+
+// ═══════════════════════════════════════════════════════════
+// MOTEUR DEVIS INTELLIGENT — Analyse du message client
+// Utilise uniquement les prix validés dans les catalogues.
+// Aucun prix inventé : "À compléter" si non trouvé.
+// ═══════════════════════════════════════════════════════════
+
+// Mini-catalogue Bella'Food — prix validés uniquement
+// (à enrichir quand le module Food sera intégré)
+const FOOD_CATALOGUE_LIGHT = [
+  {id:"food_gateau_ps", nom:"Gâteau pâte à sucre", pole:"FOOD", categorie:"pâtisserie", prix:45, unite:"prestation", note:"Prix de base, supplément selon décor et taille."},
+  {id:"food_gateau_mou", nom:"Gâteau mousse", pole:"FOOD", categorie:"pâtisserie", prix:35, unite:"prestation"},
+  {id:"food_cupcakes_d", nom:"Cupcakes décorés (12 pcs)", pole:"FOOD", categorie:"pâtisserie", prix:28, unite:"douzaine"},
+  {id:"food_option_saveur", nom:"Option saveur spéciale (caramel, pralinée...)", pole:"FOOD", categorie:"option", prix:5, unite:"option"},
+  {id:"food_buffet_s", nom:"Buffet sucré", pole:"FOOD", categorie:"traiteur", prix:8, unite:"par personne"},
+  {id:"food_buffet_c", nom:"Buffet cocktail", pole:"FOOD", categorie:"traiteur", prix:15, unite:"par personne"},
+  {id:"food_repas", nom:"Repas servi (plat + dessert)", pole:"FOOD", categorie:"traiteur", prix:22, unite:"par personne"},
+];
+
+// Mots-clés de détection → id dans les catalogues Events ou Food
+const DETECTION_MAP = [
+  // ── Gâteaux ──
+  {mots:["pâte à sucre","pate a sucre","fondant"],      id:"food_gateau_ps",    catalogue:"food"},
+  {mots:["gâteau","gateau","cake"],                       id:"ga_classique",      catalogue:"events"},
+  {mots:["cupcake"],                                      id:"food_cupcakes_d",   catalogue:"food"},
+  {mots:["cake design","cake art"],                       id:"ga_cakedesign",     catalogue:"events"},
+  {mots:["cake topper","topper"],                         id:"u_cake_topper",     catalogue:"events"},
+  // ── Options saveur ──
+  {mots:["caramel","beurre salé","praliné","praline","chocolat caramel"],
+                                                          id:"food_option_saveur",catalogue:"food"},
+  // ── Traiteur / buffet ──
+  {mots:["buffet","cocktail","apéritif","aperitif"],      id:"food_buffet_c",     catalogue:"food"},
+  {mots:["traiteur","repas","déjeuner","dîner","diner"],  id:"food_repas",        catalogue:"food"},
+  // ── Papeterie ──
+  {mots:["invitation","invitations"],                     id:"pa_invit_num",      catalogue:"events"},
+  {mots:["faire-part","faire part","fairpart"],           id:"pa_fp_digital",     catalogue:"events"},
+  {mots:["menu"],                                         id:"pa_menus",          catalogue:"events"},
+  {mots:["fanion"],                                       id:"pa_fanions",        catalogue:"events"},
+  {mots:["marque-place","marque place"],                  id:"pa_marqueplace",    catalogue:"events"},
+  // ── Décoration ──
+  {mots:["décoration","decoration","décor"],              id:"ev_deco_std",       catalogue:"events"},
+  {mots:["backdrop","toile de fond"],                     id:"de_backdrop",       catalogue:"events"},
+  {mots:["arche","ballon","ballons","arche ballon"],       id:"ev_ballons",        catalogue:"events"},
+  {mots:["sweet table","table sucrée"],                   id:"de_sweettable",     catalogue:"events"},
+  // ── Packs anniversaire ──
+  {mots:["pack rempli","pack personnalisé rempli","personnalisé rempli"],
+                                                          id:"an_r_1",            catalogue:"events"},
+  {mots:["pack non rempli","pack vide","non rempli"],     id:"an_nr_1",           catalogue:"events"},
+  {mots:["kit invité","kit anniversaire","kit invites"],  id:"an_kit",            catalogue:"events"},
+  // ── Tubes à bulles / options unité ──
+  {mots:["tube","bulles","tube à bulles"],                id:"u_tube_bulles",     catalogue:"events"},
+  {mots:["assiette personnalisée"],                       id:"u_assiette",        catalogue:"events"},
+  {mots:["pop-corn","popcorn","pop corn"],                id:"u_popcorn_unite",   catalogue:"events"},
+];
+
+// Trouve une prestation dans EVENTS_PRESTATIONS par id
+function trouverPrestaEvents(id) {
+  return EVENTS_PRESTATIONS.find(p => p.id === id) || null;
+}
+
+// Trouve une prestation dans FOOD_CATALOGUE_LIGHT par id
+function trouverPrestaFood(id) {
+  return FOOD_CATALOGUE_LIGHT.find(p => p.id === id) || null;
+}
+
+// Construit une ligne de devis depuis une prestation et un contexte
+function construireLigne(presta, source, qte, notesSup) {
+  const prixBase = presta.prix || null;
+  const prixUnitaire = prixBase;
+  const total = (prixUnitaire && qte) ? prixUnitaire * qte : null;
+  return {
+    id: presta.id,
+    libelle: presta.nom,
+    pole: presta.pole || "EVENTS",
+    categorie: presta.categorie || presta.sous || "",
+    qte: qte || 1,
+    prixUnitaire,
+    total,
+    statut: prixUnitaire ? "automatique" : "a_completer",
+    source,
+    note: notesSup || presta.note || null,
+  };
+}
+
+// Moteur principal : analyse le contexte client et retourne des lignes de devis
+function analyserDemandeClient({ prestation, message, theme, couleurs, nbInvites, typeEvt, budget }) {
+  const lignes = [];
+  const dejaAjoutes = new Set();
+
+  const texteComplet = [
+    prestation || "", message || "", theme || "", typeEvt || ""
+  ].join(" ").toLowerCase();
+
+  const qteInvites = parseInt(nbInvites) || 0;
+
+  // Parcourir la carte de détection
+  for (const regle of DETECTION_MAP) {
+    const detecte = regle.mots.some(m => texteComplet.includes(m));
+    if (!detecte || dejaAjoutes.has(regle.id)) continue;
+
+    let p = null;
+    if (regle.catalogue === "food") p = trouverPrestaFood(regle.id);
+    else p = trouverPrestaEvents(regle.id);
+
+    if (!p) continue;
+
+    // Calcul de quantité contextuelle
+    let qte = 1;
+    if (p.unite === "par personne" && qteInvites > 0) qte = qteInvites;
+    if (p.unite === "douzaine" && qteInvites > 0) qte = Math.ceil(qteInvites / 12);
+
+    // Cas spécial pack rempli : choisir le palier selon nb_invités
+    if (regle.id === "an_r_1" && qteInvites > 0) {
+      const paliers = [
+        {min:1, max:9,  id:"an_r_1"},  {min:10,max:19, id:"an_r_2"},
+        {min:20,max:29, id:"an_r_3"},  {min:30,max:39, id:"an_r_4"},
+        {min:40,max:49, id:"an_r_5"},  {min:50,max:59, id:"an_r_6"},
+        {min:60,max:69, id:"an_r_7"},  {min:70,max:79, id:"an_r_8"},
+        {min:80,max:89, id:"an_r_9"},  {min:90,max:999,id:"an_r_10"},
+      ];
+      const palier = paliers.find(p => qteInvites >= p.min && qteInvites <= p.max);
+      if (palier) {
+        const pp = trouverPrestaEvents(palier.id);
+        if (pp) { p = pp; dejaAjoutes.add(palier.id); }
+      }
+    }
+
+    dejaAjoutes.add(regle.id);
+    lignes.push(construireLigne(p, "Détecté dans message client", qte, null));
+  }
+
+  // Si budget annoncé et aucune ligne → note suggestion
+  const budgetNum = parseFloat(budget) || 0;
+  if (lignes.length === 0 && budgetNum > 0) {
+    lignes.push({
+      id:"suggestion_budget", libelle:"Budget client annoncé : "+budgetNum+"€",
+      pole:"EVENTS", categorie:"", qte:1, prixUnitaire:null, total:null,
+      statut:"suggestion", source:"Budget annoncé", note:"À décomposer par la fondatrice."
+    });
+  }
+
+  return lignes;
+}
+
+// ─── Composant d'affichage de l'estimation automatique ───
+function LignesDevisAuto({ lignes, nbInvites }) {
+  if (!lignes || lignes.length === 0) return null;
+
+  const totalAuto = lignes
+    .filter(l => l.statut === "automatique" && l.total)
+    .reduce((s, l) => s + l.total, 0);
+
+  const COL_POLE = {EVENTS:"#065f46", FOOD:"#15803d", BSH:"#6B1A2B", ODYSSEE:"#3730a3"};
+  const COL_STATUT = {automatique:"rgba(16,185,129,0.12)", a_completer:"rgba(201,168,76,0.12)", suggestion:"rgba(124,58,237,0.12)"};
+  const TXT_STATUT = {automatique:EV.or, a_completer:B.warning, suggestion:B.violetL};
+  const LBL_STATUT = {automatique:"Auto", a_completer:"À compléter", suggestion:"Suggestion"};
+
+  return (
+    <div style={{background:"rgba(16,185,129,0.05)",border:"1px solid "+EV.line,borderRadius:13,padding:"14px",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:11,fontWeight:700,color:EV.or,letterSpacing:1}}>✦ ESTIMATION AUTOMATIQUE</div>
+        <div style={{fontSize:9,color:EV.cremeD}}>Prix de référence catalogue Bellaïa</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {lignes.map((l, i) => (
+          <div key={l.id+"_"+i} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",background:COL_STATUT[l.statut]||"rgba(255,255,255,0.04)",borderRadius:8,padding:"8px 10px"}}>
+            <div style={{flex:1,marginRight:8}}>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
+                <span style={{fontSize:8,background:(COL_POLE[l.pole]||"rgba(255,255,255,0.1)")+"33",color:COL_POLE[l.pole]||EV.cremeD,borderRadius:3,padding:"1px 5px",fontWeight:700}}>{l.pole}</span>
+                <span style={{fontSize:8,background:COL_STATUT[l.statut],color:TXT_STATUT[l.statut],borderRadius:3,padding:"1px 5px",fontWeight:700}}>{LBL_STATUT[l.statut]}</span>
+              </div>
+              <div style={{fontSize:12,color:EV.creme,fontWeight:500}}>{l.libelle}</div>
+              {l.qte > 1 && <div style={{fontSize:10,color:EV.cremeD}}>× {l.qte}{l.pole==="FOOD"&&l.unite?" "+l.unite:""}</div>}
+              {l.note && <div style={{fontSize:10,color:EV.cremeD,fontStyle:"italic",marginTop:2}}>{l.note}</div>}
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              {l.total ? (
+                <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{l.total}€</div>
+              ) : l.prixUnitaire ? (
+                <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{l.prixUnitaire}€</div>
+              ) : (
+                <div style={{fontSize:11,color:B.warning}}>À compléter</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {totalAuto > 0 && (
+        <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:11,color:EV.cremeD}}>Total estimé (prix catalogue)</div>
+          <div style={{fontSize:16,fontWeight:700,color:EV.or,fontFamily:FS}}>{totalAuto}€</div>
+        </div>
+      )}
+      <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:8,lineHeight:1.5}}>
+        Estimation indicative basée sur le catalogue Bellaïa. La fondatrice confirmera le devis final.
+      </div>
+    </div>
+  );
+}
+
 // ─── Mapping statuts events_demandes → étapes de la timeline ───
 const ETAPES_SUIVI = [
   {statut:"nouvelle_demande",    ico:"✅", label:"Demande reçue"},
@@ -5907,6 +6119,15 @@ function ClientEvents({ onBack, onNewCommande }) {
     const ref = "EV" + Date.now().toString().slice(-6);
     const reference = await genererReference("BE");
     const montantNum = p.prix || 0;
+    const lignesEstimees = analyserDemandeClient({
+      prestation: p.nom, message: form.message, theme: form.theme,
+      couleurs: form.couleurs, nbInvites: form.invites,
+      typeEvt: form.typeEvt, budget: form.budget,
+    });
+    const totalEstime = lignesEstimees
+      .filter(l => l.statut === "automatique" && l.total)
+      .reduce((s, l) => s + l.total, 0);
+    const montantEstimeFinal = totalEstime > 0 ? totalEstime : (montantNum || null);
     const acompteNum = Math.round(montantNum * (p.acompte_pct||30) / 100);
     const soldeNum   = montantNum - acompteNum;
     const demande = sanitizeEventsDemandePayload({
@@ -5931,7 +6152,7 @@ function ClientEvents({ onBack, onNewCommande }) {
       acompte:          acompteNum > 0 ? acompteNum+"€" : null,
       delai:            p.delai_minimum || null,
       type_prestation:  p.type || "prestation",
-      montant_estime:   montantNum || null,
+      montant_estime:   montantEstimeFinal || null,
       montant_acompte:  acompteNum || null,
       montant_solde:    soldeNum   || null,
     });
@@ -6122,6 +6343,16 @@ function ClientEvents({ onBack, onNewCommande }) {
           {inp("Couleurs","couleurs",{ph:"Rose, or, blanc..."})}
           {inp("Budget estimé (€)","budget",{type:"number",ph:"Optionnel"})}
           {inp("Message / précisions","message",{textarea:true,ph:"Décrivez votre projet, vos envies..."})}
+          {/* Estimation automatique — se met à jour en temps réel */}
+          {(()=>{
+            const lignesAuto = analyserDemandeClient({
+              prestation: p.nom, message: form.message,
+              theme: form.theme, couleurs: form.couleurs,
+              nbInvites: form.invites, typeEvt: form.typeEvt,
+              budget: form.budget,
+            });
+            return lignesAuto.length > 0 ? <LignesDevisAuto lignes={lignesAuto} nbInvites={parseInt(form.invites)||0}/> : null;
+          })()}
           {/* Boutons */}
           <button onClick={soumettre} disabled={envoi} style={{width:"100%",background:EV.or,border:"none",borderRadius:10,padding:"13px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:envoi?"not-allowed":"pointer",fontFamily:SA,marginBottom:10,opacity:envoi?0.7:1}}>
             {envoi?"Envoi en cours…":"✓ Envoyer ma "+type.toLowerCase()}
