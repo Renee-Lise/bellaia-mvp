@@ -5693,9 +5693,6 @@ function BellaEventsDocuments({ user }) {
 // Couleurs Events (vert émeraude)
 const EV = {or:"#10b981",creme:"#e8f5ee",cremeD:"#a8d5be",line:"rgba(16,185,129,0.25)",verre:"rgba(16,185,129,0.06)",acc:"#34d399",night:"#0a1410"};
 
-// Couleurs Events (vert émeraude)
-const EV = {or:"#10b981",creme:"#e8f5ee",cremeD:"#a8d5be",line:"rgba(16,185,129,0.25)",verre:"rgba(16,185,129,0.06)",acc:"#34d399",night:"#0a1410"};
-
 // ═══════════════════════════════════════════════════════════
 // MOTEUR DEVIS INTELLIGENT — Analyse du message client
 // Utilise uniquement les prix validés dans les catalogues.
