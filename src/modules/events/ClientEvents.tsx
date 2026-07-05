@@ -241,18 +241,137 @@ function ClientEvents({ onBack, onNewCommande }) {
           </div>
           {inp("Téléphone","tel",{req:true,type:"tel",ph:"+594..."})}
           {inp("Email","email",{type:"email",ph:"votre@email.com"})}
-          {/* Détails événement */}
+          {/* ── VOTRE ÉVÉNEMENT — formulaire guidé ── */}
           <div style={{fontSize:11,fontWeight:700,color:EV.or,marginBottom:10,marginTop:4}}>VOTRE ÉVÉNEMENT</div>
           <div style={{display:"flex",gap:8}}>
             <div style={{flex:1}}>{inp("Date souhaitée","date",{type:"date"})}</div>
             <div style={{flex:1}}>{inp("Heure","heure",{ph:"14h00"})}</div>
           </div>
-          {inp("Type d'événement","typeEvt",{ph:"Anniversaire, baptême..."})}
-          {inp("Nombre d'invités","invites",{type:"number",ph:"20"})}
-          {inp("Thème","theme",{ph:"Jungle, princesse, tropical..."})}
-          {inp("Couleurs","couleurs",{ph:"Rose, or, blanc..."})}
-          {inp("Budget estimé (€)","budget",{type:"number",ph:"Optionnel"})}
-          {inp("Message / précisions","message",{textarea:true,ph:"Décrivez votre projet, vos envies..."})}
+
+          {/* Type d'événement — menu déroulant */}
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <label style={{fontSize:10,color:EV.cremeD,fontFamily:SA}}>Type d'événement</label>
+            <select value={form.typeEvt||""}
+              onChange={e=>setForm(f=>({...f,typeEvt:e.target.value}))}
+              style={{background:"#1a1a2e",border:"1px solid "+EV.or+"44",borderRadius:8,
+                padding:"8px 10px",color:form.typeEvt?"#fff":EV.cremeD,fontSize:12,
+                fontFamily:SA,outline:"none",width:"100%"}}>
+              <option value="">— Choisir le type —</option>
+              {["Anniversaire","Baptême","Communion","Baby shower","Mariage","PACS",
+                "Fiançailles","Gender reveal","Fête de fin d'année","Événement d'entreprise",
+                "Repas en famille","Soirée entre amis","Retraite","Diplôme","Autre"].map(t=>(
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Prestation souhaitée — menu déroulant structuré */}
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <label style={{fontSize:10,color:EV.cremeD,fontFamily:SA}}>Prestation principale</label>
+            <select value={form.theme?.startsWith("PREST:")
+                ? form.theme.replace("PREST:","") : ""}
+              onChange={e=>setForm(f=>({...f,theme:"PREST:"+e.target.value}))}
+              style={{background:"#1a1a2e",border:"1px solid "+EV.or+"44",borderRadius:8,
+                padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none",width:"100%"}}>
+              <option value="">— Choisir une prestation —</option>
+              <optgroup label="🎂 Pâtisserie">
+                {["Gâteau classique","Gâteau forme carte de la Guyane","Layer cake",
+                  "Bento cake","Number cake","Heart cake","Cupcakes",
+                  "Entremets","Macarons","Mignardises"].map(o=>(
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </optgroup>
+              <optgroup label="🎨 Décoration">
+                {["Décoration comestible","Décoration non comestible",
+                  "Décoration complète","Arche de ballons","Arche de table",
+                  "Fond de table / backdrop","Nappage","Éléments décoratifs thématiques"].map(o=>(
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </optgroup>
+              <optgroup label="📄 Papeterie">
+                {["Papeterie personnalisée","Kit invité rempli","Invitations",
+                  "Programme","Marque-places","Fanions"].map(o=>(
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </optgroup>
+              <optgroup label="🍽 Restauration">
+                {["Menu enfant","Menu famille","Buffet","Repas végétarien",
+                  "Boissons","Jus","Glaces","Traiteur complet"].map(o=>(
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </optgroup>
+              <optgroup label="📦 Location">
+                {["Location vaisselle réutilisable","Pack événement complet"].map(o=>(
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Précision thème — champ libre complémentaire */}
+          {inp("Thème / personnalisation","theme",{ph:"Jungle, princesse, super-héros, tropical..."})}
+
+          <div style={{display:"flex",gap:8}}>
+            <div style={{flex:1}}>{inp("Nombre d'invités","invites",{type:"number",ph:"20"})}</div>
+            <div style={{flex:1}}>{inp("Couleurs","couleurs",{ph:"Rose, or, blanc..."})}</div>
+          </div>
+
+          {/* Saveur */}
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <label style={{fontSize:10,color:EV.cremeD,fontFamily:SA}}>Saveur souhaitée</label>
+            <select value={form.couleurs?.startsWith("SAV:")
+                ? form.couleurs.replace("SAV:","") : ""}
+              onChange={e=>setForm(f=>({...f,couleurs:"SAV:"+e.target.value}))}
+              style={{background:"#1a1a2e",border:"1px solid "+EV.or+"44",borderRadius:8,
+                padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none",width:"100%"}}>
+              <option value="">— Choisir une saveur (optionnel) —</option>
+              {["Vanille","Chocolat","Chocolat blanc","Fraise","Citron","Caramel beurre salé",
+                "Pralinée","Noix de coco","Fruits de la passion","Mangue","Rhum-raisin",
+                "Sans gluten","Sans lactose","À définir ensemble"].map(s=>(
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Décoration */}
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <label style={{fontSize:10,color:EV.cremeD,fontFamily:SA}}>Type de décoration</label>
+            <select value={form.typeEvt?.startsWith("DEC:")
+                ? form.typeEvt.replace("DEC:","") : ""}
+              onChange={e=>setForm(f=>({...f,typeEvt:form.typeEvt?.startsWith("DEC:") ? e.target.value : form.typeEvt}))}
+              style={{background:"#1a1a2e",border:"1px solid "+EV.or+"44",borderRadius:8,
+                padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none",width:"100%"}}>
+              <option value="">— Décoration (optionnel) —</option>
+              <option value="comestible">Comestible uniquement</option>
+              <option value="non_comestible">Non comestible uniquement</option>
+              <option value="mixte">Mixte (comestible + non comestible)</option>
+              <option value="aucune">Sans décoration supplémentaire</option>
+            </select>
+          </div>
+
+          {/* Options livraison / retrait */}
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <label style={{fontSize:10,color:EV.cremeD,fontFamily:SA}}>Mode de récupération</label>
+            <div style={{display:"flex",gap:6}}>
+              {[["retrait","📦 Retrait à Sinnamary"],["livraison","🚗 Livraison (supplément)"]].map(([v,l])=>(
+                <button key={v} type="button"
+                  onClick={()=>setForm(f=>({...f,message:(f.message||"").replace(/\[livraison:[^\]]*\]/,"")+" [livraison:"+v+"]"}))}
+                  style={{flex:1,padding:"8px",borderRadius:9,border:"none",cursor:"pointer",
+                    fontSize:11,fontWeight:700,fontFamily:SA,
+                    background:form.message?.includes("[livraison:"+v+"]")?"rgba(16,185,129,0.2)":"rgba(255,255,255,0.05)",
+                    color:form.message?.includes("[livraison:"+v+"]")?EV.or:EV.cremeD}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Allergies */}
+          {inp("Allergies / contraintes alimentaires","message",{ph:"Intolérance lactose, gluten, noix..."})}
+          {/* Budget */}
+          {inp("Budget estimé (€)","budget",{type:"number",ph:"Optionnel — aide à personnaliser le devis"})}
+          {/* Message libre */}
+          {inp("Informations complémentaires","message",{textarea:true,ph:"Décrivez votre projet, vos envies, questions..."})}
           {/* Estimation automatique — se met à jour en temps réel */}
           {(()=>{
             const lignesAuto = analyserDemandeClient({
