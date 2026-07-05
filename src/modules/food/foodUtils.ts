@@ -9,10 +9,11 @@ import type {
   StockItem, LigneCourses, UniteMesure, ImportRecette,
   CriteresRecherche, TypeFiche, PlanningProduction, TacheProduction,
   LigneDevisFood, DevisFood,
+  Achat, LigneAchat, Alerte, Lot,
 } from "./foodTypes";
 
 // ── Imports constantes (un seul bloc) ─────────────────────
-import { FOOD_CATALOGUE, FOOD_RECETTES_INIT } from "./foodConsts";
+import { FOOD_CATALOGUE, FOOD_RECETTES_INIT, FOOD_STOCK_INIT } from "./foodConsts";
 
 // ═══════════════════════════════════════════════════════════
 // PARTIE I — Calculs, formatage, liste de courses
@@ -369,4 +370,130 @@ export function calculerTotauxDevis(lignes: LigneDevisFood[]): {
   const sousTotal = lignes.reduce((s, l) => s + (l.total || 0), 0);
   const acompte   = Math.round(sousTotal * 0.3 * 100) / 100;
   return { sousTotal, acompte, solde: Math.round((sousTotal - acompte) * 100) / 100 };
+}
+
+// ═══════════════════════════════════════════════════════════
+// PARTIE III — Achats, Alertes, Lots, Production
+// ═══════════════════════════════════════════════════════════
+
+// ── Calcul totaux achat ───────────────────────────────────
+export function calculerTotauxAchat(lignes: LigneAchat[]): {
+  totalHT: number; totalTTC: number;
+} {
+  const totalHT  = Math.round(lignes.reduce((s,l) => s + l.totalHT,  0) * 100) / 100;
+  const totalTTC = Math.round(lignes.reduce((s,l) => s + l.totalTTC, 0) * 100) / 100;
+  return { totalHT, totalTTC };
+}
+
+// ── Ligne achat depuis quantite + prixUnitaire + tva ─────
+export function construireLigneAchat(
+  produit: string, quantite: number, prixUnitaire: number,
+  tva: number, unite: string, stockItemId?: string
+): LigneAchat {
+  const totalHT  = Math.round(quantite * prixUnitaire * 100) / 100;
+  const totalTTC = Math.round(totalHT * (1 + tva / 100) * 100) / 100;
+  return {
+    id: "la_" + Date.now().toString().slice(-6),
+    produit, stockItemId, categorie: "", quantite, unite,
+    prixUnitaire, tva, totalHT, totalTTC,
+  };
+}
+
+// ── Générer alertes depuis stocks ─────────────────────────
+export function genererAlertesStock(stocks: StockItem[]): Alerte[] {
+  const alertes: Alerte[] = [];
+  const now = new Date().toISOString();
+  for (const s of stocks) {
+    if (s.qteRestante === 0) {
+      alertes.push({
+        id: "alt_" + s.id, type: "rupture", niveau: "critique",
+        titre: "Rupture — " + s.nom,
+        message: s.nom + " est en rupture de stock.",
+        date: now, lue: false, entiteId: s.id, entiteType: "stock",
+      });
+    } else if (s.seuilCritique && s.qteRestante <= s.seuilCritique) {
+      alertes.push({
+        id: "alt_c_" + s.id, type: "stock_faible", niveau: "critique",
+        titre: "Stock critique — " + s.nom,
+        message: `${s.nom} : ${s.qteRestante} ${s.unite} (seuil critique : ${s.seuilCritique}).`,
+        date: now, lue: false, entiteId: s.id, entiteType: "stock",
+      });
+    } else if (s.qteRestante <= s.seuilAlerte) {
+      alertes.push({
+        id: "alt_a_" + s.id, type: "stock_faible", niveau: "attention",
+        titre: "Stock faible — " + s.nom,
+        message: `${s.nom} : ${s.qteRestante} ${s.unite} restant·e·s.`,
+        date: now, lue: false, entiteId: s.id, entiteType: "stock",
+      });
+    }
+  }
+  return alertes;
+}
+
+// ── Générer alertes DLC/DDM depuis lots ──────────────────
+export function genererAlertesDLC(lots: Lot[], joursAvantAlerte = 7): Alerte[] {
+  const alertes: Alerte[] = [];
+  const now  = new Date();
+  const seuil = new Date(now.getTime() + joursAvantAlerte * 86400000);
+  for (const l of lots) {
+    const dateRef = l.dlc || l.ddm;
+    if (!dateRef) continue;
+    const date = new Date(dateRef);
+    if (date <= now) {
+      alertes.push({
+        id: "alt_dlc_" + l.id, type: "dlc_proche", niveau: "critique",
+        titre: "DLC dépassée — " + l.nomIngredient,
+        message: `${l.nomIngredient} (lot ${l.numeroLot}) : DLC dépassée le ${dateRef}.`,
+        date: now.toISOString(), lue: false, entiteId: l.id, entiteType: "lot",
+      });
+    } else if (date <= seuil) {
+      alertes.push({
+        id: "alt_dlc_p_" + l.id, type: "dlc_proche", niveau: "attention",
+        titre: "DLC proche — " + l.nomIngredient,
+        message: `${l.nomIngredient} (lot ${l.numeroLot}) expire le ${dateRef}.`,
+        date: now.toISOString(), lue: false, entiteId: l.id, entiteType: "lot",
+      });
+    }
+  }
+  return alertes;
+}
+
+// ── Générer HTML bon de commande fournisseur ─────────────
+export function genBonCommandeHTML(
+  bon: { reference: string; fournisseurNom: string; date: string; notes?: string; lignes: LigneAchat[] }
+): string {
+  const esc  = (s: any) => String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const tot  = Math.round(bon.lignes.reduce((s,l) => s + l.totalHT, 0) * 100) / 100;
+  const totTTC = Math.round(bon.lignes.reduce((s,l) => s + l.totalTTC, 0) * 100) / 100;
+  const lignesHtml = bon.lignes.map(l =>
+    `<tr><td>${esc(l.produit)}</td><td style='text-align:center'>${l.quantite} ${esc(l.unite)}</td>` +
+    `<td style='text-align:right'>${l.prixUnitaire.toFixed(2)}€</td>` +
+    `<td style='text-align:center'>${l.tva}%</td>` +
+    `<td style='text-align:right;font-weight:700'>${l.totalHT.toFixed(2)}€</td></tr>`
+  ).join("");
+  return `<!DOCTYPE html><html lang='fr'><head><meta charset='UTF-8'>
+<title>Bon de commande ${esc(bon.reference)}</title>
+<style>body{font-family:Arial,sans-serif;padding:24px;max-width:800px;margin:0 auto;font-size:13px}
+h1{color:#15803d;border-bottom:2px solid #15803d;padding-bottom:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.block{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px}
+.block label{font-size:9px;color:#6b7280;display:block;text-transform:uppercase;margin-bottom:2px}
+table{width:100%;border-collapse:collapse;margin:12px 0}
+thead th{background:#15803d;color:#fff;padding:7px 10px;text-align:left;font-size:11px}
+tbody td{padding:6px 10px;border-bottom:1px solid #f3f4f6}
+.total{text-align:right;font-weight:700;color:#15803d;font-size:14px;margin-top:8px}
+@media print{body{padding:0}}</style></head><body>
+<h1>🛒 Bon de commande — Bella'Food</h1>
+<div class='grid'>
+  <div class='block'><label>Référence</label>${esc(bon.reference)}</div>
+  <div class='block'><label>Date</label>${new Date(bon.date).toLocaleDateString("fr-FR")}</div>
+  <div class='block'><label>Fournisseur</label><strong>${esc(bon.fournisseurNom)}</strong></div>
+</div>
+<table><thead><tr><th>Produit</th><th style='text-align:center'>Qté</th><th style='text-align:right'>P.U. HT</th><th style='text-align:center'>TVA</th><th style='text-align:right'>Total HT</th></tr></thead>
+<tbody>${lignesHtml}</tbody></table>
+<div class='total'>Total HT : ${tot.toFixed(2)}€ &nbsp;|&nbsp; Total TTC : ${totTTC.toFixed(2)}€</div>
+${bon.notes ? `<p style='margin-top:16px;font-size:11px;color:#6b7280'>Notes : ${esc(bon.notes)}</p>` : ""}
+<div style='margin-top:32px;font-size:10px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:10px'>
+Document généré par Bella'Food — Bellaïa</div>
+</body></html>`;
 }
