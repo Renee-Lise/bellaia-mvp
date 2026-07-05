@@ -401,3 +401,328 @@ export interface CriteresRecherche {
 // ── Fiche exportable ────────────────────────────────────────
 export type TypeFiche =
   | "cuisine" | "laboratoire" | "haccp" | "reseaux" | "impression";
+
+// ═══════════════════════════════════════════════════════════
+// TYPES Partie III — Production, Achats, HACCP, Alertes
+// ═══════════════════════════════════════════════════════════
+
+// ── Fournisseur ────────────────────────────────────────────
+export interface Fournisseur {
+  id: string;
+  nom: string;
+  logo?: string;
+  tel?: string;
+  email?: string;
+  siteInternet?: string;
+  adresse?: string;
+  contact?: string;
+  categoriesVendues?: string[];
+  delaiMoyen?: number;          // jours
+  minimumCommande?: number;     // €
+  note?: number;                // /5
+  notes?: string;
+  actif: boolean;
+  createdAt?: string;
+}
+
+// ── Achat ──────────────────────────────────────────────────
+export type StatutAchat =
+  | "brouillon" | "envoye" | "confirme" | "recu" | "annule";
+
+export interface LigneAchat {
+  id: string;
+  produit: string;
+  stockItemId?: string;
+  categorie?: string;
+  quantite: number;
+  unite: string;
+  prixUnitaire: number;
+  tva: number;           // % ex: 5.5 / 10 / 20
+  totalHT: number;
+  totalTTC: number;
+}
+
+export interface Achat {
+  id: string;
+  reference: string;     // ACH-2026-NNNN
+  fournisseurId?: string;
+  fournisseurNom: string;
+  date: string;
+  dateReception?: string;
+  facture?: string;      // référence facture
+  categorie?: string;
+  lignes: LigneAchat[];
+  totalHT: number;
+  totalTTC: number;
+  statut: StatutAchat;
+  observations?: string;
+}
+
+// ── Bon de commande fournisseur ────────────────────────────
+export type StatutBonCommande =
+  | "brouillon" | "envoye" | "confirme" | "recu" | "annule";
+
+export interface BonCommandeFournisseur {
+  id: string;
+  reference: string;     // BCF-2026-NNNN
+  fournisseurId?: string;
+  fournisseurNom: string;
+  date: string;
+  lignes: LigneAchat[];
+  totalHT: number;
+  statut: StatutBonCommande;
+  notes?: string;
+}
+
+// ── Inventaire ─────────────────────────────────────────────
+export interface LigneInventaire {
+  stockItemId: string;
+  nom: string;
+  unite: string;
+  stockTheorique: number;
+  stockReel: number;
+  ecart: number;
+  justification?: string;
+}
+
+export interface Inventaire {
+  id: string;
+  date: string;
+  type: "complet" | "tournant" | "ponctuel";
+  operateur?: string;
+  lignes: LigneInventaire[];
+  statut: "en_cours" | "valide" | "archive";
+  notes?: string;
+}
+
+// ── Lot ingredient ─────────────────────────────────────────
+export interface Lot {
+  id: string;
+  stockItemId: string;
+  nomIngredient: string;
+  numeroLot: string;
+  dlc?: string;
+  ddm?: string;
+  dateReception: string;
+  dateOuverture?: string;
+  dateFinUtilisation?: string;
+  quantiteInitiale: number;
+  quantiteRestante: number;
+  unite: string;
+  fournisseurId?: string;
+  notes?: string;
+}
+
+// ── Production ─────────────────────────────────────────────
+export type StatutProduction =
+  | "prevue" | "en_preparation" | "cuisson" | "decoration" | "terminee" | "livree";
+
+export interface LigneIngredientProduction {
+  ingredientId: string;
+  nom: string;
+  quantite: number;
+  unite: string;
+  lotId?: string;
+  numeroLot?: string;
+}
+
+export interface Production {
+  id: string;
+  numero: string;        // PROD-2026-NNNN
+  recetteId?: string;
+  recetteNom: string;
+  date: string;
+  operateur?: string;
+  quantite: number;      // nombre de pièces / portions produites
+  dureeMin?: number;
+  materiel?: string[];
+  ingredients: LigneIngredientProduction[];
+  lotsUtilises?: string[];
+  statut: StatutProduction;
+  observations?: string;
+  photos?: string[];
+  commandeId?: string;
+}
+
+// ── HACCP ──────────────────────────────────────────────────
+export interface RelevéTemperature {
+  id: string;
+  zone: "chambre_froide" | "congelateur" | "laboratoire" | "transport" | "autre";
+  temperature: number;   // °C
+  dateHeure: string;
+  operateur: string;
+  conforme: boolean;
+  action?: string;       // action corrective si non conforme
+}
+
+export interface FicheNettoyage {
+  id: string;
+  zone: string;
+  date: string;
+  heure: string;
+  operateur: string;
+  produitUtilise?: string;
+  valide: boolean;
+  signature?: string;
+  observations?: string;
+}
+
+export interface TraçabiliteProduit {
+  id: string;
+  productionId?: string;
+  recetteNom: string;
+  dateProduction: string;
+  lotsIngredients: { lot: string; ingredient: string }[];
+  operateur: string;
+  temperatureCuisson?: number;
+  temperatureConservation?: number;
+  dlc?: string;
+  observations?: string;
+}
+
+// ── Alerte ─────────────────────────────────────────────────
+export type TypeAlerte =
+  | "stock_faible" | "rupture" | "dlc_proche" | "ddm_proche"
+  | "temperature" | "production_oubliee" | "commande_retard"
+  | "fournisseur_retard" | "info";
+
+export type NiveauAlerte = "critique" | "attention" | "info";
+
+export interface Alerte {
+  id: string;
+  type: TypeAlerte;
+  niveau: NiveauAlerte;
+  titre: string;
+  message: string;
+  date: string;
+  lue: boolean;
+  entiteId?: string;     // id du stock, production, etc.
+  entiteType?: string;   // "stock", "production", "commande"
+}
+
+// ═══════════════════════════════════════════════════════════
+// TYPES Partie IV — Versions, Pertes, Analytics, Étiquettes
+// ═══════════════════════════════════════════════════════════
+
+// ── Version de recette ─────────────────────────────────────
+export type TypeVersion =
+  | "originale" | "economique" | "premium" | "evenementielle"
+  | "sans_lactose" | "sans_gluten" | "enfant" | "grande_quantite"
+  | "version_test" | "validee";
+
+export interface VersionRecette {
+  id: string;
+  recetteId: string;
+  recetteNom: string;
+  typeVersion: TypeVersion;
+  nomVersion: string;
+  ingredients: Ingredient[];
+  coutMatiere: number;
+  coutConsommables: number;
+  tempsProduction: number;    // minutes
+  prixConseille: number | null;
+  prixPremium: number | null;
+  margeEstimee: number | null;
+  notes?: string;
+  statut: "brouillon" | "test" | "validee" | "archivee";
+  dateCreation: string;
+  dateValidation?: string;
+}
+
+// ── Production réelle ──────────────────────────────────────
+export type StatutProductionReelle =
+  | "prevue" | "en_cours" | "terminee" | "annulee" | "non_conforme";
+
+export interface ProductionReelle {
+  id: string;
+  reference: string;         // PROD-2026-XXXXXX
+  recetteId?: string;
+  recetteNom: string;
+  versionId?: string;
+  versionNom?: string;
+  quantitePrevue: number;
+  quantiteReelle?: number;
+  pertes?: number;
+  operateur?: string;
+  date: string;
+  heureDebut?: string;
+  heureFin?: string;
+  dureeReelleMin?: number;
+  lotsUtilises?: string[];
+  materielUtilise?: string[];
+  consommablesUtilises?: string[];
+  observations?: string;
+  statut: StatutProductionReelle;
+  commandeId?: string;
+}
+
+// ── Perte ──────────────────────────────────────────────────
+export type TypePerte =
+  | "casse" | "erreur_production" | "produit_jete" | "dlc_depassee"
+  | "ddm_depassee" | "perte_cuisson" | "perte_decoration"
+  | "erreur_commande" | "retour_client" | "non_conformite";
+
+export interface Perte {
+  id: string;
+  date: string;
+  produit: string;
+  recetteId?: string;
+  quantite: number;
+  unite: string;
+  coutEstime: number;
+  cause: TypePerte;
+  description?: string;
+  responsable?: string;
+  photo?: string;
+  actionCorrective?: string;
+  statut: "ouverte" | "traitee" | "archivee";
+}
+
+// ── Étiquette produit ──────────────────────────────────────
+export type FormatEtiquette =
+  | "petit" | "moyen" | "boite" | "bouteille" | "pot_glace";
+
+export type MentionEtiquette = "interne" | "client" | "livraison";
+
+export interface Etiquette {
+  id: string;
+  nomProduit: string;
+  dateFabrication: string;
+  dlc?: string;
+  ddm?: string;
+  numerLot?: string;
+  allergenes?: string[];
+  ingredients?: string;
+  poids?: string;
+  volume?: string;
+  conditionsConservation?: string;
+  referenceProduction?: string;
+  mention: MentionEtiquette;
+  format: FormatEtiquette;
+}
+
+// ── Prévision d'achat ──────────────────────────────────────
+export interface PrevisionAchat {
+  ingredientId: string;
+  nom: string;
+  unite: string;
+  quantiteNecessaire: number;
+  quantiteEnStock: number;
+  quantiteAacheter: number;
+  urgence: "urgent" | "normal" | "bientot";
+  fournisseurConseille?: string;
+  prixEstime?: number;
+  dateLimite?: string;
+  raisons: string[];
+}
+
+// ── Recommandation commerciale ─────────────────────────────
+export interface Recommandation {
+  id: string;
+  type: "mettre_en_avant" | "promotion" | "augmenter" | "eviter" | "pack";
+  titre: string;
+  description: string;
+  produits?: string[];
+  gainEstime?: number;
+  priorite: "haute" | "moyenne" | "basse";
+}

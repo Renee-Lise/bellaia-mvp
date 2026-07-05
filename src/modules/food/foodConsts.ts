@@ -544,3 +544,62 @@ export const FOOD_RECETTES_INIT: Recette[] = [
     conservation:"À consommer chaud", allergenes:["gluten","lait","oeufs"],
   },
 ];
+
+// ═══════════════════════════════════════════════════════════
+// CONSTANTES Partie III — Fournisseurs, seuils HACCP
+// ═══════════════════════════════════════════════════════════
+import type { Fournisseur } from "./foodTypes";
+
+// ── Fournisseurs initiaux ──────────────────────────────────
+export const FOOD_FOURNISSEURS_INIT: Fournisseur[] = [
+  {
+    id:"frnr_metro",        nom:"Metro Cash & Carry",     tel:"",  email:"",
+    categoriesVendues:["farine","sucre","matières grasses","produits laitiers","emballages"],
+    delaiMoyen:1, minimumCommande:0, note:4, actif:true,
+    notes:"Accès carte professionnelle requise.",
+  },
+  {
+    id:"frnr_promocash",    nom:"Promocash",               tel:"",  email:"",
+    categoriesVendues:["farine","épices","conserves","emballages"],
+    delaiMoyen:1, minimumCommande:0, note:4, actif:true,
+  },
+  {
+    id:"frnr_carrefour",    nom:"Carrefour",               tel:"",  email:"",
+    categoriesVendues:["fruits","œufs","produits laitiers","chocolat"],
+    delaiMoyen:0, minimumCommande:0, note:3, actif:true,
+  },
+  {
+    id:"frnr_grossiste",    nom:"Grossiste local",         tel:"",  email:"",
+    categoriesVendues:["fruits tropicaux","épices locales","farines spéciales"],
+    delaiMoyen:2, minimumCommande:50, note:5, actif:true,
+    notes:"Commande 48h à l'avance.",
+  },
+  {
+    id:"frnr_amazon",       nom:"Amazon Business",         tel:"",  email:"",
+    categoriesVendues:["matériel","emballages","colorants","décoration"],
+    delaiMoyen:3, minimumCommande:0, note:3, actif:true,
+  },
+];
+
+// ── Seuils de température HACCP ───────────────────────────
+export const HACCP_SEUILS = {
+  chambre_froide:  { min:-2,  max:4,   unite:"°C" },
+  congelateur:     { min:-25, max:-18, unite:"°C" },
+  laboratoire:     { min:18,  max:25,  unite:"°C" },
+  cuisson_min:     { min:75,  max:999, unite:"°C" },
+  transport_chaud: { min:63,  max:999, unite:"°C" },
+  transport_froid: { min:-2,  max:8,   unite:"°C" },
+};
+
+// ── Types d'alertes et couleurs ───────────────────────────
+export const ALERTE_CONFIG = {
+  stock_faible:        { ico:"📦", col:"#fb923c", bg:"rgba(251,146,60,0.15)"   },
+  rupture:             { ico:"🚫", col:"#f87171", bg:"rgba(248,113,113,0.15)"  },
+  dlc_proche:          { ico:"⏰", col:"#f87171", bg:"rgba(248,113,113,0.12)"  },
+  ddm_proche:          { ico:"📅", col:"#fb923c", bg:"rgba(251,146,60,0.12)"   },
+  temperature:         { ico:"🌡",  col:"#60a5fa", bg:"rgba(96,165,250,0.12)"   },
+  production_oubliee:  { ico:"🍰", col:"#c9a96e", bg:"rgba(201,168,76,0.12)"   },
+  commande_retard:     { ico:"🚚", col:"#f87171", bg:"rgba(248,113,113,0.12)"  },
+  fournisseur_retard:  { ico:"⚠",  col:"#fb923c", bg:"rgba(251,146,60,0.12)"   },
+  info:                { ico:"ℹ️",  col:"#22c55e", bg:"rgba(21,128,61,0.12)"   },
+};
