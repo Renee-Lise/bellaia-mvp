@@ -289,3 +289,115 @@ export interface ResultatCalculateur {
   acompte: number;
   solde: number;
 }
+
+// ═══════════════════════════════════════════════════════════
+// TYPES Partie II — Production & Gestion
+// ═══════════════════════════════════════════════════════════
+
+// ── Menu ────────────────────────────────────────────────────
+export type TypeMenu =
+  | "buffet" | "cocktail" | "brunch" | "anniversaire" | "mariage"
+  | "communion" | "bapteme" | "baby_shower" | "repas_creole"
+  | "repas_guyanais" | "repas_local" | "entreprise" | "enfant" | "premium";
+
+export type StatutMenu = "brouillon" | "valide" | "archive";
+
+export interface LigneMenu {
+  produitId: string;
+  nom: string;
+  categorie: string;
+  qte: number;
+  unite: string;
+  prixUnitaire: number | null;
+  totalEstime: number | null;
+}
+
+export interface Menu {
+  id: string;
+  nom: string;
+  type: TypeMenu;
+  nbPersonnes: number;
+  lignes: LigneMenu[];
+  coutEstime?: number;
+  prixEstime?: number;
+  marge?: number;
+  notes?: string;
+  statut: StatutMenu;
+  dateCreation: string;
+}
+
+// ── Planning de production ──────────────────────────────────
+export type JourProduction = "J-3" | "J-2" | "J-1" | "JourJ";
+
+export interface TacheProduction {
+  id: string;
+  jour: JourProduction;
+  heure?: string;           // "08:00"
+  description: string;
+  dureeMin: number;         // minutes
+  type: "preparation" | "repos" | "cuisson" | "refroidissement" | "montage" | "decoration" | "conditionnement" | "livraison" | "autre";
+  recetteId?: string;
+  materiel?: string[];
+  ingredients?: { nom: string; quantite: number; unite: string }[];
+  consommables?: string[];
+  faite: boolean;
+}
+
+export interface PlanningProduction {
+  id: string;
+  commandeId: string;
+  nomCommande: string;
+  dateLivraison: string;
+  taches: TacheProduction[];
+  notesFondatrice?: string;
+  alerte?: string;
+}
+
+// ── Devis Food ──────────────────────────────────────────────
+export type StatutDevisFood =
+  | "brouillon" | "envoye" | "accepte" | "refuse" | "expire" | "commande";
+
+export interface LigneDevisFood {
+  id: string;
+  libelle: string;
+  type: "produit" | "recette" | "menu" | "option" | "supplement" | "consommable" | "livraison" | "remise";
+  qte: number;
+  unite: string;
+  prixUnitaire: number | null;
+  total: number | null;
+  source?: string;
+  note?: string;
+}
+
+export interface DevisFood {
+  id: string;
+  reference: string;        // DEVF-2026-NNNN
+  client: string;
+  tel: string;
+  email?: string;
+  lignes: LigneDevisFood[];
+  conditions: string;
+  dateCreation: string;
+  dateValidite: string;
+  acomptePct: number;
+  statut: StatutDevisFood;
+  notes?: string;
+  commandeId?: string;
+}
+
+// ── Critères de recherche recettes ──────────────────────────
+export interface CriteresRecherche {
+  texte?: string;
+  categorie?: string;
+  difficulteMax?: number;
+  tempsMaxMin?: number;
+  nbParts?: number;
+  allergenes?: string[];     // à exclure
+  saison?: string;
+  motsCles?: string[];
+  budgetMax?: number;
+}
+
+// ── Fiche exportable ────────────────────────────────────────
+export type TypeFiche =
+  | "cuisine" | "laboratoire" | "haccp" | "reseaux" | "impression";
