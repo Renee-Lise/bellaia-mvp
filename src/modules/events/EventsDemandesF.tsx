@@ -230,17 +230,38 @@ function BellaEventsF({ user }) {
                 });
                 return lg.length > 0 ? <div style={{marginTop:8}}><LignesDevisAuto lignes={lg} nbInvites={parseInt(c.nb_invites)||0}/></div> : null;
               })()}
-              {c.statut!=="Converti en commande" && (
-                <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
-                  {c.statut!=="devis_envoye" && c.statut!=="accepte" && (
-                    <Btn sm v="gold" onClick={()=>setModalDevisGen(c)}>📄 Générer le devis</Btn>
-                  )}
-                  {(c.statut==="devis_envoye"||c.statut==="accepte") && (
-                    <Btn sm v="ghost" onClick={()=>setModalDevisGen(c)}>✏ Modifier le devis</Btn>
-                  )}
-                  <Btn sm v="ghost" onClick={()=>convertirEnCommande(c)}>→ Convertir en commande</Btn>
-                </div>
-              )}
+              {/* Panneau d'actions fondatrice — adaptatif selon statut devis */}
+              <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+                {/* Bouton principal selon état */}
+                {!["Converti en commande","accepte","refuse"].includes(c.statut) && (
+                  <button onClick={()=>setModalDevisGen(c)}
+                    style={{width:"100%",background:"#065f46",border:"none",borderRadius:9,
+                      padding:"9px",color:"#fff",fontWeight:700,fontSize:12,
+                      cursor:"pointer",fontFamily:"system-ui,sans-serif"}}>
+                    {["devis_envoye","devis_en_preparation"].includes(c.statut)
+                      ? "✏ Modifier le devis"
+                      : "📄 Générer le devis"}
+                  </button>
+                )}
+                {/* Convertir en commande — seulement si devis accepté ou manuellement */}
+                {c.statut==="accepte" && (
+                  <button onClick={()=>convertirEnCommande(c)}
+                    style={{width:"100%",background:"rgba(16,185,129,0.15)",border:"1px solid #10b981",
+                      borderRadius:9,padding:"9px",color:"#10b981",fontWeight:700,fontSize:12,
+                      cursor:"pointer",fontFamily:"system-ui,sans-serif"}}>
+                    🚀 Convertir en commande
+                  </button>
+                )}
+                {c.statut!=="Converti en commande" && c.statut!=="accepte" && (
+                  <button onClick={()=>convertirEnCommande(c)}
+                    style={{width:"100%",background:"transparent",
+                      border:"1px solid rgba(255,255,255,0.15)",borderRadius:9,padding:"8px",
+                      color:"rgba(255,255,255,0.45)",fontSize:11,cursor:"pointer",
+                      fontFamily:"system-ui,sans-serif"}}>
+                    → Convertir sans devis
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

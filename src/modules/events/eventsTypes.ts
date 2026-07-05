@@ -109,3 +109,41 @@ export interface DemandeAnalyseParams {
   typeEvt?: string;
   budget?: string | number;
 }
+
+// ── Types additionnels Lot Devis ────────────────────────────
+export interface LigneDevisEditee {
+  id: string;
+  libelle: string;
+  categorie: string;
+  unite: string;
+  qte: number;
+  prixUnitaire: number | null;
+  remise: number;          // € ou % selon remiseType
+  remiseType: "%" | "€";
+  supplement: number;
+  tva: number;             // % — prévu, non calculé pour l'instant
+  acompte: number;         // % de cette ligne
+  commentaire: string;
+  statut: "automatique" | "a_completer" | "suggestion";
+  source: string;
+}
+
+export interface DevisGenere {
+  id: string;
+  reference: string;        // DEV-2026-NNNNNN
+  numDemande: string;
+  statut: "brouillon" | "valide" | "envoye" | "accepte" | "refuse" | "expire";
+  dateCreation: string;
+  dateValidite: string;     // +30 jours par défaut
+  client: { prenom: string; nom: string; tel: string; email: string };
+  evenement: string;
+  dateSouhaitee?: string;
+  nbInvites?: string;
+  lignes: LigneDevisEditee[];
+  conditionsGenerales: string;
+  acomptePct: number;
+  notes?: string;
+}
+
+export type ActionDevis =
+  | "modifier" | "generer" | "envoyer" | "voir" | "dupliquer" | "annuler";

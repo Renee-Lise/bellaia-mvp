@@ -183,17 +183,59 @@ function PortailSuiviClient({ onBack }) {
               <TimelineSuivi statutBrut={dossier.statut}/>
             </div>
 
-            {/* Devis disponible */}
-            {dossier.statut === "devis_envoye" || dossier.statut === "accepte" || dossier.statut === "refuse" ? (
-              <DevisClientView dossier={dossier} onAccepte={async()=>{
-                await sbPatch("events_demandes", dossier.id, {statut:"accepte", client_reponse:"accepte", client_reponse_at:new Date().toISOString()});
-                await creerNotification({pole:"EVENTS",type:"confirmation_commande",titre:"Devis accepté — "+dossier.reference,message:"Le client a accepté le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
-                setDossier({...dossier, statut:"accepte", client_reponse:"accepte"});
-              }} onRefuse={async()=>{
-                await sbPatch("events_demandes", dossier.id, {statut:"refuse", client_reponse:"refuse", client_reponse_at:new Date().toISOString()});
-                await creerNotification({pole:"EVENTS",type:"refus_devis",titre:"Devis refusé — "+dossier.reference,message:"Le client a refusé le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
-                setDossier({...dossier, statut:"refuse", client_reponse:"refuse"});
-              }}/>
+            {/* Devis disponible — DevisClientView depuis EventsDevis.tsx */}
+            {["devis_envoye","accepte","refuse"].includes(dossier.statut) ? (
+              <DevisClientView
+                dossier={dossier}
+                onAccepte={async () => {
+                  await sbPatch("events_demandes", dossier.id, {
+                    statut: "accepte",
+                    client_reponse: "accepte",
+                    client_reponse_at: new Date().toISOString(),
+                    devis_accepte_at: new Date().toISOString(),
+                  });
+                  await creerNotification({
+                    pole:"EVENTS", type:"confirmation_commande",
+                    titre: "Devis accepté — " + dossier.reference,
+                    message: "Le client " + (dossier.client_prenom||"") + " " + (dossier.client_nom||"")
+                      + " a accepté le devis " + (dossier.numero_devis||dossier.reference) + ".",
+                    canal:"interne", sourceTable:"events_demandes", sourceId:dossier.id,
+                  });
+                  setDossier({ ...dossier, statut:"accepte", client_reponse:"accepte" });
+                }}
+                onRefuse={async () => {
+                  await sbPatch("events_demandes", dossier.id, {
+                    statut: "refuse",
+                    client_reponse: "refuse",
+                    client_reponse_at: new Date().toISOString(),
+                    devis_refuse_at: new Date().toISOString(),
+                  });
+                  await creerNotification({
+                    pole:"EVENTS", type:"refus_devis",
+                    titre: "Devis refusé — " + dossier.reference,
+                    message: "Le client " + (dossier.client_prenom||"") + " " + (dossier.client_nom||"")
+                      + " a refusé le devis. La demande est conservée.",
+                    canal:"interne", sourceTable:"events_demandes", sourceId:dossier.id,
+                  });
+                  setDossier({ ...dossier, statut:"refuse", client_reponse:"refuse" });
+                }}
+                onDemandeModif={async (msg) => {
+                  await sbPatch("events_demandes", dossier.id, {
+                    statut: "a_traiter",
+                    fondatrice_notes: (dossier.fondatrice_notes || "")
+                      + "
+[Demande modif client " + new Date().toLocaleDateString("fr-FR") + "] " + msg,
+                  });
+                  await creerNotification({
+                    pole:"EVENTS", type:"autre",
+                    titre: "Demande de modification — " + dossier.reference,
+                    message: "Le client souhaite modifier le devis :
+" + msg,
+                    canal:"interne", sourceTable:"events_demandes", sourceId:dossier.id,
+                  });
+                  setDossier({ ...dossier, statut:"a_traiter" });
+                }}
+              />
             ) : null}
 
             {/* Historique — prêt pour les futures données d'audit_log */}
