@@ -69,6 +69,42 @@ function fmtDate(s?: string) {
   });
 }
 
+// ── Suggestions automatiques de description détaillée ──────
+const DESCRIPTIONS_TYPES: Record<string, string> = {
+  "décoration":
+    "• Arche de ballons\n• Décoration de table (chemin, centre)\n• Fond de table / backdrop\n• Nappage\n• Éléments décoratifs thématiques\n• Installation sur site\n• Coordination légère",
+  "decoration":
+    "• Arche de ballons\n• Décoration de table (chemin, centre)\n• Fond de table / backdrop\n• Nappage\n• Éléments décoratifs thématiques\n• Installation sur site\n• Coordination légère",
+  "deco":
+    "• Arche de ballons\n• Décoration de table\n• Fond de table\n• Nappage\n• Éléments décoratifs\n• Installation",
+  "papeterie":
+    "• Invitations numériques ou imprimées\n• Programme de cérémonie\n• Menu\n• Marque-places\n• Étiquettes cadeaux\n• Fanions ou guirlandes papier",
+  "pack":
+    "• Sac kraft ou boîte personnalisée\n• Éléments décoratifs thématiques\n• Contenu selon formule choisie\n• Étiquette personnalisée\n• Ruban décoratif",
+  "gâteau":
+    "• Gâteau personnalisé selon thème\n• Décoration comestible\n• Cake topper inclus\n• Boîte de transport fournie\n• Bougies incluses",
+  "gateau":
+    "• Gâteau personnalisé selon thème\n• Décoration comestible\n• Cake topper inclus\n• Boîte de transport fournie\n• Bougies incluses",
+  "buffet":
+    "• Assortiment de mignardises\n• Table de présentation\n• Vaisselle jetable incluse\n• Nappage\n• Installation et service",
+  "traiteur":
+    "• Plat principal\n• Accompagnements\n• Dessert\n• Service à table ou buffet\n• Matériel de service inclus",
+  "location":
+    "• Vaisselle plastique rigide réutilisable\n• Assiettes, verres, couverts\n• Caution obligatoire\n• Retour le lendemain de l'événement\n• Nettoyage selon conditions\n• Frais de casse/perte facturés si applicable",
+  "vaisselle":
+    "• Vaisselle plastique rigide réutilisable\n• Assiettes, verres, couverts\n• Caution obligatoire\n• Retour lendemain événement",
+  "coordination":
+    "• Accueil et installation\n• Coordination des prestataires\n• Gestion du timing\n• Présence sur toute la durée\n• Démontage en fin d'événement",
+};
+
+function suggererDescription(libelle: string): string {
+  const l = libelle.toLowerCase();
+  for (const [mot, desc] of Object.entries(DESCRIPTIONS_TYPES)) {
+    if (l.includes(mot)) return desc;
+  }
+  return "";
+}
+
 // ══════════════════════════════════════════════════════════
 // COMPOSANT : Éditeur de lignes de devis
 // ══════════════════════════════════════════════════════════
@@ -98,13 +134,16 @@ export function EditeurLignesDevis({ demande, lignesInitiales, onValider, onAnnu
   const ajouterLigne = () => {
     if (!nouvLigne.libelle?.trim()) return;
     const id = "lg_" + Date.now().toString().slice(-6);
+    const descAuto = suggererDescription(nouvLigne.libelle || "");
     setLignes(ls => [...ls, {
       id, libelle: nouvLigne.libelle!, categorie: nouvLigne.categorie || "",
       unite: nouvLigne.unite || "prestation", qte: Number(nouvLigne.qte) || 1,
       prixUnitaire: nouvLigne.prixUnitaire ? Number(nouvLigne.prixUnitaire) : null,
       remise: Number(nouvLigne.remise) || 0, remiseType: nouvLigne.remiseType || "€",
       supplement: Number(nouvLigne.supplement) || 0, tva: 0, acompte: 30,
-      commentaire: nouvLigne.commentaire || "", statut: "automatique", source: "Manuel",
+      commentaire: nouvLigne.commentaire || "",
+      description_detaillee: descAuto,
+      statut: "automatique", source: "Manuel",
     }]);
     setNouvLigne({ libelle:"", categorie:"", unite:"prestation", qte:1,
       prixUnitaire:null, remise:0, remiseType:"€", supplement:0, acompte:30,
@@ -216,6 +255,13 @@ export function EditeurLignesDevis({ demande, lignesInitiales, onValider, onAnnu
                 onChange={e => majLigne(i, "commentaire", e.target.value)}
                 placeholder="Commentaire (optionnel)"
                 style={{ ...inpStyle, marginTop:6, fontSize:11, color:C.creamD }} />
+              {/* Description détaillée — suggérée automatiquement, modifiable */}
+              <textarea value={l.description_detaillee || ""}
+                onChange={e => majLigne(i, "description_detaillee", e.target.value)}
+                placeholder="Description détaillée (optionnel — ex: arche ballons, nappe, vaisselle...)"
+                rows={3}
+                style={{ ...inpStyle, marginTop:4, fontSize:10, color:C.creamD,
+                  resize:"vertical", lineHeight:1.5 }} />
             </div>
           );
         })}
@@ -723,6 +769,89 @@ export function DevisClientView({ dossier, onAccepte, onRefuse, onDemandeModif }
         </div>
       )}
 
+      {/* Lignes détaillées (description_detaillee) */}
+      {lignes.some(l => l.description_detaillee) && (
+        <div style={{ background:"rgba(16,185,129,0.04)", borderRadius:10,
+          padding:"10px 12px", marginBottom:12 }}>
+          <div style={{ fontSize:10, color:C.creamD, fontWeight:700, marginBottom:6, letterSpacing:1 }}>
+            DÉTAIL DES PRESTATIONS
+          </div>
+          {lignes.filter(l => l.description_detaillee).map((l,i) => (
+            <div key={i} style={{ marginBottom:8 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"#fff", marginBottom:2 }}>{l.libelle}</div>
+              <pre style={{ fontSize:10, color:C.creamD, margin:0, fontFamily:SA,
+                whiteSpace:"pre-wrap", lineHeight:1.6 }}>
+                {l.description_detaillee}
+              </pre>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Section paiement — visible si devis accepté */}
+      {(dossier.statut === "accepte" || dossier.client_reponse === "accepte") && (
+        <div style={{ background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.3)",
+          borderRadius:12, padding:"13px 14px", marginBottom:10 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.or, letterSpacing:1, marginBottom:8 }}>
+            PAIEMENT
+          </div>
+          {/* Statut paiement */}
+          <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+            {[
+              {label:"Acompte", paye: dossier.acompte_paye, montant: acompte},
+              {label:"Solde",   paye: dossier.statut_paiement === "solde_paye", montant: solde},
+            ].map(p => (
+              <div key={p.label} style={{ flex:1, minWidth:100,
+                background:p.paye ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)",
+                border:`1px solid ${p.paye ? "rgba(16,185,129,0.4)" : "rgba(255,255,255,0.1)"}`,
+                borderRadius:10, padding:"9px 12px" }}>
+                <div style={{ fontSize:10, color:C.creamD, marginBottom:2 }}>{p.label}</div>
+                <div style={{ fontSize:14, fontWeight:700,
+                  color: p.paye ? C.or : "rgba(255,255,255,0.7)" }}>
+                  {p.montant.toFixed(2)}€
+                </div>
+                <div style={{ fontSize:9, color:p.paye ? C.or : "rgba(255,255,255,0.4)",
+                  marginTop:2, fontWeight:700 }}>
+                  {p.paye ? "✓ Payé" : "En attente"}
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Bouton de paiement */}
+          {dossier.paiement_url ? (
+            <a href={dossier.paiement_url} target="_blank" rel="noreferrer"
+              style={{ display:"block", width:"100%", background:C.or,
+                border:"none", borderRadius:10, padding:"11px",
+                color:"#062b1d", fontWeight:700, fontSize:13,
+                textAlign:"center", textDecoration:"none", fontFamily:SA,
+                boxSizing:"border-box" as const, marginBottom:6 }}>
+              💳 Payer en ligne
+            </a>
+          ) : (
+            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px dashed rgba(255,255,255,0.15)",
+              borderRadius:10, padding:"10px 12px", marginBottom:6 }}>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>
+                💳 Paiement en ligne non configuré
+              </div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", marginTop:3 }}>
+                Contactez Bella'Events pour régler par virement, espèces ou SumUp.
+              </div>
+            </div>
+          )}
+          <button onClick={() => window.open(
+            "https://wa.me/?text=" + encodeURIComponent(
+              "Bonjour, je souhaite régler mon acompte pour le devis "+(dossier.reference||dossier.id)+" — montant : "+acompte.toFixed(2)+"€"
+            ), "_blank"
+          )}
+            style={{ width:"100%", background:"rgba(37,211,102,0.1)",
+              border:"1px solid rgba(37,211,102,0.25)", borderRadius:10, padding:"9px",
+              color:"#25d366", fontWeight:600, fontSize:12, cursor:"pointer",
+              fontFamily:SA, boxSizing:"border-box" as const }}>
+            💬 Payer par WhatsApp
+          </button>
+        </div>
+      )}
+
       {/* Bouton imprimer */}
       <button onClick={openPrint}
         style={{ width:"100%", background:"rgba(255,255,255,0.05)",
@@ -870,7 +999,10 @@ export function buildDevisHTML(p: BuildDevisParams): string {
       const tot = calcTotal(l);
       return [
         "<tr>",
-        "<td>" + escHtml(l.libelle) + (l.commentaire ? "<br><small style='color:#666'>" + escHtml(l.commentaire) + "</small>" : "") + "</td>",
+        "<td>" + escHtml(l.libelle)
+          + (l.description_detaillee ? "<br><small style='color:#555;white-space:pre-line'>" + escHtml(l.description_detaillee) + "</small>" : "")
+          + (l.commentaire ? "<br><em style='color:#888;font-size:11px'>" + escHtml(l.commentaire) + "</em>" : "")
+          + "</td>",
         "<td style='text-align:center'>" + l.qte + " " + escHtml(l.unite) + "</td>",
         "<td style='text-align:right'>" + (l.prixUnitaire != null ? l.prixUnitaire.toFixed(2) + "€" : "—") + "</td>",
         "<td style='text-align:right;font-weight:700'>" + (tot != null ? tot.toFixed(2) + "€" : "À compléter") + "</td>",

@@ -194,6 +194,25 @@ const EVENTS_PRESTATIONS = [
   {id:"u_sac_invite",    categorie:"unite", sous:"contenants", type:"unite", nom:"Sac cadeau invité", desc:"Sac cadeau personnalisé pour invités.", prix:4, prix_max:8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, note:"De 4€ à 8€ selon le format.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   {id:"u_cake_topper",   categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Cake topper personnalisé", desc:"Topper décoratif personnalisé pour gâteau.", prix:10, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
   {id:"u_etiquette_sticker", categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Étiquette bouteille / sticker", desc:"Étiquette ou sticker personnalisé.", prix:1, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+
+  // ── Location vaisselle réutilisable (option complémentaire) ──
+  {
+    id:"loc_vaisselle",
+    nom:"Location de vaisselle réutilisable",
+    categorie:"location",
+    sous:"materiel",
+    type:"location",
+    desc:"Vaisselle plastique rigide réutilisable pour événements, sous réserve de disponibilité. Inclut assiettes, verres, couverts selon formule. Nettoyage et transport selon conditions.",
+    prix:null,
+    prix_des:true,
+    unite:"lot",
+    sur_devis:true,
+    note:"Caution obligatoire. Frais de casse/perte facturés. Retour le lendemain de l'événement.",
+    categories:["anniversaire","mariage","bapteme","baby_shower","reception"],
+    cout_revient:null,
+    fournisseur:null,
+    stock_lie:"vaisselle_reut",
+  },
 ];
 
 const sCo = s => ({

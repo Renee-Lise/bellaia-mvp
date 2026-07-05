@@ -1,10 +1,8 @@
 // ═══════════════════════════════════════════════════════════
 // MODULE BELLA'EVENTS — Point d'entrée unique
 // BellaiaApp.tsx importe depuis ici.
-//
-// Phase 1 : extraction structurelle, sans changement fonctionnel.
-// Phase 2 : les helpers Supabase (sbGet, sbPost…) seront
-//           déplacés dans eventsApi.ts avec imports explicites.
+// Phase 1 : extraction structurelle.
+// Phase 2 : helpers Supabase dans eventsApi.ts.
 // ═══════════════════════════════════════════════════════════
 
 // Types
@@ -12,9 +10,13 @@ export type {
   EventsPrestation,
   EventsDemande,
   LigneDevis,
+  LigneDevisEditee,
+  DevisGenere,
   EtapeSuivi,
   FoodItem,
   DemandeAnalyseParams,
+  PaiementDemande,
+  LocationVaisselle,
 } from "./eventsTypes";
 
 // Constantes catalogue
@@ -39,23 +41,30 @@ export {
   construireLigne,
   analyserDemandeClient,
   normaliserStatut,
+  setFoodCatalogueExterne,
 } from "./eventsUtils";
 
 // API / sanitisation
 export { sanitizeEventsDemandePayload } from "./eventsApi";
 
-// Composants fondatrice
-export { default as BellaEventsF }        from "./EventsDemandesF";
-export { default as BellaEventsCatalogue } from "./EventsCatalogue";
-export { default as BellaEventsCommandes } from "./EventsCommandesF";
-export { default as BellaEventsDocuments } from "./EventsDocumentsF";
+// Composants fondatrice (named exports)
+export { BellaEventsF }          from "./EventsDemandesF";
+export { BellaEventsF as default } from "./EventsDemandesF";
 
-// Composants devis
-export { default as ModalGenerationDevis } from "./EventsDevis";
-export { default as DevisClientView }      from "./EventsDevis";
+// Composants devis (named exports)
+export {
+  EditeurLignesDevis,
+  ModalGenerationDevis,
+  DevisClientView,
+  buildDevisHTML,
+} from "./EventsDevis";
 
-// Composants portail + client
-export { default as LignesDevisAuto }    from "./EventsPortail";
-export { default as TimelineSuivi }      from "./EventsPortail";
-export { default as PortailSuiviClient } from "./EventsPortail";
-export { default as ClientEvents }       from "./ClientEvents";
+// Composants portail + estimation (named exports)
+export {
+  LignesDevisAuto,
+  TimelineSuivi,
+  PortailSuiviClient,
+} from "./EventsPortail";
+
+// Portail client
+export { ClientEvents } from "./ClientEvents";

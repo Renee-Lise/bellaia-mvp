@@ -66,6 +66,12 @@ export interface EventsDemande {
   client_reponse_at?: string;
   fondatrice_notes?: string;
   dossier_evenement_id?: string;
+  // Paiement
+  paiement_url?:     string | null;
+  acompte_paye?:     boolean;
+  statut_paiement?:  string;
+  mode_paiement?:    string | null;
+  date_paiement?:    string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -124,6 +130,7 @@ export interface LigneDevisEditee {
   tva: number;             // % — prévu, non calculé pour l'instant
   acompte: number;         // % de cette ligne
   commentaire: string;
+  description_detaillee?: string; // Description longue modifiable avant envoi
   statut: "automatique" | "a_completer" | "suggestion";
   source: string;
 }
@@ -147,3 +154,27 @@ export interface DevisGenere {
 
 export type ActionDevis =
   | "modifier" | "generer" | "envoyer" | "voir" | "dupliquer" | "annuler";
+
+
+// ── Location vaisselle ────────────────────────────────────
+export interface LocationVaisselle {
+  id: string;
+  commandeId: string;
+  quantite: number;
+  caution: number;
+  etatDepart?: string;
+  etatRetour?: string;
+  fraisCasse?: number;
+  nettoyageInclus: boolean;
+  dateRetour?: string;
+  notes?: string;
+}
+
+// ── Paiement (interface utilitaire) ──────────────────────
+export interface PaiementDemande {
+  paiement_url?:    string | null;
+  acompte_paye?:    boolean;
+  statut_paiement?: "non_paye" | "acompte_paye" | "solde_paye" | "rembourse";
+  mode_paiement?:   "especes" | "virement" | "sumup" | "paypal" | "cheque" | null;
+  date_paiement?:   string | null;
+}

@@ -9,6 +9,23 @@ import {
   DETECTION_MAP, ETAPES_SUIVI,
 } from "./eventsConsts";
 
+
+// ── Liaison Bella'Food — catalogue Food visible depuis Events ─
+// Tente d'importer depuis le module Food si disponible.
+// Fallback sur FOOD_CATALOGUE_LIGHT si le module n'est pas chargé.
+let _foodCatalogueExterne: any[] | null = null;
+
+export function setFoodCatalogueExterne(catalogue: any[]) {
+  _foodCatalogueExterne = catalogue;
+}
+
+function getFoodPrestations() {
+  // Priorité : catalogue Food externe (module food chargé)
+  if (_foodCatalogueExterne) return _foodCatalogueExterne;
+  // Fallback : mini-catalogue intégré
+  return FOOD_CATALOGUE_LIGHT;
+}
+
 function trouverPrestaEvents(id) {
   return EVENTS_PRESTATIONS.find(p => p.id === id) || null;
 }
