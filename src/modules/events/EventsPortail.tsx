@@ -213,6 +213,46 @@ export function PortailSuiviClient({ onBack }: { onBack: () => void }) {
       client_reponse_at:new Date().toISOString(),
     });
     setDossier(d => d ? {...d, statut:"accepte", client_reponse:"accepte"} : null);
+
+    // ── Créer automatiquement la facture FAC- dans le ERP central ──
+    try {
+      const SB_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+      const SB_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+      const token   = await (window as any).getTokenAsync?.() ?? SB_KEY;
+      const montant = dossier.montant_estime || 0;
+      const acompte = dossier.montant_acompte || Math.round(montant * 0.3 * 100) / 100;
+      const facRef  = "FAC-" + new Date().getFullYear() + "-" + Date.now().toString().slice(-6);
+      const payload = {
+        reference:     facRef,
+        business_unit: "EVENTS",
+        commande_id:   dossier.id,
+        source_table:  "events_demandes",
+        client_nom:    (dossier.client_prenom || "") + " " + (dossier.client_nom || ""),
+        client_tel:    dossier.client_tel,
+        client_email:  dossier.client_email,
+        lignes:        JSON.stringify([{
+          libelle:     dossier.prestation || dossier.type_evenement || "Prestation Events",
+          qte:         1, unite:"prestation",
+          prixUnitaire:montant, total:montant,
+        }]),
+        sous_total:    montant,
+        total_ttc:     montant,
+        acompte,
+        solde:         Math.round((montant - acompte) * 100) / 100,
+        statut:        "emise",
+        date_emission: new Date().toISOString().split("T")[0],
+      };
+      await fetch(SB_URL + "/rest/v1/bellaia_factures", {
+        method:"POST",
+        headers:{
+          apikey:SB_KEY, Authorization:"Bearer "+token,
+          "Content-Type":"application/json", Prefer:"return=minimal",
+        },
+        body: JSON.stringify(payload),
+      });
+      // Lier la référence facture au dossier
+      await sbPatch(dossier.id, { liaison_comptable: facRef });
+    } catch { /* silencieux — ne bloque pas l'acceptation */ }
   };
 
   const onRefuse = async () => {

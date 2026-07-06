@@ -8,6 +8,7 @@ import { ModalGenerationDevis, DevisClientView, buildDevisHTML } from "./EventsD
 import { analyserDemandeClient } from "./eventsUtils";
 import { EVENTS_CATEGORIES } from "./eventsConsts";
 import type { EventsDemande, LigneDevis } from "./eventsTypes";
+import { creerFacture } from "../core/coreApi";
 
 // ── Couleurs autonomes (sans dépendance à BellaiaApp.tsx) ──
 const C = {
@@ -445,6 +446,41 @@ export function BellaEventsF({ user }: any) {
         body: JSON.stringify(notifPayload),
       });
     } catch { /* non bloquant */ }
+
+    // 4. Créer la facture FAC- dans bellaïa_factures (ERP central)
+    try {
+      const lignesDevis: any[] = d.lignes_devis
+        ? (typeof d.lignes_devis === "string" ? JSON.parse(d.lignes_devis) : d.lignes_devis)
+        : [];
+      const lignesFacture = lignesDevis.length > 0
+        ? lignesDevis.map((l: any) => ({
+            libelle:      l.libelle || l.categorie || "Prestation Events",
+            qte:          l.qte || 1,
+            unite:        l.unite || "prestation",
+            prixUnitaire: l.prixUnitaire ?? l.prix ?? 0,
+            total:        l.total ?? (l.prixUnitaire ?? 0) * (l.qte ?? 1),
+            sourceModule: "EVENTS" as const,
+          }))
+        : [{
+            libelle:      d.prestation || "Prestation Bella'Events",
+            qte:          1,
+            unite:        "prestation",
+            prixUnitaire: d.montant_estime || 0,
+            total:        d.montant_estime || 0,
+            sourceModule: "EVENTS" as const,
+          }];
+      await creerFacture({
+        bu:          "EVENTS",
+        commandeId:  d.id,
+        sourceTable: "events_demandes",
+        clientNom:   (d.client_prenom || "") + " " + (d.client_nom || "").trim(),
+        clientTel:   d.client_tel,
+        clientEmail: d.client_email,
+        lignes:      lignesFacture,
+        acomptePct:  30,
+        notes:       "Facture générée automatiquement depuis devis " + (d.numero_devis || d.reference || ""),
+      });
+    } catch { /* non bloquant — la conversion ne dépend pas de la facturation */ }
 
     rDem();
   };
