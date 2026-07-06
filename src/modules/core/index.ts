@@ -1,20 +1,39 @@
 // ═══════════════════════════════════════════════════════════
-// SOCLE STRATÉGIQUE BELLAÏA — Exports centraux
-// Importez depuis "@/modules/core" dans tous les pôles
+// MODULE CORE BELLAÏA — LOT V ERP Central
+// Point d'entrée unique — exports types, API, composants
+// src/modules/core/index.ts
 // ═══════════════════════════════════════════════════════════
 
-// Moteur de calcul
-export { calculerPrix, prixPsychologique } from "./calculateur";
-export type { EntreeCalcul, ResultatCalcul } from "./calculateur";
+// ── Types transverses ──────────────────────────────────────
+export type {
+  BusinessUnit, StatutProduit,
+  CatalogueProduit, CatalogueOption, CatalogueVariante,
+  EtapeConfigurateur, ConfigurationProduit,
+  StockGlobal, MouvementStock, ReservationStock,
+  CategorieStock, NiveauAlerteStock,
+  EtapeWorkflow, StatutFacture, StatutPaiement,
+  ModePaiement, ModelivraIson, LigneFacture,
+  Facture, Paiement, Livraison,
+  FournisseurCentral,
+} from "./coreTypes";
 
-// Moteur de génération IA
-export { generer, construirePrompt, LABELS_GENERATION } from "./generateur";
-export type { TypeGeneration, DemandeGeneration } from "./generateur";
+export { CONFIGURATEUR_STEPS } from "./coreTypes";
 
-// Mémoire centrale
-export { rechercher, relier, archiver, dupliquerPourPole, statsMemoire } from "./memoire";
-export type { TypeElement } from "./memoire";
+// ── API Supabase central ───────────────────────────────────
+export {
+  getCatalogueProduits,
+  creerProduitCatalogue,
+  majProduitCatalogue,
+  getStockGlobal,
+  majStockGlobal,
+  reserverStock,
+  libererReservations,
+  creerFacture,
+  getFactures,
+  enregistrerPaiement,
+} from "./coreApi";
 
-// Composants UI réutilisables
-export { default as CalculateurUI }  from "./CalculateurUI";
-export { default as StudioIAF }      from "./StudioIAF";
+// ── Composants ─────────────────────────────────────────────
+export { default as CatalogueAdmin }      from "./CatalogueAdmin";
+export { default as ProductConfigurator } from "./ProductConfigurator";
+export { default as BellaiaStocks }       from "./BellaiaStocks";
