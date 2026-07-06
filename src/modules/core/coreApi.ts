@@ -7,6 +7,7 @@ import type {
   BusinessUnit, CatalogueProduit, StockGlobal,
   MouvementStock, ReservationStock, Facture, Paiement, Livraison,
   LigneFacture,
+  Client, Adresse, Contact, EntreeHistoriqueClient,
 } from "./coreTypes";
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -340,4 +341,157 @@ function mapFacture(r: any): Facture {
     dateEcheance: r.date_echeance,
     notes:        r.notes,
   };
+}
+
+// ═══════════════════════════════════════════════════════════
+// API LOT VII — CRM Central
+// ═══════════════════════════════════════════════════════════
+
+// ── Référence client ────────────────────────────────────────
+function genClientRef(): string {
+  return "CLI-" + new Date().getFullYear() + "-" + Date.now().toString().slice(-6);
+}
+
+// ── Mapper Supabase → Client ────────────────────────────────
+function mapClient(r: any): Client {
+  return {
+    id:             r.id,
+    reference:      r.reference,
+    nom:            r.nom,
+    prenom:         r.prenom,
+    societe:        r.societe,
+    telephone:      r.telephone,
+    email:          r.email,
+    whatsapp:       r.whatsapp,
+    dateNaissance:  r.date_naissance,
+    tags:           r.tags || [],
+    notes:          r.notes,
+    rgpdOk:         r.rgpd_ok,
+    rgpdDate:       r.rgpd_date,
+    consentements:  r.consentements || {},
+    preferences:    r.preferences || {},
+    businessUnits:  r.business_units || [],
+    statut:         r.statut || "actif",
+    adresses:       [],
+    contacts:       [],
+  };
+}
+
+// ── CRUD Clients ────────────────────────────────────────────
+export async function getClients(opts?: {
+  statut?: string; bu?: string; search?: string;
+}): Promise<Client[]> {
+  let params = "order=nom.asc&limit=200";
+  if (opts?.statut) params += `&statut=eq.${opts.statut}`;
+  if (opts?.bu)     params += `&business_units=cs.{"${opts.bu}"}`;
+  if (opts?.search) params += `&or=(nom.ilike.*${opts.search}*,email.ilike.*${opts.search}*,telephone.ilike.*${opts.search}*)`;
+  const rows = await sbGet("bellaia_clients", params);
+  return rows.map(mapClient);
+}
+
+export async function getClient(id: string): Promise<Client | null> {
+  const rows = await sbGet("bellaia_clients", `id=eq.${id}&limit=1`);
+  if (!rows.length) return null;
+  const client = mapClient(rows[0]);
+  // Charger adresses et contacts
+  const adresses  = await sbGet("bellaia_adresses", `client_id=eq.${id}`);
+  const contacts  = await sbGet("bellaia_contacts", `client_id=eq.${id}`);
+  client.adresses = adresses.map((a: any): Adresse => ({
+    id:a.id, clientId:a.client_id, type:a.type,
+    ligne1:a.ligne1, ligne2:a.ligne2, commune:a.commune,
+    codePostal:a.code_postal, pays:a.pays, principale:a.principale,
+  }));
+  client.contacts = contacts.map((c: any): Contact => ({
+    id:c.id, clientId:c.client_id, nom:c.nom, prenom:c.prenom,
+    role:c.role, telephone:c.telephone, email:c.email, notes:c.notes,
+  }));
+  return client;
+}
+
+export async function creerClient(c: Omit<Client, "id">): Promise<Client | null> {
+  const payload = {
+    reference:      c.reference || genClientRef(),
+    nom:            c.nom,
+    prenom:         c.prenom,
+    societe:        c.societe,
+    telephone:      c.telephone,
+    email:          c.email,
+    whatsapp:       c.whatsapp || c.telephone,
+    date_naissance: c.dateNaissance,
+    tags:           c.tags || [],
+    notes:          c.notes,
+    rgpd_ok:        c.rgpdOk || false,
+    consentements:  c.consentements || {},
+    preferences:    c.preferences || {},
+    business_units: c.businessUnits || [],
+    statut:         c.statut || "actif",
+  };
+  const row = await sbPost("bellaia_clients", payload);
+  return row ? mapClient(row) : null;
+}
+
+export async function majClient(id: string, updates: Partial<Client>): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (updates.nom         !== undefined) payload.nom            = updates.nom;
+  if (updates.prenom      !== undefined) payload.prenom         = updates.prenom;
+  if (updates.societe     !== undefined) payload.societe        = updates.societe;
+  if (updates.telephone   !== undefined) payload.telephone      = updates.telephone;
+  if (updates.email       !== undefined) payload.email          = updates.email;
+  if (updates.whatsapp    !== undefined) payload.whatsapp       = updates.whatsapp;
+  if (updates.notes       !== undefined) payload.notes          = updates.notes;
+  if (updates.tags        !== undefined) payload.tags           = updates.tags;
+  if (updates.preferences !== undefined) payload.preferences    = updates.preferences;
+  if (updates.statut      !== undefined) payload.statut         = updates.statut;
+  await sbPatch("bellaia_clients", id, payload);
+}
+
+export async function rechercherOuCreerClient(nom: string, prenom: string, tel: string): Promise<Client | null> {
+  // Chercher par nom+prénom ou téléphone
+  const rows = await sbGet("bellaia_clients",
+    `or=(telephone.eq.${encodeURIComponent(tel)},and(nom.ilike.${encodeURIComponent(nom)},prenom.ilike.${encodeURIComponent(prenom || "")}))`
+  );
+  if (rows.length) return mapClient(rows[0]);
+  // Créer si inexistant
+  return creerClient({ nom, prenom, telephone: tel, statut: "actif" });
+}
+
+// ── Historique client ────────────────────────────────────────
+export async function getHistoriqueClient(clientId: string): Promise<EntreeHistoriqueClient[]> {
+  const rows = await sbGet("v_historique_client", `client_id=eq.${clientId}&limit=50`);
+  return rows.map((r: any): EntreeHistoriqueClient => ({
+    clientId:   r.client_id,
+    typeEntite: r.type_entite,
+    reference:  r.reference,
+    libelle:    r.libelle,
+    montant:    r.montant,
+    statut:     r.statut,
+    dateAction: r.date_action,
+  }));
+}
+
+// ── Adresses ────────────────────────────────────────────────
+export async function ajouterAdresse(a: Omit<Adresse, "id">): Promise<void> {
+  await sbPost("bellaia_adresses", {
+    client_id:   a.clientId,
+    type:        a.type,
+    ligne1:      a.ligne1,
+    ligne2:      a.ligne2,
+    commune:     a.commune,
+    code_postal: a.codePostal,
+    pays:        a.pays || "France",
+    principale:  a.principale || false,
+  });
+}
+
+// ── Contacts ────────────────────────────────────────────────
+export async function ajouterContact(c: Omit<Contact, "id">): Promise<void> {
+  await sbPost("bellaia_contacts", {
+    client_id: c.clientId,
+    nom:       c.nom,
+    prenom:    c.prenom,
+    role:      c.role,
+    telephone: c.telephone,
+    email:     c.email,
+    notes:     c.notes,
+  });
 }

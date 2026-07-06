@@ -317,3 +317,75 @@ export const CONFIGURATEUR_STEPS: Record<string, EtapeConfigurateur[]> = {
      ]},
   ],
 };
+
+// ═══════════════════════════════════════════════════════════
+// TYPES LOT VII — CRM Central Bellaïa
+// ═══════════════════════════════════════════════════════════
+
+// ── Client central ─────────────────────────────────────────
+export type StatutClient = "actif" | "inactif" | "archive";
+
+export interface Client {
+  id: string;
+  reference?: string;           // CLI-2026-XXXXXX
+  nom: string;
+  prenom?: string;
+  societe?: string;
+  telephone?: string;
+  email?: string;
+  whatsapp?: string;
+  dateNaissance?: string;       // YYYY-MM-DD
+  tags?: string[];
+  notes?: string;
+  rgpdOk?: boolean;
+  rgpdDate?: string;
+  consentements?: Record<string, boolean>;  // {email:true, sms:false}
+  preferences?: {
+    allergenes?: string[];
+    saveurs?: string[];
+    couleurs?: string[];
+    notes?: string;
+  };
+  businessUnits?: BusinessUnit[];
+  statut: StatutClient;
+  adresses?: Adresse[];
+  contacts?: Contact[];
+}
+
+// ── Adresse ────────────────────────────────────────────────
+export type TypeAdresse = "domicile" | "livraison" | "facturation";
+
+export interface Adresse {
+  id: string;
+  clientId: string;
+  type: TypeAdresse;
+  ligne1: string;
+  ligne2?: string;
+  commune?: string;
+  codePostal?: string;
+  pays?: string;
+  principale?: boolean;
+}
+
+// ── Contact lié ────────────────────────────────────────────
+export interface Contact {
+  id: string;
+  clientId: string;
+  nom: string;
+  prenom?: string;
+  role?: string;
+  telephone?: string;
+  email?: string;
+  notes?: string;
+}
+
+// ── Entrée historique client ────────────────────────────────
+export interface EntreeHistoriqueClient {
+  clientId: string;
+  typeEntite: "devis_events" | "facture" | "paiement" | "commande_food" | "note";
+  reference?: string;
+  libelle: string;
+  montant?: number;
+  statut?: string;
+  dateAction: string;
+}
