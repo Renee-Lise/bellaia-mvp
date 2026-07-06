@@ -1,7 +1,12 @@
-import React, { useState } from "react";
-import { FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, lazy, Suspense } from "react";
+import { FOOD_COLORS as FC, FOOD_CATALOGUE } from "./foodConsts";
 import { fmtPrix } from "./foodUtils";
 import type { CommandeFood, StatutCommande } from "./foodTypes";
+
+// Import dynamique du configurateur core (pas de dépendance circulaire)
+const ProductConfigurator = lazy(() =>
+  import("../core/ProductConfigurator").then(m => ({ default: m.default }))
+);
 
 const STATUTS: { id: StatutCommande; label: string; col: string }[] = [
   {id:"demande_recue",   label:"Demande reçue",   col:"rgba(201,168,76,0.8)"},
@@ -21,12 +26,40 @@ const FORM_INIT: Partial<CommandeFood> = {
 
 export default function FoodCommandes() {
   const [commandes, setCommandes] = useState<CommandeFood[]>([]);
-  const [modal,     setModal]     = useState<"form"|"detail"|null>(null);
+  const [modal,     setModal]     = useState<"form"|"detail"|"configurateur"|null>(null);
   const [form,      setForm]      = useState<Partial<CommandeFood>>(FORM_INIT);
   const [detail,    setDetail]    = useState<CommandeFood|null>(null);
   const [filtre,    setFiltre]    = useState<StatutCommande|"tous">("tous");
+  // Produit sélectionné pour le configurateur
+  const [produitConfig, setProduitConfig] = useState<any>(null);
 
   const visibles = commandes.filter(c => filtre === "tous" || c.statut === filtre);
+
+  // Quand le configurateur valide — créer la commande avec les données configurées
+  const onConfigValide = (config: any) => {
+    if (!produitConfig) return;
+    const id = "FC" + Date.now().toString().slice(-6);
+    const nv: CommandeFood = {
+      id, reference: id, statut: "demande_recue",
+      client: form.client || "",
+      tel: form.tel || "",
+      dateCommande: new Date().toISOString().split("T")[0],
+      dateLivraison: form.dateLivraison || "",
+      produit: produitConfig.nom || "",
+      nbParts: config.options?.parts || config.nbPersonnes || undefined,
+      prixCalcule: config.prixTotal,
+      acompte: Math.round(config.prixTotal * 0.3 * 100) / 100,
+      solde:   Math.round(config.prixTotal * 0.7 * 100) / 100,
+      message: [
+        config.options?.saveur ? "Saveur : " + config.options.saveur : "",
+        config.options?.forme  ? "Forme : "  + config.options.forme  : "",
+        config.options?.decoration ? "Décoration : " + config.options.decoration : "",
+        config.commentaire || "",
+      ].filter(Boolean).join(" | "),
+    };
+    setCommandes(cs => [nv, ...cs]);
+    setModal(null); setProduitConfig(null); setForm(FORM_INIT);
+  };
 
   const enregistrer = () => {
     if (!form.client || !form.produit) { alert("Client et produit requis."); return; }
@@ -117,15 +150,104 @@ export default function FoodCommandes() {
     </div>
   );
 
+  // ── Mode configurateur guidé ──────────────────────────
+  if (modal === "configurateur") {
+    // Sélecteur de produit si pas encore choisi
+    if (!produitConfig) return (
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <button onClick={() => setModal(null)}
+            style={{ background:"none", border:`1px solid ${FC.line}`, borderRadius:8,
+              padding:"4px 12px", color:FC.creamD, cursor:"pointer", fontSize:11 }}>
+            ‹ Annuler
+          </button>
+          <div style={{ fontSize:14, fontWeight:700, color:"#fff" }}>Choisir un produit à configurer</div>
+        </div>
+        {/* Client en premier */}
+        <div style={{ display:"flex", gap:8 }}>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", gap:3 }}>
+            <label style={{ fontSize:10, color:FC.creamD }}>Nom du client *</label>
+            <input value={form.client || ""} onChange={e => setForm(f => ({...f, client:e.target.value}))}
+              placeholder="Nom du client" style={{ background:"rgba(255,255,255,0.07)",
+                border:`1px solid ${FC.line}`, borderRadius:8, padding:"7px 10px",
+                color:"#fff", fontSize:12, fontFamily:"sans-serif", outline:"none", width:"100%", boxSizing:"border-box" as const }}/>
+          </div>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", gap:3 }}>
+            <label style={{ fontSize:10, color:FC.creamD }}>Date livraison</label>
+            <input type="date" value={form.dateLivraison || ""}
+              onChange={e => setForm(f => ({...f, dateLivraison:e.target.value}))}
+              style={{ background:"rgba(255,255,255,0.07)", border:`1px solid ${FC.line}`,
+                borderRadius:8, padding:"7px 10px", color:"#fff", fontSize:12,
+                fontFamily:"sans-serif", outline:"none", width:"100%", boxSizing:"border-box" as const }}/>
+          </div>
+        </div>
+        {/* Produits configurables */}
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {FOOD_CATALOGUE.filter(p => p.disponible).slice(0, 12).map(p => (
+            <button key={p.id} onClick={() => setProduitConfig(p)}
+              style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                background:"rgba(255,255,255,0.04)", border:`1px solid ${FC.line}`,
+                borderRadius:11, padding:"12px 14px", cursor:"pointer", textAlign:"left" as const }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{p.nom}</div>
+                <div style={{ fontSize:10, color:FC.creamD }}>{p.categorie}</div>
+              </div>
+              <div style={{ fontSize:13, fontWeight:700, color:FC.or }}>
+                {p.prix != null ? p.prix + "€" : "Sur devis"}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+
+    // Configurateur étape par étape
+    return (
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        <button onClick={() => setProduitConfig(null)}
+          style={{ alignSelf:"flex-start", background:"none", border:`1px solid ${FC.line}`,
+            borderRadius:8, padding:"4px 12px", color:FC.creamD, cursor:"pointer", fontSize:11 }}>
+          ‹ Changer de produit
+        </button>
+        <Suspense fallback={<div style={{ textAlign:"center", color:FC.creamD, padding:20 }}>Chargement…</div>}>
+          <ProductConfigurator
+            produit={{
+              id:           produitConfig.id,
+              businessUnit: "FOOD",
+              nom:          produitConfig.nom,
+              descriptionCourte: produitConfig.description || "",
+              prix:         produitConfig.prix,
+              coutRevient:  produitConfig.coutMatiere || null,
+              categorieSlug:produitConfig.categorie,
+              tempsPreparation: produitConfig.tempsPrepa,
+              tempsProduction:  produitConfig.tempsCuisson,
+              visibleClient:true, disponible:true, statut:"actif",
+            }}
+            onValider={onConfigValide}
+            onAnnuler={() => { setModal(null); setProduitConfig(null); }}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{visibles.length} commande{visibles.length>1?"s":""}</div>
-        <button onClick={() => { setForm(FORM_INIT); setModal("form"); }}
-          style={{ background: FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
-            color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"sans-serif" }}>
-          + Nouvelle commande
-        </button>
+        <div style={{ display:"flex", gap:6 }}>
+          <button onClick={() => setModal("configurateur")}
+            style={{ background:"rgba(21,128,61,0.15)", border:`1px solid ${FC.vert}`,
+              borderRadius:8, padding:"7px 12px", color:FC.vertL,
+              fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:"sans-serif" }}>
+            🎛 Configurateur
+          </button>
+          <button onClick={() => { setForm(FORM_INIT); setModal("form"); }}
+            style={{ background: FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
+              color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"sans-serif" }}>
+            + Nouvelle commande
+          </button>
+        </div>
       </div>
 
       {/* Filtres statut */}

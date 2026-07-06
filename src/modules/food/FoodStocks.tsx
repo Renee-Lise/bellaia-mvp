@@ -1,9 +1,10 @@
 // ═══════════════════════════════════════════════════════════
-// FoodStocks — Stocks matières premières — ÉDITION COMPLÈTE
+// FoodStocks — Stocks Bella'Food — ÉDITION COMPLÈTE
+// Source : stock_global (business_unit=FOOD) avec fallback local
 // Ajouter, modifier, supprimer, ajuster quantités, seuils, DLC
 // src/modules/food/FoodStocks.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FOOD_STOCK_INIT, FOOD_FOURNISSEURS_INIT, FOOD_COLORS as FC } from "./foodConsts";
 import { getAlerteStock, fmtPrix } from "./foodUtils";
 import type { StockItem, UniteMesure } from "./foodTypes";
@@ -14,6 +15,99 @@ const inp: React.CSSProperties = {
   borderRadius:8, padding:"7px 9px", color:"#fff", fontSize:12,
   fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box",
 };
+
+// ── Fallback : convertir stock_global vers StockItem ────────
+function mapStockGlobal(r: any): StockItem {
+  return {
+    id:              r.id,
+    nom:             r.nom,
+    categorie:       r.categorie || "sec",
+    unite:           r.unite,
+    qteRestante:     r.stock_actuel ?? r.qteRestante ?? 0,
+    seuilAlerte:     r.stock_min ?? r.seuilAlerte ?? 0,
+    seuilCritique:   r.seuil_critique,
+    prixAchat:       r.prix_achat,
+    fournisseur:     r.fournisseur_nom,
+    dlc:             r.dlc,
+    ddm:             r.ddm,
+    notes:           r.notes,
+  };
+}
+
+// ── Charger depuis Supabase stock_global (business_unit=FOOD) ──
+async function chargerStockDepuisSupabase(): Promise<StockItem[] | null> {
+  try {
+    const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+    if (!SB_URL) return null;
+    const token  = await (window as any).getTokenAsync?.() ?? SB_KEY;
+    const r = await fetch(
+      SB_URL + "/rest/v1/stock_global?business_unit=eq.FOOD&actif=eq.true&order=nom.asc",
+      { headers: { apikey:SB_KEY, Authorization:"Bearer "+token } }
+    );
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data.map(mapStockGlobal);
+  } catch {
+    return null;  // Silencieux — fallback sur données locales
+  }
+}
+
+// ── Persister une modification vers Supabase ────────────────
+async function patcherStockSupabase(id: string, payload: object): Promise<void> {
+  try {
+    const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+    if (!SB_URL) return;
+    const token = await (window as any).getTokenAsync?.() ?? SB_KEY;
+    await fetch(SB_URL + "/rest/v1/stock_global?id=eq."+id, {
+      method:"PATCH",
+      headers: {
+        apikey:SB_KEY, Authorization:"Bearer "+token,
+        "Content-Type":"application/json", Prefer:"return=minimal",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch { /* silencieux */ }
+}
+
+// ── Créer dans Supabase stock_global ───────────────────────
+async function creerStockSupabase(item: StockItem): Promise<string | null> {
+  try {
+    const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+    if (!SB_URL) return null;
+    const token = await (window as any).getTokenAsync?.() ?? SB_KEY;
+    const payload = {
+      business_unit: "FOOD",
+      nom:           item.nom,
+      categorie:     "matieres_premieres",
+      unite:         item.unite,
+      stock_actuel:  item.qteRestante,
+      stock_reserve: 0,
+      stock_min:     item.seuilAlerte,
+      seuil_critique:item.seuilCritique,
+      prix_achat:    item.prixAchat,
+      fournisseur_nom:item.fournisseur,
+      dlc:           item.dlc,
+      ddm:           item.ddm,
+      notes:         item.notes,
+      actif:         true,
+    };
+    const r = await fetch(SB_URL + "/rest/v1/stock_global", {
+      method:"POST",
+      headers: {
+        apikey:SB_KEY, Authorization:"Bearer "+token,
+        "Content-Type":"application/json", Prefer:"return=representation",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return Array.isArray(data) ? data[0]?.id : data?.id ?? null;
+  } catch { return null; }
+}
 
 const UNITES: UniteMesure[] = ["g","kg","mg","ml","L","cl","piece","unite","boite","sachet","pot","bouteille","pincee"];
 const CATEGORIES = ["sec","frais","aromes","garnitures","colorants","epices","conserves","surgele","autre"];
@@ -31,8 +125,28 @@ const FORM0: Partial<StockItem> = {
 };
 
 export default function FoodStocks() {
-  const [stocks,  setStocks]  = useState<StockItem[]>(FOOD_STOCK_INIT.map(s => ({ ...s })));
-  const [search,  setSearch]  = useState("");
+  const [stocks,   setStocks]  = useState<StockItem[]>(FOOD_STOCK_INIT.map(s => ({ ...s })));
+  const [source,   setSource]  = useState<"local"|"supabase">("local");
+  const [loading,  setLoading] = useState(false);
+  const [search,   setSearch]  = useState("");
+  const [modal,    setModal]   = useState<"form"|"ajuster"|null>(null);
+  const [editing,  setEditing] = useState<StockItem|null>(null);
+  const [ajustId,  setAjustId] = useState<string|null>(null);
+  const [ajustDelta, setAjustDelta] = useState(0);
+  const [form,     setForm]    = useState<Partial<StockItem>>(FORM0);
+
+  // ── Tentative de chargement depuis Supabase au montage ──
+  useEffect(() => {
+    setLoading(true);
+    chargerStockDepuisSupabase().then(rows => {
+      if (rows && rows.length > 0) {
+        setStocks(rows);
+        setSource("supabase");
+      }
+      // Si null ou vide : on garde FOOD_STOCK_INIT (fallback silencieux)
+      setLoading(false);
+    });
+  }, []);
   const [modal,   setModal]   = useState<"form"|"ajuster"|null>(null);
   const [editing, setEditing] = useState<StockItem|null>(null);
   const [ajustId, setAjustId] = useState<string|null>(null);
@@ -52,36 +166,66 @@ export default function FoodStocks() {
     setModal("form");
   };
 
-  // ── Sauvegarder ────────────────────────────────────────
-  const sauvegarder = () => {
+  // ── Sauvegarder (local + Supabase si connecté) ─────────
+  const sauvegarder = async () => {
     if (!form.nom?.trim()) return;
     if (editing) {
       setStocks(ss => ss.map(s => s.id === editing.id ? { ...s, ...form } as StockItem : s));
+      if (source === "supabase") {
+        await patcherStockSupabase(editing.id, {
+          nom:           form.nom,
+          unite:         form.unite,
+          stock_actuel:  form.qteRestante,
+          stock_min:     form.seuilAlerte,
+          seuil_critique:form.seuilCritique,
+          prix_achat:    form.prixAchat,
+          fournisseur_nom:form.fournisseur,
+          dlc:           form.dlc,
+          ddm:           form.ddm,
+          notes:         form.notes,
+        });
+      }
     } else {
+      const localId = "s_" + Date.now().toString().slice(-6);
       const nv: StockItem = {
         ...(form as StockItem),
-        id: "s_" + Date.now().toString().slice(-6),
+        id:           localId,
         qteRestante:  form.qteRestante || 0,
         seuilAlerte:  form.seuilAlerte || 0,
       };
+      // Tenter de créer dans Supabase
+      if (source === "supabase") {
+        const sbId = await creerStockSupabase(nv);
+        if (sbId) nv.id = sbId;
+      }
       setStocks(ss => [nv, ...ss]);
     }
     setModal(null); setEditing(null); setForm(FORM0);
   };
 
   // ── Supprimer / archiver ───────────────────────────────
-  const supprimer = (id: string) => {
+  const supprimer = async (id: string) => {
     if (!confirm("Supprimer cet article du stock ?")) return;
     setStocks(ss => ss.filter(s => s.id !== id));
+    if (source === "supabase") {
+      await patcherStockSupabase(id, { actif: false });
+    }
   };
 
   // ── Ajustement rapide de quantité ──────────────────────
   const ouvrirAjuster = (id: string) => { setAjustId(id); setAjustDelta(0); setModal("ajuster"); };
-  const appliquerAjustement = () => {
+
+  const appliquerAjustement = async () => {
     if (!ajustId) return;
-    setStocks(ss => ss.map(s => s.id !== ajustId ? s : {
-      ...s, qteRestante: Math.max(0, Math.round((s.qteRestante + ajustDelta) * 100) / 100),
+    let nouvQte = 0;
+    setStocks(ss => ss.map(s => {
+      if (s.id !== ajustId) return s;
+      nouvQte = Math.max(0, Math.round((s.qteRestante + ajustDelta) * 100) / 100);
+      return { ...s, qteRestante: nouvQte };
     }));
+    if (source === "supabase") {
+      await patcherStockSupabase(ajustId, { stock_actuel: nouvQte });
+    }
     setModal(null); setAjustId(null); setAjustDelta(0);
   };
 
@@ -121,7 +265,19 @@ export default function FoodStocks() {
         </button>
       </div>
 
-      {/* Résumé alertes */}
+      {/* Source des données */}
+      {loading ? (
+        <div style={{ fontSize:11, color:FC.creamD, textAlign:"center", padding:"6px" }}>
+          Chargement du stock central…
+        </div>
+      ) : (
+        <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", textAlign:"right" }}>
+          {source === "supabase"
+            ? "✅ Connecté au stock central Bellaïa"
+            : "📦 Données locales (stock central non disponible)"}
+        </div>
+      )}
+
       {alertes.size > 0 && (
         <div style={{ background:"rgba(248,113,113,0.08)", border:"1px solid rgba(248,113,113,0.25)",
           borderRadius:10, padding:"9px 13px", fontSize:12, color:"#f87171" }}>
