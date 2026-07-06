@@ -6,7 +6,8 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useState, useMemo, useCallback } from "react";
 import type { CatalogueProduit, BusinessUnit, StatutProduit } from "./coreTypes";
-import { FOOD_CATALOGUE, FOOD_COLORS as FC } from "../food/foodConsts";
+import { BELLAÏA_COLORS as FC } from "./coreDesign";
+import { FOOD_CATALOGUE } from "../food/foodConsts";
 
 const SA = "system-ui, sans-serif";
 const inp: React.CSSProperties = {

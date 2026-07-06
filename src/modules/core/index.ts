@@ -4,6 +4,9 @@
 // src/modules/core/index.ts
 // ═══════════════════════════════════════════════════════════
 
+
+// ── Design tokens ──────────────────────────────────────────
+export { BELLAÏA_COLORS, FC, SA, FS, INP_STYLE, BELLAÏA_FONTS } from "./coreDesign";
 // ── Types transverses ──────────────────────────────────────
 export type {
   BusinessUnit, StatutProduit,

@@ -5,7 +5,8 @@
 // src/modules/core/BellaiaStocks.tsx
 // ═══════════════════════════════════════════════════════════
 import React, { useState, useMemo } from "react";
-import { FOOD_COLORS as FC, FOOD_STOCK_INIT } from "../food/foodConsts";
+import { BELLAÏA_COLORS as FC } from "./coreDesign";
+import { FOOD_STOCK_INIT } from "../food/foodConsts";
 import type { StockGlobal, BusinessUnit, CategorieStock, NiveauAlerteStock } from "./coreTypes";
 
 const SA = "system-ui, sans-serif";

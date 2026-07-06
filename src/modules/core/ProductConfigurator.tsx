@@ -4,12 +4,12 @@
 // src/modules/core/ProductConfigurator.tsx
 // ═══════════════════════════════════════════════════════════
 import React, { useState, useMemo, useCallback } from "react";
-import { FOOD_COLORS as FC } from "../food/foodConsts";
+import { BELLAÏA_COLORS as FC } from "./coreDesign";
+import { CONFIGURATEUR_STEPS } from "./coreTypes";
 import type {
   CatalogueProduit, EtapeConfigurateur, ConfigurationProduit,
   CatalogueOption,
 } from "./coreTypes";
-import { CONFIGURATEUR_STEPS } from "./coreTypes";
 
 const SA = "system-ui, sans-serif";
 const FS = "Georgia, 'Times New Roman', serif";
