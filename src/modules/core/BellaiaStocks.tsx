@@ -4,8 +4,9 @@
 // Filtre par business_unit — données depuis stock_global
 // src/modules/core/BellaiaStocks.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { BELLAÏA_COLORS as FC } from "./coreDesign";
+import { getStockGlobal, majStockGlobal } from "./coreApi";
 import { FOOD_STOCK_INIT } from "../food/foodConsts";
 import type { StockGlobal, BusinessUnit, CategorieStock, NiveauAlerteStock } from "./coreTypes";
 
@@ -79,6 +80,18 @@ export default function BellaiaStocks() {
   const [ajustId,    setAjustId]    = useState<string|null>(null);
   const [ajustDelta, setAjustDelta] = useState(0);
   const [form,       setForm]       = useState<Partial<StockGlobal>>(FORM0);
+  const [source,     setSource]     = useState<"local"|"supabase">("local");
+  const [saving,     setSaving]     = useState(false);
+
+  // Chargement stock_global depuis Supabase — tous modules — au montage
+  useEffect(() => {
+    getStockGlobal().then(rows => {
+      if (rows && rows.length > 0) {
+        setStocks(rows);
+        setSource("supabase");
+      }
+    }).catch(() => {/* fallback bridgeFromFoodStock silencieux */});
+  }, []);
 
   const visibles = useMemo(() => stocks.filter(s => {
     if (!s.actif)                            return false;
@@ -105,40 +118,93 @@ export default function BellaiaStocks() {
     setModal("form");
   };
 
-  const sauvegarder = () => {
+  const sauvegarder = async () => {
     if (!form.nom?.trim()) return;
+    setSaving(true);
     const dispo = (form.stockActuel || 0) - (form.stockReserve || 0);
+    const localId = editing?.id || "sg_" + Date.now().toString().slice(-6);
     const nv: StockGlobal = {
       ...(form as StockGlobal),
-      id:              editing?.id || "sg_" + Date.now().toString().slice(-6),
+      id:              localId,
       stockDisponible: dispo,
       niveauAlerte:    calcNiveau(dispo, form.stockMin || 0, form.seuilCritique),
       actif:           true,
     };
     if (editing) {
       setStocks(ss => ss.map(s => s.id === editing.id ? nv : s));
+      if (source === "supabase") {
+        await majStockGlobal(editing.id, 0, "modification", undefined, undefined)
+          .catch(() => {});
+      }
     } else {
       setStocks(ss => [nv, ...ss]);
+      // Créer dans stock_global Supabase
+      if (source === "supabase") {
+        try {
+          const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+          const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+          const tok    = await (window as any).getTokenAsync?.() ?? SB_KEY;
+          await fetch(`${SB_URL}/rest/v1/stock_global`, {
+            method:"POST",
+            headers:{ apikey:SB_KEY, Authorization:"Bearer "+tok,
+              "Content-Type":"application/json", Prefer:"return=minimal" },
+            body: JSON.stringify({
+              business_unit:  form.businessUnit,
+              nom:            form.nom,
+              categorie:      form.categorie,
+              unite:          form.unite || "piece",
+              stock_actuel:   form.stockActuel || 0,
+              stock_reserve:  form.stockReserve || 0,
+              stock_min:      form.stockMin || 0,
+              seuil_critique: form.seuilCritique,
+              prix_achat:     form.prixAchat,
+              fournisseur_nom:form.fournisseurNom,
+              emplacement:    form.emplacement,
+              dlc:            form.dlc,
+              notes:          form.notes,
+              actif:          true,
+            }),
+          });
+        } catch {/* silencieux */}
+      }
     }
+    setSaving(false);
     setModal(null); setEditing(null); setForm(FORM0);
   };
 
-  const supprimer = (id: string) => {
+  const supprimer = async (id: string) => {
     if (!confirm("Archiver cet article ?")) return;
     setStocks(ss => ss.map(s => s.id === id ? { ...s, actif:false } : s));
+    if (source === "supabase") {
+      try {
+        const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+        const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+        const tok    = await (window as any).getTokenAsync?.() ?? SB_KEY;
+        await fetch(`${SB_URL}/rest/v1/stock_global?id=eq.${id}`, {
+          method:"PATCH",
+          headers:{ apikey:SB_KEY, Authorization:"Bearer "+tok,
+            "Content-Type":"application/json", Prefer:"return=minimal" },
+          body: JSON.stringify({ actif:false }),
+        });
+      } catch {/* silencieux */}
+    }
   };
 
   const ouvrirAjuster = (id: string) => { setAjustId(id); setAjustDelta(0); setModal("ajuster"); };
 
-  const appliquerAjustement = () => {
+  const appliquerAjustement = async () => {
     if (!ajustId) return;
+    let nouvQte = 0;
     setStocks(ss => ss.map(s => {
       if (s.id !== ajustId) return s;
-      const nouveau = Math.max(0, Math.round((s.stockActuel + ajustDelta) * 100) / 100);
-      const dispo   = Math.max(0, nouveau - s.stockReserve);
-      return { ...s, stockActuel:nouveau, stockDisponible:dispo,
+      nouvQte = Math.max(0, Math.round((s.stockActuel + ajustDelta) * 100) / 100);
+      const dispo = Math.max(0, nouvQte - s.stockReserve);
+      return { ...s, stockActuel:nouvQte, stockDisponible:dispo,
         niveauAlerte:calcNiveau(dispo, s.stockMin, s.seuilCritique) };
     }));
+    if (source === "supabase") {
+      await majStockGlobal(ajustId, ajustDelta, "ajustement manuel").catch(() => {});
+    }
     setModal(null); setAjustId(null); setAjustDelta(0);
   };
 

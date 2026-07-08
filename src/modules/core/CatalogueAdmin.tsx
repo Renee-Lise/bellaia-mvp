@@ -4,9 +4,10 @@
 // Tous modules : Food, Events, BSH, Odyssée...
 // src/modules/core/CatalogueAdmin.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import type { CatalogueProduit, BusinessUnit, StatutProduit } from "./coreTypes";
 import { BELLAÏA_COLORS as FC } from "./coreDesign";
+import { getCatalogueProduits, creerProduitCatalogue, majProduitCatalogue } from "./coreApi";
 import { FOOD_CATALOGUE } from "../food/foodConsts";
 
 const SA = "system-ui, sans-serif";
@@ -71,6 +72,18 @@ export default function CatalogueAdmin() {
   const [filtreBU,  setFiltreBU]  = useState<BusinessUnit|"tous">("tous");
   const [filtreStatut, setFiltreStatut] = useState<StatutProduit|"tous">("tous");
   const [search,    setSearch]    = useState("");
+  const [source,    setSource]    = useState<"local"|"supabase">("local");
+  const [saving,    setSaving]    = useState(false);
+
+  // Chargement depuis catalogue_produits Supabase au montage
+  useEffect(() => {
+    getCatalogueProduits().then(rows => {
+      if (rows && rows.length > 0) {
+        setProduits(rows);
+        setSource("supabase");
+      }
+    }).catch(() => {/* fallback local silencieux */});
+  }, []);
 
   const visibles = useMemo(() =>
     produits.filter(p => {
@@ -87,35 +100,53 @@ export default function CatalogueAdmin() {
     setModal("form");
   }, []);
 
-  const dupliquer = useCallback((p: CatalogueProduit) => {
-    const nv: CatalogueProduit = {
-      ...p,
-      id:     "cp_" + Date.now().toString().slice(-6),
-      nom:    p.nom + " (copie)",
-      statut: "brouillon",
-    };
+  const dupliquer = useCallback(async (p: CatalogueProduit) => {
+    const localId = "cp_" + Date.now().toString().slice(-6);
+    const nv: CatalogueProduit = { ...p, id:localId, nom:p.nom+" (copie)", statut:"brouillon" };
     setProduits(ps => [nv, ...ps]);
-  }, []);
+    if (source === "supabase") {
+      await creerProduitCatalogue({ ...nv, nom:nv.nom, statut:"brouillon" })
+        .catch(() => {});
+    }
+  }, [source]);
 
-  const archiver = useCallback((id: string) => {
+  const archiver = useCallback(async (id: string) => {
     setProduits(ps => ps.map(p => p.id === id ? { ...p, statut:"archive" } : p));
-  }, []);
+    if (source === "supabase") {
+      await majProduitCatalogue(id, { statut:"archive" } as any).catch(() => {});
+    }
+  }, [source]);
 
-  const supprimer = useCallback((id: string) => {
+  const supprimer = useCallback(async (id: string) => {
     if (!confirm("Supprimer ce produit définitivement ?")) return;
     setProduits(ps => ps.filter(p => p.id !== id));
-  }, []);
+    // Supabase : archiver plutôt que supprimer physiquement (sécurité)
+    if (source === "supabase") {
+      await majProduitCatalogue(id, { statut:"archive", disponible:false } as any).catch(() => {});
+    }
+  }, [source]);
 
-  const sauvegarder = () => {
+  const sauvegarder = async () => {
     if (!form.nom?.trim() || !form.businessUnit) return;
+    setSaving(true);
     if (editing) {
       setProduits(ps => ps.map(p => p.id === editing.id ? { ...p, ...form } as CatalogueProduit : p));
+      if (source === "supabase") {
+        await majProduitCatalogue(editing.id, form as any).catch(() => {});
+      }
     } else {
-      setProduits(ps => [{
-        ...(form as CatalogueProduit),
-        id: "cp_" + Date.now().toString().slice(-6),
-      }, ...ps]);
+      const localId = "cp_" + Date.now().toString().slice(-6);
+      const nv: CatalogueProduit = { ...(form as CatalogueProduit), id: localId };
+      setProduits(ps => [nv, ...ps]);
+      if (source === "supabase") {
+        const created = await creerProduitCatalogue(nv).catch(() => null);
+        // Remplacer l'ID local par l'UUID Supabase
+        if (created?.id) {
+          setProduits(ps => ps.map(p => p.id === localId ? { ...p, id: created.id } : p));
+        }
+      }
     }
+    setSaving(false);
     setModal(null); setEditing(null); setForm(FORM0);
   };
 
@@ -329,10 +360,11 @@ export default function CatalogueAdmin() {
               </div>
 
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={sauvegarder}
+                <button onClick={sauvegarder} disabled={saving}
                   style={{ flex:1, background:FC.vert, border:"none", borderRadius:10, padding:"11px",
-                    color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:SA }}>
-                  ✅ {editing ? "Enregistrer" : "Créer le produit"}
+                    color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer",
+                    fontFamily:SA, opacity:saving ? 0.6 : 1 }}>
+                  {saving ? "…" : `✅ ${editing ? "Enregistrer" : "Créer le produit"}`}
                 </button>
                 <button onClick={() => { setModal(null); setEditing(null); setForm(FORM0); }}
                   style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none", borderRadius:10,
