@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════
 // FoodImport — Moteur d'import de recettes Bella'Food
 // Sources : texte, lien, photo, PDF, réseaux sociaux
-// OCR + IA : architecture préparée, branchable ultérieurement
+// Niveau 1 opérationnel : texte + copier-coller + Supabase
+// Niveau 2 préparé : OCR, IA, liens externes
 // src/modules/food/FoodImport.tsx
 // ═══════════════════════════════════════════════════════════
 import React, { useState } from "react";
@@ -9,8 +10,47 @@ import { FOOD_COLORS as FC, FOOD_CATEGORIES } from "./foodConsts";
 import { analyserTexteRecette, fmtDuree } from "./foodUtils";
 import type { Recette, SourceImport, ImportRecette } from "./foodTypes";
 
+// ── Persistance Supabase (niveau 1 opérationnel) ───────────
+async function sbSauvegarderRecette(r: Partial<Recette>): Promise<string | null> {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  if (!SB_URL) return null;
+  try {
+    const token = await (window as any).getTokenAsync?.() ?? SB_KEY;
+    const payload = {
+      nom:            r.nom || "Recette sans nom",
+      categorie:      r.categorie || "patisserie",
+      nb_parts:       r.nbParts,
+      difficulte:     r.difficulte,
+      temps_prepa:    r.tempsPrepa,
+      temps_cuisson:  r.tempsCuisson,
+      temps_repos:    r.tempsRepos,
+      cout_matiere:   r.coutMatiere,
+      prix_conseille: r.prixConseille,
+      allergenes:     r.allergenes || [],
+      ingredients:    r.ingredients || [],
+      etapes:         r.etapes || [],
+      notes:          r.notes,
+      source:         r.sourceType,
+      statut:         "brouillon",
+    };
+    const resp = await fetch(`${SB_URL}/rest/v1/food_recettes`, {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY, Authorization: "Bearer " + token,
+        "Content-Type": "application/json", Prefer: "return=representation",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return Array.isArray(data) ? data[0]?.id : data?.id ?? null;
+  } catch { return null; }
+}
+
 // ── Helpers UI ─────────────────────────────────────────────
 const SA = "system-ui, sans-serif";
+
 
 const Badge = ({ txt, col }: { txt: string; col: string }) => (
   <span style={{ fontSize:9, background:col+"22", color:col, borderRadius:4,
@@ -47,6 +87,8 @@ export default function FoodImport({ onImporter }: Props) {
   const [analyse,      setAnalyse]      = useState(false);
   const [resultat,     setResultat]     = useState<Partial<Recette> | null>(null);
   const [etape,        setEtape]        = useState<"source"|"saisie"|"resultat">("source");
+  const [saving,       setSaving]       = useState(false);
+  const [savedId,      setSavedId]      = useState<string|null>(null);
   const [historiqueImports] = useState<ImportRecette[]>([]);
 
   const lancer = () => {
@@ -251,10 +293,30 @@ export default function FoodImport({ onImporter }: Props) {
         </div>
 
         <div style={{ display:"flex", gap:8 }}>
-          <button onClick={() => { onImporter(resultat); setEtape("source"); setContenu(""); setUrl(""); setResultat(null); }}
+          <button onClick={async () => {
+            if (!resultat) return;
+            setSaving(true);
+            // 1. Tenter persistance Supabase
+            const sbId = await sbSauvegarderRecette(resultat);
+            if (sbId) {
+              setSavedId(sbId);
+              // Enrich avec l'ID Supabase si retourné
+              onImporter({ ...resultat, id: sbId });
+            } else {
+              // Fallback local si Supabase indisponible
+              onImporter(resultat);
+            }
+            setSaving(false);
+            setEtape("source");
+            setContenu("");
+            setUrl("");
+            setResultat(null);
+          }}
+            disabled={saving}
             style={{ flex:1, background:FC.vert, border:"none", borderRadius:10, padding:"11px",
-              color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:SA }}>
-            ✅ Importer la recette
+              color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:SA,
+              opacity: saving ? 0.7 : 1 }}>
+            {saving ? "Enregistrement…" : "✅ Importer la recette"}
           </button>
           <button onClick={() => setEtape("saisie")}
             style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none", borderRadius:10,
@@ -263,6 +325,12 @@ export default function FoodImport({ onImporter }: Props) {
             ← Modifier
           </button>
         </div>
+        {savedId && (
+          <div style={{ fontSize:11, color:FC.vertL, textAlign:"center", fontWeight:700 }}>
+            ✅ Sauvegardée dans Bella'Food (ID: {savedId.slice(0,8)}…)
+          </div>
+        )}
+
       </div>
     );
   }
