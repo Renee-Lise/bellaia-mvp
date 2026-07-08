@@ -45,3 +45,34 @@ export { default as ProductConfigurator } from "./ProductConfigurator";
 export { default as BellaiaStocks }       from "./BellaiaStocks";
 export { default as BellaWorkflowF }      from "./BellaWorkflowF";
 export { default as ClientCenter }        from "./ClientCenter";
+
+// ── LOT VIII — Workflow Commercial Universel ───────────────
+export type {
+  StatutWorkflow, BU,
+  TransitionWorkflow, CommandeUniverselle, LivraisonUniverselle,
+  NotificationWorkflow, TacheProduction, LigneCommande,
+  PrefixeRef,
+} from "./workflowTypes";
+
+export {
+  STATUT_LABELS, STATUT_COLORS,
+  TRANSITIONS_VALIDES, ETAPES_ORDONNEES,
+  transitionAutorisee, indexEtape,
+} from "./workflowTypes";
+
+export {
+  genRef, genDevisRef, genCommandeRef, genFactureRef,
+  genPaiementRef, genLivraisonRef, genProductionRef,
+  fmtPrix, fmtDate, fmtDateHeure, fmtDuree,
+  buildMessageWhatsApp, ouvrirWhatsApp,
+  buildBonLivraisonHTML,
+  calculerAcompte, calculerSolde,
+  etapesRestantes,
+} from "./workflowUtils";
+
+export {
+  WorkflowEngine,
+  transitionner, getJournal,
+  getNotificationsEnAttente, marquerEnvoyee,
+  imprimerBonLivraison,
+} from "./WorkflowEngine";
