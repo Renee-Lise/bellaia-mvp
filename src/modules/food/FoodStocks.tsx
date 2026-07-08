@@ -147,11 +147,6 @@ export default function FoodStocks() {
       setLoading(false);
     });
   }, []);
-  const [modal,   setModal]   = useState<"form"|"ajuster"|null>(null);
-  const [editing, setEditing] = useState<StockItem|null>(null);
-  const [ajustId, setAjustId] = useState<string|null>(null);
-  const [ajustDelta, setAjustDelta] = useState(0);
-  const [form,    setForm]    = useState<Partial<StockItem>>(FORM0);
 
   const alertes = useMemo(() => new Set(getAlerteStock(stocks).map(s => s.id)), [stocks]);
 
