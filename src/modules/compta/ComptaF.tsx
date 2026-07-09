@@ -1,513 +1,421 @@
-"use client";
 // ═══════════════════════════════════════════════════════════
-// PRÉ-COMPTABILITÉ BELLAÏA — Module fondatrice complet
-// Ventes auto · Espèces à valider · Achats · Journaux · Export
+// ComptaF — Pré-comptabilité Transversale Bellaïa
+// CA · Factures · Paiements · Dépenses · Export CSV
+// Lit bellaia_factures + bellaia_paiements + bellaia_commandes
+// src/modules/compta/ComptaF.tsx
 // ═══════════════════════════════════════════════════════════
+import React, { useState, useEffect, useMemo } from "react";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  chargerEcritures, validerEcriture, annulerEcriture,
-  construireEcritureVente, construireEcritureAchat,
-  enregistrerEcriture, calculerTotaux, exporterCSV
-} from "./moteur";
-import type { EcritureCompta, ModesPaiement, TypeOperation } from "./types";
-import { MODES_EN_LIGNE, CATEGORIES_PAR_POLE, CATEGORIES_ACHAT, isEnLigne } from "./types";
-import { POLES } from "../shared/constants";
-
-// ── Design tokens
-const B = {
-  deep:"#0d0b12", card:"rgba(255,255,255,0.04)", border:"rgba(255,255,255,0.08)",
-  cream:"#e8e3d5", muted:"rgba(255,255,255,0.4)", gold:"#c9a84c",
-  violet:"#7c3aed", violetL:"#a78bfa", success:"#4ade80",
-  danger:"#ef4444", warning:"#f59e0b", info:"#38bdf8",
-};
-const SA = "Inter,system-ui,sans-serif";
-const FS = "'Cormorant Garamond',Georgia,serif";
-
-// ── Helpers UI
-const Card = ({ children, style = {} }: any) => (
-  <div style={{ background: B.card, border: `1px solid ${B.border}`, borderRadius: 14, padding: "12px 14px", ...style }}>
-    {children}
-  </div>
-);
-const Btn = ({ children, onClick, v = "primary", sm = false, disabled = false, full = false }: any) => {
-  const bgs: any = {
-    primary: `linear-gradient(135deg,${B.violet},#9333ea)`,
-    gold: `linear-gradient(135deg,${B.gold},#b8860b)`,
-    ghost: "rgba(255,255,255,0.07)",
-    success: "rgba(74,222,128,0.15)",
-    danger: "rgba(239,68,68,0.15)",
-  };
-  const cols: any = { danger: B.danger, success: B.success, ghost: B.muted };
-  return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ background: bgs[v], border: `1px solid ${v === "ghost" ? B.border : v === "danger" ? "rgba(239,68,68,0.35)" : v === "success" ? "rgba(74,222,128,0.35)" : "transparent"}`, borderRadius: 10, padding: sm ? "4px 10px" : "9px 16px", color: cols[v] || "#fff", cursor: disabled ? "not-allowed" : "pointer", fontSize: sm ? 11 : 13, fontWeight: 700, fontFamily: SA, opacity: disabled ? 0.5 : 1, width: full ? "100%" : undefined }}>
-      {children}
-    </button>
-  );
-};
-const Fld = ({ label, children }: any) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-    <div style={{ fontSize: 10, fontWeight: 700, color: B.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-    {children}
-  </div>
-);
-const Inp = ({ value, onChange, placeholder = "", type = "text", rows = 0 }: any) =>
-  rows > 1
-    ? <textarea value={value || ""} onChange={onChange} placeholder={placeholder} rows={rows} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${B.border}`, borderRadius: 10, padding: "9px 12px", color: B.cream, fontSize: 12, outline: "none", fontFamily: SA, resize: "vertical", width: "100%", boxSizing: "border-box" as const }} />
-    : <input value={value || ""} onChange={onChange} placeholder={placeholder} type={type} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${B.border}`, borderRadius: 10, padding: "9px 12px", color: B.cream, fontSize: 12, outline: "none", fontFamily: SA, width: "100%", boxSizing: "border-box" as const }} />;
-const Sel = ({ value, onChange, options }: any) => (
-  <select value={value || ""} onChange={onChange} style={{ background: "#1a1625", border: `1px solid ${B.border}`, borderRadius: 10, padding: "9px 12px", color: B.cream, fontSize: 12, fontFamily: SA, width: "100%", outline: "none" }}>
-    {options.map((o: any) => typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.id} value={o.id}>{o.label}</option>)}
-  </select>
-);
-const Mdl = ({ title, onClose, children }: any) => (
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 250, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-    <div style={{ background: "#13111a", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 480, maxHeight: "92vh", overflowY: "auto", padding: "20px 16px 36px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: B.cream, fontFamily: FS }}>{title}</div>
-        <button onClick={onClose} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, padding: "5px 11px", color: B.cream, cursor: "pointer", fontSize: 13 }}>✕</button>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
-    </div>
-  </div>
-);
-
-const Bdg = ({ label, color }: any) => (
-  <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 20, background: `${color}20`, color, fontWeight: 700 }}>{label}</span>
-);
-
-const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
-  auto_valide: { label: "✅ Auto", color: B.success },
-  a_verifier:  { label: "⏳ À vérifier", color: B.warning },
-  valide:      { label: "✔ Validé", color: B.info },
-  annule:      { label: "✕ Annulé", color: B.muted },
+const SA = "system-ui, -apple-system, sans-serif";
+const FS = "Georgia, 'Times New Roman', serif";
+const CLR = {
+  vert:"#15803d", vertL:"#22c55e",
+  or:"#c9a96e",   creamD:"rgba(245,240,232,0.6)",
+  card:"rgba(255,255,255,0.04)", line:"rgba(255,255,255,0.1)",
+  danger:"#f87171", warn:"#fb923c",
 };
 
-const JOURNAL_LABELS: Record<string, string> = {
-  ventes: "📈 Ventes", achats: "📉 Achats", caisse: "💵 Caisse",
-  banque: "🏦 Banque", paiements: "💳 Paiements", avoirs: "🔄 Avoirs",
+// ── Supabase ───────────────────────────────────────────────
+const SB_URL = () => process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SB_KEY = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+async function tok(): Promise<string> {
+  return (await (window as any).getTokenAsync?.()) ?? SB_KEY();
+}
+async function sbGet(table: string, params: string): Promise<any[]> {
+  if (!SB_URL()) return [];
+  try {
+    const r = await fetch(`${SB_URL()}/rest/v1/${table}?${params}`, {
+      headers: { apikey:SB_KEY(), Authorization:"Bearer " + await tok() },
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return Array.isArray(d) ? d : [];
+  } catch { return []; }
+}
+
+// ── Types locaux ───────────────────────────────────────────
+interface LigneFacture {
+  id:         string;
+  reference:  string;
+  clientNom:  string;
+  total:      number;
+  statut:     string;
+  bu:         string;
+  date:       string;
+  acompte?:   number;
+  solde?:     number;
+}
+interface LignePaiement {
+  id:        string;
+  reference: string;
+  montant:   number;
+  date:      string;
+  statut:    string;
+  bu:        string;
+  notes?:    string;
+}
+
+type Periode = "mois"|"trimestre"|"annee"|"tout";
+
+const MOIS_LABELS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
+const BU_LABELS: Record<string, string> = {
+  FOOD:"🍃 Food", EVENTS:"✨ Events", BSH:"💜 BSH",
+  ODYSSEE:"💅 Odyssée", GENERAL:"📦 Général",
 };
 
-const MODES: ModesPaiement[] = ["SumUp", "Revolut", "PayPal", "Virement", "Lien_paiement", "Especes", "Stripe", "Autre"];
+function fmtPrix(n: number): string {
+  return n.toFixed(2).replace(".",",") + " €";
+}
+function fmtDate(s: string): string {
+  try { return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); }
+  catch { return s; }
+}
+function moisActuel(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
 
-const today = () => new Date().toISOString().split("T")[0];
+const STATUT_COL: Record<string, string> = {
+  emise:"#fb923c", envoyee:"#60a5fa", payee:"#22c55e",
+  partiellement_payee:"#c9a96e", annulee:"#f87171",
+  FACTURE:"#fb923c", ACOMPTE_RECU:"#c9a96e", SOLDE_RECU:"#22c55e",
+};
 
-const ONGS = [
-  { id: "dashboard", l: "📊 Dashboard" },
-  { id: "a_verifier", l: "⏳ À valider" },
-  { id: "ventes", l: "📈 Ventes" },
-  { id: "achats", l: "📉 Achats" },
-  { id: "caisse", l: "💵 Caisse" },
-  { id: "saisie", l: "✏ Saisie" },
-  { id: "export", l: "📤 Export" },
-];
-
-// ═══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
 export default function ComptaF({ user }: { user?: any }) {
-  const [ong, setOng]               = useState("dashboard");
-  const [ecritures, setEcritures]   = useState<EcritureCompta[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [modal, setModal]           = useState<string | null>(null);
-  const [form, setForm]             = useState<any>({});
-  const f = (k: string) => (v: any) => setForm((x: any) => ({ ...x, [k]: typeof v === "string" ? v : v?.target?.value ?? v }));
+  const [factures,   setFactures]   = useState<LigneFacture[]>([]);
+  const [paiements,  setPaiements]  = useState<LignePaiement[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [source,     setSource]     = useState<"local"|"supabase">("local");
+  const [onglet,     setOnglet]     = useState<"dashboard"|"factures"|"paiements"|"export">("dashboard");
+  const [periode,    setPeriode]    = useState<Periode>("mois");
+  const [filtreBU,   setFiltreBU]   = useState<string>("tous");
 
-  const reload = useCallback(async () => {
+  // Chargement
+  useEffect(() => {
     setLoading(true);
-    const data = await chargerEcritures({ limit: 500 });
-    setEcritures(data);
-    setLoading(false);
+    Promise.all([
+      sbGet("bellaia_factures",
+        "order=created_at.desc&limit=200&select=id,reference,client_nom,total_ttc,statut,business_unit,created_at,acompte,solde"),
+      sbGet("bellaia_paiements",
+        "order=date_paiement.desc&limit=200&select=id,reference,montant,date_paiement,statut,business_unit,notes"),
+    ]).then(([facs, pays]) => {
+      if (facs.length > 0 || pays.length > 0) {
+        setFactures(facs.map(f => ({
+          id:f.id, reference:f.reference, clientNom:f.client_nom,
+          total:f.total_ttc||0, statut:f.statut, bu:f.business_unit||"GENERAL",
+          date:f.created_at, acompte:f.acompte, solde:f.solde,
+        })));
+        setPaiements(pays.map(p => ({
+          id:p.id, reference:p.reference, montant:p.montant||0,
+          date:p.date_paiement||p.created_at, statut:p.statut,
+          bu:p.business_unit||"GENERAL", notes:p.notes,
+        })));
+        setSource("supabase");
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
-
-  const totaux = calculerTotaux(ecritures);
-
-  const ecrituresJournal = (journal: string) =>
-    ecritures.filter(e => e.journal === journal && e.statut !== "annule");
-
-  const aValider = ecritures.filter(e => e.statut === "a_verifier");
-
-  // ── Saisie manuelle vente
-  const saisirVente = async () => {
-    if (!form.libelle?.trim() || !form.montant || !form.pole) return;
-    const e = construireEcritureVente({
-      date:          form.date || today(),
-      libelle:       form.libelle,
-      pole:          form.pole,
-      montant_ttc:   parseFloat(form.montant),
-      tva_pct:       parseFloat(form.tva) || 20,
-      mode_paiement: form.mode || "Especes",
-      client_nom:    form.client,
-      facture_id:    form.facture_id,
-      fondatrice_id: user?.id,
+  // Filtrage par période
+  const filtrerParPeriode = <T extends {date:string}>(items: T[]): T[] => {
+    const now  = new Date();
+    const mois = now.getMonth();
+    const an   = now.getFullYear();
+    return items.filter(i => {
+      const d = new Date(i.date);
+      if (periode === "mois")      return d.getFullYear()===an && d.getMonth()===mois;
+      if (periode === "trimestre") {
+        const q = Math.floor(mois/3);
+        return d.getFullYear()===an && Math.floor(d.getMonth()/3)===q;
+      }
+      if (periode === "annee")     return d.getFullYear()===an;
+      return true;
     });
-    await enregistrerEcriture(e);
-    setModal(null); setForm({}); reload();
   };
 
-  // ── Saisie manuelle achat
-  const saisirAchat = async () => {
-    if (!form.libelle?.trim() || !form.montant || !form.pole) return;
-    const e = construireEcritureAchat({
-      date:            form.date || today(),
-      libelle:         form.libelle,
-      pole:            form.pole,
-      montant_ttc:     parseFloat(form.montant),
-      tva_pct:         parseFloat(form.tva) || 20,
-      mode_paiement:   form.mode || "Virement",
-      fournisseur_nom: form.fournisseur,
-      fondatrice_id:   user?.id,
+  const facturesFiltrees = useMemo(() => {
+    let f = filtrerParPeriode(factures);
+    if (filtreBU !== "tous") f = f.filter(x => x.bu === filtreBU);
+    return f;
+  }, [factures, periode, filtreBU]);
+
+  const paiementsFiltres = useMemo(() => {
+    let p = filtrerParPeriode(paiements);
+    if (filtreBU !== "tous") p = p.filter(x => x.bu === filtreBU);
+    return p;
+  }, [paiements, periode, filtreBU]);
+
+  const kpis = useMemo(() => {
+    const caTotalFac    = facturesFiltrees.reduce((s,f) => s+f.total, 0);
+    const encaisse      = paiementsFiltres.filter(p=>p.statut==="confirme"||p.statut==="payee").reduce((s,p)=>s+p.montant,0);
+    const enAttente     = facturesFiltrees.filter(f=>["emise","envoyee","partiellement_payee"].includes(f.statut)).reduce((s,f)=>s+f.total,0);
+    const payees        = facturesFiltrees.filter(f=>f.statut==="payee").length;
+    const nbFactures    = facturesFiltrees.length;
+    const tauxRecouvrement = caTotalFac > 0 ? Math.round(encaisse/caTotalFac*100) : 0;
+
+    // Répartition par BU
+    const parBU: Record<string,number> = {};
+    facturesFiltrees.forEach(f => {
+      parBU[f.bu] = (parBU[f.bu]||0) + f.total;
     });
-    await enregistrerEcriture(e);
-    setModal(null); setForm({}); reload();
+
+    // Évolution mensuelle (12 derniers mois)
+    const maintenant = new Date();
+    const evolMois: {mois:string; ca:number; paye:number}[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(maintenant.getFullYear(), maintenant.getMonth()-i, 1);
+      const mStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+      const facsMois = factures.filter(f => f.date?.startsWith(mStr));
+      const paysMois = paiements.filter(p => p.date?.startsWith(mStr));
+      evolMois.push({
+        mois: MOIS_LABELS[d.getMonth()] + " " + String(d.getFullYear()).slice(-2),
+        ca:   facsMois.reduce((s,f)=>s+f.total,0),
+        paye: paysMois.reduce((s,p)=>s+p.montant,0),
+      });
+    }
+
+    return { caTotalFac, encaisse, enAttente, payees, nbFactures, tauxRecouvrement, parBU, evolMois };
+  }, [facturesFiltrees, paiementsFiltres, factures, paiements]);
+
+  const exportCSV = () => {
+    const lignes = [
+      ["Référence","Client","Total","Statut","Module","Date"].join(";"),
+      ...facturesFiltrees.map(f =>
+        [f.reference, f.clientNom, f.total.toFixed(2), f.statut, f.bu, fmtDate(f.date)].join(";")
+      ),
+    ].join("\n");
+    const blob = new Blob(["\uFEFF"+lignes], {type:"text/csv;charset=utf-8;"});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `bellaïa_compta_${moisActuel()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  // ── Valider espèces
-  const valider = async (id: string) => {
-    await validerEcriture(id);
-    reload();
-  };
-
-  // ── Annuler
-  const annuler = async (id: string) => {
-    if (!confirm("Annuler cette écriture ?")) return;
-    await annulerEcriture(id);
-    reload();
-  };
-
-  // ── Export CSV
-  const telechargerCSV = (filtreJournal?: string) => {
-    const data = filtreJournal
-      ? ecritures.filter(e => e.journal === filtreJournal)
-      : ecritures;
-    const csv = exporterCSV(data);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `bellaia_compta_${filtreJournal || "complet"}_${today()}.csv`;
-    a.click(); URL.revokeObjectURL(url);
-  };
-
-  // ── Carte écriture
-  const CarteEcriture = ({ e, showValidate = false }: { e: EcritureCompta; showValidate?: boolean }) => {
-    const sc = STATUT_CONFIG[e.statut] || STATUT_CONFIG.a_verifier;
-    return (
-      <div style={{ background: B.card, border: `1px solid ${e.statut === "a_verifier" ? B.warning + "50" : B.border}`, borderRadius: 12, padding: "11px 13px", borderLeft: `3px solid ${sc.color}` }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: B.cream, marginBottom: 3 }}>{e.libelle}</div>
-            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 3 }}>
-              <Bdg label={JOURNAL_LABELS[e.journal] || e.journal} color={B.violetL} />
-              <Bdg label={e.pole} color={B.gold} />
-              <Bdg label={e.mode_paiement} color={isEnLigne(e.mode_paiement) ? B.success : B.warning} />
-              <Bdg label={sc.label} color={sc.color} />
-            </div>
-            <div style={{ fontSize: 10, color: B.muted }}>
-              {e.date} · HT : {e.montant_ht.toFixed(2)}€ · TVA : {e.tva.toFixed(2)}€
-            </div>
-            {e.client_nom && <div style={{ fontSize: 10, color: B.muted }}>👤 {e.client_nom}</div>}
-            {e.fournisseur_nom && <div style={{ fontSize: 10, color: B.muted }}>🏭 {e.fournisseur_nom}</div>}
-            <div style={{ fontSize: 10, color: B.muted, marginTop: 2 }}>{e.categorie_compta}</div>
-          </div>
-          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: e.type_operation.startsWith("vente") ? B.success : B.danger, fontFamily: FS }}>
-              {e.type_operation.startsWith("vente") ? "+" : "-"}{e.montant_ttc.toFixed(2)}€
-            </div>
-            {showValidate && e.statut === "a_verifier" && (
-              <div style={{ display: "flex", gap: 4, marginTop: 6, justifyContent: "flex-end" }}>
-                <Btn sm v="success" onClick={() => valider(e.id)}>✔ Valider</Btn>
-                <Btn sm v="danger" onClick={() => annuler(e.id)}>✕</Btn>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  if (loading) return (
+    <div style={{ textAlign:"center", padding:40, color:CLR.creamD, fontFamily:SA }}>
+      Chargement des données comptables…
+    </div>
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:12, fontFamily:SA }}>
+      {/* En-tête */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: B.cream, fontFamily: FS }}>📒 Pré-comptabilité</div>
-          <div style={{ fontSize: 10, color: B.muted }}>Ventes auto · Espèces à valider · Journaux · Export</div>
+          <div style={{ fontFamily:FS, fontSize:15, color:CLR.or }}>📒 Pré-comptabilité</div>
+          <div style={{ fontSize:10, color:source==="supabase"?CLR.vertL:"rgba(255,255,255,0.35)" }}>
+            {source==="supabase"?"✅ Données Supabase":"📦 Aucune donnée Supabase"}
+            {" · "}{factures.length} factures · {paiements.length} paiements
+          </div>
         </div>
-        {aValider.length > 0 && (
-          <Bdg label={`⏳ ${aValider.length} à valider`} color={B.warning} />
-        )}
+        <button onClick={exportCSV}
+          style={{ background:"rgba(201,168,76,0.15)", border:`1px solid ${CLR.or}44`,
+            borderRadius:8, padding:"6px 12px", color:CLR.or,
+            fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:SA }}>
+          ⬇ CSV
+        </button>
       </div>
 
-      {/* Règle principale */}
-      <div style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 12, padding: "10px 13px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: B.success, marginBottom: 3 }}>⚡ Principe Bellaïa</div>
-        <div style={{ fontSize: 10, color: B.muted, lineHeight: 1.7 }}>
-          <strong style={{ color: B.cream }}>SumUp · Revolut · PayPal · Virement :</strong> enregistrement automatique, statut <em>validé système</em>.<br />
-          <strong style={{ color: B.warning }}>Espèces :</strong> pré-rempli automatiquement, <em>validation fondatrice obligatoire</em>.
-        </div>
-      </div>
-
-      {/* Onglets */}
-      <div style={{ display: "flex", gap: 5, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 3 }}>
-        {ONGS.map(o => (
-          <button key={o.id} onClick={() => setOng(o.id)}
-            style={{ padding: "5px 11px", borderRadius: 99, border: `1px solid ${ong === o.id ? B.gold : B.border}`, background: ong === o.id ? `${B.gold}18` : "transparent", color: ong === o.id ? B.gold : B.muted, cursor: "pointer", fontSize: 10, fontWeight: ong === o.id ? 700 : 400, whiteSpace: "nowrap", fontFamily: SA }}>
-            {o.l}
+      {/* Filtres période + BU */}
+      <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+        {(["mois","trimestre","annee","tout"] as Periode[]).map(p => (
+          <button key={p} onClick={() => setPeriode(p)}
+            style={{ padding:"4px 10px", borderRadius:99, border:"none", cursor:"pointer",
+              fontSize:9, fontWeight:700, fontFamily:SA,
+              background:periode===p?CLR.vert:"rgba(255,255,255,0.07)",
+              color:periode===p?"#fff":"rgba(255,255,255,0.5)" }}>
+            {p==="mois"?"Ce mois":p==="trimestre"?"Ce trimestre":p==="annee"?"Cette année":"Tout"}
+          </button>
+        ))}
+        <div style={{ width:1, height:20, background:CLR.line, alignSelf:"center" }}/>
+        {(["tous","FOOD","EVENTS","BSH","ODYSSEE","GENERAL"] as const).map(bu => (
+          <button key={bu} onClick={() => setFiltreBU(bu)}
+            style={{ padding:"4px 10px", borderRadius:99, border:"none", cursor:"pointer",
+              fontSize:9, fontWeight:700, fontFamily:SA,
+              background:filtreBU===bu?CLR.vert:"rgba(255,255,255,0.07)",
+              color:filtreBU===bu?"#fff":"rgba(255,255,255,0.5)" }}>
+            {bu==="tous"?"Tous pôles":BU_LABELS[bu]||bu}
           </button>
         ))}
       </div>
 
-      {/* ══ DASHBOARD ══ */}
-      {ong === "dashboard" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* KPIs globaux */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      {/* Onglets */}
+      <div style={{ display:"flex", gap:5 }}>
+        {([
+          ["dashboard","📊","Dashboard"],
+          ["factures","🧾","Factures"],
+          ["paiements","💳","Paiements"],
+        ] as const).map(([id, ico, label]) => (
+          <button key={id} onClick={() => setOnglet(id)}
+            style={{ flex:1, padding:"7px", borderRadius:9, border:"none", cursor:"pointer",
+              fontSize:10, fontWeight:700, fontFamily:SA,
+              background:onglet===id?CLR.vert:"rgba(255,255,255,0.06)",
+              color:onglet===id?"#fff":"rgba(255,255,255,0.5)" }}>
+            {ico} {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── DASHBOARD ── */}
+      {onglet === "dashboard" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {/* KPI grid */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
             {[
-              { l: "CA validé", v: `${totaux.ca_auto.toFixed(2)}€`, c: B.success },
-              { l: "CA total", v: `${totaux.ca_total.toFixed(2)}€`, c: B.gold },
-              { l: "Achats", v: `${totaux.achats_total.toFixed(2)}€`, c: B.danger },
-              { l: "Bénéfice estimé", v: `${totaux.benefice_estime.toFixed(2)}€`, c: totaux.benefice_estime >= 0 ? B.success : B.danger },
+              {l:"CA facturé",        v:fmtPrix(kpis.caTotalFac),   col:CLR.or},
+              {l:"Encaissé",          v:fmtPrix(kpis.encaisse),     col:CLR.vertL},
+              {l:"En attente",        v:fmtPrix(kpis.enAttente),    col:"#fb923c"},
+              {l:"Taux recouvrement", v:kpis.tauxRecouvrement+"%",  col:kpis.tauxRecouvrement>70?CLR.vertL:"#fb923c"},
             ].map(k => (
-              <div key={k.l} style={{ background: `${k.c}10`, border: `1px solid ${k.c}30`, borderRadius: 12, padding: "12px 11px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: k.c, fontFamily: FS }}>{k.v}</div>
-                <div style={{ fontSize: 9, color: B.muted, marginTop: 2 }}>{k.l}</div>
+              <div key={k.l} style={{ background:CLR.card, border:`1px solid ${CLR.line}`,
+                borderRadius:10, padding:"12px", textAlign:"center" }}>
+                <div style={{ fontSize:18, fontWeight:700, color:k.col }}>{k.v}</div>
+                <div style={{ fontSize:9, color:CLR.creamD, marginTop:2 }}>{k.l}</div>
               </div>
             ))}
           </div>
 
-          {/* Alerte espèces à valider */}
-          {aValider.length > 0 && (
-            <Card style={{ borderColor: `${B.warning}40`, background: `${B.warning}06` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: B.warning, marginBottom: 6 }}>
-                ⏳ {aValider.length} écriture{aValider.length > 1 ? "s" : ""} espèces à valider
-              </div>
-              <div style={{ fontSize: 10, color: B.muted, marginBottom: 8 }}>Ces opérations en espèces nécessitent votre validation manuelle.</div>
-              <Btn sm v="gold" onClick={() => setOng("a_verifier")}>Valider maintenant →</Btn>
-            </Card>
-          )}
-
-          {/* Par pôle */}
-          {Object.keys(totaux.par_pole).length > 0 && (
-            <Card>
-              <div style={{ fontSize: 11, fontWeight: 700, color: B.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Activité par pôle</div>
-              {Object.entries(totaux.par_pole).map(([pole, data]) => (
-                <div key={pole} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${B.border}` }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: B.cream, fontWeight: 600 }}>{pole}</div>
-                    <div style={{ fontSize: 10, color: B.muted }}>Achats : {data.achats.toFixed(2)}€</div>
+          {/* Répartition par pôle */}
+          <div style={{ background:CLR.card, border:`1px solid ${CLR.line}`,
+            borderRadius:12, padding:"12px 14px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:CLR.or, marginBottom:8 }}>
+              Répartition par pôle
+            </div>
+            {Object.entries(kpis.parBU).sort((a,b)=>b[1]-a[1]).map(([bu, ca]) => {
+              const pct = kpis.caTotalFac > 0 ? Math.round(ca/kpis.caTotalFac*100) : 0;
+              return (
+                <div key={bu} style={{ marginBottom:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between",
+                    fontSize:11, marginBottom:4 }}>
+                    <span style={{ color:"#fff" }}>{BU_LABELS[bu]||bu}</span>
+                    <span style={{ color:CLR.or, fontWeight:700 }}>{fmtPrix(ca)} ({pct}%)</span>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: B.success }}>+{data.ca.toFixed(2)}€</div>
-                    <div style={{ fontSize: 10, color: data.benefice >= 0 ? B.success : B.danger }}>≈ {data.benefice.toFixed(2)}€</div>
+                  <div style={{ height:4, background:"rgba(255,255,255,0.08)", borderRadius:2 }}>
+                    <div style={{ height:4, width:`${pct}%`, background:CLR.vert,
+                      borderRadius:2, transition:"width 0.4s" }}/>
                   </div>
                 </div>
-              ))}
-            </Card>
-          )}
-
-          {/* Accès rapide */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn v="gold" onClick={() => { setForm({ date: today(), tva: "20", mode: "Especes" }); setModal("vente"); }}>+ Vente</Btn>
-            <Btn v="ghost" onClick={() => { setForm({ date: today(), tva: "20", mode: "Virement" }); setModal("achat"); }}>+ Achat</Btn>
-            <Btn v="ghost" onClick={() => telechargerCSV()}>📤 Export</Btn>
+              );
+            })}
+            {Object.keys(kpis.parBU).length === 0 && (
+              <div style={{ fontSize:11, color:CLR.creamD, fontStyle:"italic" }}>
+                Aucune donnée disponible.
+              </div>
+            )}
           </div>
 
-          {/* Dernières écritures */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: B.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>Dernières écritures</div>
-          {loading ? (
-            <div style={{ textAlign: "center", color: B.muted, padding: 16 }}>Chargement…</div>
-          ) : ecritures.length === 0 ? (
-            <Card>
-              <div style={{ textAlign: "center", color: B.muted, padding: 16, fontSize: 12 }}>
-                Aucune écriture. Saisissez votre première opération ou configurez le SQL pré-comptabilité.
-              </div>
-            </Card>
-          ) : (
-            ecritures.slice(0, 5).map(e => <CarteEcriture key={e.id} e={e} />)
-          )}
-        </div>
-      )}
-
-      {/* ══ À VALIDER (ESPÈCES) ══ */}
-      {ong === "a_verifier" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: B.cream }}>
-            ⏳ Espèces à valider ({aValider.length})
-          </div>
-          {aValider.length === 0 ? (
-            <Card>
-              <div style={{ textAlign: "center", color: B.success, padding: 20, fontSize: 13 }}>
-                ✅ Toutes les opérations espèces ont été validées.
-              </div>
-            </Card>
-          ) : (
-            <>
-              <div style={{ background: `${B.warning}08`, border: `1px solid ${B.warning}30`, borderRadius: 10, padding: "10px 13px" }}>
-                <div style={{ fontSize: 10, color: B.warning, fontWeight: 700, marginBottom: 2 }}>⚠ Validation manuelle requise</div>
-                <div style={{ fontSize: 10, color: B.muted }}>Vérifiez chaque opération en espèces avant de la valider. La fondatrice est responsable de ces écritures.</div>
-              </div>
-              {aValider.map(e => <CarteEcriture key={e.id} e={e} showValidate />)}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ══ JOURNAUX ══ */}
-      {["ventes", "achats", "caisse"].includes(ong) && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: B.cream }}>
-              {JOURNAL_LABELS[ong]} ({ecrituresJournal(ong).length})
+          {/* Évolution mensuelle */}
+          <div style={{ background:CLR.card, border:`1px solid ${CLR.line}`,
+            borderRadius:12, padding:"12px 14px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:CLR.or, marginBottom:10 }}>
+              Évolution 12 derniers mois
             </div>
-            <Btn sm v="ghost" onClick={() => telechargerCSV(ong)}>📤 CSV</Btn>
-          </div>
-          {ecrituresJournal(ong).length === 0 ? (
-            <Card>
-              <div style={{ textAlign: "center", color: B.muted, padding: 16, fontSize: 12 }}>Aucune écriture dans ce journal.</div>
-            </Card>
-          ) : (
-            ecrituresJournal(ong).map(e => <CarteEcriture key={e.id} e={e} showValidate={e.statut === "a_verifier"} />)
-          )}
-        </div>
-      )}
-
-      {/* ══ SAISIE ══ */}
-      {ong === "saisie" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: B.cream }}>Saisie manuelle</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn v="gold" full onClick={() => { setForm({ date: today(), tva: "20", mode: "Especes" }); setModal("vente"); }}>+ Vente</Btn>
-            <Btn v="ghost" full onClick={() => { setForm({ date: today(), tva: "20", mode: "Virement" }); setModal("achat"); }}>+ Achat</Btn>
-          </div>
-
-          <Card style={{ background: `${B.violet}08` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: B.violetL, marginBottom: 6 }}>ℹ Règles de saisie</div>
-            <div style={{ fontSize: 11, color: B.muted, lineHeight: 1.7 }}>
-              • <strong style={{ color: B.cream }}>Paiement en ligne</strong> (SumUp, Revolut…) → validé automatiquement dès saisie.<br />
-              • <strong style={{ color: B.warning }}>Espèces</strong> → créé en statut <em>à vérifier</em>, validation fondatrice requise.<br />
-              • Tous les champs marqués * sont obligatoires.
+            <div style={{ display:"flex", gap:4, alignItems:"flex-end", height:80 }}>
+              {kpis.evolMois.map((m, i) => {
+                const max = Math.max(...kpis.evolMois.map(x=>x.ca), 1);
+                const pct = Math.round(m.ca/max*100);
+                const isCurrentMonth = i === 11;
+                return (
+                  <div key={m.mois} style={{ flex:1, display:"flex",
+                    flexDirection:"column", alignItems:"center", gap:2 }}>
+                    <div style={{ width:"100%", height:`${Math.max(pct,2)}%`,
+                      minHeight:3,
+                      background:isCurrentMonth?CLR.vert:"rgba(21,128,61,0.35)",
+                      borderRadius:"3px 3px 0 0", transition:"height 0.3s" }}/>
+                    <div style={{ fontSize:7, color:"rgba(255,255,255,0.35)",
+                      textAlign:"center", writingMode:"vertical-lr" as const,
+                      transform:"rotate(180deg)", height:28 }}>
+                      {m.mois}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </Card>
+          </div>
         </div>
       )}
 
-      {/* ══ EXPORT ══ */}
-      {ong === "export" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: B.cream }}>Exports comptables</div>
-          <Card style={{ background: `${B.warning}06`, borderColor: `${B.warning}30` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: B.warning, marginBottom: 4 }}>⚠ Avant export</div>
-            <div style={{ fontSize: 10, color: B.muted }}>Vérifiez que toutes les opérations espèces ont été validées. Onglet "À valider" : {aValider.length} en attente.</div>
-          </Card>
+      {/* ── FACTURES ── */}
+      {onglet === "factures" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+          {facturesFiltrees.length === 0 && (
+            <div style={{ textAlign:"center", padding:"24px", color:CLR.creamD, fontStyle:"italic" }}>
+              {source==="local"
+                ? "Aucune facture dans Supabase. Créez des factures via le module Events ou le Workflow ERP."
+                : "Aucune facture pour cette période."}
+            </div>
+          )}
+          {facturesFiltrees.map(f => {
+            const col = STATUT_COL[f.statut] || CLR.creamD;
+            return (
+              <div key={f.id} style={{ background:CLR.card, border:`1px solid ${CLR.line}`,
+                borderRadius:11, padding:"11px 13px",
+                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#fff" }}>
+                    {f.clientNom}
+                  </div>
+                  <div style={{ fontSize:10, color:CLR.creamD }}>
+                    {f.reference} · {BU_LABELS[f.bu]||f.bu}
+                  </div>
+                  <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", marginTop:1 }}>
+                    {fmtDate(f.date)}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:CLR.or }}>
+                    {fmtPrix(f.total)}
+                  </div>
+                  <span style={{ fontSize:8, background:col+"22", color:col,
+                    border:`1px solid ${col}44`, borderRadius:3, padding:"1px 6px", fontWeight:700 }}>
+                    {f.statut}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-          {[
-            { label: "📈 Journal des ventes", journal: "ventes" },
-            { label: "📉 Journal des achats", journal: "achats" },
-            { label: "💵 Journal de caisse", journal: "caisse" },
-            { label: "🏦 Journal de banque", journal: "banque" },
-          ].map(j => (
-            <div key={j.journal} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: B.card, border: `1px solid ${B.border}`, borderRadius: 12, padding: "12px 14px" }}>
+      {/* ── PAIEMENTS ── */}
+      {onglet === "paiements" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+          <div style={{ background:"rgba(21,128,61,0.1)", border:"1px solid rgba(21,128,61,0.3)",
+            borderRadius:10, padding:"10px 13px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:CLR.vertL }}>
+              Total encaissé — {fmtPrix(paiementsFiltres.reduce((s,p)=>s+p.montant,0))}
+            </div>
+            <div style={{ fontSize:10, color:CLR.creamD, marginTop:2 }}>
+              {paiementsFiltres.length} paiement{paiementsFiltres.length>1?"s":""} sur la période
+            </div>
+          </div>
+          {paiementsFiltres.length === 0 && (
+            <div style={{ textAlign:"center", padding:"24px", color:CLR.creamD, fontStyle:"italic" }}>
+              Aucun paiement enregistré pour cette période.
+            </div>
+          )}
+          {paiementsFiltres.map(p => (
+            <div key={p.id} style={{ background:CLR.card, border:`1px solid ${CLR.line}`,
+              borderRadius:11, padding:"11px 13px",
+              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: B.cream }}>{j.label}</div>
-                <div style={{ fontSize: 10, color: B.muted }}>{ecrituresJournal(j.journal).length} écritures</div>
+                <div style={{ fontSize:12, fontWeight:700, color:"#fff" }}>{p.reference}</div>
+                <div style={{ fontSize:10, color:CLR.creamD }}>
+                  {BU_LABELS[p.bu]||p.bu}
+                  {p.notes ? " · " + p.notes.slice(0,40) : ""}
+                </div>
+                <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)" }}>
+                  {fmtDate(p.date)}
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <Btn sm v="ghost" onClick={() => telechargerCSV(j.journal)}>CSV</Btn>
-                <Btn sm v="gold" onClick={() => {
-                  const data = ecrituresJournal(j.journal);
-                  const lines = [
-                    `JOURNAL ${j.label.toUpperCase()} — Bella'Studio — ${today()}`,
-                    `${"─".repeat(60)}`,
-                    ...data.map(e => `${e.date} | ${e.libelle.padEnd(35)} | ${e.montant_ttc >= 0 ? "+" : ""}${e.montant_ttc.toFixed(2)}€ | ${e.mode_paiement} | ${e.statut}`),
-                    `${"─".repeat(60)}`,
-                    `Total : ${data.reduce((s, e) => s + e.montant_ttc, 0).toFixed(2)}€`,
-                  ].join("\n");
-                  const blob = new Blob([lines], { type: "text/plain" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url; a.download = `journal_${j.journal}_${today()}.txt`;
-                  a.click(); URL.revokeObjectURL(url);
-                }}>TXT</Btn>
+              <div style={{ fontSize:15, fontWeight:700, color:CLR.vertL }}>
+                + {fmtPrix(p.montant)}
               </div>
             </div>
           ))}
-
-          <Btn v="primary" full onClick={() => telechargerCSV()}>
-            📤 Export complet CSV — {ecritures.length} écritures
-          </Btn>
-
-          <Card style={{ background: `${B.gold}08` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: B.gold, marginBottom: 4 }}>💼 Pour votre expert-comptable</div>
-            <div style={{ fontSize: 10, color: B.muted, lineHeight: 1.7 }}>
-              L'export CSV contient : date, libellé, journal, pôle, mode paiement, montant HT, TVA, montant TTC, statut, catégorie, client/fournisseur, source.<br />
-              Format compatible avec la plupart des logiciels comptables (Sage, EBP, Ciel).
-            </div>
-          </Card>
         </div>
-      )}
-
-      {/* ══ MODALS ══ */}
-
-      {/* Modal vente */}
-      {modal === "vente" && (
-        <Mdl title="Saisir une vente" onClose={() => { setModal(null); setForm({}); }}>
-          <div style={{ background: isEnLigne(form.mode) ? `${B.success}08` : `${B.warning}08`, border: `1px solid ${isEnLigne(form.mode) ? B.success : B.warning}30`, borderRadius: 10, padding: "8px 12px" }}>
-            <div style={{ fontSize: 10, color: isEnLigne(form.mode) ? B.success : B.warning, fontWeight: 700 }}>
-              {isEnLigne(form.mode) ? "⚡ Paiement en ligne → validé automatiquement" : "⏳ Espèces → validation fondatrice requise"}
-            </div>
-          </div>
-          <Fld label="Libellé *"><Inp value={form.libelle} onChange={f("libelle")} placeholder="Ex: Vente extension cils Bella'Odyssée" /></Fld>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <Fld label="Date *"><Inp type="date" value={form.date} onChange={f("date")} /></Fld>
-            <Fld label="Montant TTC (€) *"><Inp type="number" value={form.montant} onChange={f("montant")} placeholder="0.00" /></Fld>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <Fld label="TVA (%)"><Inp type="number" value={form.tva} onChange={f("tva")} placeholder="20" /></Fld>
-            <Fld label="Mode paiement *">
-              <Sel value={form.mode} onChange={f("mode")} options={MODES} />
-            </Fld>
-          </div>
-          <Fld label="Pôle *">
-            <Sel value={form.pole} onChange={f("pole")} options={["", ...POLES.map((p: any) => p.id)]} />
-          </Fld>
-          <Fld label="Client"><Inp value={form.client} onChange={f("client")} placeholder="Nom du client" /></Fld>
-          <Fld label="N° Facture liée"><Inp value={form.facture_id} onChange={f("facture_id")} placeholder="ID facture (optionnel)" /></Fld>
-          <Fld label="Notes"><Inp value={form.notes} onChange={f("notes")} placeholder="Notes" rows={2} /></Fld>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn v="gold" full onClick={saisirVente} disabled={!form.libelle?.trim() || !form.montant || !form.pole}>Enregistrer</Btn>
-            <Btn v="ghost" onClick={() => { setModal(null); setForm({}); }}>Annuler</Btn>
-          </div>
-        </Mdl>
-      )}
-
-      {/* Modal achat */}
-      {modal === "achat" && (
-        <Mdl title="Saisir un achat" onClose={() => { setModal(null); setForm({}); }}>
-          <div style={{ background: `${B.info}08`, border: `1px solid ${B.info}30`, borderRadius: 10, padding: "8px 12px" }}>
-            <div style={{ fontSize: 10, color: B.info, fontWeight: 700 }}>📦 L'achat sera lié au pôle sélectionné et classé automatiquement.</div>
-          </div>
-          <Fld label="Libellé *"><Inp value={form.libelle} onChange={f("libelle")} placeholder="Ex: Achat riz Bella'Food" /></Fld>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <Fld label="Date *"><Inp type="date" value={form.date} onChange={f("date")} /></Fld>
-            <Fld label="Montant TTC (€) *"><Inp type="number" value={form.montant} onChange={f("montant")} placeholder="0.00" /></Fld>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <Fld label="TVA (%)"><Inp type="number" value={form.tva} onChange={f("tva")} placeholder="20" /></Fld>
-            <Fld label="Mode paiement">
-              <Sel value={form.mode} onChange={f("mode")} options={MODES} />
-            </Fld>
-          </div>
-          <Fld label="Pôle *">
-            <Sel value={form.pole} onChange={f("pole")} options={["", ...POLES.map((p: any) => p.id)]} />
-          </Fld>
-          <Fld label="Fournisseur"><Inp value={form.fournisseur} onChange={f("fournisseur")} placeholder="Nom du fournisseur" /></Fld>
-          <Fld label="Notes"><Inp value={form.notes} onChange={f("notes")} placeholder="Notes" rows={2} /></Fld>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn v="primary" full onClick={saisirAchat} disabled={!form.libelle?.trim() || !form.montant || !form.pole}>Enregistrer</Btn>
-            <Btn v="ghost" onClick={() => { setModal(null); setForm({}); }}>Annuler</Btn>
-          </div>
-        </Mdl>
       )}
     </div>
   );
