@@ -1,599 +1,522 @@
-"use client";
 // ═══════════════════════════════════════════════════════════
-// BELLA'ODYSSÉE — Module complet fondatrice
-// Clientes · Prestations · Produits · Consentements · Fidélité · Cartes cadeaux · Stats
+// OdysseeF — Vue Fondatrice Bella'Odyssée
+// Agenda · RDV · Catalogue prestations · Stats · Supabase
+// src/modules/odyssee/OdysseeF.tsx
 // ═══════════════════════════════════════════════════════════
+import React, { useState, useEffect, useMemo } from "react";
 
-import { useState, useEffect, useCallback } from "react";
-import { sbSelect, sbInsert, sbUpdate, sbDelete } from "../shared/supabaseHelpers";
-import { B, FS, SA } from "../shared/constants";
-
-// ── Types
-interface Cliente { id:string; nom:string; prenom:string; telephone?:string; email?:string; date_naissance?:string; allergies?:string; notes_internes?:string; points_fidelite?:number; created_at?:string; }
-interface Prestation { id:string; nom:string; categorie:string; prix:number; duree_min?:number; description?:string; statut:string; }
-interface Produit { id:string; nom:string; categorie:string; prix:number; stock:number; reference?:string; statut:string; }
-interface ConsentementSigne { id:string; cliente_id:string; type:string; signe_le:string; pdf_url?:string; }
-interface CartesCadeaux { id:string; numero:string; montant_initial:number; montant_restant:number; statut:string; date_emission:string; date_expiration:string; }
-
-// ── Mini composants UI réutilisables
-const Card = ({ children, style={} }: any) => (
-  <div style={{ background: B.card, border: `1px solid ${B.border}`, borderRadius: 14, padding: "12px 14px", ...style }}>
-    {children}
-  </div>
-);
-const Btn = ({ children, onClick, v="primary", sm=false, disabled=false }: any) => {
-  const bg: Record<string,string> = {
-    primary: `linear-gradient(135deg,${B.violet},#9333ea)`,
-    gold:    `linear-gradient(135deg,${B.gold},#b8860b)`,
-    ghost:   "rgba(255,255,255,0.07)",
-    danger:  "rgba(239,68,68,0.15)",
-  };
-  return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ background: bg[v]||bg.primary, border: `1px solid ${v==="ghost"?B.border:v==="danger"?"rgba(239,68,68,0.4)":"transparent"}`, borderRadius: 10, padding: sm ? "5px 11px" : "9px 16px", color: v==="danger"?"#ef4444":"#fff", cursor: disabled?"not-allowed":"pointer", fontSize: sm?11:13, fontWeight: 700, fontFamily: SA, opacity: disabled ? 0.5 : 1 }}>
-      {children}
-    </button>
-  );
+// ── Design Bella'Odyssée ───────────────────────────────────
+const BO = {
+  fond:"#0b0d1a", prune:"#1a0a1e", acc:"#9b59b6",
+  acc2:"#6c3483", or:"#c9a96e", creme:"rgba(245,240,232,0.95)",
+  cremeD:"rgba(245,240,232,0.55)", line:"rgba(255,255,255,0.1)",
+  verre:"rgba(255,255,255,0.04)", vert:"#22c55e",
 };
-const Fld = ({ label, children }: any) => (
-  <div style={{ display:"flex", flexDirection:"column", gap: 4 }}>
-    <div style={{ fontSize: 10, fontWeight: 700, color: B.muted, textTransform:"uppercase", letterSpacing:"0.05em" }}>{label}</div>
-    {children}
-  </div>
-);
-const Inp = ({ value, onChange, placeholder="", type="text", rows=1 }: any) =>
-  rows > 1
-    ? <textarea value={value||""} onChange={onChange} placeholder={placeholder} rows={rows}
-        style={{ background:"rgba(255,255,255,0.05)", border:`1px solid ${B.border}`, borderRadius:10, padding:"9px 12px", color:B.cream, fontSize:13, outline:"none", fontFamily:SA, resize:"vertical", width:"100%", boxSizing:"border-box" }}/>
-    : <input value={value||""} onChange={onChange} placeholder={placeholder} type={type}
-        style={{ background:"rgba(255,255,255,0.05)", border:`1px solid ${B.border}`, borderRadius:10, padding:"9px 12px", color:B.cream, fontSize:13, outline:"none", fontFamily:SA, width:"100%", boxSizing:"border-box" }}/>;
-const Sel = ({ value, onChange, options }: any) => (
-  <select value={value||""} onChange={onChange}
-    style={{ background:"#1a1625", border:`1px solid ${B.border}`, borderRadius:10, padding:"9px 12px", color:B.cream, fontSize:13, fontFamily:SA, width:"100%", outline:"none" }}>
-    {options.map((o: any) => typeof o === "string"
-      ? <option key={o} value={o}>{o}</option>
-      : <option key={o.id} value={o.id}>{o.label}</option>
-    )}
-  </select>
-);
-const Modal = ({ title, onClose, children }: any) => (
-  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-    <div style={{ background:"#13111a", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:480, maxHeight:"90vh", overflowY:"auto", padding:"20px 16px 32px" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-        <div style={{ fontSize:16, fontWeight:800, color:B.cream, fontFamily:FS }}>{title}</div>
-        <button onClick={onClose} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:8, padding:"6px 12px", color:B.cream, cursor:"pointer", fontSize:13 }}>✕</button>
-      </div>
-      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>{children}</div>
-    </div>
-  </div>
-);
-const Badge = ({ label, color }: any) => (
-  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:20, background:`${color}20`, color, fontWeight:700, fontFamily:SA }}>{label}</span>
-);
-const today = () => new Date().toISOString().split("T")[0];
+const SA = "system-ui, -apple-system, sans-serif";
+const FS = "Georgia, 'Times New Roman', serif";
+const inp: React.CSSProperties = {
+  background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)",
+  borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12,
+  fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" as const,
+};
 
-// ── Onglets
-const ONGS = [
-  { id:"dash",         l:"📊 Dashboard" },
-  { id:"clientes",     l:"👩 Clientes" },
-  { id:"prestations",  l:"💅 Prestations" },
-  { id:"produits",     l:"🛍 Produits" },
-  { id:"consentements",l:"📝 Consentements" },
-  { id:"fidelite",     l:"⭐ Fidélité" },
-  { id:"cadeaux",      l:"🎁 Cartes cadeaux" },
-  { id:"catalogue",    l:"📖 Catalogue" },
-  { id:"stats",        l:"📈 Stats" },
+// ── Prestations catalogue (auto-contenu dans ce fichier) ──
+const CATALOGUE_PRESTA = [
+  {ico:"👁", nom:"Extensions de cils",          duree:"1h30–2h30", prix:null,  cat:"Cils",
+    formules:[{l:"Cils à cils",p:null},{l:"Volume russe",p:null},{l:"Méga volume",p:null},{l:"Remplissage",p:null}]},
+  {ico:"🦷", nom:"Blanchiment dentaire",         duree:"45min–1h30",prix:190,   cat:"Dentaire",
+    formules:[{l:"Formule 1",p:190},{l:"Formule 2",p:260},{l:"Formule 3",p:330},{l:"Formule 4",p:450}]},
+  {ico:"💎", nom:"Strass dentaires",             duree:"30min",     prix:40,    cat:"Dentaire",
+    formules:[{l:"Strass simple",p:40},{l:"Pack Duo",p:70},{l:"Pack Trio",p:95}]},
+  {ico:"✨", nom:"Contour dentaire",             duree:"Sur RDV",   prix:170,   cat:"Dentaire",
+    formules:[{l:"Formule 1",p:170},{l:"Formule 2",p:300}]},
+  {ico:"🌿", nom:"Browlift",                     duree:"45min",     prix:null,  cat:"Sourcils", formules:[]},
+  {ico:"🌟", nom:"Lashlift / Rehaussement",      duree:"1h",        prix:null,  cat:"Cils",     formules:[]},
+  {ico:"🎨", nom:"Teinture sourcils",            duree:"20min",     prix:null,  cat:"Sourcils", formules:[]},
+  {ico:"🖌",  nom:"Teinture cils",               duree:"20min",     prix:null,  cat:"Cils",     formules:[]},
+  {ico:"🧵", nom:"Épilation au fil",             duree:"15–30min",  prix:null,  cat:"Épilation",formules:[]},
 ];
 
-const CATS_PRESTA = ["Extensions de cils","Remplissage cils","Browlift","Lashlift","Teinture cils","Blanchiment dentaire","Strass dentaire","Autre"];
-const CATS_PRODUIT = ["Cosmétiques","Parfums femme","Parfums homme","Homme","Cadeaux","Autre"];
-const TYPES_CONSENT = ["Consentement prestations regard","Consentement blanchiment dentaire","Consentement strass dentaire"];
-const MONTANTS_CDG = [25, 50, 100, 150];
+// ── Helpers Supabase ───────────────────────────────────────
+const SB_URL = () => process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SB_KEY = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-// ── Composant principal
-export default function OdysseeF({ user }: { user: any }) {
-  const [ong, setOng] = useState("dash");
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [prestations, setPrestations] = useState<Prestation[]>([]);
-  const [produits, setProduits] = useState<Produit[]>([]);
-  const [consentements, setConsentements] = useState<ConsentementSigne[]>([]);
-  const [cartes, setCartes] = useState<CartesCadeaux[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<string|null>(null);
-  const [form, setForm] = useState<any>({});
-  const f = (k: string) => (v: any) => setForm((x: any) => ({ ...x, [k]: typeof v === "string" ? v : v.target?.value ?? v }));
+async function tok(): Promise<string> {
+  return (await (window as any).getTokenAsync?.()) ?? SB_KEY();
+}
+async function sbGet(table: string, params: string): Promise<any[]> {
+  if (!SB_URL()) return [];
+  try {
+    const r = await fetch(`${SB_URL()}/rest/v1/${table}?${params}`, {
+      headers: { apikey:SB_KEY(), Authorization:"Bearer " + await tok() },
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return Array.isArray(d) ? d : [];
+  } catch { return []; }
+}
+async function sbPost(table: string, body: object): Promise<any> {
+  if (!SB_URL()) return null;
+  try {
+    const r = await fetch(`${SB_URL()}/rest/v1/${table}`, {
+      method:"POST",
+      headers:{ apikey:SB_KEY(), Authorization:"Bearer " + await tok(),
+        "Content-Type":"application/json", Prefer:"return=representation" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return Array.isArray(d) ? d[0] : d;
+  } catch { return null; }
+}
+async function sbPatch(table: string, id: string, body: object): Promise<void> {
+  if (!SB_URL()) return;
+  try {
+    await fetch(`${SB_URL()}/rest/v1/${table}?id=eq.${id}`, {
+      method:"PATCH",
+      headers:{ apikey:SB_KEY(), Authorization:"Bearer " + await tok(),
+        "Content-Type":"application/json", Prefer:"return=minimal" },
+      body: JSON.stringify(body),
+    });
+  } catch {}
+}
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [cl, pr, pd, co, ca] = await Promise.all([
-        sbSelect<Cliente>("clients", { filters:{ type_client:"eq.cliente_odyssee" }, order:"nom.asc", limit:200 })
-          .catch(()=>sbSelect<Cliente>("clients", { order:"nom.asc", limit:200 })),
-        sbSelect<Prestation>("events_catalogue", { filters:{ categorie:"like.*eil*" }, order:"nom.asc", limit:100 }).catch(()=>[]),
-        sbSelect<Produit>("stocks", { filters:{ univers:"eq.ODYSSEE" }, order:"nom.asc", limit:200 }),
-        sbSelect<ConsentementSigne>("documents", { filters:{ type_document:"like.*consentement*" }, order:"created_at.desc", limit:100 }).catch(()=>[]),
-        sbSelect<CartesCadeaux>("reservations", { filters:{ univers:"eq.ODYSSEE" }, order:"created_at.desc", limit:100 }).catch(()=>[]),
-      ]);
-      setClientes(cl||[]); setPrestations(pr||[]); setProduits(pd||[]);
-      setConsentements(co||[]); setCartes(ca||[]);
-    } catch(e) { console.error(e); }
-    setLoading(false);
+// ── Types locaux ───────────────────────────────────────────
+interface RDV {
+  id: string;
+  clientNom: string;
+  clientTel?: string;
+  prestation: string;
+  date: string;
+  heure: string;
+  duree?: string;
+  prix?: number;
+  statut: "confirme"|"en_attente"|"realise"|"annule";
+  notes?: string;
+  acompte?: number;
+  acomptePaye?: boolean;
+}
+
+const STATUTS: { id: RDV["statut"]; label: string; col: string }[] = [
+  {id:"en_attente", label:"En attente",  col:"#fb923c"},
+  {id:"confirme",   label:"Confirmé",    col:"#22c55e"},
+  {id:"realise",    label:"Réalisé",     col:"#9b59b6"},
+  {id:"annule",     label:"Annulé",      col:"#f87171"},
+];
+
+const HEURES = ["8h00","9h00","9h30","10h00","10h30","11h00","11h30","13h00","13h30","14h00","14h30","15h00","15h30","16h00","16h30","17h00","17h30"];
+
+function today(): string { return new Date().toISOString().split("T")[0]; }
+function fmtDate(s: string): string {
+  try { return new Date(s).toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"short"}); }
+  catch { return s; }
+}
+function fmtPrix(n?: number|null): string {
+  if (n == null) return "Sur devis";
+  return n.toFixed(2).replace(".",",") + " €";
+}
+
+const FORM0: Partial<RDV> = {
+  clientNom:"", prestation:CATALOGUE_PRESTA[0].nom,
+  date:today(), heure:"10h00", statut:"en_attente",
+};
+
+const ONGLETS = [
+  {id:"agenda",    ico:"📅", label:"Agenda"},
+  {id:"catalogue", ico:"💅", label:"Prestations"},
+  {id:"stats",     ico:"📊", label:"Stats"},
+];
+
+// ══════════════════════════════════════════════════════════
+export default function OdysseeF({ user }: { user?: any }) {
+  const [rdvs,    setRdvs]    = useState<RDV[]>([]);
+  const [onglet,  setOnglet]  = useState<"agenda"|"catalogue"|"stats">("agenda");
+  const [modal,   setModal]   = useState<"form"|"detail"|null>(null);
+  const [editing, setEditing] = useState<RDV|null>(null);
+  const [form,    setForm]    = useState<Partial<RDV>>({ ...FORM0 });
+  const [source,  setSource]  = useState<"local"|"supabase">("local");
+  const [saving,  setSaving]  = useState(false);
+  const [filtreDate, setFiltreDate] = useState<"tous"|"aujourd_hui"|"semaine">("tous");
+
+  // Chargement RDV depuis Supabase
+  useEffect(() => {
+    sbGet("bellaia_commandes",
+      "bu=eq.ODYSSEE&order=date_commande.desc&limit=100&select=id,reference,client_nom,client_tel,statut,total,acompte,acompte_paye,date_livraison,notes,lignes"
+    ).then(rows => {
+      if (rows.length > 0) {
+        const mapped: RDV[] = rows.map(r => {
+          const lignes = r.lignes ? (typeof r.lignes === "string" ? JSON.parse(r.lignes) : r.lignes) : [];
+          const presta = lignes[0]?.libelle || "Prestation Odyssée";
+          const heure  = r.notes?.match(/(\d+h\d*)/)?.[1] || "10h00";
+          return {
+            id:          r.id,
+            clientNom:   r.client_nom,
+            clientTel:   r.client_tel,
+            prestation:  presta,
+            date:        r.date_livraison || today(),
+            heure,
+            prix:        r.total,
+            statut:      r.statut === "LIVRE" || r.statut === "CLOTURE" ? "realise"
+                       : r.statut === "ANNULE" ? "annule"
+                       : r.statut === "COMMANDE" || r.statut === "FACTURE" ? "confirme"
+                       : "en_attente",
+            acompte:     r.acompte,
+            acomptePaye: r.acompte_paye,
+            notes:       r.notes,
+          };
+        });
+        setRdvs(mapped);
+        setSource("supabase");
+      }
+    }).catch(() => {});
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  const rdvsFiltres = useMemo(() => {
+    const now = today();
+    const semaine = new Date(); semaine.setDate(semaine.getDate() + 7);
+    const semStr  = semaine.toISOString().split("T")[0];
+    return rdvs.filter(r => {
+      if (filtreDate === "aujourd_hui") return r.date === now;
+      if (filtreDate === "semaine")     return r.date >= now && r.date <= semStr;
+      return true;
+    }).sort((a,b) => a.date < b.date ? -1 : 1);
+  }, [rdvs, filtreDate]);
 
-  // ── Sauvegarde cliente
-  const saveCliente = async () => {
-    if (!form.nom?.trim()) return;
-    const data = { nom:form.nom, prenom:form.prenom||"", telephone:form.telephone||"", email:form.email||"",
-      date_naissance:form.date_naissance||null, allergies:form.allergies||"", notes_internes:form.notes_internes||"",
-      type_client:"cliente_odyssee", statut:"actif", fondatrice_id: user?.fondatrice_id || user?.id };
-    if (form._id) await sbUpdate("clients", form._id, data);
-    else await sbInsert("clients", data);
-    setModal(null); setForm({}); reload();
+  const stats = useMemo(() => ({
+    total:    rdvs.length,
+    realises: rdvs.filter(r => r.statut === "realise").length,
+    confirmes:rdvs.filter(r => r.statut === "confirme").length,
+    ca:       rdvs.filter(r => r.statut === "realise").reduce((s,r) => s+(r.prix||0), 0),
+    enAttente:rdvs.filter(r => r.statut === "en_attente").length,
+  }), [rdvs]);
+
+  const sauvegarder = async () => {
+    if (!form.clientNom?.trim() || !form.prestation) return;
+    setSaving(true);
+    const localId = "rdv_" + Date.now().toString().slice(-8);
+    const presta  = CATALOGUE_PRESTA.find(p => p.nom === form.prestation);
+    const nv: RDV = {
+      id:          editing?.id || localId,
+      clientNom:   form.clientNom || "",
+      clientTel:   form.clientTel,
+      prestation:  form.prestation || "",
+      date:        form.date || today(),
+      heure:       form.heure || "10h00",
+      prix:        form.prix ?? presta?.prix ?? undefined,
+      statut:      form.statut || "en_attente",
+      notes:       form.notes,
+    };
+    if (editing) {
+      setRdvs(rs => rs.map(r => r.id === editing.id ? nv : r));
+      await sbPatch("bellaia_commandes", editing.id, {
+        statut: nv.statut === "realise" ? "LIVRE" : nv.statut === "confirme" ? "COMMANDE" : "BROUILLON",
+        notes:  nv.notes,
+      }).catch(() => {});
+    } else {
+      setRdvs(rs => [nv, ...rs]);
+      await sbPost("bellaia_commandes", {
+        bu:           "ODYSSEE",
+        client_nom:   nv.clientNom,
+        client_tel:   nv.clientTel,
+        statut:       "BROUILLON",
+        total:        nv.prix || 0,
+        date_livraison:nv.date,
+        notes:        `${nv.heure} — ${nv.prestation}${nv.notes ? " — " + nv.notes : ""}`,
+        lignes:       JSON.stringify([{libelle:nv.prestation, qte:1, prixUnitaire:nv.prix||0, total:nv.prix||0}]),
+      }).catch(() => {});
+    }
+    setSaving(false);
+    setModal(null); setEditing(null); setForm({ ...FORM0 });
   };
 
-  // ── Sauvegarde produit (dans stocks)
-  const saveProduit = async () => {
-    if (!form.nom?.trim()) return;
-    const data = { nom:form.nom, categorie:form.categorie||"Cosmétiques", univers:"ODYSSEE",
-      prix_vente:parseFloat(form.prix)||0, quantite:parseFloat(form.stock)||0,
-      quantite_min:parseFloat(form.stock_min)||2, unite:"unité", statut:"actif",
-      reference:form.reference||"", notes:form.notes||"" };
-    if (form._id) await sbUpdate("stocks", form._id, data);
-    else await sbInsert("stocks", data);
-    setModal(null); setForm({}); reload();
+  const changerStatut = async (id: string, statut: RDV["statut"]) => {
+    setRdvs(rs => rs.map(r => r.id === id ? {...r, statut} : r));
+    const sbStatut = statut==="realise"?"LIVRE":statut==="confirme"?"COMMANDE":statut==="annule"?"ANNULE":"BROUILLON";
+    await sbPatch("bellaia_commandes", id, { statut:sbStatut }).catch(() => {});
   };
 
-  // ── Carte cadeau
-  const saveCarte = async () => {
-    const num = `CDG-OD-${Date.now()}`;
-    const mt = parseFloat(form.montant)||50;
-    const data = { univers:"ODYSSEE", prestation:`Carte cadeau ${mt}€`, montant:mt, acompte:0, statut:"actif",
-      client_nom:form.beneficiaire||"Non renseigné", notes:`Carte cadeau émise le ${today()}`, statut_pmt:"payé",
-      date_rdv:form.expiration ? new Date(form.expiration).toISOString() : null };
-    await sbInsert("reservations", data);
-    setModal(null); setForm({}); reload();
+  const ouvrirWA = (rdv: RDV) => {
+    if (!rdv.clientTel) return;
+    const msg = `Bonjour ${rdv.clientNom.split(" ")[0]} 💅\n\nVotre rendez-vous Bella'Odyssée est confirmé :\n📅 ${fmtDate(rdv.date)} à ${rdv.heure}\n✨ ${rdv.prestation}\n${rdv.prix ? "💰 " + fmtPrix(rdv.prix) : ""}\n\nÀ bientôt ! 🌟`;
+    window.open(`https://wa.me/${rdv.clientTel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`, "_blank");
   };
-
-  // ── Points fidélité
-  const addPoints = async (clienteId: string, pts: number) => {
-    const cl = clientes.find(c=>c.id===clienteId);
-    if (!cl) return;
-    const nouveaux = (cl.points_fidelite||0) + pts;
-    await sbUpdate("clients", clienteId, { points_fidelite: nouveaux } as any);
-    reload();
-  };
-
-  // ── Exports
-  const exportCatalogue = () => {
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Catalogue Bella'Odyssée</title>
-<style>body{font-family:Georgia,serif;padding:40px;color:#1a1a1a;max-width:800px;margin:auto}
-h1{color:#7c3aed;font-size:28px}h2{color:#7c3aed;font-size:18px;border-bottom:1px solid #eee;padding-bottom:6px;margin-top:30px}
-.item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
-.prix{font-weight:700;color:#7c3aed}.footer{margin-top:40px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}</style></head>
-<body><h1>💅 Bella'Odyssée</h1><p style="color:#666">Catalogue des prestations et produits</p>
-<h2>Prestations</h2>${prestations.map(p=>`<div class="item"><span>${p.nom}</span><span class="prix">${p.prix||"—"}€</span></div>`).join("")}
-<h2>Produits</h2>${produits.map(p=>`<div class="item"><span>${p.nom} · ${p.categorie}</span><span class="prix">${p.prix_vente||p.prix||"—"}€</span></div>`).join("")}
-<div class="footer">Bella'Odyssée · Bella'Studio · Sinnamary, Guyane française</div></body></html>`;
-    const w = window.open("","_blank");
-    if (w) { w.document.write(html); w.document.close(); w.print(); }
-  };
-
-  const caTotal = produits.reduce((s,p)=>s+(parseFloat((p as any).prix_vente||p.prix||0)*parseFloat((p as any).quantite||p.stock||0)),0);
-  const clientesActives = clientes.filter(c=>(c as any).statut==="actif").length;
-  const produitsAlerte = produits.filter(p=>parseFloat((p as any).quantite||p.stock||0)<=parseFloat((p as any).quantite_min||2));
-  const cartesActives = cartes.filter(c=>(c as any).statut==="actif").length;
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:12, minHeight:"100%" }}>
-      {/* Header */}
+    <div style={{ display:"flex", flexDirection:"column", gap:12,
+      fontFamily:SA, minHeight:"100%" }}>
+
+      {/* En-tête */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
-          <div style={{ fontSize:18, fontWeight:800, color:B.cream, fontFamily:FS }}>💅 Bella'Odyssée</div>
-          <div style={{ fontSize:10, color:B.muted }}>Beauté · Bien-être · Produits</div>
+          <div style={{ fontFamily:FS, fontSize:15, color:BO.or, letterSpacing:1 }}>
+            💅 Bella'Odyssée
+          </div>
+          <div style={{ fontSize:10, color:source==="supabase"?BO.vert:"rgba(255,255,255,0.35)" }}>
+            {source==="supabase"?"✅ Connecté":"📦 Local"} · {rdvs.length} rendez-vous
+          </div>
         </div>
+        <button onClick={() => { setForm({ ...FORM0 }); setEditing(null); setModal("form"); }}
+          style={{ background:BO.acc, border:"none", borderRadius:8, padding:"7px 14px",
+            color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
+          + Nouveau RDV
+        </button>
       </div>
 
       {/* Onglets */}
-      <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:4 }}>
-        {ONGS.map(o=>(
-          <button key={o.id} onClick={()=>setOng(o.id)}
-            style={{ padding:"5px 12px", borderRadius:99, border:`1px solid ${ong===o.id?B.gold:B.border}`, background:ong===o.id?`${B.gold}18`:"transparent", color:ong===o.id?B.gold:B.muted, cursor:"pointer", fontSize:10, fontWeight:ong===o.id?700:400, whiteSpace:"nowrap", fontFamily:SA }}>
-            {o.l}
+      <div style={{ display:"flex", gap:5 }}>
+        {ONGLETS.map(o => (
+          <button key={o.id} onClick={() => setOnglet(o.id as any)}
+            style={{ flex:1, padding:"7px", borderRadius:9, border:"none", cursor:"pointer",
+              fontSize:10, fontWeight:700, fontFamily:SA,
+              background:onglet===o.id?"rgba(155,89,182,0.3)":"rgba(255,255,255,0.06)",
+              color:onglet===o.id?BO.or:"rgba(255,255,255,0.5)" }}>
+            {o.ico} {o.label}
           </button>
         ))}
       </div>
 
-      {/* ── DASHBOARD */}
-      {ong==="dash" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {[
-              { l:"Clientes actives",   v:clientesActives,   c:B.violetL },
-              { l:"Produits en stock",  v:produits.length,    c:B.gold },
-              { l:"Alertes stock",      v:produitsAlerte.length, c:produitsAlerte.length>0?"#ef4444":B.success },
-              { l:"Cartes cadeaux",     v:cartesActives,      c:"#0d9488" },
-            ].map(k=>(
-              <div key={k.l} style={{ flex:1, minWidth:70, background:`${k.c}12`, border:`1px solid ${k.c}30`, borderRadius:12, padding:"12px 10px", textAlign:"center" }}>
-                <div style={{ fontSize:20, fontWeight:700, color:k.c, fontFamily:FS }}>{k.v}</div>
-                <div style={{ fontSize:9, color:B.muted, marginTop:2 }}>{k.l}</div>
-              </div>
-            ))}
-          </div>
-          {produitsAlerte.length > 0 && (
-            <Card style={{ borderColor:"rgba(239,68,68,0.3)", background:"rgba(239,68,68,0.06)" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#ef4444", marginBottom:6 }}>⚠ {produitsAlerte.length} produit{produitsAlerte.length>1?"s":""} en alerte stock</div>
-              {produitsAlerte.map(p=>(
-                <div key={p.id} style={{ fontSize:11, color:B.cream, display:"flex", justifyContent:"space-between" }}>
-                  <span>{p.nom}</span>
-                  <span style={{ color:"#ef4444" }}>{(p as any).quantite||p.stock} / min {(p as any).quantite_min||2}</span>
-                </div>
-              ))}
-            </Card>
-          )}
-          <Card>
-            <div style={{ fontSize:11, fontWeight:700, color:B.muted, marginBottom:6 }}>Actions rapides</div>
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              <Btn v="gold" onClick={()=>{setForm({});setModal("cliente");}}>+ Cliente</Btn>
-              <Btn v="primary" onClick={()=>{setForm({categorie:"Cosmétiques",stock:0,stock_min:2});setModal("produit");}}>+ Produit</Btn>
-              <Btn v="ghost" onClick={()=>{setForm({montant:50,expiration:""});setModal("carte");}}>🎁 Carte cadeau</Btn>
-              <Btn v="ghost" onClick={exportCatalogue}>📄 Catalogue PDF</Btn>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* ── CLIENTES */}
-      {ong==="clientes" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>{clientes.length} cliente{clientes.length>1?"s":""}</div>
-            <Btn v="gold" onClick={()=>{setForm({});setModal("cliente");}}>+ Nouvelle cliente</Btn>
-          </div>
-          {loading ? <div style={{ textAlign:"center", color:B.muted, padding:20 }}>Chargement…</div> : (
-            clientes.length===0
-              ? <div style={{ textAlign:"center", color:B.muted, padding:24 }}>Aucune cliente enregistrée.</div>
-              : clientes.map(cl=>(
-                <Card key={cl.id}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>{cl.prenom||""} {cl.nom}</div>
-                      <div style={{ fontSize:10, color:B.muted, marginTop:2 }}>{cl.telephone||""} {cl.email?"· "+cl.email:""}</div>
-                      {cl.allergies && <div style={{ fontSize:10, color:"#f59e0b", marginTop:3 }}>⚠ {cl.allergies}</div>}
-                    </div>
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5 }}>
-                      <Badge label={`⭐ ${cl.points_fidelite||0} pts`} color={B.gold}/>
-                      <div style={{ display:"flex", gap:4 }}>
-                        <Btn sm v="ghost" onClick={()=>addPoints(cl.id,1)}>+1 pt</Btn>
-                        <Btn sm v="ghost" onClick={()=>{setForm({...cl,_id:cl.id});setModal("cliente");}}>✏</Btn>
-                        <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("clients",cl.id).then(reload);}}>✕</Btn>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))
-          )}
-        </div>
-      )}
-
-      {/* ── PRESTATIONS */}
-      {ong==="prestations" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>Prestations Bella'Odyssée</div>
-          {CATS_PRESTA.map(cat=>(
-            <div key={cat}>
-              <div style={{ fontSize:10, fontWeight:700, color:B.muted, textTransform:"uppercase", letterSpacing:"0.06em", margin:"10px 0 5px" }}>{cat}</div>
-              {prestations.filter(p=>p.categorie===cat).map(p=>(
-                <Card key={p.id} style={{ marginBottom:6 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between" }}>
-                    <div style={{ fontSize:12, color:B.cream }}>{p.nom}</div>
-                    <div style={{ fontSize:13, fontWeight:700, color:B.gold }}>{p.prix||"—"}€</div>
-                  </div>
-                </Card>
-              ))}
-              {prestations.filter(p=>p.categorie===cat).length===0 && (
-                <div style={{ fontSize:11, color:B.muted, padding:"4px 0" }}>Aucune prestation dans cette catégorie.</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── PRODUITS */}
-      {ong==="produits" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>{produits.length} produit{produits.length>1?"s":""}</div>
-            <Btn v="gold" onClick={()=>{setForm({categorie:"Cosmétiques",stock:0,stock_min:2});setModal("produit");}}>+ Produit</Btn>
-          </div>
-          {CATS_PRODUIT.map(cat=>{
-            const items = produits.filter(p=>p.categorie===cat);
-            if (items.length===0) return null;
-            return (
-              <div key={cat}>
-                <div style={{ fontSize:10, fontWeight:700, color:B.muted, textTransform:"uppercase", letterSpacing:"0.06em", margin:"10px 0 5px" }}>{cat}</div>
-                {items.map(p=>{
-                  const qte = parseFloat((p as any).quantite||p.stock||0);
-                  const min = parseFloat((p as any).quantite_min||2);
-                  return (
-                    <Card key={p.id} style={{ marginBottom:6, borderLeft:`3px solid ${qte<=min?"#ef4444":B.violetL}` }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <div>
-                          <div style={{ fontSize:12, fontWeight:600, color:B.cream }}>{p.nom}</div>
-                          <div style={{ fontSize:10, color:B.muted }}>{(p as any).reference||"—"}</div>
-                        </div>
-                        <div style={{ textAlign:"right" }}>
-                          <div style={{ fontSize:14, fontWeight:700, color:B.gold }}>{(p as any).prix_vente||p.prix||0}€</div>
-                          <div style={{ fontSize:10, color:qte<=min?"#ef4444":B.success }}>Stock : {qte}</div>
-                          <div style={{ display:"flex", gap:4, marginTop:4, justifyContent:"flex-end" }}>
-                            <Btn sm v="ghost" onClick={()=>{setForm({...p,_id:p.id,prix:(p as any).prix_vente||p.prix,stock:(p as any).quantite||p.stock,stock_min:(p as any).quantite_min||2});setModal("produit");}}>✏</Btn>
-                            <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("stocks",p.id).then(reload);}}>✕</Btn>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── CONSENTEMENTS */}
-      {ong==="consentements" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>Consentements signés</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:8, background:"rgba(124,58,237,0.06)", border:`1px solid ${B.violetL}30`, borderRadius:12, padding:"12px 14px" }}>
-            <div style={{ fontSize:11, color:B.violetL, fontWeight:700 }}>ℹ Signature électronique</div>
-            <div style={{ fontSize:11, color:B.muted }}>Les consentements sont générés et archivés dans Documents. Sélectionnez un type pour créer un nouveau consentement.</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              {TYPES_CONSENT.map(t=>(
-                <Btn key={t} v="ghost" onClick={()=>{setForm({type:t,cliente_id:"",signe_le:today()});setModal("consent");}}>
-                  📝 {t}
-                </Btn>
-              ))}
-            </div>
-          </div>
-          {consentements.length > 0 && (
-            <>
-              <div style={{ fontSize:11, fontWeight:700, color:B.muted, marginTop:4 }}>Consentements archivés ({consentements.length})</div>
-              {consentements.map(co=>(
-                <Card key={co.id}>
-                  <div style={{ fontSize:12, color:B.cream }}>{(co as any).titre||co.type||"Consentement"}</div>
-                  <div style={{ fontSize:10, color:B.muted, marginTop:3 }}>{co.signe_le||(co as any).created_at?.slice(0,10)||"—"}</div>
-                </Card>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── FIDÉLITÉ */}
-      {ong==="fidelite" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>Programme Fidélité Prestige</div>
-          <Card style={{ background:"linear-gradient(135deg,rgba(124,58,237,0.15),rgba(201,168,76,0.1))" }}>
-            <div style={{ fontSize:16, fontWeight:800, color:B.gold, fontFamily:FS, marginBottom:4 }}>⭐ Carte Fidélité Bella'Odyssée</div>
-            <div style={{ fontSize:11, color:B.muted }}>1 prestation = 1 point · Les règles sont configurables</div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:12 }}>
-              {[{pts:5,r:"5% de remise"},{pts:10,r:"Prestation offerte"},{pts:15,r:"Kit cadeau"},{pts:20,r:"Journée VIP"}].map(r=>(
-                <div key={r.pts} style={{ background:"rgba(255,255,255,0.05)", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
-                  <div style={{ fontSize:16, fontWeight:700, color:B.gold }}>{r.pts} pts</div>
-                  <div style={{ fontSize:10, color:B.muted }}>{r.r}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
-          <div style={{ fontSize:11, fontWeight:700, color:B.muted, marginTop:4 }}>Classement clientes</div>
-          {clientes.sort((a,b)=>(b.points_fidelite||0)-(a.points_fidelite||0)).slice(0,10).map(cl=>(
-            <Card key={cl.id}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ fontSize:12, color:B.cream }}>{cl.prenom||""} {cl.nom}</div>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <Badge label={`⭐ ${cl.points_fidelite||0} pts`} color={B.gold}/>
-                  <Btn sm v="ghost" onClick={()=>addPoints(cl.id,1)}>+1 pt</Btn>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* ── CARTES CADEAUX */}
-      {ong==="cadeaux" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>Cartes cadeaux</div>
-            <Btn v="gold" onClick={()=>{setForm({montant:50});setModal("carte");}}>+ Créer</Btn>
-          </div>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {MONTANTS_CDG.map(m=>(
-              <button key={m} onClick={()=>{setForm({montant:m});setModal("carte");}}
-                style={{ flex:1, minWidth:70, background:`${B.violetL}12`, border:`1px solid ${B.violetL}30`, borderRadius:12, padding:"12px 8px", textAlign:"center", cursor:"pointer" }}>
-                <div style={{ fontSize:18, fontWeight:700, color:B.gold, fontFamily:FS }}>{m}€</div>
-                <div style={{ fontSize:9, color:B.muted }}>Carte cadeau</div>
+      {/* ── AGENDA ── */}
+      {onglet === "agenda" && (
+        <>
+          {/* Filtres */}
+          <div style={{ display:"flex", gap:5 }}>
+            {([
+              ["tous",         "Tous"],
+              ["aujourd_hui",  "Aujourd'hui"],
+              ["semaine",      "Cette semaine"],
+            ] as const).map(([id, label]) => (
+              <button key={id} onClick={() => setFiltreDate(id)}
+                style={{ padding:"4px 10px", borderRadius:99, border:"none", cursor:"pointer",
+                  fontSize:9, fontWeight:700, fontFamily:SA,
+                  background:filtreDate===id?BO.acc:"rgba(255,255,255,0.07)",
+                  color:filtreDate===id?"#fff":"rgba(255,255,255,0.5)" }}>
+                {label}
               </button>
             ))}
-            <button onClick={()=>{setForm({montant:""});setModal("carte");}}
-              style={{ flex:1, minWidth:70, background:`${B.gold}12`, border:`1px solid ${B.gold}30`, borderRadius:12, padding:"12px 8px", textAlign:"center", cursor:"pointer" }}>
-              <div style={{ fontSize:18, fontWeight:700, color:B.gold, fontFamily:FS }}>Libre</div>
-              <div style={{ fontSize:9, color:B.muted }}>Montant libre</div>
-            </button>
           </div>
-          {cartes.length > 0 && (
-            <>
-              <div style={{ fontSize:11, fontWeight:700, color:B.muted }}>Cartes émises ({cartes.length})</div>
-              {cartes.slice(0,20).map(ca=>(
-                <Card key={ca.id}>
-                  <div style={{ display:"flex", justifyContent:"space-between" }}>
-                    <div>
-                      <div style={{ fontSize:11, fontWeight:700, color:B.cream }}>{(ca as any).client_nom||"—"}</div>
-                      <div style={{ fontSize:10, color:B.muted }}>Émise le {(ca as any).created_at?.slice(0,10)||"—"}</div>
-                    </div>
-                    <Badge label={`${(ca as any).montant||0}€`} color={B.gold}/>
-                  </div>
-                </Card>
-              ))}
-            </>
+
+          {rdvsFiltres.length === 0 && (
+            <div style={{ textAlign:"center", padding:"28px", color:BO.cremeD, fontStyle:"italic" }}>
+              Aucun RDV {filtreDate === "aujourd_hui" ? "aujourd'hui" : filtreDate === "semaine" ? "cette semaine" : ""}.
+            </div>
           )}
-        </div>
-      )}
 
-      {/* ── CATALOGUE */}
-      {ong==="catalogue" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>Catalogue Bella'Odyssée</div>
-            <Btn v="gold" onClick={exportCatalogue}>📄 Exporter PDF</Btn>
-          </div>
-          <Card>
-            <div style={{ fontSize:12, fontWeight:700, color:B.violetL, marginBottom:8 }}>💅 Prestations</div>
-            {prestations.slice(0,10).map(p=>(
-              <div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${B.border}`, fontSize:12 }}>
-                <span style={{ color:B.cream }}>{p.nom}</span>
-                <span style={{ color:B.gold, fontWeight:700 }}>{p.prix||"—"}€</span>
-              </div>
-            ))}
-            {prestations.length===0 && <div style={{ fontSize:11, color:B.muted }}>Aucune prestation enregistrée.</div>}
-          </Card>
-          <Card>
-            <div style={{ fontSize:12, fontWeight:700, color:B.violetL, marginBottom:8 }}>🛍 Produits</div>
-            {produits.slice(0,20).map(p=>(
-              <div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${B.border}`, fontSize:12 }}>
-                <span style={{ color:B.cream }}>{p.nom}</span>
-                <span style={{ color:B.gold, fontWeight:700 }}>{(p as any).prix_vente||p.prix||"—"}€</span>
-              </div>
-            ))}
-            {produits.length===0 && <div style={{ fontSize:11, color:B.muted }}>Aucun produit enregistré.</div>}
-          </Card>
-        </div>
-      )}
-
-      {/* ── STATISTIQUES */}
-      {ong==="stats" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:B.cream }}>Statistiques Bella'Odyssée</div>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {[
-              { l:"Clientes",            v:clientes.length,                                          c:B.violetL },
-              { l:"Produits actifs",     v:produits.filter(p=>(p as any).statut==="actif").length,  c:B.gold },
-              { l:"Valeur stock",        v:`${Math.round(caTotal)}€`,                               c:"#0d9488" },
-              { l:"Cartes cadeaux",      v:cartes.length,                                            c:"#f59e0b" },
-            ].map(k=>(
-              <div key={k.l} style={{ flex:1, minWidth:70, background:`${k.c}12`, border:`1px solid ${k.c}30`, borderRadius:12, padding:"12px 10px", textAlign:"center" }}>
-                <div style={{ fontSize:20, fontWeight:700, color:k.c, fontFamily:FS }}>{k.v}</div>
-                <div style={{ fontSize:9, color:B.muted, marginTop:2 }}>{k.l}</div>
-              </div>
-            ))}
-          </div>
-          <Card>
-            <div style={{ fontSize:11, fontWeight:700, color:B.muted, marginBottom:8 }}>Top produits par catégorie</div>
-            {CATS_PRODUIT.map(cat=>{
-              const items = produits.filter(p=>p.categorie===cat);
-              if (items.length===0) return null;
+          <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+            {rdvsFiltres.map(rdv => {
+              const sc = STATUTS.find(s => s.id === rdv.statut);
               return (
-                <div key={cat} style={{ marginBottom:8 }}>
-                  <div style={{ fontSize:10, color:B.muted, fontWeight:700 }}>{cat} ({items.length})</div>
-                  {items.slice(0,3).map(p=>(
-                    <div key={p.id} style={{ fontSize:11, color:B.cream, display:"flex", justifyContent:"space-between", padding:"3px 0" }}>
-                      <span>{p.nom}</span><span style={{ color:B.gold }}>{(p as any).prix_vente||p.prix||0}€</span>
+                <div key={rdv.id} style={{ background:BO.verre, border:`1px solid ${BO.line}`,
+                  borderRadius:12, padding:"12px 14px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>
+                        {rdv.clientNom}
+                      </div>
+                      <div style={{ fontSize:11, color:BO.cremeD }}>
+                        {rdv.prestation}
+                      </div>
+                      <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginTop:2 }}>
+                        📅 {fmtDate(rdv.date)} · {rdv.heure}
+                        {rdv.prix ? ` · ${fmtPrix(rdv.prix)}` : ""}
+                      </div>
                     </div>
-                  ))}
+                    <span style={{ fontSize:9, background:sc?.col+"22", color:sc?.col,
+                      border:`1px solid ${sc?.col}44`, borderRadius:4,
+                      padding:"2px 8px", fontWeight:700, alignSelf:"flex-start", flexShrink:0 }}>
+                      {sc?.label}
+                    </span>
+                  </div>
+                  {/* Actions */}
+                  <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                    {STATUTS.filter(s => s.id !== rdv.statut).slice(0,3).map(s => (
+                      <button key={s.id} onClick={() => changerStatut(rdv.id, s.id)}
+                        style={{ fontSize:9, padding:"3px 8px", borderRadius:6, cursor:"pointer",
+                          border:`1px solid ${s.col}44`, background:"transparent",
+                          color:s.col, fontFamily:SA }}>
+                        → {s.label}
+                      </button>
+                    ))}
+                    <button onClick={() => { setEditing(rdv); setForm({...rdv}); setModal("form"); }}
+                      style={{ fontSize:9, padding:"3px 8px", borderRadius:6, cursor:"pointer",
+                        border:"1px solid rgba(255,255,255,0.12)", background:"transparent",
+                        color:"rgba(255,255,255,0.5)", fontFamily:SA }}>
+                      ✏ Modifier
+                    </button>
+                    {rdv.clientTel && (
+                      <button onClick={() => ouvrirWA(rdv)}
+                        style={{ fontSize:9, padding:"3px 8px", borderRadius:6, cursor:"pointer",
+                          border:"1px solid rgba(37,211,102,0.3)", background:"transparent",
+                          color:"#25d366", fontFamily:SA }}>
+                        💬 WA
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
-          </Card>
+          </div>
+        </>
+      )}
+
+      {/* ── CATALOGUE PRESTATIONS ── */}
+      {onglet === "catalogue" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+          {CATALOGUE_PRESTA.map(p => (
+            <div key={p.nom} style={{ background:BO.verre, border:`1px solid ${BO.line}`,
+              borderRadius:12, padding:"12px 14px" }}>
+              <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                <span style={{ fontSize:22, flexShrink:0 }}>{p.ico}</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{p.nom}</div>
+                  <div style={{ fontSize:10, color:BO.cremeD, marginTop:1 }}>
+                    ⏱ {p.duree}
+                  </div>
+                  <div style={{ fontSize:11, fontWeight:700, color:BO.or, marginTop:3 }}>
+                    {fmtPrix(p.prix)}
+                  </div>
+                  {p.formules.length > 0 && (
+                    <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginTop:6 }}>
+                      {p.formules.map(f => (
+                        <span key={f.l} style={{ fontSize:9,
+                          background:"rgba(155,89,182,0.12)",
+                          border:"1px solid rgba(155,89,182,0.25)",
+                          color:BO.cremeD, borderRadius:4, padding:"2px 7px" }}>
+                          {f.l}{f.p != null ? ` — ${f.p}€` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* ══ MODALS ══ */}
+      {/* ── STATISTIQUES ── */}
+      {onglet === "stats" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            {[
+              {label:"RDV total",         v:stats.total,               col:"#fff"},
+              {label:"CA réalisé",         v:fmtPrix(stats.ca),         col:BO.or},
+              {label:"Réalisés",           v:stats.realises,            col:BO.vert},
+              {label:"En attente",         v:stats.enAttente,           col:"#fb923c"},
+            ].map(s => (
+              <div key={s.label} style={{ background:BO.verre, border:`1px solid ${BO.line}`,
+                borderRadius:10, padding:"12px", textAlign:"center" }}>
+                <div style={{ fontSize:18, fontWeight:700, color:s.col }}>{s.v}</div>
+                <div style={{ fontSize:9, color:BO.cremeD, marginTop:2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
 
-      {/* Modal cliente */}
-      {modal==="cliente" && (
-        <Modal title={form._id?"Modifier cliente":"Nouvelle cliente"} onClose={()=>{setModal(null);setForm({});}}>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-            <Fld label="Prénom"><Inp value={form.prenom} onChange={f("prenom")} placeholder="Prénom"/></Fld>
-            <Fld label="Nom *"><Inp value={form.nom} onChange={f("nom")} placeholder="Nom"/></Fld>
-          </div>
-          <Fld label="Téléphone"><Inp value={form.telephone} onChange={f("telephone")} type="tel" placeholder="+594…"/></Fld>
-          <Fld label="Email"><Inp value={form.email} onChange={f("email")} type="email" placeholder="email@…"/></Fld>
-          <Fld label="Date de naissance"><Inp value={form.date_naissance} onChange={f("date_naissance")} type="date"/></Fld>
-          <Fld label="Allergies / Contre-indications">
-            <Inp value={form.allergies} onChange={f("allergies")} placeholder="Ex: latex, allergie nickel…" rows={2}/>
-          </Fld>
-          <Fld label="Notes internes">
-            <Inp value={form.notes_internes} onChange={f("notes_internes")} placeholder="Préférences, observations…" rows={2}/>
-          </Fld>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn v="gold" onClick={saveCliente}>Enregistrer</Btn>
-            <Btn v="ghost" onClick={()=>{setModal(null);setForm({});}}>Annuler</Btn>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modal produit */}
-      {modal==="produit" && (
-        <Modal title={form._id?"Modifier produit":"Nouveau produit"} onClose={()=>{setModal(null);setForm({});}}>
-          <Fld label="Nom *"><Inp value={form.nom} onChange={f("nom")} placeholder="Nom du produit"/></Fld>
-          <Fld label="Catégorie"><Sel value={form.categorie||"Cosmétiques"} onChange={f("categorie")} options={CATS_PRODUIT}/></Fld>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-            <Fld label="Prix vente €"><Inp type="number" value={form.prix} onChange={f("prix")} placeholder="0"/></Fld>
-            <Fld label="Stock"><Inp type="number" value={form.stock} onChange={f("stock")} placeholder="0"/></Fld>
-            <Fld label="Alerte min"><Inp type="number" value={form.stock_min} onChange={f("stock_min")} placeholder="2"/></Fld>
-          </div>
-          <Fld label="Référence"><Inp value={form.reference} onChange={f("reference")} placeholder="REF-OD-001"/></Fld>
-          <Fld label="Notes"><Inp value={form.notes} onChange={f("notes")} placeholder="Notes…" rows={2}/></Fld>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn v="gold" onClick={saveProduit}>Enregistrer</Btn>
-            <Btn v="ghost" onClick={()=>{setModal(null);setForm({});}}>Annuler</Btn>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modal carte cadeau */}
-      {modal==="carte" && (
-        <Modal title="Nouvelle carte cadeau" onClose={()=>{setModal(null);setForm({});}}>
-          <Fld label="Montant €">
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-              {[25,50,100,150].map(m=>(
-                <button key={m} onClick={()=>setForm((x: any)=>({...x,montant:m}))}
-                  style={{ padding:"6px 14px", borderRadius:10, border:`2px solid ${form.montant===m?B.gold:B.border}`, background:form.montant===m?`${B.gold}18`:"transparent", color:form.montant===m?B.gold:B.muted, cursor:"pointer", fontSize:13, fontWeight:700 }}>
-                  {m}€
-                </button>
-              ))}
+          {/* Prestations les plus demandées */}
+          <div style={{ background:BO.verre, border:`1px solid ${BO.line}`,
+            borderRadius:12, padding:"12px 14px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:BO.or, marginBottom:8 }}>
+              Prestations demandées
             </div>
-            <Inp type="number" value={form.montant} onChange={f("montant")} placeholder="Montant libre"/>
-          </Fld>
-          <Fld label="Bénéficiaire"><Inp value={form.beneficiaire} onChange={f("beneficiaire")} placeholder="Nom du bénéficiaire"/></Fld>
-          <Fld label="Date d'expiration"><Inp type="date" value={form.expiration} onChange={f("expiration")}/></Fld>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn v="gold" onClick={saveCarte}>Émettre la carte</Btn>
-            <Btn v="ghost" onClick={()=>{setModal(null);setForm({});}}>Annuler</Btn>
+            {CATALOGUE_PRESTA.slice(0,5).map(p => {
+              const count = rdvs.filter(r => r.prestation === p.nom).length;
+              return (
+                <div key={p.nom} style={{ display:"flex", justifyContent:"space-between",
+                  padding:"5px 0", borderBottom:`1px solid ${BO.line}` }}>
+                  <span style={{ fontSize:11, color:"#fff" }}>{p.ico} {p.nom}</span>
+                  <span style={{ fontSize:11, color:BO.or, fontWeight:700 }}>
+                    {count} RDV
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        </Modal>
+        </div>
       )}
 
-      {/* Modal consentement */}
-      {modal==="consent" && (
-        <Modal title={form.type||"Consentement"} onClose={()=>{setModal(null);setForm({});}}>
-          <Fld label="Cliente concernée">
-            <Sel value={form.cliente_id||""} onChange={f("cliente_id")}
-              options={[{id:"",label:"— Choisir une cliente —"},...clientes.map(cl=>({id:cl.id,label:`${cl.prenom||""} ${cl.nom}`.trim()}))]}/>
-          </Fld>
-          <Fld label="Date de signature"><Inp type="date" value={form.signe_le||today()} onChange={f("signe_le")}/></Fld>
-          <div style={{ background:"rgba(124,58,237,0.08)", border:`1px solid ${B.violetL}30`, borderRadius:10, padding:"12px", fontSize:11, color:B.muted }}>
-            En enregistrant, vous confirmez que la cliente a lu et signé le consentement le {form.signe_le||today()}.
+      {/* ── MODAL FORMULAIRE RDV ── */}
+      {modal === "form" && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000,
+          display:"flex", alignItems:"flex-start", justifyContent:"center",
+          padding:16, overflowY:"auto" }}>
+          <div style={{ background:"#0d0b18", border:`1px solid ${BO.line}`,
+            borderRadius:16, padding:18, width:"100%", maxWidth:460, marginTop:8 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
+              <div style={{ fontFamily:FS, fontSize:14, color:BO.or }}>
+                {editing ? "Modifier le RDV" : "Nouveau RDV"}
+              </div>
+              <button onClick={() => { setModal(null); setEditing(null); setForm({ ...FORM0 }); }}
+                style={{ background:"none", border:"none", color:BO.cremeD,
+                  cursor:"pointer", fontSize:20 }}>✕</button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+              {[["Nom client *","clientNom","text"],["Téléphone","clientTel","tel"]].map(([l,k,t]) => (
+                <div key={k} style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:BO.cremeD }}>{l}</label>
+                  <input type={t} value={(form as any)[k]||""}
+                    onChange={e => setForm(f=>({...f,[k]:e.target.value}))} style={inp}/>
+                </div>
+              ))}
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:BO.cremeD }}>Prestation</label>
+                <select value={form.prestation||""} onChange={e => {
+                  const p = CATALOGUE_PRESTA.find(pr => pr.nom === e.target.value);
+                  setForm(f => ({ ...f, prestation:e.target.value, prix:p?.prix ?? f.prix }));
+                }} style={{ ...inp, background:"#1a1a2e" }}>
+                  {CATALOGUE_PRESTA.map(p => (
+                    <option key={p.nom} value={p.nom}>{p.ico} {p.nom}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:BO.cremeD }}>Date</label>
+                  <input type="date" value={form.date||today()}
+                    onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:BO.cremeD }}>Heure</label>
+                  <select value={form.heure||"10h00"} onChange={e=>setForm(f=>({...f,heure:e.target.value}))}
+                    style={{ ...inp, background:"#1a1a2e" }}>
+                    {HEURES.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:BO.cremeD }}>Prix (€) — laisser vide si sur devis</label>
+                <input type="number" value={form.prix||""} placeholder="Sur devis"
+                  onChange={e=>setForm(f=>({...f,prix:e.target.value?Number(e.target.value):undefined}))}
+                  style={inp}/>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:BO.cremeD }}>Statut</label>
+                <select value={form.statut||"en_attente"} onChange={e=>setForm(f=>({...f,statut:e.target.value as any}))}
+                  style={{ ...inp, background:"#1a1a2e" }}>
+                  {STATUTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:BO.cremeD }}>Notes</label>
+                <textarea rows={2} value={form.notes||""}
+                  onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
+                  style={{ ...inp, resize:"vertical" as const }}/>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={sauvegarder} disabled={saving}
+                  style={{ flex:1, background:BO.acc, border:"none", borderRadius:10,
+                    padding:"10px", color:"#fff", fontWeight:700, fontSize:12,
+                    cursor:"pointer", fontFamily:SA, opacity:saving?0.6:1 }}>
+                  {saving ? "…" : "✅ Enregistrer"}
+                </button>
+                <button onClick={() => { setModal(null); setEditing(null); setForm({ ...FORM0 }); }}
+                  style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none",
+                    borderRadius:10, padding:"10px", color:BO.cremeD,
+                    fontSize:12, cursor:"pointer", fontFamily:SA }}>
+                  Annuler
+                </button>
+              </div>
+            </div>
           </div>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn v="gold" onClick={async()=>{
-              await sbInsert("documents",{type_document:`consentement_${form.type?.toLowerCase().replace(/\s+/g,"_")||"odyssee"}`,titre:form.type,client_id:form.cliente_id||null,fondatrice_id:user?.id,notes:`Signé le ${form.signe_le||today()}`,statut:"validé"});
-              setModal(null);setForm({});reload();
-            }}>Enregistrer le consentement</Btn>
-            <Btn v="ghost" onClick={()=>{setModal(null);setForm({});}}>Annuler</Btn>
-          </div>
-        </Modal>
+        </div>
       )}
     </div>
   );
