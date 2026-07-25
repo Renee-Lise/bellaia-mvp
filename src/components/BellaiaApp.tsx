@@ -1972,10 +1972,9 @@ function ClientFood({ user, onBack }) {
       }
       // GED auto-save — non bloquant
       gedAutoSave({titre:"Commande "+ref+" — "+form.nom, module:"FOOD",
-        categorie:"bon_commande", reference:ref, clientNom:form.nom,
-        contenuHtml:"<p>Commande "+ref+"</p><p>"+lignes.map(l=>l.libelle+" ×"+l.qte).join(", ")+"</p>",
-      }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
-    }).catch(e=>console.error("[ClientFood] Erreur réseau:", e.message));
+      categorie:"bon_commande", reference:ref, clientNom:form.nom,
+      contenuHtml:"<p>Commande "+ref+"</p><p>"+lignes.map(l=>l.libelle+" ×"+l.qte).join(", ")+"</p>",
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
     // Notif WhatsApp
     const msg = "Bonjour 🍃\n\nCommande Bella'Food (Réf: "+ref+")\n"+
       panier.map(p=>p.nom+" × "+p.qte+(p.prix?" ("+((p.prix||0)*p.qte).toFixed(2)+"€)":"")).join("\n")+
@@ -1989,6 +1988,7 @@ function ClientFood({ user, onBack }) {
     setModal(null);
     setCommandes(prev=>[{reference:ref,client_nom:form.nom,statut:"BROUILLON",total,created_at:new Date().toISOString(),...(form.date?{date_livraison:form.date}:{})}, ...prev]);
     setPanier([]); setForm({nom:"",tel:"",message:"",date:""});
+    });
   };
 
   const fmtPx = (n) => n?Number(n).toFixed(2).replace(".",",")+" €":"Sur devis";
@@ -7970,7 +7970,7 @@ function PortailSuiviClient({ onBack, user }) {
     // ── Générer la référence PAY — arrêt si échec ─────────
     let payRef = "";
     try { payRef = await genererReference("PAY"); }
-    catch(e) {
+    catch(e: any) {
       setPayLoading(false);
       alert(e.message);
       return;
@@ -8293,6 +8293,11 @@ function PortailSuiviClient({ onBack, user }) {
           </div>
         )}
 
+        {/* ── MES PAIEMENTS ── */}
+        {onglet==="paiements" && (
+          <PaiementsClient dossiersIds={dossiers.map(d=>d.id)} fmtPx={fmtPx} fmtDos={fmtDos}/>
+        )}
+
         {/* ── MES DOCUMENTS ── */}
         {onglet==="documents" && (
           <DocumentsClient dossiersRefs={dossiers.map(d=>d.reference)} fmtDos={fmtDos}/>
@@ -8495,6 +8500,7 @@ function PortailSuiviClient({ onBack, user }) {
           </div>
         )}
       </div>
+    )}
     </div>
   </div>
   );
