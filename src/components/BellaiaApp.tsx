@@ -7970,7 +7970,7 @@ function PortailSuiviClient({ onBack, user }) {
     // ── Générer la référence PAY — arrêt si échec ─────────
     let payRef = "";
     try { payRef = await genererReference("PAY"); }
-    catch(e: any) {
+    catch(e) {
       setPayLoading(false);
       alert(e.message);
       return;
