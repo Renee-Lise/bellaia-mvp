@@ -553,7 +553,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
   const addCart = p => setCart(c => { const e=c.find(x=>x.id===p.id); return e?c.map(x=>x.id===p.id?{...x,qty:x.qty+1}:x):[...c,{...p,qty:1}]; });
   const togFav = id => setFav(f => f.includes(id)?f.filter(x=>x!==id):[...f,id]);
 
-  const genId = () => "BSH-" + Date.now().toString().slice(-6);
+  const genId = async () => { try { return await genererReference("BSH"); } catch(e) { alert(e.message); return null; } };
 
   const [sumupLoading, setSumupLoading] = useState(false);
   const [sumupErreur, setSumupErreur] = useState(null);
@@ -564,7 +564,8 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
     const selectionnes = cart.filter(i => i.selected !== false);
     if (selectionnes.length === 0) return;
 
-    const id = genId();
+    const id = await genId();
+    if (!id) return; // genererReference a échoué
     const produitStr = selectionnes.map(i=>(i.name)+" ×"+(i.qty)).join(", ");
     const totalSel   = selectionnes.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
 
@@ -758,6 +759,18 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
           <div style={{display:"flex",flexDirection:"column",gap:11}}>
             <h2 style={{fontFamily:FS,fontSize:18,color:BSH.or,margin:0,textAlign:"center"}}>Club VIP ✦</h2>
             <p style={{color:BSH.cremeD,textAlign:"center",fontSize:12,margin:0,lineHeight:1.7}}>Un cercle exclusif d'expériences et de privilèges.</p>
+
+            {/* ── Historique commandes ── */}
+            {cmdConfirmee && (
+              <div style={{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginBottom:8}}>📦 Dernière commande</div>
+                <div style={{fontSize:12,color:"#fff",fontWeight:700}}>{cmdConfirmee.id}</div>
+                <div style={{fontSize:11,color:BSH.cremeD,marginTop:3}}>{cmdConfirmee.produitStr}</div>
+                <div style={{fontSize:11,color:BSH.or,fontWeight:700,marginTop:3}}>{cmdConfirmee.totalSel}€</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:4}}>Statut : en attente de confirmation</div>
+              </div>
+            )}
+
             {VIP_LEVELS.map(v => (
               <BCard key={v.level} style={{borderTop:"4px solid "+(v.color),padding:"16px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -966,7 +979,8 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
             ))}
           </div>
           <Btn v="gold" full onClick={async () => {
-            const id = genId();
+            const id = await genId();
+            if (!id) return;
             const cmd = {
               id,
               client: "Client web",
@@ -998,8 +1012,14 @@ function ClientOdyssee({user, rdvs, onBack}) {
   const [page, setPage] = useState("accueil");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({prestation:PRESTATIONS_BO[0],date:today(),heure:"10h00",nom:"",tel:""});
+  const [rdvEnvoi,  setRdvEnvoi]  = useState(false);
+  const [rdvSucces, setRdvSucces] = useState(null); // référence RDV créé
+  const [paiementOd,setPaiementOd]= useState(null); // {dossier, facRef, cmdRef}
 
   const PAGES = [{id:"accueil",l:"🏠"},{id:"prestations",l:"💅"},{id:"rdv",l:"📅"},{id:"galerie",l:"📸"},{id:"contact",l:"📞"}];
+
+  // Écran paiement si demandé
+  if (paiementOd) return <EcranPaiement paiement={paiementOd} onBack={()=>setPaiementOd(null)} bu="ODYSSEE"/>;
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(BO.prune)+","+(BO.fond)+" 65%)",fontFamily:SA}}>
@@ -1080,7 +1100,7 @@ function ClientOdyssee({user, rdvs, onBack}) {
                       if (r.bloque) return (
                         <div>
                           <div style={{fontSize:11,color:"#e07a7a",background:"rgba(224,68,68,0.1)",border:"1px solid rgba(224,68,68,0.3)",borderRadius:8,padding:"8px 10px",marginBottom:6,textAlign:"center"}}>🔒 {r.message}</div>
-                          <OBtn v="primary" sz="sm" full disabled={true}>Réservation indisponible</OBtn>
+                          <OBtn v="primary" sz="sm" full onClick={() => { setModal("rdv"); setForm(f=>({...f,prestation:p.nom,prix:p.formules[0]?.p||p.prix})); }}>Réserver ce soin</OBtn>
                         </div>
                       );
                       return (
@@ -1133,10 +1153,37 @@ function ClientOdyssee({user, rdvs, onBack}) {
                   📅 Réserver en ligne (planning)
                 </OBtn>
               ) : (
-                <OBtn v="primary" sz="md" full disabled={!form.nom.trim()} onClick={() => {
-                  const msg="Bonjour, je souhaite prendre rendez-vous pour : "+(form.prestation)+"\\nDate : "+(fmt(form.date))+" à "+(form.heure)+"\\nPrénom : "+(form.nom)+"\\nTél : "+(form.tel||"À préciser");
+                <OBtn v="primary" sz="md" full disabled={!form.nom.trim() || rdvEnvoi} onClick={async () => {
+                  setRdvEnvoi(true);
+                  let rdvRef = "";
+                  try { rdvRef = await genererReference("BO"); }
+                  catch(e) { alert(e.message); setRdvEnvoi(false); return; }
+                  // Créer dans bellaia_commandes
+                  const res = await sbPost("bellaia_commandes", {
+                    bu:"ODYSSEE", reference:rdvRef,
+                    client_nom:form.nom, client_tel:form.tel||null,
+                    statut:"BROUILLON", total:0,
+                    date_commande:new Date().toISOString().split("T")[0],
+                    date_livraison:form.date,
+                    notes:form.heure+" — "+form.prestation,
+                    lignes:JSON.stringify([{libelle:form.prestation,qte:1,prixUnitaire:0,total:0}]),
+                  });
+                  if (!res.ok) {
+                    alert("Impossible d'enregistrer le RDV. "+( res.error||"Réessayez."));
+                    setRdvEnvoi(false); return;
+                  }
+                  // GED auto-save
+                  gedAutoSave({titre:"RDV "+rdvRef+" — "+form.nom, module:"ODYSSEE",
+                    categorie:"bon_commande", reference:rdvRef, clientNom:form.nom,
+                  }).catch(e=>console.warn('[Bellaïa][GED]',e.message));
+                  // WA avec référence
+                  const msg="Bonjour, je souhaite prendre rendez-vous 💅\nRéf : "+rdvRef+"\nSoin : "+form.prestation+"\nDate : "+fmt(form.date)+" à "+form.heure+"\nPrénom : "+form.nom+(form.tel?"\nTél : "+form.tel:"");
                   window.open(WA(msg),"_blank");
-                }}>💬 Envoyer ma demande via WhatsApp</OBtn>
+                  setRdvSucces(rdvRef);
+                  setRdvEnvoi(false);
+                }}>
+                  {rdvEnvoi ? "Envoi…" : "💬 Envoyer ma demande via WhatsApp"}
+                </OBtn>
               )}
               <p style={{textAlign:"center",fontSize:10,color:BO.cremeD,marginTop:8}}>Confirmation rapide · Acompte possible</p>
             </OCard>
@@ -1204,6 +1251,938 @@ function ClientOdyssee({user, rdvs, onBack}) {
 // ═══════════════════════════════════════════════════════════
 // ── PLACEHOLDER UNIVERS (Events, Food, Vilo, Éditions, MTP)
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT VILO'ASSISTANCE
+// ═══════════════════════════════════════════════════════════
+function ClientVilo({ user, onBack }) {
+  const [page,     setPage]     = React.useState("accueil");
+  const [form,     setForm]     = React.useState({type:"Aide ménagère", adresse:"", date:"", heure:"", detail:""});
+  const [envoi,    setEnvoi]    = React.useState(false);
+  const [succes,   setSucces]   = React.useState(null);
+  const [demandes, setDemandes] = React.useState([]);
+
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?bu=eq.VILO&client_nom=ilike.*${encodeURIComponent(user?.prenom||"")}*&order=created_at.desc&limit=10`, {
+          headers:{ apikey:SB_KEY, Authorization:"Bearer "+token }
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setDemandes(Array.isArray(d) ? d : []);
+      } catch(e) { console.warn('[Bellaïa][chargement]', e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, []);
+
+  const TYPES = ["Aide ménagère","Garde d'enfants","Assistance administrative","Courses","Accompagnement médical","Autre"];
+  const STATUTS_COL = { BROUILLON:"#60a5fa", COMMANDE:"#22c55e", PRODUCTION:"#fb923c", LIVRE:"#a855f7", ANNULE:"#f87171" };
+
+  const envoyerDemande = async () => {
+    if (!form.type || !form.date) return;
+    setEnvoi(true);
+    const ref = await genererReference("VILO");
+    let saved = false;
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes`, {
+        method:"POST",
+        headers:{ apikey:SB_KEY, Authorization:"Bearer "+(await getTokenAsync()), "Content-Type":"application/json", Prefer:"return=representation" },
+        body: JSON.stringify({ bu:"VILO", reference:ref, client_nom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client",
+          statut:"BROUILLON", total:0, date_livraison:form.date,
+          notes:`${form.heure||""} — ${form.type}${form.adresse?" — "+form.adresse:""}${form.detail?" — "+form.detail:""}` })
+      });
+      saved = r.ok;
+      if (saved) {
+        gedAutoSave({titre:"Demande "+ref+" — "+([user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client"),
+          module:"VILO", categorie:"bon_commande", reference:ref,
+          clientNom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client",
+        }).catch(e=>console.warn('[Bellaïa][GED]',e.message));
+      }
+    } catch {}
+    // Toujours ouvrir WhatsApp en complément
+    // GED auto-save — non bloquant
+    gedAutoSave({titre:"Demande "+ref+" — "+form.nom, module:"VILO",
+      categorie:"bon_commande", reference:ref, clientNom:form.nom,
+    }).catch(e=>console.warn("[GED]",e.message));
+    const msg = `Bonjour 🤝\n\nDemande Vilo'Assistance (Réf: ${ref})\nService : ${form.type}\nDate : ${form.date}${form.heure?" à "+form.heure:""}${form.adresse?"\nAdresse : "+form.adresse:""}${form.detail?"\nDétail : "+form.detail:""}\n\nMerci`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    setSucces(ref);
+    setEnvoi(false);
+  };
+
+  const inp2 = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(29,78,216,0.3)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
+  const acc  = "#1d4ed8";
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a3a,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(29,78,216,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#93c5fd"}}>🤝 Vilo'Assistance</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(29,78,216,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {[["accueil","🏠","Accueil"],["demande","📋","Ma demande"],["suivi","📦","Suivi"],["contact","💬","Contact"]].map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #93c5fd":"2px solid transparent"}}>
+            <span style={{fontSize:16}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#93c5fd":B.muted,fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 24px"}}>
+
+        {page==="accueil" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:4}}>Bienvenue{user?.prenom?", "+user.prenom:""}</div>
+            <div style={{fontSize:12,color:B.muted,marginBottom:8}}>Vilo'Assistance · Services à domicile & accompagnement</div>
+            {[
+              {ico:"🏠",nom:"Aide ménagère",desc:"Nettoyage, repassage, entretien"},
+              {ico:"👶",nom:"Garde d'enfants",desc:"Babysitting, accompagnement scolaire"},
+              {ico:"📋",nom:"Assistance administrative",desc:"Démarches, courriers, dossiers"},
+              {ico:"🛒",nom:"Courses",desc:"Achats et livraison à domicile"},
+              {ico:"🏥",nom:"Accompagnement médical",desc:"Transport, rendez-vous médicaux"},
+            ].map(s=>(
+              <div key={s.nom} onClick={()=>{setForm(f=>({...f,type:s.nom}));setPage("demande");}} style={{background:"rgba(29,78,216,0.08)",border:"1px solid rgba(29,78,216,0.2)",borderRadius:12,padding:"12px 14px",cursor:"pointer",display:"flex",gap:12,alignItems:"center"}}>
+                <span style={{fontSize:22,flexShrink:0}}>{s.ico}</span>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{s.nom}</div>
+                  <div style={{fontSize:11,color:B.muted}}>{s.desc}</div>
+                </div>
+                <span style={{marginLeft:"auto",color:"rgba(147,197,253,0.5)",fontSize:16}}>›</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="demande" && !succes && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Nouvelle demande</div>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <label style={{fontSize:10,color:B.muted}}>Type de service</label>
+              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={{...inp2,background:"#0d1a3a"}}>
+                {TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            {[["Adresse","adresse","text","Ex: 12 rue des Flamboyants, Sinnamary"],["Date souhaitée","date","date",""],["Heure","heure","time",""]].map(([l,k,t,ph])=>(
+              <div key={k} style={{display:"flex",flexDirection:"column",gap:4}}>
+                <label style={{fontSize:10,color:B.muted}}>{l}</label>
+                <input type={t} placeholder={ph} value={(form)[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={inp2}/>
+              </div>
+            ))}
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <label style={{fontSize:10,color:B.muted}}>Détails de la demande</label>
+              <textarea rows={3} value={form.detail} onChange={e=>setForm(f=>({...f,detail:e.target.value}))} style={{...inp2,resize:"vertical"}} placeholder="Précisez vos besoins…"/>
+            </div>
+            <button onClick={envoyerDemande} disabled={envoi||!form.date} style={{background:"linear-gradient(135deg,"+acc+",#1e40af)",border:"none",borderRadius:12,padding:"13px",color:"#fff",fontWeight:700,fontSize:13,cursor:(!form.date||envoi)?"not-allowed":"pointer",opacity:(!form.date||envoi)?0.6:1,fontFamily:SA}}>
+              {envoi?"Envoi…":"✅ Envoyer ma demande"}
+            </button>
+          </div>
+        )}
+
+        {page==="demande" && succes && (
+          <div style={{textAlign:"center",padding:"32px 16px"}}>
+            <div style={{fontSize:48,marginBottom:16}}>✅</div>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:8}}>Demande envoyée !</div>
+            <div style={{fontSize:12,color:B.muted,marginBottom:4}}>Référence : <strong style={{color:"#93c5fd"}}>{succes}</strong></div>
+            <div style={{fontSize:11,color:B.muted,marginBottom:24}}>Notre équipe vous contactera dans les 24h.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button onClick={()=>{setSucces(null);setForm({type:"Aide ménagère",adresse:"",date:"",heure:"",detail:""});}} style={{background:"rgba(29,78,216,0.2)",border:"1px solid rgba(29,78,216,0.4)",borderRadius:12,padding:"11px",color:"#93c5fd",fontWeight:700,cursor:"pointer",fontFamily:SA}}>+ Nouvelle demande</button>
+              <button onClick={()=>setPage("suivi")} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"11px",color:B.muted,cursor:"pointer",fontFamily:SA}}>Voir mon suivi</button>
+            </div>
+          </div>
+        )}
+
+        {page==="suivi" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:8}}>Mes demandes</div>
+            {demandes.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontStyle:"italic"}}>Aucune demande enregistrée.</div>}
+            {demandes.map(d=>(
+              <div key={d.id} style={{background:"rgba(29,78,216,0.08)",border:"1px solid rgba(29,78,216,0.2)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{d.reference}</div>
+                  <span style={{fontSize:9,color:(STATUTS_COL[d.statut]||B.muted),fontWeight:700}}>{d.statut}</span>
+                </div>
+                <div style={{fontSize:11,color:B.muted}}>{d.notes?.split("—")[1]?.trim()||"Service à domicile"}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",marginTop:3}}>{d.date_livraison||""}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12,paddingTop:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Nous contacter</div>
+            {[
+              {ico:"💬",label:"WhatsApp",desc:"Réponse rapide 7j/7",onClick:()=>window.open(WA("Bonjour, je souhaite des informations sur Vilo'Assistance"),"_blank")},
+              {ico:"📧",label:"Email",desc:"contact@bellastudio.fr",onClick:()=>window.open("mailto:contact@bellastudio.fr")},
+            ].map(c=>(
+              <button key={c.label} onClick={c.onClick} style={{background:"rgba(29,78,216,0.1)",border:"1px solid rgba(29,78,216,0.25)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+                <span style={{fontSize:24}}>{c.ico}</span>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{c.label}</div>
+                  <div style={{fontSize:11,color:B.muted}}>{c.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT BELLA'STUDIO ÉDITIONS
+// ═══════════════════════════════════════════════════════════
+function ClientEditions({ user, onBack }) {
+  const [page,    setPage]    = React.useState("catalogue");
+  const [commandes,setCommandes]=React.useState([]);
+  const acc = "#6366f1";
+
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?bu=eq.EDITIONS&order=created_at.desc&limit=10`, {
+          headers:{ apikey:SB_KEY, Authorization:"Bearer "+token }
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setCommandes(Array.isArray(d) ? d : []);
+      } catch(e) { console.warn('[Bellaïa][chargement]', e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, []);
+
+  const CATALOGUE = [
+    {ico:"📖",titre:"Ebook Bellaïa — Gestion d'activité",cat:"Ebook",prix:14.90,desc:"Guide complet pour gérer votre activité créative au quotidien.",pages:85},
+    {ico:"🎓",titre:"Formation — Création de contenu",cat:"Formation",prix:29.90,desc:"5 modules pour créer du contenu engageant sur les réseaux sociaux.",modules:5},
+    {ico:"📋",titre:"Pack Modèles Business",cat:"Template",prix:9.90,desc:"10 modèles professionnels : devis, factures, contrats.",pages:10},
+    {ico:"🎙",titre:"Podcast — Entrepreneur en Guyane",cat:"Audio",prix:0,desc:"Série de 8 épisodes sur l'entrepreneuriat en Guyane. Gratuit.",modules:8},
+    {ico:"📚",titre:"Guide — Réseaux sociaux Antilles-Guyane",cat:"Ebook",prix:19.90,desc:"Stratégie adaptée au marché des Antilles-Guyane.",pages:65},
+  ];
+
+  const acheter = (p) => {
+    // GED auto-save — non bloquant
+    gedAutoSave({titre:"Achat Éditions — "+p.titre, module:"EDITIONS",
+      categorie:"bon_commande", clientNom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client"
+    }).catch(e=>console.warn("[GED]",e.message));
+    if (p.prix===0) {
+      window.open(WA(`Bonjour, je souhaite accéder gratuitement à : ${p.titre}`), "_blank");
+    } else {
+      window.open(WA(`Bonjour, je souhaite acheter : ${p.titre} — ${p.prix}€`), "_blank");
+    }
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#1e1b4b,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(99,102,241,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#a5b4fc"}}>📚 Bella'Studio Éditions</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(99,102,241,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {[["catalogue","📚","Catalogue"],["commandes","📦","Mes achats"],["contact","💬","Contact"]].map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #a5b4fc":"2px solid transparent"}}>
+            <span style={{fontSize:16}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#a5b4fc":B.muted,fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 24px"}}>
+        {page==="catalogue" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:8}}>Notre catalogue</div>
+            {CATALOGUE.map(p=>(
+              <div key={p.titre} style={{background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:13,padding:"13px 14px"}}>
+                <div style={{display:"flex",gap:10,marginBottom:8}}>
+                  <span style={{fontSize:26,flexShrink:0}}>{p.ico}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{p.titre}</div>
+                    <div style={{fontSize:10,color:"#a5b4fc",marginTop:1}}>{p.cat}{p.pages?" · "+p.pages+" pages":""}{p.modules?" · "+p.modules+" modules":""}</div>
+                    <div style={{fontSize:11,color:B.muted,marginTop:4,lineHeight:1.5}}>{p.desc}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:p.prix===0?"#22c55e":"#c9a96e"}}>
+                    {p.prix===0?"Gratuit":p.prix.toFixed(2).replace(".",",")+" €"}
+                  </div>
+                  <button onClick={()=>acheter(p)} style={{background:"linear-gradient(135deg,"+acc+",#4f46e5)",border:"none",borderRadius:9,padding:"8px 14px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                    {p.prix===0?"📥 Obtenir":"🛒 Acheter"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {page==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:8}}>Mes achats</div>
+            {commandes.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontStyle:"italic"}}>Aucun achat enregistré.{" "}
+              <button onClick={()=>setPage("catalogue")} style={{background:"none",border:"none",color:"#a5b4fc",cursor:"pointer",fontSize:11,fontFamily:SA}}>Voir le catalogue →</button>
+            </div>}
+            {commandes.map(c=>(
+              <div key={c.id} style={{background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{c.reference}</div>
+                  <div style={{fontSize:10,color:B.muted}}>{c.notes?.slice(0,40)||"Achat Éditions"}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:"#c9a96e"}}>{(c.total||0).toFixed(2).replace(".",",")}€</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Support & Questions</div>
+            <button onClick={()=>window.open(WA("Bonjour, j'ai une question sur Bella'Studio Éditions"),"_blank")} style={{background:"rgba(99,102,241,0.12)",border:"1px solid rgba(99,102,241,0.3)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+              <span style={{fontSize:24}}>💬</span><div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>WhatsApp</div><div style={{fontSize:11,color:B.muted}}>Questions, accès fichiers, support</div></div>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT MO TI-PÉYI
+// ═══════════════════════════════════════════════════════════
+function ClientMoTiPeyi({ user, onBack }) {
+  const [page,     setPage]     = React.useState("catalogue");
+  const [commandes,setCommandes]= React.useState([]);
+  const [modal,    setModal]    = React.useState(null);
+  const [form,     setForm]     = React.useState({clientNom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"",clientTel:"",produit:"",qte:1,prix:0,date:""});
+  const [succes,   setSucces]   = React.useState(null);
+  const acc = "#22c55e";
+
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  React.useEffect(()=>{
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?bu=eq.MOTIPY&order=created_at.desc&limit=10`,{
+          headers:{apikey:SB_KEY,Authorization:"Bearer "+token}
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setCommandes(Array.isArray(d) ? d : []);
+      } catch(e){ console.warn('[Bellaïa][chargement]',e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  },[]);
+
+  const PRODUITS = [
+    {nom:"Boîte complète Mo Ti-Péyi",desc:"120 cartes pédagogiques · PS à CP · Guyane",prix:29.90,ico:"🎴"},
+    {nom:"Pack Démarreur — 30 cartes",desc:"30 cartes essentielles pour découvrir le jeu",prix:12.90,ico:"🌱"},
+    {nom:"Extension Familles",desc:"Nouvelles familles de cartes thématiques",prix:14.90,ico:"🃏"},
+    {nom:"Fiche pédagogique PDF",desc:"Guide enseignant · Progressions PS-CP",prix:4.90,ico:"📋"},
+    {nom:"Poster A2 — Univers Mo Ti-Péyi",desc:"Affiche illustrée des personnages",prix:9.90,ico:"🖼"},
+  ];
+
+  const commander = async () => {
+    if (!form.produit || !form.clientNom) return;
+    const ref = await genererReference("MTP");
+    const total = form.qte * form.prix;
+    let saved = false;
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes`,{
+        method:"POST",
+        headers:{apikey:SB_KEY,Authorization:"Bearer "+(await getTokenAsync()),"Content-Type":"application/json",Prefer:"return=representation"},
+        body:JSON.stringify({bu:"MOTIPY",reference:ref,client_nom:form.clientNom,client_tel:form.clientTel,statut:"BROUILLON",total,date_commande:form.date||new Date().toISOString().split("T")[0],
+          lignes:JSON.stringify([{libelle:form.produit,qte:form.qte,prixUnitaire:form.prix,total}])})
+      });
+      saved = r.ok;
+    } catch {}
+    // GED auto-save bon de commande — non bloquant
+    gedAutoSave({titre:"Commande "+ref+" — "+form.clientNom, module:"MOTIPY",
+      categorie:"bon_commande", reference:ref, clientNom:form.clientNom,
+    }).catch(e=>console.warn("[GED]",e.message));
+    window.open(WA(`Bonjour 🌿\n\nCommande Mo Ti-Péyi (Réf: ${ref})\n${form.produit} × ${form.qte}\nTotal : ${total.toFixed(2).replace(".",",")}€\n\nClient : ${form.clientNom}${form.clientTel?"\nTél : "+form.clientTel:""}\n\nMerci !`), "_blank");
+    setSucces(ref);
+    setModal(null);
+  };
+
+  const inp3 = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0b1f0d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(34,197,94,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>🌿 Mo Ti-Péyi</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(34,197,94,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {[["catalogue","🃏","Catalogue"],["commandes","📦","Mes commandes"],["projet","🌿","Le projet"],["contact","💬","Contact"]].map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #4ade80":"2px solid transparent"}}>
+            <span style={{fontSize:15}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#4ade80":B.muted,fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 24px"}}>
+
+        {page==="catalogue" && !succes && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:6}}>Nos produits</div>
+            {PRODUITS.map(p=>(
+              <div key={p.nom} style={{background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.18)",borderRadius:13,padding:"12px 13px"}}>
+                <div style={{display:"flex",gap:10,marginBottom:8}}>
+                  <span style={{fontSize:24,flexShrink:0}}>{p.ico}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{p.nom}</div>
+                    <div style={{fontSize:11,color:B.muted,marginTop:2,lineHeight:1.5}}>{p.desc}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:"#c9a96e"}}>{p.prix.toFixed(2).replace(".",",")} €</div>
+                  <button onClick={()=>{setForm(f=>({...f,produit:p.nom,prix:p.prix,qte:1}));setModal("commande");}} style={{background:"linear-gradient(135deg,"+acc+",#16a34a)",border:"none",borderRadius:9,padding:"8px 14px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                    🛒 Commander
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="catalogue" && succes && (
+          <div style={{textAlign:"center",padding:"32px 16px"}}>
+            <div style={{fontSize:48,marginBottom:12}}>🎉</div>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:8}}>Commande envoyée !</div>
+            <div style={{fontSize:12,color:B.muted,marginBottom:4}}>Réf : <strong style={{color:"#4ade80"}}>{succes}</strong></div>
+            <div style={{fontSize:11,color:B.muted,marginBottom:24}}>WhatsApp ouvert pour finaliser votre commande.</div>
+            <button onClick={()=>setSucces(null)} style={{background:"rgba(34,197,94,0.15)",border:"1px solid rgba(34,197,94,0.3)",borderRadius:12,padding:"11px 20px",color:"#4ade80",fontWeight:700,cursor:"pointer",fontFamily:SA}}>+ Autre commande</button>
+          </div>
+        )}
+
+        {page==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:6}}>Mes commandes</div>
+            {commandes.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontStyle:"italic"}}>Aucune commande.<button onClick={()=>setPage("catalogue")} style={{background:"none",border:"none",color:"#4ade80",cursor:"pointer",fontFamily:SA}}> Commander →</button></div>}
+            {commandes.map(c=>(
+              <div key={c.id} style={{background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.18)",borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{c.reference}</div>
+                  <div style={{fontSize:10,color:B.muted}}>{c.date_commande||""} · {c.statut}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:"#c9a96e"}}>{(c.total||0).toFixed(2).replace(".",",")}€</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="projet" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>À propos de Mo Ti-Péyi</div>
+            <div style={{background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.18)",borderRadius:12,padding:"13px 14px",fontSize:12,color:B.muted,lineHeight:1.7}}>
+              Mo Ti-Péyi est un jeu de cartes pédagogique créé en Guyane pour enseigner la pensée computationnelle aux enfants de la Petite Section au CP.{" "}
+              Illustré avec les personnages, la faune et la flore de Guyane, il fait partie de la collection <strong style={{color:"#4ade80"}}>Mo Ti-Péyi</strong> de Bella'Studio.
+            </div>
+            {[{ico:"🌿",l:"Personnages guyanais"},
+              {ico:"🃏",l:"8 familles de cartes"},
+              {ico:"👶",l:"Adapté PS à CP"},
+              {ico:"🧠",l:"Pensée computationnelle"},
+            ].map(f=>(
+              <div key={f.l} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 12px",background:"rgba(34,197,94,0.05)",border:"1px solid rgba(34,197,94,0.12)",borderRadius:9}}>
+                <span style={{fontSize:20}}>{f.ico}</span>
+                <span style={{fontSize:12,color:"#fff"}}>{f.l}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Contact</div>
+            <button onClick={()=>window.open(WA("Bonjour, j'ai une question sur Mo Ti-Péyi"),"_blank")} style={{background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.25)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+              <span style={{fontSize:24}}>💬</span><div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>WhatsApp</div><div style={{fontSize:11,color:B.muted}}>Commandes, livraisons, questions</div></div>
+            </button>
+          </div>
+        )}
+
+        {/* Modal commande */}
+        {modal==="commande" && (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+            <div style={{background:"#0b1f0d",border:"1px solid rgba(34,197,94,0.2)",borderRadius:16,padding:18,width:"100%",maxWidth:400}}>
+              <div style={{fontFamily:FS,fontSize:14,color:"#4ade80",marginBottom:14}}>{form.produit}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {[["Votre nom","clientNom","text"],["Téléphone","clientTel","tel"]].map(([l,k,t])=>(
+                  <div key={k} style={{display:"flex",flexDirection:"column",gap:3}}>
+                    <label style={{fontSize:10,color:B.muted}}>{l}</label>
+                    <input type={t} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={inp3}/>
+                  </div>
+                ))}
+                <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                  <label style={{fontSize:10,color:B.muted}}>Quantité</label>
+                  <input type="number" min="1" value={form.qte} onChange={e=>setForm(f=>({...f,qte:Number(e.target.value)}))} style={inp3}/>
+                </div>
+                <div style={{background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:8,padding:"8px 10px",fontSize:13,color:"#4ade80",fontWeight:700}}>
+                  Total : {(form.qte*form.prix).toFixed(2).replace(".",",")} €
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={commander} style={{flex:1,background:"linear-gradient(135deg,"+acc+",#16a34a)",border:"none",borderRadius:10,padding:"10px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>✅ Commander</button>
+                  <button onClick={()=>setModal(null)} style={{flex:1,background:"rgba(255,255,255,0.06)",border:"none",borderRadius:10,padding:"10px",color:B.muted,fontSize:12,cursor:"pointer",fontFamily:SA}}>Annuler</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+// ═══════════════════════════════════════════════════════════
+// COMPOSANT RÉUTILISABLE — EcranPaiement
+// Utilisé par ClientFood, ClientEvents (PortailSuiviClient), BSH, Odyssée...
+// ═══════════════════════════════════════════════════════════
+function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
+  const [payMode,    setPayMode]   = React.useState(null);
+  const [payLoading, setPayLoading]= React.useState(false);
+  const [paySucces,  setPaySucces] = React.useState(null);
+
+  const dos     = paiement?.dossier || {};
+  const total   = dos.montant_estime || dos.total || 0;
+  const acompte = paiement?.acompte || Math.round(total * 0.3);
+  const facRef  = paiement?.facRef  || "";
+
+  const fmtPx = (n) => n ? Number(n).toFixed(2).replace(".",",")+" €" : "—";
+
+  const MODES_PAY = [
+    {id:"virement", ico:"🏦", label:"Virement bancaire",  desc:"Coordonnées envoyées par WhatsApp"},
+    {id:"especes",  ico:"💵", label:"Espèces",            desc:"En boutique sur rendez-vous"},
+    {id:"cheque",   ico:"📋", label:"Chèque",             desc:"À l'ordre de Bella'Studio"},
+    {id:"sumup",    ico:"💳", label:"SumUp (carte)",      desc:"Non configuré — utiliser virement"},
+    {id:"paypal",   ico:"🅿",  label:"PayPal",            desc:"Non configuré — utiliser virement"},
+  ];
+
+  const confirmerPay = async (option) => {
+    setPayLoading(true);
+    const montant = option==="total" ? total : acompte;
+    const payRef  = await genererReference("PAY");
+    // Enregistrer dans bellaia_paiements
+    const resPAY = await sbPost("bellaia_paiements", {
+        business_unit:bu, reference:payRef, montant,
+        mode_paiement:payMode, statut:"en_attente",
+        source_table:bu==="FOOD"?"bellaia_commandes":"events_demandes",
+        source_id:dos.id,
+        notes:(option==="total"?"Paiement intégral":"Acompte 30%")+" — "+dos.reference,
+        date_paiement:new Date().toISOString(),
+    }, false);
+    if (!resPAY?.ok) {
+      setPayLoading(false);
+      alert(
+        "La demande de paiement n'a pas pu être enregistrée.\n"+
+        (resPAY?.error || "Erreur Supabase "+resPAY?.status)
+      );
+      return; // Pas de WA ni de succès si Supabase a refusé
+    }
+    // GED auto-save du reçu
+    await gedAutoSave({
+      titre:"Reçu "+payRef+" — "+(option==="total"?"Paiement intégral":"Acompte 30%"),
+      module:bu, categorie:"recu_paiement", reference:payRef,
+      clientNom:dos.client_nom||[dos.client_prenom,dos.client_nom].filter(Boolean).join(" ")||"",
+      entiteId:dos.id, entiteTable:bu==="FOOD"?"bellaia_commandes":"events_demandes",
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+    // Mode avec instructions WhatsApp
+    if (["virement","especes","cheque"].includes(payMode)) {
+      const instruc = payMode==="virement"
+        ? `Virement bancaire — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nCoordonnées bancaires envoyées par WhatsApp.`
+        : payMode==="especes"
+        ? `Paiement en espèces — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nÀ régler en boutique sur rendez-vous.`
+        : `Chèque — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nÀ l'ordre de Bella'Studio.`;
+      window.open(WA(instruc), "_blank");
+    }
+    // Notification fondatrice
+    await creerNotification({
+      pole:bu, type:"paiement_recu", titre:"Paiement "+payRef,
+      message:"Mode: "+payMode+" · "+montant.toFixed(2)+"€ · "+dos.reference+" — en attente de confirmation",
+      canal:"interne", sourceTable:bu==="FOOD"?"bellaia_commandes":"events_demandes", sourceId:dos.id,
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+    setPayLoading(false);
+    setPaySucces(payRef);
+    if (onSucces) onSucces(payRef);
+  };
+
+  if (paySucces) return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24,flexDirection:"column",textAlign:"center"}}>
+      <div style={{fontSize:56,marginBottom:12}}>🎉</div>
+      <div style={{fontFamily:FS,fontSize:20,color:"#fff",marginBottom:8}}>Paiement enregistré !</div>
+      <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginBottom:4}}>Réf : <strong style={{color:"#c9a96e"}}>{paySucces}</strong></div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",lineHeight:1.7,marginBottom:24,maxWidth:300}}>Demande de paiement enregistrée — en attente de confirmation.<br/>Vous serez notifié(e) par WhatsApp une fois validé.</div>
+      <button onClick={onBack} style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:12,padding:"11px 24px",color:"#22c55e",fontWeight:700,cursor:"pointer",fontFamily:SA}}>Fermer</button>
+    </div>
+  );
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.5)"}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#c9a96e"}}>💳 Finaliser le paiement</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>✕ Fermer</button>
+      </div>
+      <div style={{flex:1,padding:"16px 14px 28px",maxWidth:480,margin:"0 auto",width:"100%"}}>
+        {/* Récap */}
+        <div style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:12,padding:"12px 14px",marginBottom:18}}>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginBottom:3}}>Dossier</div>
+          <div style={{fontSize:14,fontWeight:700,color:"#fff"}}>{dos.reference}</div>
+          {total>0&&<div style={{fontSize:13,color:"#c9a96e",fontWeight:700,marginTop:4}}>Total : {fmtPx(total)}</div>}
+        </div>
+
+        {!payMode ? (
+          <>
+            <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:12}}>Choisissez votre option :</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+              <div onClick={()=>setPayMode("acompte")} style={{background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:12,padding:"14px",cursor:"pointer"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#c9a96e",marginBottom:3}}>Option A — Acompte (30%)</div>
+                <div style={{fontSize:20,fontWeight:800,color:"#fff"}}>{fmtPx(acompte)}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:2}}>Solde restant : {fmtPx(total-acompte)}</div>
+              </div>
+              <div onClick={()=>setPayMode("total")} style={{background:"rgba(21,128,61,0.1)",border:"1px solid rgba(21,128,61,0.3)",borderRadius:12,padding:"14px",cursor:"pointer"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#22c55e",marginBottom:3}}>Option B — Paiement intégral</div>
+                <div style={{fontSize:20,fontWeight:800,color:"#fff"}}>{fmtPx(total)}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:2}}>Règlement complet · Solde 0€</div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"9px 12px",marginBottom:14,display:"flex",justifyContent:"space-between"}}>
+              <span style={{fontSize:11,color:"rgba(255,255,255,0.6)"}}>Montant</span>
+              <span style={{fontSize:14,fontWeight:700,color:"#c9a96e"}}>{fmtPx(payMode==="total"?total:acompte)}</span>
+            </div>
+            <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:10}}>Mode de paiement :</div>
+            <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:16}}>
+              {MODES_PAY.map(m=>{
+                const nc = m.id==="sumup"||m.id==="paypal";
+                return (
+                  <div key={m.id} onClick={()=>!nc&&!payLoading&&confirmerPay(payMode)}
+                    style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"11px 13px",cursor:nc?"not-allowed":"pointer",opacity:nc?0.45:1,display:"flex",gap:10,alignItems:"center"}}>
+                    <span style={{fontSize:20}}>{m.ico}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.label}</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>{nc?"Non configuré — utiliser virement bancaire":m.desc}</div>
+                    </div>
+                    {!nc&&<span style={{color:"rgba(255,255,255,0.3)",fontSize:16}}>›</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={()=>setPayMode(null)} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"8px",color:"rgba(255,255,255,0.5)",fontSize:11,cursor:"pointer",fontFamily:SA,width:"100%"}}>‹ Changer d'option</button>
+            {payLoading&&<div style={{textAlign:"center",padding:12,color:"rgba(255,255,255,0.6)",fontSize:12}}>Enregistrement…</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT BELLA'FOOD
+// Catalogue · Commande · Suivi · Facture · Paiement
+// ═══════════════════════════════════════════════════════════
+function ClientFood({ user, onBack }) {
+  const [page,      setPage]     = React.useState("catalogue");
+  const [commandes, setCommandes]= React.useState([]);
+  const [panier,    setPanier]   = React.useState([]);
+  const [modal,     setModal]    = React.useState(null); // "commande"|"paiement"
+  const [form,      setForm]     = React.useState({nom:"",tel:"",message:"",date:""});
+  const [succes,    setSucces]   = React.useState(null);
+  const [paiement,  setPaiement] = React.useState(null);
+  const [payMode,   setPayMode]  = React.useState(null);
+  const [payLoading,setPayLoading]=React.useState(false);
+
+  const FC = "#15803d"; const FC2 = "#22c55e"; const FC3 = "#c9a96e";
+
+  const CATALOGUE_FOOD = [
+    {id:"LC",  ico:"🎂", nom:"Layer Cake",        cat:"Gâteaux",   desc:"Gâteau à étages · 2 à 5 niveaux · sur devis", prix:null, tags:["personnalisé"]},
+    {id:"BC",  ico:"🍱", nom:"Bento Cake",         cat:"Gâteaux",   desc:"Mini-gâteau individuel · 1 à 4 parts",        prix:45,   tags:[]},
+    {id:"NC",  ico:"🔢", nom:"Number Cake",        cat:"Gâteaux",   desc:"Gâteau chiffre · chiffre ou lettre",          prix:null, tags:["personnalisé"]},
+    {id:"CPC", ico:"🧁", nom:"Cupcakes",           cat:"Gâteaux",   desc:"Boîte de 6 ou 12 cupcakes décorés",           prix:30,   tags:[]},
+    {id:"GLI", ico:"🍦", nom:"Glaces artisanales", cat:"Glaces",    desc:"Parfums variés · pot ou cornet",              prix:8,    tags:[]},
+    {id:"JUS", ico:"🥤", nom:"Jus naturels",       cat:"Boissons",  desc:"Jus de fruits frais · 1 L",                  prix:6,    tags:[]},
+    {id:"BUF", ico:"🍽",  nom:"Buffet traiteur",   cat:"Traiteur",  desc:"Buffet salé · complet · à partir de 10 pers",prix:null, tags:["sur-devis"]},
+  ];
+
+  React.useEffect(() => {
+    if (!SB_URL || !user) return;
+    let actif = true;
+    const charger = async () => {
+      try {
+        const token = await getTokenAsync();
+        const nom   = [user?.prenom,user?.nom].filter(Boolean).join(" ");
+        let params  = "bu=eq.FOOD&order=created_at.desc&limit=20";
+        if (nom) params += "&client_nom=ilike.*"+encodeURIComponent(nom)+"*";
+        const r = await fetch(SB_URL+"/rest/v1/bellaia_commandes?"+params, {
+          headers:{apikey:SB_KEY, Authorization:"Bearer "+token}
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setCommandes(Array.isArray(d) ? d : []);
+      } catch(e){ console.warn('[Bellaïa][chargement]',e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, [user]);
+
+  const ajouterPanier = (p) => setPanier(prev => {
+    const idx = prev.findIndex(x=>x.id===p.id);
+    if (idx>=0) return prev.map((x,i)=>i===idx?{...x,qte:x.qte+1}:x);
+    return [...prev, {...p, qte:1}];
+  });
+
+  const totalPanier = panier.reduce((s,p)=>s+(p.prix||0)*p.qte,0);
+
+  const envoyerCommande = async () => {
+    if (!form.nom?.trim()) return;
+    setPayLoading(true);
+    const ref = await genererReference("FOOD");
+    const lignes = panier.map(p=>({libelle:p.nom,qte:p.qte,prixUnitaire:p.prix||0,total:(p.prix||0)*p.qte}));
+    const total = totalPanier;
+    // Créer dans bellaia_commandes
+    await fetch(SB_URL+"/rest/v1/bellaia_commandes", {
+      method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+(await getTokenAsync()),
+        "Content-Type":"application/json", Prefer:"return=representation"},
+      body: JSON.stringify({
+        bu:"FOOD", reference:ref, client_nom:form.nom, client_tel:form.tel,
+        statut:"BROUILLON", total, acompte:Math.round(total*0.3),
+        date_commande:new Date().toISOString().split("T")[0],
+        date_livraison:form.date||null,
+        lignes:JSON.stringify(lignes), notes:form.message,
+      })
+    }).then(async r => {
+      if (!r.ok) {
+        const e = await r.text().catch(()=>"");
+        console.error("[ClientFood] Commande non créée:", r.status, e);
+        setPayLoading(false);
+        alert("La commande n'a pas pu être enregistrée.\n"+(e||"Réessayez."));
+        return; // Pas de succès si Supabase refuse
+      }
+      // GED auto-save — non bloquant
+      gedAutoSave({titre:"Commande "+ref+" — "+form.nom, module:"FOOD",
+        categorie:"bon_commande", reference:ref, clientNom:form.nom,
+        contenuHtml:"<p>Commande "+ref+"</p><p>"+lignes.map(l=>l.libelle+" ×"+l.qte).join(", ")+"</p>",
+      }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+    }).catch(e=>console.error("[ClientFood] Erreur réseau:", e.message));
+    // Notif WhatsApp
+    const msg = "Bonjour 🍃\n\nCommande Bella'Food (Réf: "+ref+")\n"+
+      panier.map(p=>p.nom+" × "+p.qte+(p.prix?" ("+((p.prix||0)*p.qte).toFixed(2)+"€)":"")).join("\n")+
+      "\nTotal : "+(total>0?total.toFixed(2)+"€":"Sur devis")+
+      (form.date?"\nDate souhaitée : "+form.date:"")+
+      (form.message?"\nMessage : "+form.message:"")+
+      "\n\nClient : "+form.nom+(form.tel?" · "+form.tel:"");
+    window.open(WA(msg), "_blank");
+    setPayLoading(false);
+    setSucces(ref);
+    setModal(null);
+    setCommandes(prev=>[{reference:ref,client_nom:form.nom,statut:"BROUILLON",total,created_at:new Date().toISOString(),...(form.date?{date_livraison:form.date}:{})}, ...prev]);
+    setPanier([]); setForm({nom:"",tel:"",message:"",date:""});
+  };
+
+  const fmtPx = (n) => n?Number(n).toFixed(2).replace(".",",")+" €":"Sur devis";
+  const fmtDt = (s) => { try{return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}catch{return s||""} };
+  const colSt = (s) => ({BROUILLON:"#60a5fa",COMMANDE:"#22c55e",FACTURE:"#c9a96e",ACOMPTE_RECU:"#22c55e",SOLDE_RECU:"#16a34a",PRODUCTION:"#fb923c",PRET:"#a855f7",LIVRE:"#22c55e",ANNULE:"#f87171"})[s]||"rgba(255,255,255,0.4)";
+
+  const inp4 = {background:"rgba(255,255,255,0.07)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none",width:"100%",boxSizing:"border-box"};
+
+  const ONGLETS = [["catalogue","🍃","Catalogue"],["panier","🛒","Panier"],["commandes","📦","Mes commandes"],["contact","💬","Contact"]];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a0d,#070d0a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(21,128,61,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>🍃 Bella'Food</div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {panier.length>0&&<span style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:99,padding:"2px 8px",fontSize:10,color:"#4ade80",fontWeight:700}}>🛒 {panier.length}</span>}
+          <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        </div>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"6px 10px",borderBottom:"1px solid rgba(21,128,61,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {ONGLETS.map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #4ade80":"2px solid transparent"}}>
+            <span style={{fontSize:16}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#4ade80":"rgba(255,255,255,0.45)",fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 24px"}}>
+
+        {/* ── CATALOGUE ── */}
+        {page==="catalogue" && !succes && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:6}}>Notre catalogue</div>
+            {["Gâteaux","Glaces","Boissons","Traiteur"].map(cat=>(
+              <div key={cat}>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontWeight:700,letterSpacing:1,marginBottom:6,marginTop:10}}>{cat.toUpperCase()}</div>
+                {CATALOGUE_FOOD.filter(p=>p.cat===cat).map(p=>(
+                  <div key={p.id} style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.18)",borderRadius:12,padding:"11px 13px",marginBottom:7}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                      <div style={{display:"flex",gap:9}}>
+                        <span style={{fontSize:22,flexShrink:0}}>{p.ico}</span>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{p.nom}</div>
+                          <div style={{fontSize:11,color:"rgba(245,240,232,0.6)",lineHeight:1.4,marginTop:2}}>{p.desc}</div>
+                        </div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontSize:13,fontWeight:700,color:"#c9a96e",marginBottom:4}}>{fmtPx(p.prix)}</div>
+                        <button onClick={()=>ajouterPanier(p)} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:8,padding:"5px 11px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>
+                          + Ajouter
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PANIER ── */}
+        {page==="panier" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:4}}>Mon panier</div>
+            {panier.length===0&&(
+              <div style={{textAlign:"center",padding:"28px",color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>
+                Panier vide. <button onClick={()=>setPage("catalogue")} style={{background:"none",border:"none",color:"#4ade80",cursor:"pointer",fontFamily:SA}}>Voir le catalogue →</button>
+              </div>
+            )}
+            {panier.map((p,i)=>(
+              <div key={p.id} style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{p.ico} {p.nom}</div>
+                  {p.prix&&<div style={{fontSize:11,color:"#c9a96e"}}>×{p.qte} = {((p.prix||0)*p.qte).toFixed(2)}€</div>}
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <button onClick={()=>setPanier(prev=>prev.map((x,j)=>j===i?{...x,qte:Math.max(1,x.qte-1)}:x))} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:5,width:24,height:24,color:"#fff",cursor:"pointer",fontSize:14}}>−</button>
+                  <span style={{fontSize:13,color:"#fff",fontWeight:700,minWidth:20,textAlign:"center"}}>{p.qte}</span>
+                  <button onClick={()=>setPanier(prev=>prev.map((x,j)=>j===i?{...x,qte:x.qte+1}:x))} style={{background:"rgba(21,128,61,0.2)",border:"none",borderRadius:5,width:24,height:24,color:"#4ade80",cursor:"pointer",fontSize:14}}>+</button>
+                  <button onClick={()=>setPanier(prev=>prev.filter((_,j)=>j!==i))} style={{background:"rgba(248,113,113,0.1)",border:"none",borderRadius:5,width:24,height:24,color:"#f87171",cursor:"pointer",fontSize:12,marginLeft:4}}>✕</button>
+                </div>
+              </div>
+            ))}
+            {panier.length>0&&(
+              <>
+                <div style={{background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:10,padding:"10px 13px",display:"flex",justifyContent:"space-between"}}>
+                  <span style={{fontSize:13,color:"rgba(245,240,232,0.6)"}}>Total estimé</span>
+                  <span style={{fontSize:15,fontWeight:700,color:"#c9a96e"}}>{totalPanier>0?totalPanier.toFixed(2)+"€":"Sur devis"}</span>
+                </div>
+                <button onClick={()=>setModal("commande")} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:12,padding:"13px",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>
+                  ✅ Commander ({panier.length} article{panier.length>1?"s":""})
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── MES COMMANDES ── */}
+        {page==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:6}}>Mes commandes</div>
+            {commandes.length===0&&<div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>Aucune commande. Passez votre première commande !</div>}
+            {commandes.map(c=>(
+              <div key={c.id||c.reference} style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.18)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{c.reference}</div>
+                    <div style={{fontSize:10,color:"rgba(245,240,232,0.55)",marginTop:2}}>{fmtDt(c.created_at)}{c.date_livraison?" · Livraison : "+fmtDt(c.date_livraison):""}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#c9a96e"}}>{fmtPx(c.total)}</div>
+                    <span style={{fontSize:8,color:colSt(c.statut),fontWeight:700}}>{c.statut}</span>
+                  </div>
+                </div>
+                {!c.acompte_paye && c.total>0 && (
+                  <button onClick={()=>setPaiement({dossier:{...c,montant_estime:c.total,reference:c.reference,numero_devis:c.reference,client_prenom:"",client_nom:c.client_nom},facRef:c.facture_ref||c.reference})}
+                    style={{fontSize:10,padding:"5px 10px",borderRadius:7,cursor:"pointer",border:"1px solid rgba(21,128,61,0.4)",background:"rgba(21,128,61,0.12)",color:"#4ade80",fontFamily:SA,marginTop:4}}>
+                    💳 Payer l'acompte
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── CONTACT ── */}
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:4}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:4}}>Contacter Bella'Food</div>
+            <button onClick={()=>window.open(WA("Bonjour 🍃 Je souhaite une information sur Bella'Food"),"_blank")} style={{background:"rgba(21,128,61,0.1)",border:"1px solid rgba(21,128,61,0.25)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+              <span style={{fontSize:24}}>💬</span>
+              <div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>WhatsApp</div><div style={{fontSize:11,color:"rgba(245,240,232,0.6)"}}>Commandes, gâteaux personnalisés, devis</div></div>
+            </button>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.55)",textAlign:"center",lineHeight:1.6,padding:"8px 0"}}>
+              Bella'Food · Bella'Studio<br/>Sinnamary, Guyane
+            </div>
+          </div>
+        )}
+
+        {/* Succès commande */}
+        {succes && (
+          <div style={{textAlign:"center",padding:"32px 16px"}}>
+            <div style={{fontSize:56,marginBottom:12}}>🎉</div>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:8}}>Commande envoyée !</div>
+            <div style={{fontSize:12,color:"rgba(245,240,232,0.6)",marginBottom:4}}>Référence : <strong style={{color:"#4ade80"}}>{succes}</strong></div>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.55)",lineHeight:1.7,marginBottom:24}}>Votre commande a bien été enregistrée.<br/>Bella'Food vous contactera pour confirmer.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button onClick={()=>{setSucces(null);setPage("commandes");}} style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:12,padding:"11px 20px",color:"#4ade80",fontWeight:700,cursor:"pointer",fontFamily:SA}}>Voir mes commandes</button>
+              <button onClick={()=>{setSucces(null);setPage("catalogue");}} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 20px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontFamily:SA}}>Nouvelle commande</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── MODAL COMMANDE ── */}
+      {modal==="commande" && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto"}}>
+          <div style={{background:"#0d1a0d",border:"1px solid rgba(21,128,61,0.2)",borderRadius:16,padding:18,width:"100%",maxWidth:440,marginTop:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>Confirmer la commande</div>
+              <button onClick={()=>setModal(null)} style={{background:"none",border:"none",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:20}}>✕</button>
+            </div>
+            <div style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.15)",borderRadius:9,padding:"9px 11px",marginBottom:14,fontSize:11,color:"rgba(245,240,232,0.7)"}}>
+              {panier.map(p=><div key={p.id}>{p.ico} {p.nom} ×{p.qte}{p.prix?" — "+((p.prix||0)*p.qte).toFixed(2)+"€":""}</div>)}
+              {totalPanier>0&&<div style={{fontWeight:700,color:"#c9a96e",marginTop:5}}>Total : {totalPanier.toFixed(2)}€</div>}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {[["Votre nom *","nom","text"],["Téléphone","tel","tel"],["Date souhaitée","date","date"]].map(([l,k,t])=>(
+                <div key={k} style={{display:"flex",flexDirection:"column",gap:3}}>
+                  <label style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{l}</label>
+                  <input type={t} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={inp4}/>
+                </div>
+              ))}
+              <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                <label style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>Message (personnalisation, allergies…)</label>
+                <textarea rows={2} value={form.message||""} onChange={e=>setForm(f=>({...f,message:e.target.value}))} style={{...inp4,resize:"vertical"}}/>
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4}}>
+                <button onClick={envoyerCommande} disabled={!form.nom?.trim()||payLoading} style={{flex:1,background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:10,padding:"11px",color:"#fff",fontWeight:700,fontSize:12,cursor:(!form.nom?.trim()||payLoading)?"not-allowed":"pointer",fontFamily:SA,opacity:(!form.nom?.trim()||payLoading)?0.6:1}}>
+                  {payLoading?"Envoi…":"✅ Confirmer"}
+                </button>
+                <button onClick={()=>setModal(null)} style={{flex:1,background:"rgba(255,255,255,0.06)",border:"none",borderRadius:10,padding:"11px",color:"rgba(245,240,232,0.6)",fontSize:12,cursor:"pointer",fontFamily:SA}}>Annuler</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ÉCRAN PAIEMENT RÉUTILISÉ ── */}
+      {paiement && <EcranPaiement paiement={paiement} onBack={()=>setPaiement(null)} bu="FOOD"/>}
+    </div>
+  );
+}
+
 function PlaceholderUnivers({univers, onBack}) {
   const u = UNIVERS.find(x => x.id === univers);
   if (!u) return null;
@@ -1280,7 +2259,7 @@ async function refreshSessionSb() {
     console.warn("[Bellaïa][Auth] Refresh tenté — aucun refresh_token disponible");
     return false;
   }
-  console.log("[Bellaïa][Auth] Refresh tenté…");
+  if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] Refresh tenté…");
   try {
     const r = await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token", {
       method: "POST",
@@ -1290,7 +2269,7 @@ async function refreshSessionSb() {
     const d = await r.json();
     if (r.ok && d.access_token) {
       saveSession(d);
-      console.log("[Bellaïa][Auth] Refresh réussi ✅");
+      if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] Refresh réussi ✅");
       return true;
     }
     console.error("[Bellaïa][Auth] Refresh échoué ❌", r.status, d);
@@ -1310,7 +2289,7 @@ async function getTokenAsync() {
   const stored = localStorage.getItem(LS_TOKEN);
   if (!stored) return SB_KEY; // mode anon
   if (isTokenExpired()) {
-    console.log("[Bellaïa][Auth] JWT expiré — refresh automatique…");
+    if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] JWT expiré — refresh…");
     const ok = await refreshSessionSb();
     if (!ok) {
       console.warn("[Bellaïa][Auth] Session expirée — retour en mode anon");
@@ -1318,7 +2297,7 @@ async function getTokenAsync() {
     }
   }
   const fresh = localStorage.getItem(LS_TOKEN);
-  console.log("[Bellaïa][Auth] Session actuelle — token OK");
+  if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] Session OK");
   return fresh || SB_KEY;
 }
 
@@ -1346,13 +2325,9 @@ async function sbPost(table, data) {
   const token = await getTokenAsync();
   const url = (SB_URL)+"/rest/v1/"+(table);
   const headers = { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json", "Prefer": "return=representation" };
-  console.log("[sbPost] URL:", url);
-  console.log("[sbPost] Payload:", JSON.stringify(data, null, 2));
   const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(data) });
   let d = null;
   try { d = await r.json(); } catch { d = null; }
-  console.log("[sbPost] HTTP status:", r.status);
-  console.log("[sbPost] Réponse Supabase:", JSON.stringify(d, null, 2));
   if (!r.ok) {
     console.error("[sbPost] Erreur Supabase table="+table+" status="+r.status, d);
   }
@@ -1361,12 +2336,25 @@ async function sbPost(table, data) {
 
 async function sbPatch(table, id, data) {
   const token = await getTokenAsync();
-  const r = await fetch((SB_URL)+"/rest/v1/"+(table)+"?id=eq."+(id), {
-    method: "PATCH",
-    headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json", "Prefer": "return=representation" },
-    body: JSON.stringify(data),
-  });
-  return { ok: r.ok };
+  let r;
+  try {
+    r = await fetch((SB_URL)+"/rest/v1/"+(table)+"?id=eq."+(id), {
+      method: "PATCH",
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token),
+        "Content-Type": "application/json", "Prefer": "return=representation" },
+      body: JSON.stringify(data),
+    });
+  } catch(e) {
+    return { ok:false, status:0, data:null, error:e.message };
+  }
+  let d = null;
+  try { d = await r.json(); } catch {}
+  if (!r.ok) {
+    const msg = d?.message || d?.details || d?.hint || JSON.stringify(d) || "Erreur Supabase "+r.status;
+    console.error("[sbPatch:"+table+":"+id+"] "+r.status+" — "+msg);
+    return { ok:false, status:r.status, data:null, error:msg };
+  }
+  return { ok:true, status:r.status, data:Array.isArray(d)?d[0]:d, error:null };
 }
 
 async function sbDelete(table, id) {
@@ -1385,22 +2373,33 @@ async function sbDelete(table, id) {
 
 // Génère une référence lisible via la fonction SQL prochaine_reference()
 // Ex: genererReference("BE") → "BE-2026-000001"
+// Lance une erreur si la RPC échoue — aucun fallback horloge pour les références métier
 async function genererReference(prefixe) {
   const token = await getTokenAsync();
+  let errMsg = "RPC prochaine_reference indisponible";
   try {
     const r = await fetch((SB_URL)+"/rest/v1/rpc/prochaine_reference", {
       method: "POST",
-      headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json" },
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token),
+        "Content-Type": "application/json" },
       body: JSON.stringify({ p_prefixe: prefixe }),
     });
     if (r.ok) {
       const d = await r.json();
-      if (typeof d === "string") return d;
+      if (typeof d === "string" && d.length > 0) return d;
+      errMsg = "RPC retournée vide ou format inattendu: "+JSON.stringify(d);
+    } else {
+      const txt = await r.text().catch(()=>"");
+      errMsg = "HTTP "+r.status+" — "+txt.slice(0,120);
     }
-  } catch {}
-  // Fallback local si RPC indisponible (jamais bloquant pour l'utilisateur)
-  const annee = new Date().getFullYear();
-  return prefixe+"-"+annee+"-"+String(Date.now()).slice(-6);
+  } catch(e) {
+    errMsg = "Erreur réseau: "+e.message;
+  }
+  // Aucun fallback — une référence métier invalide corromprait les données
+  throw new Error(
+    "Impossible de générer la référence "+prefixe+". "+errMsg+
+    "\nVérifiez que la fonction SQL prochaine_reference() existe dans Supabase."
+  );
 }
 
 // ── Helper events_demandes — aligne le payload sur la vraie structure Supabase
@@ -1582,7 +2581,9 @@ async function creerEvenementPlanning(params, { force = false, user } = {}) {
     return { ok: false, conflits };
   }
 
-  const reference = await genererReference("PL");
+  let reference;
+  try { reference = await genererReference("PL"); }
+  catch(e) { alert(e.message); return null; }
   const evt = {
     reference,
     type_activite: typeActivite || "evenement",
@@ -2182,8 +3183,13 @@ function CrmF({ user }) {
     if (!form.nom?.trim()) return;
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit; delete d._type;
-    if (form._edit) await sbPatch("clients", form._edit, d);
-    else await sbPost("clients", d);
+    if (form._edit) {
+      const rp = await sbPatch("clients", form._edit, d);
+      if (!rp.ok) { alert("Erreur mise à jour client.\n"+(rp.error||"")); return; }
+    } else {
+      const rc = await sbPost("clients", d);
+      if (!rc.ok) { alert("Erreur création client.\n"+(rc.error||"")); return; }
+    }
     rCli(); setModal(null);
   };
 
@@ -2202,11 +3208,13 @@ function CrmF({ user }) {
       notes_internes:    prospect.notes  || "",
       fondatrice_id:     getFondId(),
     };
-    await sbPost("clients", clientData);
+    const rcConv = await sbPost("clients", clientData);
+    if (!rcConv.ok) { alert("Erreur conversion prospect.\n"+(rcConv.error||"")); return; }
     // 2. Marquer le prospect comme converti
-    await sbPatch("prospects", prospect.id, { statut: "converti", updated_at: new Date().toISOString() });
-    // 3. Enregistrer l'activité
-    await sbPost("client_activities", {
+    const rProspConv = await sbPatch("prospects", prospect.id, { statut: "converti", updated_at: new Date().toISOString() });
+    if (!rProspConv.ok) console.error("[convertirProspect] sbPatch prospects:", rProspConv.error);
+    // 3. Enregistrer l'activité (non bloquant)
+    sbPost("client_activities", {
       type_activite: "note",
       notes:         "Converti depuis prospect le "+(today()),
       date_activite: today(),
@@ -2220,8 +3228,13 @@ function CrmF({ user }) {
     if (!form.nom?.trim()) return;
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit; delete d._type;
-    if (form._edit) await sbPatch("prospects", form._edit, d);
-    else await sbPost("prospects", d);
+    if (form._edit) {
+      const rpp = await sbPatch("prospects", form._edit, d);
+      if (!rpp.ok) { alert("Erreur mise à jour prospect.\n"+(rpp.error||"")); return; }
+    } else {
+      const rpn = await sbPost("prospects", d);
+      if (!rpn.ok) { alert("Erreur création prospect.\n"+(rpn.error||"")); return; }
+    }
     rPro(); setModal(null);
   };
 
@@ -2469,7 +3482,7 @@ function FinancesP1({ user }) {
     if (inv?.id && formItems.length > 0) {
       for (const [idx, item] of formItems.entries()) {
         if (!item.desc) continue;
-        await sbPost("invoice_items", {
+        const riItem = await sbPost("invoice_items", {
           invoice_id:   inv.id,
           designation:  item.desc,
           quantite:     parseFloat(item.qte)||1,
@@ -2498,7 +3511,7 @@ function FinancesP1({ user }) {
     if (q?.id && formItems.length > 0) {
       for (const [idx, item] of formItems.entries()) {
         if (!item.desc) continue;
-        await sbPost("quote_items", {
+        const rqItem = await sbPost("quote_items", {
           quote_id:     q.id,
           designation:  item.desc,
           quantite:     parseFloat(item.qte)||1,
@@ -2523,13 +3536,15 @@ function FinancesP1({ user }) {
 
   const createPayment = async () => {
     if (!form.montant) return;
-    await sbPost("payments", { ...form, fondatrice_id: getFondId() });
+    const rPay = await sbPost("payments", { ...form, fondatrice_id: getFondId() });
+    if (!rPay.ok) { alert("Erreur enregistrement paiement.\n"+(rPay.error||"")); return; }
     rPay(); rInv(); setModal(null);
   };
 
   const createExpense = async () => {
     if (!form.designation?.trim() || !form.montant) return;
-    await sbPost("expenses", { ...form, fondatrice_id: getFondId() });
+    const rExp = await sbPost("expenses", { ...form, fondatrice_id: getFondId() });
+    if (!rExp.ok) { alert("Erreur enregistrement dépense.\n"+(rExp.error||"")); return; }
     rExp(); setModal(null);
   };
 
@@ -2889,8 +3904,13 @@ function PlanningHorairesF({ user }) {
       pause_debut: form.pause_debut || null, pause_fin: form.pause_fin || null,
       est_ferme: !!form.est_ferme,
     };
-    if (form._id) await sbPatch("planning_horaires", form._id, d);
-    else await sbPost("planning_horaires", d);
+    if (form._id) {
+      const rPH = await sbPatch("planning_horaires", form._id, d);
+      if (!rPH.ok) console.error("[planning_horaires] patch:", rPH.error);
+    } else {
+      const rPHn = await sbPost("planning_horaires", d);
+      if (!rPHn.ok) console.error("[planning_horaires] post:", rPHn.error);
+    }
     setModal(false); setForm({}); reload();
   };
 
@@ -3327,7 +4347,7 @@ function CalendrierP1({ user }) {
     const d = { ...form, fondatrice_id: user?.id, updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("calendar_events", form._edit, d);
-    else await sbPost("calendar_events", d);
+    else (await sbPost("calendar_events", d)).ok || console.error("[calendar_eve] post échec");
     reload(); setModal(null);
   };
 
@@ -3448,7 +4468,7 @@ function DocumentsP1({ user }) {
     const d = { ...form, fondatrice_id: user?.id, updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("documents", form._edit, d);
-    else await sbPost("documents", d);
+    else (await sbPost("documents", d)).ok || console.error("[documents] post échec");
     reload(); setModal(null);
   };
 
@@ -3712,7 +4732,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <Fld label="Paiement"><Sel value={form.pmt||"WhatsApp"} onChange={e=>setForm({...form,pmt:e.target.value})} options={["WhatsApp","SumUp","Stripe","PayPal","Revolut","Espèces"]}/></Fld>
         </div>
         <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
-        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.client?.trim())return;const id=form._edit||"BSH-"+Date.now().toString().slice(-6);if(form._edit)await setCommandes(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setCommandes(p=>[...p,{...form,id}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.client?.trim())return;const id=form._edit||await genererReference("BSH");if(form._edit)await setCommandes(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setCommandes(p=>[...p,{...form,id}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="cli"&&<Mdl title={form._edit?"Modifier":"Nouvelle cliente"} onClose={()=>setModal(null)}>
         <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Nom complet"/></Fld>
@@ -4153,6 +5173,10 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
   if (activeUnivers === "bsh") return <ClientBSH produits={produits} evenements={evenements} onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
   if (activeUnivers === "bo")  return <ClientOdyssee user={user} rdvs={mesReservations} onBack={() => setActiveUnivers(null)}/>;
   if (activeUnivers === "bev") return <ClientEvents onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
+  if (activeUnivers === "bfd")   return <ClientFood user={user} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "vilo")  return <ClientVilo user={user} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "bse")   return <ClientEditions user={user} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "mtp")   return <ClientMoTiPeyi user={user} onBack={() => setActiveUnivers(null)}/>;
   if (activeUnivers)           return <PlaceholderUnivers univers={activeUnivers} onBack={() => setActiveUnivers(null)}/>;
 
   const UNIVERS_CLIENT = [
@@ -4239,6 +5263,221 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
 // ═══════════════════════════════════════════════════════════
 // ESPACE HÔTE — données isolées par user_id
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// HoteOdyssee — Espace Talent / Technicienne beauté
+// Planning · Missions · Contrats · Paiements · Documents
+// ═══════════════════════════════════════════════════════════
+function HoteOdyssee({ user, onBack }) {
+  const [onglet, setOnglet] = React.useState("planning");
+  const [missions, setMissions] = React.useState([]);
+  const [loading,  setLoading]  = React.useState(false);
+  const [source,   setSource]   = React.useState("local");
+
+  const BO_ACC = "#9b59b6";
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL || !user) return;
+      setLoading(true);
+      try {
+        const token = await getTokenAsync();
+        const nom   = [user?.prenom, user?.nom].filter(Boolean).join(" ");
+        const r = await fetch(
+          SB_URL+"/rest/v1/bellaia_commandes?bu=eq.ODYSSEE&order=date_livraison.asc&limit=50",
+          { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+        );
+        const d = r.ok ? await r.json() : [];
+        if (actif) {
+          setMissions(Array.isArray(d) ? d : []);
+          if (d.length > 0) setSource("supabase");
+        }
+      } catch(e) { console.warn("[HoteOdyssee]", e.message); }
+      finally { if (actif) setLoading(false); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, [user]);
+
+  const fmtDt  = (s) => { try { return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s||""; } };
+  const colSt  = (s) => ({BROUILLON:"#60a5fa",COMMANDE:"#22c55e",PRODUCTION:"#fb923c",PRET:"#a855f7",LIVRE:"#16a34a",ANNULE:"#f87171"})[s]||"rgba(255,255,255,0.4)";
+
+  const ONGLETS = [
+    {id:"planning",  ico:"📅", l:"Planning"},
+    {id:"missions",  ico:"🎯", l:"Missions"},
+    {id:"contrats",  ico:"📝", l:"Contrats"},
+    {id:"paiements", ico:"💰", l:"Paiements"},
+    {id:"documents", ico:"📁", l:"Documents"},
+  ];
+
+  const imprimerFicheMission = (m) => {
+    const lignes = m.lignes ? (typeof m.lignes==="string"?JSON.parse(m.lignes):m.lignes) : [];
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Fiche Mission ${m.reference||""}</title>
+<style>body{font-family:Arial,sans-serif;padding:28px;max-width:640px;margin:0 auto;color:#111;font-size:13px}
+h1{color:#9b59b6;font-size:18px;border-bottom:2px solid #9b59b6;padding-bottom:6px}
+@media print{button{display:none}}</style></head><body>
+<h1>💅 Bella'Odyssée — Fiche Mission</h1>
+<p><strong>Référence :</strong> ${m.reference||"—"}</p>
+<p><strong>Client :</strong> ${m.client_nom||"—"}</p>
+<p><strong>Date :</strong> ${fmtDt(m.date_livraison||m.date_commande||"")}</p>
+${lignes.length>0?"<p><strong>Prestation :</strong> "+lignes.map(l=>l.libelle).join(", ")+"</p>":""}
+<p><strong>Total :</strong> <strong style="color:#9b59b6">${m.total?Number(m.total).toFixed(2)+"€":"Sur devis"}</strong></p>
+<p style="margin-top:20px;color:#6b7280;font-size:11px">Bella'Odyssée · Bella'Studio · Sinnamary, Guyane</p>
+</body></html>`;
+    const w = window.open("","_blank");
+    if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);}
+    // GED auto-save
+    gedAutoSave({titre:"Fiche mission "+(m.reference||""), module:"ODYSSEE", categorie:"fiche_mission",
+      reference:m.reference, clientNom:m.client_nom, entiteId:m.id, entiteTable:"bellaia_commandes"
+    }).catch(e=>console.warn("[GED]",e.message));
+  };
+
+  const missionsPlanning = missions.filter(m => ["COMMANDE","PRODUCTION","PRET"].includes(m.statut))
+    .sort((a,b) => (a.date_livraison||"") < (b.date_livraison||"") ? -1 : 1);
+  const missionsTerminees = missions.filter(m => ["LIVRE","CLOTURE"].includes(m.statut));
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#1a0a1e,#07050a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(155,89,182,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div>
+          <div style={{fontFamily:FS,fontSize:14,color:"#c9a96e"}}>💅 Espace Talent Odyssée</div>
+          <div style={{fontSize:9,color:"rgba(155,89,182,0.8)"}}>
+            {source==="supabase"?"✅ Synchronisé":"📦 Local"} · {missions.length} mission{missions.length>1?"s":""}
+          </div>
+        </div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+      </div>
+
+      <div style={{display:"flex",overflowX:"auto",padding:"6px 12px",borderBottom:"1px solid rgba(155,89,182,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0,gap:2}}>
+        {ONGLETS.map(o=>(
+          <button key={o.id} onClick={()=>setOnglet(o.id)} style={{padding:"5px 10px",borderRadius:99,border:"none",cursor:"pointer",fontSize:9,fontWeight:700,whiteSpace:"nowrap",fontFamily:SA,background:onglet===o.id?BO_ACC:"transparent",color:onglet===o.id?"#fff":"rgba(255,255,255,0.45)"}}>
+            {o.ico} {o.l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 28px"}}>
+
+        {/* ── PLANNING ── */}
+        {onglet==="planning" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Planning à venir</div>
+            {loading && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)"}}>Chargement…</div>}
+            {!loading && missionsPlanning.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune mission planifiée.</div>
+            )}
+            {missionsPlanning.map(m=>(
+              <div key={m.id} style={{background:"rgba(155,89,182,0.08)",border:"1px solid rgba(155,89,182,0.2)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                    <div style={{fontSize:11,color:"rgba(245,240,232,0.6)"}}>{m.client_nom}</div>
+                  </div>
+                  <span style={{fontSize:9,color:colSt(m.statut),fontWeight:700}}>{m.statut}</span>
+                </div>
+                <div style={{fontSize:10,color:"rgba(155,89,182,0.9)",fontWeight:700}}>
+                  📅 {fmtDt(m.date_livraison||m.date_commande||"")}
+                  {m.total?" · "+(Number(m.total).toFixed(2).replace(".",","))+" €":""}
+                </div>
+                <div style={{display:"flex",gap:6,marginTop:6}}>
+                  <button onClick={()=>imprimerFicheMission(m)} style={{fontSize:9,padding:"3px 8px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(201,168,76,0.4)",background:"transparent",color:"#c9a96e",fontFamily:SA}}>📄 Fiche</button>
+                  <button onClick={()=>window.open(WA(`Planning Bella'Odyssée — Mission ${m.reference}\nClient : ${m.client_nom}\nDate : ${fmtDt(m.date_livraison||"")}`),"_blank")} style={{fontSize:9,padding:"3px 8px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(37,211,102,0.3)",background:"transparent",color:"#25d366",fontFamily:SA}}>💬 WA</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MISSIONS ── */}
+        {onglet==="missions" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Toutes mes missions</div>
+            {missions.length===0 && !loading && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune mission assignée.</div>
+            )}
+            {missions.map(m=>(
+              <div key={m.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                  <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{m.client_nom} · {fmtDt(m.date_livraison||m.date_commande||"")}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#c9a96e"}}>{m.total?Number(m.total).toFixed(2).replace(".",",")+" €":"—"}</div>
+                  <span style={{fontSize:8,color:colSt(m.statut),fontWeight:700}}>{m.statut}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── CONTRATS ── */}
+        {onglet==="contrats" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Contrats & fiches</div>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.5)",fontStyle:"italic",marginBottom:8}}>
+              Imprimez une fiche mission depuis l'onglet Planning.
+            </div>
+            {missions.map(m=>(
+              <div key={m.id} style={{background:"rgba(155,89,182,0.06)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                  <div style={{fontSize:10,color:"rgba(245,240,232,0.5)"}}>{fmtDt(m.date_livraison||"")}</div>
+                </div>
+                <button onClick={()=>imprimerFicheMission(m)} style={{fontSize:10,padding:"5px 10px",borderRadius:7,cursor:"pointer",border:"1px solid rgba(201,168,76,0.4)",background:"transparent",color:"#c9a96e",fontFamily:SA}}>📄 Imprimer</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PAIEMENTS ── */}
+        {onglet==="paiements" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes paiements</div>
+            <div style={{background:"rgba(155,89,182,0.1)",border:"1px solid rgba(155,89,182,0.2)",borderRadius:10,padding:"10px 13px",marginBottom:4}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#9b59b6"}}>
+                Total missions terminées : {missionsTerminees.reduce((s,m)=>s+(m.total||0),0).toFixed(2).replace(".",",")} €
+              </div>
+            </div>
+            {missionsTerminees.length===0 && (
+              <div style={{textAlign:"center",padding:"16px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucun paiement enregistré.</div>
+            )}
+            {missionsTerminees.map(m=>(
+              <div key={m.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                  <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{m.client_nom} · {fmtDt(m.date_livraison||"")}</div>
+                </div>
+                <div style={{fontSize:14,fontWeight:700,color:"#22c55e"}}>{m.total?Number(m.total).toFixed(2).replace(".",",")+" €":"—"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── DOCUMENTS ── */}
+        {onglet==="documents" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes documents</div>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.5)",lineHeight:1.7}}>
+              Les documents générés (fiches mission, contrats) apparaissent automatiquement ici après impression depuis l'onglet Planning ou Contrats.
+            </div>
+            {missions.filter(m=>m.statut!=="BROUILLON").map(m=>(
+              <div key={m.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>📄 Fiche {m.reference}</div>
+                  <div style={{fontSize:9,color:"rgba(245,240,232,0.5)"}}>{m.client_nom}</div>
+                </div>
+                <button onClick={()=>imprimerFicheMission(m)} style={{fontSize:9,padding:"4px 9px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(201,168,76,0.35)",background:"transparent",color:"#c9a96e",fontFamily:SA}}>📄 Ouvrir</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 function EspaceHote({ user, onLogout }) {
   const [ong, setOng] = useState("planning");
   const [missions, setMissions] = useState([]);
@@ -4591,7 +5830,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId() };
     delete d._edit;
     if (form._edit) await sbPatch("collections", form._edit, d);
-    else await sbPost("collections", d);
+    else (await sbPost("collections", d)).ok || console.error("[collections] post échec");
     rCol(); setModal(null);
   };
 
@@ -4600,7 +5839,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("projets_editoriaux", form._edit, d);
-    else await sbPost("projets_editoriaux", d);
+    else (await sbPost("projets_editoriaux", d)).ok || console.error("[projets_edit] post échec");
     rPro(); setModal(null);
   };
 
@@ -4609,7 +5848,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("tomes", form._edit, d);
-    else await sbPost("tomes", d);
+    else (await sbPost("tomes", d)).ok || console.error("[tomes] post échec");
     rTom(); setModal(null);
   };
 
@@ -4618,7 +5857,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("chapitres", form._edit, d);
-    else await sbPost("chapitres", d);
+    else (await sbPost("chapitres", d)).ok || console.error("[chapitres] post échec");
     rChap(); setModal(null);
   };
 
@@ -4981,13 +6220,13 @@ function BellaStructureF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("structure_modeles", form._edit, d);
-    else await sbPost("structure_modeles", d);
+    else (await sbPost("structure_modeles", d)).ok || console.error("[structure_mo] post échec");
     rMod(); setModal(null);
   };
 
   const saveBacklog = async () => {
     if (!form.titre?.trim()) return;
-    await sbPost("structure_backlog", { ...form, fondatrice_id: getFondId(), statut: "backlog" });
+    const _rsb = await sbPost("structure_backlog", { ...form, fondatrice_id: getFondId(), statut: "backlog" });
     rBack(); setModal(null);
   };
 
@@ -5252,7 +6491,7 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }) {
     return (
       <Mdl title={"Devis "+numDevis+" — Envoi"} onClose={onValide}>
         <div style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:12,padding:14,marginBottom:14}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#10b981",marginBottom:4}}>✅ Devis généré — "+numDevis+"</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#10b981",marginBottom:4}}>✅ Devis généré — {numDevis}</div>
           <div style={{fontSize:11,color:B.muted}}>Statut mis à jour → devis_envoyé · Notification interne créée</div>
         </div>
         <div style={{marginBottom:12}}>
@@ -5385,7 +6624,7 @@ function BellaEventsF({ user }) {
         setDemandesEvents([]);
       } else {
         const rows = await r.json();
-        console.log("[Bellaïa][events_demandes] "+(rows?.length||0)+" demande(s) récupérée(s).");
+        
         setDemandesEvents(Array.isArray(rows) ? rows : []);
       }
     } catch (e) {
@@ -5411,7 +6650,8 @@ function BellaEventsF({ user }) {
 
   const changerStatut = async (d, statut) => {
     const ancienStatut = d.statut;
-    await sbPatch("events_demandes", d.id, { statut, updated_at: new Date().toISOString() });
+    const rPatch6296 = await sbPatch("events_demandes", d.id, { statut, updated_at: new Date().toISOString() });
+    if (!rPatch6296.ok) console.error("[changerStatut] Patch events_demandes échoué:", rPatch6296.error);
     await ecrireAudit({
       module: "events_demandes", entiteId: d.id, entiteRef: d.reference,
       action: "changement_statut", ancienStatut, nouveauStatut: statut, user,
@@ -5422,7 +6662,7 @@ function BellaEventsF({ user }) {
   // Création manuelle d'un devis interne par la fondatrice — écrit dans events_demandes
   const creerDevisInterne = async () => {
     if (!formDevis.client?.trim() || !formDevis.tel?.trim()) { alert("Client et téléphone requis."); return; }
-    const ref = "EV" + Date.now().toString().slice(-6);
+    const ref = await genererReference("BE");
     const reference = await genererReference("BE");
     const montantNum = parseFloat(formDevis.montant) || 0;
     const acompteNum = parseFloat(formDevis.acompte) || 0;
@@ -5489,7 +6729,11 @@ function BellaEventsF({ user }) {
       notes: "Convertie depuis demande "+(d.reference||d.id),
       fondatrice_id: user?.id,
     };
-    await sbPost("events_commandes", cmd);
+    const rECmd = await sbPost("events_commandes", cmd);
+    if (!rECmd.ok) {
+      alert("La commande n'a pas pu être créée.\n"+(rECmd.error||"Réessayez."));
+      return;
+    }
     await ecrireAudit({
       module: "events_commandes", entiteId: d.id, entiteRef: referenceCmd,
       action: "creation", commentaire: "Convertie depuis demande "+(d.reference||d.id), user,
@@ -5706,7 +6950,7 @@ function BellaEventsCatalogue({ user }) {
     const d = {...form, fondatrice_id:user?.id, updated_at:new Date().toISOString()};
     delete d._edit;
     if (form._edit) await sbPatch("events_catalogue", form._edit, d);
-    else await sbPost("events_catalogue", d);
+    else { const _rec = await sbPost("events_catalogue", d); if (!_rec.ok) console.error("[events_catalogue]", _rec.error); }
     reload(); setModal(null);
   };
 
@@ -5790,14 +7034,16 @@ function BellaEventsCommandes({ user }) {
     const d = {...form, fondatrice_id:user?.id};
     delete d._edit;
     if (form._edit) {
-      await sbPatch("events_commandes", form._edit, d);
+      const rEC7030 = await sbPatch("events_commandes", form._edit, d);
+      if (!rEC7030.ok) { alert("Erreur mise à jour commande.\\n"+(rEC7030.error||"")); return; }
       if (ancienStatut && ancienStatut !== d.statut) {
         await ecrireAudit({ module:"events_commandes", entiteId:form._edit, entiteRef:d.reference, action:"changement_statut", ancienStatut, nouveauStatut:d.statut, user });
       }
     } else {
       const reference = await genererReference("BEC");
       d.reference = reference;
-      await sbPost("events_commandes", d);
+      const rEc3 = await sbPost("events_commandes", d);
+    if (!rEc3.ok) { alert("Erreur création commande.\n"+(rEc3.error||"")); return; }
       await ecrireAudit({ module:"events_commandes", entiteId:reference, entiteRef:reference, action:"creation", nouveauStatut:d.statut, user });
     }
     reload(); setModal(null);
@@ -5869,7 +7115,7 @@ function BellaEventsDocuments({ user }) {
     const d = {...form, fondatrice_id:user?.id, pole:"EVENTS", updated_at:new Date().toISOString()};
     delete d._edit;
     if (form._edit) await sbPatch("documents", form._edit, d);
-    else await sbPost("documents", d);
+    else (await sbPost("documents", d)).ok || console.error("[documents] post échec");
     reload(); setModal(null);
   };
 
@@ -6251,9 +7497,34 @@ function DevisClientView({ dossier, onAccepte, onRefuse }) {
         Devis valable 30 jours · Acompte de 30% requis à la confirmation · Prestation garantie après réception de l'acompte.
       </div>
 
-      {/* Bouton PDF */}
-      <button disabled style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px dashed rgba(255,255,255,0.15)",borderRadius:10,padding:"10px",color:"rgba(255,255,255,0.35)",fontSize:12,fontFamily:SA,cursor:"not-allowed",marginBottom:8,textAlign:"center"}}>
-        📄 Télécharger le devis PDF — bientôt disponible
+      {/* Bouton PDF devis — génération HTML + impression */}
+      <button onClick={() => {
+        const lignesHtml = lignes.map(l =>
+          `<tr><td>${l.libelle}${l.qte>1?" ×"+l.qte:""}</td><td style="text-align:right;font-weight:600">${l.total?l.total+"€":"À confirmer"}</td></tr>`
+        ).join("");
+        const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Devis ${dossier.numero_devis||""}</title>
+<style>body{font-family:Arial,sans-serif;padding:30px;max-width:680px;margin:0 auto;color:#111;font-size:13px}
+h1{color:#0d6e3f;font-size:20px;border-bottom:2px solid #0d6e3f;padding-bottom:6px}
+table{width:100%;border-collapse:collapse;margin:16px 0}
+td{padding:7px 4px;border-bottom:1px solid #e5e7eb}
+.total{font-size:16px;font-weight:700;color:#0d6e3f}.muted{color:#6b7280;font-size:11px}
+.acompte{background:#fef9ec;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin:12px 0}
+@media print{button{display:none}}</style></head><body>
+<h1>🌿 Bella'Events — Devis</h1>
+<p><strong>Référence :</strong> ${dossier.numero_devis||"—"}</p>
+<p><strong>Client :</strong> ${[dossier.client_prenom,dossier.client_nom].filter(Boolean).join(" ")||"—"}</p>
+<p><strong>Prestation :</strong> ${dossier.prestation||dossier.type_evenement||"—"}</p>
+<p><strong>Date événement :</strong> ${dossier.date_evenement||"—"}</p>
+<table><thead><tr><th style="text-align:left">Prestation</th><th style="text-align:right">Montant</th></tr></thead>
+<tbody>${lignesHtml||"<tr><td>Prestation événementielle</td><td style='text-align:right'>${total}€</td></tr>"}</tbody></table>
+<div style="text-align:right"><span class="total">Total : ${total}€</span></div>
+<div class="acompte"><strong>Acompte (30%) :</strong> ${acompte}€ — <strong>Solde :</strong> ${solde}€</div>
+<p class="muted">Devis valable 30 jours · Bella'Studio · Sinnamary, Guyane</p>
+</body></html>`;
+        const w = window.open("","_blank");
+        if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);}
+      }} style={{width:"100%",background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.35)",borderRadius:10,padding:"10px",color:"#10b981",fontWeight:700,fontSize:12,fontFamily:SA,cursor:"pointer",marginBottom:8,textAlign:"center"}}>
+        📄 Télécharger / Imprimer le devis
       </button>
 
       {/* Réponse client */}
@@ -6294,11 +7565,193 @@ function DevisClientView({ dossier, onAccepte, onRefuse }) {
   );
 }
 
-function PortailSuiviClient({ onBack }) {
-  const [ref,     setRef]     = useState("");
-  const [dossier, setDossier] = useState(null);
+// ═══════════════════════════════════════════════════════════
+// Composants sous-portail client — Paiements + Documents
+// ═══════════════════════════════════════════════════════════
+
+function PaiementsClient({ dossiersIds, fmtPx, fmtDos }) {
+  const [paiements, setPaiements] = React.useState([]);
+  const [loading,   setLoading]   = React.useState(false);
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!dossiersIds?.length || !SB_URL) return;
+      setLoading(true);
+      try {
+        const token = await getTokenAsync();
+        const ids   = dossiersIds.slice(0,20).map(id => "source_id.eq."+id).join(",");
+        const r = await fetch(
+          SB_URL+"/rest/v1/bellaia_paiements?or=("+ids+")&order=date_paiement.desc&limit=50",
+          { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+        );
+        const data = r.ok ? await r.json() : [];
+        if (actif) setPaiements(Array.isArray(data) ? data : []);
+      } catch(e) {
+        console.error("[PaiementsClient]", e);
+        if (actif) setPaiements([]);
+      } finally {
+        if (actif) setLoading(false);
+      }
+    };
+    charger();
+    return () => { actif = false; };
+  }, [dossiersIds]);
+
+  const STATUT_COL = { confirme:"#22c55e", en_attente:"#fb923c", echoue:"#f87171", annule:"#f87171" };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+      <div style={{fontFamily:"Georgia,'Times New Roman',serif",fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes paiements</div>
+      {loading && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)"}}>Chargement…</div>}
+      {!loading && paiements.length===0 && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>Aucun paiement enregistré.</div>}
+      {paiements.map(p=>(
+        <div key={p.id} style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:12,padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{p.reference}</div>
+            <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{p.notes?.slice(0,40)||p.mode_paiement||"Paiement"}</div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2}}>{fmtDos(p.date_paiement)}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#22c55e"}}>{fmtPx(p.montant)}</div>
+            <span style={{fontSize:9,color:STATUT_COL[p.statut]||"rgba(245,240,232,0.6)",fontWeight:700}}>{p.statut}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DocumentsClient({ dossiersRefs, fmtDos }) {
+  const [docs,    setDocs]    = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      setLoading(true);
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(SB_URL+"/rest/v1/bellaia_documents?module=eq.EVENTS&order=created_at.desc&limit=30", {
+          headers:{ apikey:SB_KEY, Authorization:"Bearer "+token }
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setDocs(Array.isArray(d) ? d : []);
+      } catch(e) { console.warn("[Bellaïa][chargement]", e.message); }
+      finally { if (actif) setLoading(false); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, []);
+
+  const imprimerDoc = (doc) => {
+    if (doc.contenu_html) {
+      const w = window.open("","_blank");
+      if(w){w.document.write(doc.contenu_html);w.document.close();setTimeout(()=>w.print(),400);}
+    } else {
+      window.open(WA("Bonjour, je souhaite télécharger le document : "+doc.titre+" ("+doc.reference+")"), "_blank");
+    }
+  };
+
+  const TYPE_ICO = { devis:"📄", facture:"🧾", contrat:"📝", bon_commande:"📦", recu:"💳", autre:"📁" };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+      <div style={{fontFamily:"Georgia,'Times New Roman',serif",fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes documents</div>
+      {loading && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)"}}>Chargement…</div>}
+      {!loading && docs.length===0 && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>Aucun document disponible.<br/>Les documents apparaîtront ici après validation de votre devis.</div>}
+      {docs.map(doc=>(
+        <div key={doc.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",display:"flex",gap:12,alignItems:"center"}}>
+          <span style={{fontSize:22,flexShrink:0}}>{TYPE_ICO[doc.categorie]||"📁"}</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{doc.titre}</div>
+            <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{doc.reference} · {fmtDos(doc.created_at)}</div>
+            <span style={{fontSize:9,color:"rgba(245,240,232,0.5)"}}>{doc.statut}</span>
+          </div>
+          <button onClick={()=>imprimerDoc(doc)} style={{background:"rgba(201,168,76,0.12)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:7,padding:"5px 10px",color:"#c9a96e",fontSize:10,cursor:"pointer",fontFamily:"system-ui,sans-serif",flexShrink:0}}>
+            📄 Voir
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Fonction GED auto-save — appelée après tout document créé
+// ═══════════════════════════════════════════════════════════
+async function gedAutoSave({ titre, module, categorie, reference, clientNom, contenuHtml, entiteId, entiteTable }) {
+  if (!SB_URL) return null;
+  try {
+    const docRef = await genererReference("DOC");
+    const r = await fetch(SB_URL+"/rest/v1/bellaia_documents", {
+      method:"POST",
+      headers:{ apikey:SB_KEY, Authorization:"Bearer "+(await getTokenAsync()),
+        "Content-Type":"application/json", Prefer:"return=representation" },
+      body: JSON.stringify({
+        reference:    docRef,
+        titre:        titre,
+        module:       module||"EVENTS",
+        categorie:    categorie||"autre",
+        type_fichier: contenuHtml?"html":"texte",
+        contenu_html: contenuHtml||null,
+        client_nom:   clientNom||null,
+        entite_table: entiteTable||null,
+        entite_id:    entiteId||null,
+        statut:       "final",
+        version:      1,
+      }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return Array.isArray(d)?d[0]?.id:d?.id;
+  } catch { return null; }
+}
+
+function PortailSuiviClient({ onBack, user }) {
+  const [ref,        setRef]        = useState("");
+  const [dossier,    setDossier]    = useState(null);
+  const [dossiers,   setDossiers]   = useState([]);
   const [chargement, setChargement] = useState(false);
-  const [erreur,  setErreur]  = useState("");
+  const [erreur,     setErreur]     = useState("");
+  const [onglet,     setOnglet]     = useState("demandes");
+  const [paiement,   setPaiement]   = useState(null); // {dossier, option:"acompte"|"total"}
+  const [payMode,    setPayMode]    = useState(null); // "sumup"|"paypal"|"virement"|"especes"|"cheque"
+  const [payLoading, setPayLoading] = useState(false);
+  const [paySucces,  setPaySucces]  = useState(null); // ref PAY-
+
+  // ── Chargement automatique des dossiers du client ────────
+  React.useEffect(() => {
+    const chargerAuto = async () => {
+      if (!SB_URL) return;
+      setChargement(true);
+      try {
+        const token = await getTokenAsync();
+        const h = { apikey:SB_KEY, Authorization:"Bearer "+token };
+        // Chercher par email, tel, ou nom/prénom
+        const tel   = (user?.telephone || user?.tel || "").replace(/\D/g,"");
+        const email = user?.email || "";
+        // Identification par email puis téléphone uniquement (pas par nom — trop peu fiable)
+        let url = SB_URL+"/rest/v1/events_demandes?order=created_at.desc&limit=50&select=*";
+        if (email && tel) {
+          url += "&or=(client_email.eq."+encodeURIComponent(email)+",client_tel.eq."+encodeURIComponent(tel)+")";
+        } else if (email) {
+          url += "&client_email=eq."+encodeURIComponent(email);
+        } else if (tel) {
+          url += "&client_tel=eq."+encodeURIComponent(tel);
+        }
+        // Si ni email ni tel : ne pas charger — attendre la recherche manuelle
+        const r = await fetch(url, { headers:h });
+        if (r.ok) {
+          const rows = await r.json();
+          if (Array.isArray(rows) && rows.length > 0) setDossiers(rows);
+        }
+      } catch {}
+      setChargement(false);
+    };
+    if (user) chargerAuto();
+  }, [user]);
 
   const rechercher = async () => {
     if (!ref.trim()) return;
@@ -6306,20 +7759,364 @@ function PortailSuiviClient({ onBack }) {
     try {
       const token = await getTokenAsync();
       const r = await fetch(
-        (SB_URL)+"/rest/v1/events_demandes?reference=eq."+encodeURIComponent(ref.trim())+"&select=*&limit=1",
-        { headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json" } }
+        SB_URL+"/rest/v1/events_demandes?reference=eq."+encodeURIComponent(ref.trim())+"&select=*&limit=1",
+        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
       );
       const rows = await r.json();
       if (!r.ok || !rows?.length) {
-        setErreur("Aucune demande trouvée pour la référence " + ref.trim() + ". Vérifiez la référence reçue par message.");
+        setErreur("Aucune demande trouvée pour « "+ref.trim()+" ».");
       } else {
         setDossier(rows[0]);
+        setDossiers(prev => {
+          const exists = prev.find(d=>d.id===rows[0].id);
+          return exists ? prev : [rows[0], ...prev];
+        });
       }
-    } catch {
-      setErreur("Connexion impossible. Réessayez dans un instant.");
-    }
+    } catch { setErreur("Connexion impossible."); }
     setChargement(false);
   };
+
+  // ── Acceptation devis → déclenchement paiement ──────────
+  const onAccepterDevis = async (dos) => {
+    const now = new Date().toISOString();
+
+    // ── Anti-doublon : si déjà accepté, aller au paiement directement ──
+    if (dos.liaison_comptable) {
+      setPaiement({dossier:dos, facRef:dos.liaison_comptable, cmdRef:""});
+      return;
+    }
+
+    // ── Étape 1 : Enregistrer l'acceptation — INTERROMPRE si échec ────────
+    const patchResult = await sbPatch("events_demandes", dos.id, {
+      statut:"accepte", client_reponse:"accepte", client_reponse_at:now,
+    });
+    if (!patchResult.ok) {
+      alert("Erreur lors de l'enregistrement de votre acceptation.\n"+
+            (patchResult.error || "Statut HTTP "+patchResult.status));
+      return; // Arrêt immédiat — aucune commande ni facture créée
+    }
+
+    const clientNom = [dos.client_prenom,dos.client_nom].filter(Boolean).join(" ");
+    const total     = dos.montant_estime || 0;
+    const acompte   = Math.round(total * 0.3);
+    const solde     = total - acompte;
+    let   cmdRef    = "";
+    let   cmdId     = "";
+    let   facRef    = "";
+    let   facId     = "";
+
+    // ── Étape 2 : Commande (anti-doublon source_id) — INTERROMPRE si création échoue ──
+    try {
+      const token     = await getTokenAsync();
+      const rExistCmd = await fetch(
+        SB_URL+"/rest/v1/bellaia_commandes?source_id=eq."+dos.id+"&limit=1&select=id,reference",
+        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+      );
+      const existCmdRows = rExistCmd.ok ? await rExistCmd.json() : [];
+
+      if (existCmdRows.length > 0) {
+        // Commande déjà créée — récupérer les IDs
+        cmdRef = existCmdRows[0].reference;
+        cmdId  = existCmdRows[0].id;
+      } else {
+        // Créer la commande avec genererReference()
+        try { cmdRef = await genererReference("CMD"); }
+        catch(e) { alert(e.message); return; }
+        const resCMD = await sbPost("bellaia_commandes", {
+          bu:           "EVENTS",
+          reference:    cmdRef,
+          source_table: "events_demandes",
+          source_id:    dos.id,
+          client_nom:   clientNom,
+          client_tel:   dos.client_tel || null,
+          statut:       "COMMANDE",
+          total,
+          acompte,
+          solde,
+          date_commande:now.split("T")[0],
+          devis_ref:    dos.numero_devis || null,
+        });
+        if (!resCMD?.ok) {
+          alert("La commande n'a pas pu être créée.\n"+
+                (resCMD?.error || "Veuillez réessayer ou contacter Bella'Events."));
+          return; // Arrêt — pas de facture sans commande
+        }
+        // Récupérer l'UUID réel Supabase
+        const cmdData = Array.isArray(resCMD.data) ? resCMD.data[0] : resCMD.data;
+        cmdId  = cmdData?.id  || "";
+        cmdRef = cmdData?.reference || cmdRef;
+        if (!cmdId) {
+          alert("Commande créée mais UUID non reçu. Contactez Bella'Events.");
+          return;
+        }
+      }
+    } catch(e) {
+      alert("Erreur réseau lors de la création de la commande.\n"+e.message);
+      return;
+    }
+
+    // ── Étape 3 : Facture (anti-doublon source_id + commande_id réel) ──────
+    // Seulement si Étape 2 réussie (cmdId non vide)
+    try {
+      const token     = await getTokenAsync();
+      const rExistFac = await fetch(
+        SB_URL+"/rest/v1/bellaia_factures?source_id=eq."+dos.id+"&limit=1&select=id,reference,commande_id,statut",
+        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+      );
+      const existFacRows = rExistFac.ok ? await rExistFac.json() : [];
+
+      if (existFacRows.length > 0) {
+        const existFac = existFacRows[0];
+        facRef       = existFac.reference;
+        // Vérifier cohérence : la facture existante doit être liée à notre commande
+        if (existFac.commande_id && cmdId && existFac.commande_id !== cmdId) {
+          alert("Incohérence détectée : la facture "+facRef+" est liée à une autre commande ("+existFac.commande_id+").\nContactez Bella'Events.");
+          return;
+        }
+        facId = existFac.id || "";
+      } else {
+        try { facRef = await genererReference("FAC"); }
+        catch(e) { alert(e.message); return; }
+        const resFAC = await sbPost("bellaia_factures", {
+          business_unit:"EVENTS",
+          reference:    facRef,
+          client_nom:   clientNom,
+          client_tel:   dos.client_tel || null,
+          source_table: "events_demandes",
+          source_id:    dos.id,
+          commande_id:  cmdId,              // UUID Supabase réel — jamais null ici
+          devis_ref:    dos.numero_devis || null,
+          sous_total:   total,
+          total_ttc:    total,
+          acompte,
+          solde,
+          statut:       "emise",
+          date_emission:now.split("T")[0],
+          lignes:       dos.lignes_devis ? JSON.stringify(dos.lignes_devis) : null,
+        });
+        if (!resFAC?.ok) {
+          alert("La facture n'a pas pu être créée.\n"+
+                (resFAC?.error || "La commande "+cmdRef+" a été créée. Contactez Bella'Events pour la facture."));
+          return; // Arrêt — ne pas ouvrir le paiement sans facture
+        }
+        const facData = Array.isArray(resFAC.data) ? resFAC.data[0] : resFAC.data;
+        facRef = facData?.reference || facRef;
+        facId  = facData?.id        || "";
+      }
+    } catch(e) {
+      alert("Erreur réseau lors de la création de la facture.\n"+e.message);
+      return;
+    }
+
+    // ── Étape 3b : Patcher events_demandes avec les références réelles ────────
+    // Empêche la recréation de CMD/FAC au prochain clic
+    const patchLiaison = await sbPatch("events_demandes", dos.id, {
+      statut:           "converti_en_commande",
+      liaison_comptable:facRef,
+      numero_commande:  cmdRef,
+      numero_facture:   facRef,
+    });
+    if (!patchLiaison.ok) {
+      // Bloquant : sans ce patch, le portail recréerait CMD/FAC au prochain clic
+      alert(
+        "La commande "+cmdRef+" et la facture "+facRef+" ont été créées, "+
+        "mais le dossier n'a pas pu être mis à jour.\n"+
+        (patchLiaison.error || "Erreur: "+patchLiaison.status)+
+        "\nContactez Bella'Events avec ces références."
+      );
+      return; // Ne pas ouvrir le paiement — état incohérent
+    }
+
+    // ── Étape 4 : GED + notification (non bloquants) ──────────────────────
+    gedAutoSave({
+      titre:       "Facture "+facRef+" — "+clientNom,
+      module:      "EVENTS", categorie:"facture",
+      reference:   facRef,   clientNom,
+      entiteId:    dos.id,   entiteTable:"events_demandes",
+    }).catch(e=>console.warn("[Bellaïa][GED]",e.message));
+
+    if (dos.numero_devis) {
+      gedAutoSave({
+        titre:       "Devis "+dos.numero_devis+" — "+clientNom,
+        module:      "EVENTS", categorie:"devis",
+        reference:   dos.numero_devis, clientNom,
+        entiteId:    dos.id, entiteTable:"events_demandes",
+      }).catch(e=>console.warn("[Bellaïa][GED]",e.message));
+    }
+
+    creerNotification({
+      pole:"EVENTS", type:"devis_accepte",
+      titre:"Devis accepté — "+dos.reference,
+      message:"Le client a accepté le devis "+dos.numero_devis+". CMD "+cmdRef+" · FAC "+facRef+" créés.",
+      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id,
+    }).catch(e=>console.warn("[Bellaïa][notif]",e.message));
+
+    // ── Étape 5 : Mettre à jour l'état local + ouvrir le paiement ─────────
+    const updated = {...dos, statut:"accepte", client_reponse:"accepte", liaison_comptable:facRef};
+    setDossiers(prev => prev.map(d=>d.id===dos.id ? updated : d));
+    if (dossier?.id===dos.id) setDossier(updated);
+    setPaiement({dossier:updated, facRef, cmdRef, facId, cmdId, demandId:dos.id});
+  };
+
+  // ── Enregistrer le paiement ──────────────────────────────
+  const confirmerPaiement = async (option, mode) => {
+    if (!paiement) return;
+    setPayLoading(true);
+    const dos     = paiement.dossier;
+    const total   = dos.montant_estime || 0;
+    const acompte = Math.round(total * 0.3);
+    const montant = option==="total" ? total : acompte;
+
+    // ── Générer la référence PAY — arrêt si échec ─────────
+    let payRef = "";
+    try { payRef = await genererReference("PAY"); }
+    catch(e: any) {
+      setPayLoading(false);
+      alert(e.message);
+      return;
+    }
+
+    // ── Enregistrer dans bellaia_paiements — arrêt si échec ─
+    const resPAY = await sbPost("bellaia_paiements", {
+      business_unit: "EVENTS",
+      reference:     payRef,
+      montant,
+      mode_paiement: mode,
+      statut:        "en_attente",
+      source_table:  "events_demandes",
+      source_id:     dos.id,
+      facture_id:    paiement.facId  || null,
+      commande_id:   paiement.cmdId  || null,
+      notes:         (option==="total" ? "Paiement intégral" : "Acompte 30%")+" — "+dos.reference,
+      date_paiement: new Date().toISOString(),
+    });
+
+    if (!resPAY.ok) {
+      setPayLoading(false);
+      alert(
+        "La demande de paiement n'a pas pu être enregistrée.\n"+
+        (resPAY.error || "Erreur Supabase "+resPAY.status)
+      );
+      return; // ← Ne pas afficher de succès si Supabase a refusé
+    }
+
+    // ── Seulement après succès : WhatsApp + notification + succès ─
+    if (mode==="virement"||mode==="especes"||mode==="cheque") {
+      const instruc = mode==="virement"
+        ? `Virement bancaire — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nVeuillez contacter Bella'Events pour les coordonnées bancaires.`
+        : mode==="especes"
+        ? `Paiement en espèces — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nVeuillez vous présenter en boutique sur rendez-vous.`
+        : `Paiement par chèque — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nÀ l'ordre de Bella'Studio.`;
+      window.open("https://wa.me/?text="+encodeURIComponent(instruc), "_blank");
+    }
+
+    creerNotification({
+      pole:"EVENTS", type:"paiement_recu",
+      titre:"Paiement "+payRef+" — "+dos.reference,
+      message:"Mode: "+mode+" · Montant: "+montant.toFixed(2)+"€ · Statut: en_attente de confirmation.",
+      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id,
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+
+    setPayLoading(false);
+    setPaySucces(payRef);
+  };
+
+  const fmtDos = (s) => { try { return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s||""; } };
+  const fmtPx  = (n) => n ? (Number(n).toFixed(2).replace(".",",")+" €") : "Sur devis";
+
+  // ── ÉCRAN PAIEMENT ───────────────────────────────────────
+  if (paiement && !paySucces) {
+    const dos = paiement.dossier;
+    const total   = dos.montant_estime || 0;
+    const acompte = Math.round(total * 0.3);
+    const MODES = [
+      {id:"virement",ico:"🏦",label:"Virement bancaire",desc:"Sous 48–72h · Coordonnées par WhatsApp"},
+      {id:"especes", ico:"💵",label:"Espèces",           desc:"En boutique sur rendez-vous"},
+      {id:"cheque",  ico:"📋",label:"Chèque",            desc:"À l'ordre de Bella'Studio"},
+      {id:"sumup",   ico:"💳",label:"SumUp (carte)",     desc:"Paiement en ligne — lien à configurer"},
+      {id:"paypal",  ico:"🅿",label:"PayPal",            desc:"Paiement en ligne — lien à configurer"},
+    ];
+    return (
+      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)"}}>
+          <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>💳 Finaliser votre réservation</div>
+          <button onClick={()=>setPaiement(null)} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"18px 14px 28px"}}>
+          {/* Récap dossier */}
+          <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:12,padding:"13px 14px",marginBottom:18}}>
+            <div style={{fontSize:11,color:EV.cremeD,marginBottom:4}}>Dossier confirmé</div>
+            <div style={{fontSize:14,fontWeight:700,color:"#fff"}}>{dos.reference}</div>
+            <div style={{fontSize:11,color:EV.cremeD,marginTop:2}}>{dos.prestation||dos.type_evenement||"Prestation Events"}</div>
+          </div>
+          {/* Choix acompte / total */}
+          {!payMode ? (
+            <>
+              <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:12}}>Choisissez votre option :</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+                <div onClick={()=>setPayMode("__acompte")} style={{background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.35)",borderRadius:13,padding:"15px",cursor:"pointer"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:EV.or,marginBottom:4}}>Option A — Payer l'acompte (30%)</div>
+                  <div style={{fontSize:22,fontWeight:800,color:"#fff",marginBottom:2}}>{fmtPx(acompte)}</div>
+                  <div style={{fontSize:11,color:EV.cremeD}}>Solde restant : {fmtPx(total-acompte)} · à régler avant l'événement</div>
+                </div>
+                <div onClick={()=>setPayMode("__total")} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:13,padding:"15px",cursor:"pointer"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#10b981",marginBottom:4}}>Option B — Payer la totalité</div>
+                  <div style={{fontSize:22,fontWeight:800,color:"#fff",marginBottom:2}}>{fmtPx(total)}</div>
+                  <div style={{fontSize:11,color:EV.cremeD}}>Règlement complet · Solde : 0 €</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+EV.line,borderRadius:10,padding:"10px 12px",marginBottom:14,display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:12,color:EV.cremeD}}>Montant à régler</span>
+                <span style={{fontSize:14,fontWeight:700,color:EV.or}}>{fmtPx(payMode==="__total"?total:acompte)}</span>
+              </div>
+              <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:10}}>Mode de paiement :</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:18}}>
+                {MODES.map(m=>{
+                  const nonConfig = m.id==="sumup"||m.id==="paypal";
+                  return (
+                    <div key={m.id} onClick={()=>{if(!nonConfig) confirmerPaiement(payMode==="__total"?"total":"acompte",m.id);}}
+                      style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+EV.line,borderRadius:11,padding:"12px 14px",cursor:nonConfig?"not-allowed":"pointer",opacity:nonConfig?0.5:1,display:"flex",gap:12,alignItems:"center"}}>
+                      <span style={{fontSize:22}}>{m.ico}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.label}</div>
+                        <div style={{fontSize:10,color:EV.cremeD}}>{nonConfig?"Paiement en ligne non configuré — choisissez virement ou contactez Bella'Events":m.desc}</div>
+                      </div>
+                      {!nonConfig && <span style={{color:"rgba(255,255,255,0.3)",fontSize:16}}>›</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={()=>setPayMode(null)} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",borderRadius:9,padding:"9px",color:EV.cremeD,fontSize:11,cursor:"pointer",fontFamily:SA,width:"100%"}}>‹ Changer d'option</button>
+              {payLoading && <div style={{textAlign:"center",padding:16,color:EV.cremeD,fontSize:12}}>Enregistrement…</div>}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── ÉCRAN SUCCÈS PAIEMENT ────────────────────────────────
+  if (paySucces) {
+    return (
+      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:SA,color:EV.creme}}>
+        <div style={{textAlign:"center",maxWidth:340}}>
+          <div style={{fontSize:56,marginBottom:16}}>🎉</div>
+          <div style={{fontFamily:FS,fontSize:20,color:"#fff",marginBottom:8}}>Paiement enregistré !</div>
+          <div style={{fontSize:12,color:EV.cremeD,marginBottom:4}}>Référence : <strong style={{color:EV.or}}>{paySucces}</strong></div>
+          <div style={{fontSize:11,color:EV.cremeD,lineHeight:1.7,marginBottom:24}}>
+            Demande de paiement enregistrée — en attente de confirmation par Bella'Studio.<br/>
+           Vous serez notifié(e) par WhatsApp une fois le paiement validé.</div>
+          <button onClick={()=>{setPaiement(null);setPaySucces(null);setOnglet("commandes");}}
+            style={{background:"rgba(16,185,129,0.2)",border:"1px solid rgba(16,185,129,0.4)",borderRadius:12,padding:"12px 24px",color:"#10b981",fontWeight:700,cursor:"pointer",fontFamily:SA}}>
+            Voir ma commande
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const fmt24 = (s) => {
     if (!s) return "";
@@ -6327,35 +8124,277 @@ function PortailSuiviClient({ onBack }) {
     return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"})+" à "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
   };
 
+  const ONGLETS_CLIENT = [
+    {id:"demandes",      ico:"📋", l:"Demandes"},
+    {id:"devis",         ico:"📄", l:"Devis"},
+    {id:"commandes",     ico:"📦", l:"Commandes"},
+    {id:"factures",      ico:"🧾", l:"Factures"},
+    {id:"paiements",     ico:"💳", l:"Paiements"},
+    {id:"documents",     ico:"📁", l:"Documents"},
+    {id:"notifications", ico:"🔔", l:"Notifs"},
+    {id:"suivi",         ico:"🔍", l:"Recherche"},
+  ];
+
+  const demandesStatut = (s) => {
+    const m = {nouvelle_demande:"Nouvelle",en_attente:"En attente",devis_envoye:"Devis envoyé",accepte:"Accepté",refuse:"Refusé",converti_en_commande:"Commandé","Converti en commande":"Commandé"};
+    return m[s]||s;
+  };
+  const colStatut = (s) => {
+    if (["accepte","payee","confirme"].includes(s))   return "#22c55e";
+    if (["devis_envoye","en_attente"].includes(s))    return "#fb923c";
+    if (["refuse","annule"].includes(s))              return "#f87171";
+    return EV.cremeD;
+  };
+
   return (
     <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
       {/* Header */}
       <div style={{padding:"12px 16px",borderBottom:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)"}}>
-        <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>✨ Suivi de demande</div>
+        <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>✨ Mon espace Events</div>
         <button onClick={onBack} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
       </div>
 
-      <div style={{flex:1,overflowY:"auto",padding:20}}>
-        {/* Zone de recherche */}
-        <div style={{marginBottom:24}}>
-          <div style={{fontFamily:FS,fontSize:18,color:EV.or,marginBottom:6}}>Retrouvez votre dossier</div>
-          <div style={{fontSize:12,color:EV.cremeD,marginBottom:16,lineHeight:1.6}}>Saisissez la référence reçue après l'envoi de votre demande.</div>
-          <div style={{display:"flex",gap:8}}>
-            <input
-              value={ref} onChange={e=>setRef(e.target.value.toUpperCase())}
-              onKeyDown={e=>e.key==="Enter" && rechercher()}
-              placeholder="BE-2026-XXXXXX"
-              style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid "+EV.line,borderRadius:10,padding:"11px 14px",color:EV.creme,fontSize:14,fontFamily:SA,outline:"none",letterSpacing:1}}
-            />
-            <button onClick={rechercher} disabled={chargement} style={{background:EV.or,border:"none",borderRadius:10,padding:"11px 18px",color:"#062b1d",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA,opacity:chargement?0.6:1}}>
-              {chargement?"…":"Rechercher"}
-            </button>
-          </div>
-          {erreur && <div style={{fontSize:12,color:"#f87171",marginTop:8,lineHeight:1.5}}>{erreur}</div>}
-        </div>
+      {/* Onglets nav */}
+      <div style={{display:"flex",overflowX:"auto",padding:"6px 12px",borderBottom:"1px solid "+EV.line,background:"rgba(0,0,0,0.15)",flexShrink:0,gap:2}}>
+        {ONGLETS_CLIENT.map(o=>(
+          <button key={o.id} onClick={()=>setOnglet(o.id)} style={{padding:"5px 11px",borderRadius:99,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,whiteSpace:"nowrap",fontFamily:SA,background:onglet===o.id?EV.or:"transparent",color:onglet===o.id?"#062b1d":"rgba(255,255,255,0.45)",marginRight:2}}>
+            {o.ico} {o.l}
+          </button>
+        ))}
+      </div>
 
-        {/* Dossier trouvé */}
-        {dossier && (
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 28px"}}>
+
+        {/* ── MES DEMANDES ── */}
+        {onglet==="demandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes demandes</div>
+            {chargement && <div style={{textAlign:"center",padding:24,color:EV.cremeD}}>Chargement…</div>}
+            {!chargement && dossiers.length===0 && <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucune demande. Créez votre première demande depuis l'espace Events.</div>}
+            {dossiers.map(d=>(
+              <div key={d.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+EV.line,borderRadius:12,padding:"12px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{d.reference}</div>
+                    <div style={{fontSize:11,color:EV.cremeD}}>{d.prestation||d.type_evenement||"Prestation Events"}</div>
+                    <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2}}>{fmtDos(d.created_at)}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <span style={{fontSize:9,color:colStatut(d.statut),fontWeight:700,display:"block",marginBottom:3}}>{demandesStatut(d.statut)}</span>
+                    {d.montant_estime && <span style={{fontSize:11,color:EV.or,fontWeight:700}}>{fmtPx(d.montant_estime)}</span>}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  {(d.statut==="devis_envoye"||d.statut==="accepte") && (
+                    <button onClick={()=>{setOnglet("devis");setDossier(d);}} style={{fontSize:9,padding:"3px 9px",borderRadius:6,cursor:"pointer",border:"1px solid "+EV.or+"44",background:"transparent",color:EV.or,fontFamily:SA}}>
+                      📄 Voir le devis
+                    </button>
+                  )}
+                  {d.statut==="accepte" && !d.liaison_comptable && (
+                    <button onClick={()=>onAccepterDevis(d)} style={{fontSize:9,padding:"3px 9px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(16,185,129,0.4)",background:"transparent",color:"#10b981",fontFamily:SA}}>
+                      💳 Payer
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MES DEVIS ── */}
+        {onglet==="devis" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes devis</div>
+            {dossiers.filter(d=>d.numero_devis||d.statut==="devis_envoye"||d.statut==="accepte"||d.statut==="refuse").length===0 && (
+              <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucun devis disponible pour l'instant.</div>
+            )}
+            {dossiers.filter(d=>d.numero_devis||d.statut==="devis_envoye"||d.statut==="accepte"||d.statut==="refuse").map(d=>(
+              <div key={d.id}>
+                <DevisClientView dossier={dossier||d}
+                  onAccepte={async()=>await onAccepterDevis(d)}
+                  onRefuse={async()=>{
+                    const rRefus = await sbPatch("events_demandes",d.id,{statut:"refuse",client_reponse:"refuse",client_reponse_at:new Date().toISOString()});
+                    if(!rRefus.ok) console.error("[refusDevis] sbPatch échoué:", rRefus.error);
+                    setDossiers(prev=>prev.map(x=>x.id===d.id?{...x,statut:"refuse",client_reponse:"refuse"}:x));
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MES COMMANDES ── */}
+        {onglet==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes commandes</div>
+            {dossiers.filter(d=>d.liaison_comptable||d.statut==="Converti en commande"||d.statut==="converti_en_commande").length===0 && (
+              <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucune commande confirmée.</div>
+            )}
+            {dossiers.filter(d=>d.liaison_comptable||["Converti en commande","converti_en_commande"].includes(d.statut)).map(d=>(
+              <div key={d.id} style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:3}}>{d.reference}</div>
+                <div style={{fontSize:11,color:EV.cremeD}}>{d.prestation||d.type_evenement}</div>
+                {d.liaison_comptable && <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>Facture : {d.liaison_comptable}</div>}
+                <div style={{fontSize:10,color:EV.cremeD,marginTop:2}}>{fmtPx(d.montant_estime)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MES FACTURES ── */}
+        {onglet==="factures" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes factures</div>
+            {dossiers.filter(d=>d.liaison_comptable).length===0 && (
+              <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucune facture disponible.</div>
+            )}
+            {dossiers.filter(d=>d.liaison_comptable).map(d=>{
+              const total   = d.montant_estime||0;
+              const acompte = Math.round(total*0.3);
+              return (
+                <div key={d.id} style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:12,padding:"13px 14px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <div>
+                      <div style={{fontSize:11,color:EV.cremeD,marginBottom:1}}>Facture liée</div>
+                      <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{d.liaison_comptable}</div>
+                      <div style={{fontSize:10,color:EV.cremeD}}>{d.reference}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:16,fontWeight:700,color:"#fff"}}>{fmtPx(total)}</div>
+                    </div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                    {[
+                      {l:"Acompte (30%)",v:fmtPx(acompte),c:d.acompte_paye?"#22c55e":EV.cremeD},
+                      {l:"Solde",         v:fmtPx(total-acompte),c:d.statut_paiement==="solde_paye"?"#22c55e":EV.cremeD},
+                    ].map(k=>(
+                      <div key={k.l} style={{background:"rgba(0,0,0,0.2)",borderRadius:7,padding:"6px 8px"}}>
+                        <div style={{fontSize:9,color:EV.cremeD}}>{k.l}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:k.c}}>{k.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {!d.acompte_paye && (
+                    <button onClick={()=>setPaiement({dossier:d,facRef:d.liaison_comptable,cmdRef:""})}
+                      style={{marginTop:10,width:"100%",background:"linear-gradient(135deg,#065f46,#047857)",border:"none",borderRadius:9,padding:"10px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                      💳 Régler maintenant
+                    </button>
+                  )}
+                  <button onClick={()=>{
+                    const h=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${d.liaison_comptable}</title><style>body{font-family:Arial,sans-serif;padding:28px;max-width:680px;margin:0 auto;color:#111;font-size:13px}h1{color:#0d6e3f}@media print{button{display:none}}</style></head><body><h1>🌿 Bella'Events — Facture</h1><p><strong>Réf :</strong> ${d.liaison_comptable}</p><p><strong>Dossier :</strong> ${d.reference}</p><p><strong>Client :</strong> ${[d.client_prenom,d.client_nom].filter(Boolean).join(" ")}</p><p><strong>Prestation :</strong> ${d.prestation||d.type_evenement||"—"}</p><p><strong>Total :</strong> ${fmtPx(total)}</p><p><strong>Acompte :</strong> ${fmtPx(acompte)}</p><p><strong>Solde :</strong> ${fmtPx(total-acompte)}</p><p style="color:#6b7280;font-size:11px;margin-top:20px">Bella'Studio · Sinnamary, Guyane</p></body></html>`;
+                    const w=window.open("","_blank");
+                    if(w){w.document.write(h);w.document.close();setTimeout(()=>w.print(),400);}
+                  }} style={{marginTop:6,width:"100%",background:"transparent",border:"1px solid rgba(201,168,76,0.3)",borderRadius:9,padding:"8px",color:EV.or,fontSize:11,cursor:"pointer",fontFamily:SA}}>
+                    📄 Télécharger la facture
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── MES DOCUMENTS ── */}
+        {onglet==="documents" && (
+          <DocumentsClient dossiersRefs={dossiers.map(d=>d.reference)} fmtDos={fmtDos}/>
+        )}
+
+        {/* ── MES PAIEMENTS ── */}
+        {onglet==="paiements" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes paiements</div>
+            {dossiers.filter(d=>d.acompte_paye||d.statut_paiement==="solde_paye").length===0&&(
+              <div style={{textAlign:"center",padding:"24px",color:EV.cremeD,fontStyle:"italic"}}>Aucun paiement enregistré.</div>
+            )}
+            {dossiers.filter(d=>d.liaison_comptable||(d.montant_estime>0)).map(d=>{
+              const total   = d.montant_estime||0;
+              const acompte = Math.round(total*0.3);
+              return (
+                <div key={d.id} style={{background:"rgba(16,185,129,0.07)",border:"1px solid rgba(16,185,129,0.18)",borderRadius:12,padding:"12px 14px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{d.reference}</div>
+                      <div style={{fontSize:10,color:EV.cremeD}}>{d.prestation||d.type_evenement||"Prestation Events"}</div>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{total>0?total.toFixed(2).replace(".",",")+" €":"Sur devis"}</div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}}>
+                    <div style={{background:"rgba(0,0,0,0.2)",borderRadius:7,padding:"6px 8px"}}>
+                      <div style={{fontSize:9,color:EV.cremeD}}>Acompte (30%)</div>
+                      <div style={{fontSize:12,fontWeight:700,color:d.acompte_paye?"#22c55e":EV.cremeD}}>{d.acompte_paye?"✅ Reçu":total>0?acompte.toFixed(2).replace(".",",")+" €":"—"}</div>
+                    </div>
+                    <div style={{background:"rgba(0,0,0,0.2)",borderRadius:7,padding:"6px 8px"}}>
+                      <div style={{fontSize:9,color:EV.cremeD}}>Solde</div>
+                      <div style={{fontSize:12,fontWeight:700,color:d.statut_paiement==="solde_paye"?"#22c55e":EV.cremeD}}>{d.statut_paiement==="solde_paye"?"✅ Reçu":total>0?(total-acompte).toFixed(2).replace(".",",")+" €":"—"}</div>
+                    </div>
+                  </div>
+                  {!d.acompte_paye && d.liaison_comptable && (
+                    <button onClick={()=>setPaiement({dossier:d,facRef:d.liaison_comptable,cmdRef:"",acompte})}
+                      style={{width:"100%",background:"linear-gradient(135deg,#065f46,#047857)",border:"none",borderRadius:9,padding:"9px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                      💳 Régler l'acompte
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── NOTIFICATIONS ── */}
+        {onglet==="notifications" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes notifications</div>
+            {dossiers.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:EV.cremeD,fontStyle:"italic"}}>
+                Aucune notification. Vos dossiers apparaîtront ici.
+              </div>
+            )}
+            {dossiers.map(d => {
+              const notifs = [];
+              if (d.statut==="nouvelle_demande"||d.statut==="en_attente")
+                notifs.push({ico:"⏳",txt:"Demande reçue — en cours d'examen",date:d.created_at,lu:true});
+              if (d.numero_devis||d.statut==="devis_envoye")
+                notifs.push({ico:"📄",txt:"Devis disponible : "+(d.numero_devis||d.reference),date:d.updated_at,lu:false});
+              if (d.client_reponse==="accepte")
+                notifs.push({ico:"✅",txt:"Devis accepté — commande en cours",date:d.client_reponse_at,lu:true});
+              if (d.acompte_paye)
+                notifs.push({ico:"💰",txt:"Acompte reçu — réservation confirmée",date:d.updated_at,lu:true});
+              if (d.liaison_comptable)
+                notifs.push({ico:"🧾",txt:"Facture disponible : "+d.liaison_comptable,date:d.updated_at,lu:false});
+              return notifs.map((n,i) => (
+                <div key={d.id+"-"+i} style={{
+                  background:n.lu?"rgba(255,255,255,0.03)":"rgba(16,185,129,0.1)",
+                  border:"1px solid "+(n.lu?EV.line:"rgba(16,185,129,0.3)"),
+                  borderRadius:11, padding:"11px 13px",
+                  display:"flex", gap:10, alignItems:"flex-start",
+                }}>
+                  <span style={{fontSize:20,flexShrink:0}}>{n.ico}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,color:"#fff",fontWeight:n.lu?400:700}}>{n.txt}</div>
+                    <div style={{fontSize:10,color:EV.cremeD,marginTop:3}}>{d.reference}</div>
+                    {n.date && <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2}}>{fmtDos(n.date)}</div>}
+                  </div>
+                  {!n.lu && <span style={{width:8,height:8,borderRadius:"50%",background:"#10b981",flexShrink:0,marginTop:4}}/>}
+                </div>
+              ));
+            })}
+          </div>
+        )}
+
+        {/* ── RECHERCHE PAR RÉFÉRENCE ── */}
+        {onglet==="suivi" && (
+          <div>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:10}}>Rechercher un dossier</div>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              <input value={ref} onChange={e=>setRef(e.target.value.toUpperCase())}
+                onKeyDown={e=>e.key==="Enter"&&rechercher()}
+                placeholder="BE-2026-XXXXXX"
+                style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid "+EV.line,borderRadius:10,padding:"11px 14px",color:EV.creme,fontSize:14,fontFamily:SA,outline:"none",letterSpacing:1}}/>
+              <button onClick={rechercher} disabled={chargement} style={{background:EV.or,border:"none",borderRadius:10,padding:"11px 18px",color:"#062b1d",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA,opacity:chargement?0.6:1}}>
+                {chargement?"…":"›"}
+              </button>
+            </div>
+            {erreur && <div style={{fontSize:12,color:"#f87171",marginBottom:10}}>{erreur}</div>}
+            {dossier && (
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
             {/* Carte identité du dossier */}
             <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
@@ -6386,11 +8425,13 @@ function PortailSuiviClient({ onBack }) {
             {/* Devis disponible */}
             {dossier.statut === "devis_envoye" || dossier.statut === "accepte" || dossier.statut === "refuse" ? (
               <DevisClientView dossier={dossier} onAccepte={async()=>{
-                await sbPatch("events_demandes", dossier.id, {statut:"accepte", client_reponse:"accepte", client_reponse_at:new Date().toISOString()});
+                const rAcc = await sbPatch("events_demandes", dossier.id, {statut:"accepte", client_reponse:"accepte", client_reponse_at:new Date().toISOString()});
+                if(!rAcc.ok) { alert("Erreur acceptation.\n"+(rAcc.error||"")); return; }
                 await creerNotification({pole:"EVENTS",type:"confirmation_commande",titre:"Devis accepté — "+dossier.reference,message:"Le client a accepté le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
                 setDossier({...dossier, statut:"accepte", client_reponse:"accepte"});
               }} onRefuse={async()=>{
-                await sbPatch("events_demandes", dossier.id, {statut:"refuse", client_reponse:"refuse", client_reponse_at:new Date().toISOString()});
+                const rRef2 = await sbPatch("events_demandes", dossier.id, {statut:"refuse", client_reponse:"refuse", client_reponse_at:new Date().toISOString()});
+                if(!rRef2.ok) { alert("Erreur refus.\n"+(rRef2.error||"")); return; }
                 await creerNotification({pole:"EVENTS",type:"refus_devis",titre:"Devis refusé — "+dossier.reference,message:"Le client a refusé le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
                 setDossier({...dossier, statut:"refuse", client_reponse:"refuse"});
               }}/>
@@ -6412,7 +8453,23 @@ function PortailSuiviClient({ onBack }) {
                       <div style={{fontSize:12,color:EV.creme,marginTop:1}}>Dossier mis à jour</div>
                     </div>
                   )}
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.2)",fontStyle:"italic"}}>L'historique détaillé sera disponible prochainement.</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {[
+                      {ico:"📋",label:"Demande reçue",date:dossier.created_at},
+                      dossier.numero_devis && {ico:"📄",label:"Devis généré : "+dossier.numero_devis,date:dossier.updated_at},
+                      dossier.client_reponse==="accepte" && {ico:"✅",label:"Devis accepté par le client",date:dossier.updated_at},
+                      dossier.acompte_paye && {ico:"💰",label:"Acompte reçu",date:dossier.updated_at},
+                      dossier.liaison_comptable && {ico:"🧾",label:"Facture : "+dossier.liaison_comptable,date:dossier.updated_at},
+                    ].filter(Boolean).map((e,i)=>(
+                      <div key={i} style={{display:"flex",gap:8,alignItems:"center",padding:"6px 8px",background:"rgba(16,185,129,0.07)",borderRadius:7}}>
+                        <span style={{fontSize:14}}>{e.ico}</span>
+                        <div>
+                          <div style={{fontSize:11,color:"#fff"}}>{e.label}</div>
+                          {e.date && <div style={{fontSize:9,color:"rgba(255,255,255,0.35)"}}>{new Date(e.date).toLocaleDateString("fr-FR")}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -6423,9 +8480,12 @@ function PortailSuiviClient({ onBack }) {
               <div style={{fontSize:12,color:"rgba(255,255,255,0.25)",fontStyle:"italic"}}>🔔 Les notifications apparaîtront ici : nouveau message, devis disponible, confirmation de réservation…</div>
             </div>
 
-            {/* Bouton de téléchargement (désactivé — bientôt disponible) */}
-            <button disabled style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"12px",color:"rgba(255,255,255,0.3)",fontSize:13,fontFamily:SA,cursor:"not-allowed"}}>
-              📄 Télécharger mon devis — Bientôt disponible
+            {/* Bouton téléchargement document — ouvre WhatsApp si pas de fichier */}
+            <button onClick={() => {
+              const msg = `Bonjour, je souhaite télécharger les documents liés à ma demande ${dossier?.numero_devis||dossier?.reference||""}. Pourriez-vous me les envoyer ? Merci.`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+            }} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:10,padding:"10px",color:"#10b981",fontWeight:700,fontSize:12,fontFamily:SA,cursor:"pointer",width:"100%",textAlign:"center"}}>
+              📄 Demander mes documents par WhatsApp
             </button>
 
             {/* Contact WhatsApp */}
@@ -6436,6 +8496,7 @@ function PortailSuiviClient({ onBack }) {
         )}
       </div>
     </div>
+  </div>
   );
 }
 
@@ -6463,7 +8524,7 @@ function ClientEvents({ onBack, onNewCommande }) {
     setEnvoi(true);
     const p = modal.prestation;
     const type = modal.type;
-    const ref = "EV" + Date.now().toString().slice(-6);
+    const ref = await genererReference("BE");
     const reference = await genererReference("BE");
     const montantNum = p.prix || 0;
     const lignesEstimees = analyserDemandeClient({
@@ -6507,8 +8568,7 @@ function ClientEvents({ onBack, onNewCommande }) {
     let erreurSb = null;
     try {
       const res = await sbPost("events_demandes", demande);
-      console.log("Payload :", demande);
-      console.log("Réponse Supabase :", res);
+      console.warn("[Bellaïa][soumission] Payload:", demande?.reference, "→", res?.ok);
       if (!res.ok) {
         echecEnregistrement = true;
         erreurSb = res;
@@ -6610,7 +8670,21 @@ function ClientEvents({ onBack, onNewCommande }) {
           <div style={{background:"linear-gradient(135deg,"+EV.or+"22,transparent)",border:"1px solid "+(EV.line),borderRadius:14,padding:"16px 18px"}}>
             <div style={{fontSize:13,color:EV.cremeD,lineHeight:1.6}}>{catObj?.desc}</div>
           </div>
-          {prestas.length === 0 && <div style={{textAlign:"center",color:EV.cremeD,fontSize:13,padding:20}}>Prestations bientôt disponibles · contactez-nous pour un devis.</div>}
+          {prestas.length === 0 && <div style={{display:"flex",flexDirection:"column",gap:8,padding:16}}>
+            {[
+              {ico:"🎉",nom:"Anniversaire",desc:"Décoration, gâteau, papeterie — sur devis"},
+              {ico:"💍",nom:"Mariage",desc:"Décoration complète, coordination — sur devis"},
+              {ico:"🍼",nom:"Baby Shower",desc:"Mise en scène, papeterie — sur devis"},
+              {ico:"🕊",nom:"Baptême / Communion",desc:"Décoration et papeterie — sur devis"},
+              {ico:"🎈",nom:"Gender Reveal",desc:"Révélation de genre festive — sur devis"},
+              {ico:"🏢",nom:"Corporate / Entreprise",desc:"Événements professionnels — sur devis"},
+            ].map(p => (
+              <div key={p.nom} style={{background:"rgba(16,185,129,0.07)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:10,padding:"10px 13px"}}>
+                <div style={{fontSize:13,fontWeight:700,color:EV.creme}}>{p.ico} {p.nom}</div>
+                <div style={{fontSize:11,color:EV.cremeD,marginTop:2}}>{p.desc}</div>
+              </div>
+            ))}
+          </div>}
           {prestas.map((p, idx) => {
             const familles = cat === "unite" ? EVENTS_UNITE_FAMILLES : cat === "anniv" ? EVENTS_ANNIV_FAMILLES : null;
             const fam = familles && p.sous !== prestas[idx-1]?.sous
@@ -6776,8 +8850,17 @@ function ClientEvents({ onBack, onNewCommande }) {
             <button onClick={()=>{setCat(null);setSucces(null);}} style={{background:EV.or,border:"none",borderRadius:10,padding:"13px 24px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:SA}}>← Retour aux catégories</button>
             <button onClick={()=>{setSucces(null);setModal(null);}} style={{background:"transparent",border:"1px solid "+EV.or+"66",borderRadius:10,padding:"12px 24px",color:EV.or,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:SA}}>+ Faire une autre demande</button>
             <button onClick={()=>window.open(WA("Bonjour, ma référence est "+succes+". Je souhaite des informations sur mon dossier."),"_blank")} style={{background:"rgba(37,211,102,0.1)",border:"1px solid rgba(37,211,102,0.3)",borderRadius:10,padding:"12px 24px",color:"#25d366",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>💬 Contacter Bella'Events</button>
-            <button disabled style={{background:"rgba(255,255,255,0.06)",border:"1px dashed rgba(255,255,255,0.2)",borderRadius:10,padding:"12px",color:"rgba(255,255,255,0.45)",fontSize:13,fontFamily:SA,cursor:"not-allowed",width:"100%",textAlign:"center"}}>
-              📄 Télécharger mon devis — bientôt disponible
+            <button onClick={() => {
+              const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Devis Bella'Events</title>
+<style>body{font-family:Arial,sans-serif;padding:30px;max-width:680px;margin:0 auto;color:#111}h1{color:#0d6e3f;border-bottom:2px solid #0d6e3f;padding-bottom:6px}p{font-size:13px}.muted{color:#6b7280;font-size:11px}@media print{button{display:none}}</style></head><body>
+<h1>🌿 Bella'Events — Devis</h1>
+<p><strong>Référence :</strong> ${succes||"—"}</p>
+<p>Votre demande a bien été enregistrée. Bella'Events vous contactera sous 48h pour finaliser votre devis.</p>
+<p class="muted">Bella'Studio · Sinnamary, Guyane</p></body></html>`;
+              const w = window.open("","_blank");
+              if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);}
+            }} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:10,padding:"12px",color:"#10b981",fontWeight:700,fontSize:13,fontFamily:SA,cursor:"pointer",width:"100%",textAlign:"center"}}>
+              📄 Imprimer la confirmation de demande
             </button>
           </div>
         </div>
@@ -6868,7 +8951,7 @@ function ClientStructurePortail({ onBack }) {
         {modeles.length===0&&(
           <div style={{textAlign:"center",padding:"40px 20px",color:B.muted}}>
             <div style={{fontSize:40,marginBottom:12}}>📄</div>
-            <div style={{fontSize:13,marginBottom:12}}>Catalogue de modèles bientôt disponible</div>
+            <div style={{fontSize:13,marginBottom:12,color:"rgba(245,240,232,0.8)"}}>Aucun modèle personnalisé — utilisez le bouton ci-dessous pour en demander un.</div>
             <button onClick={()=>window.open(WA("Bonjour, je voudrais des informations sur les modèles Bella'Structure"),"_blank")} style={{background:"linear-gradient(135deg,#92400e,#b45309)",border:"none",borderRadius:10,padding:"10px 20px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:SA}}>💬 Nous contacter</button>
           </div>
         )}
@@ -6996,7 +9079,7 @@ function CatalogueIAF({ user, gotoEvents }) {
   const sauvegarder = async () => {
     if (!form.nom?.trim()) return;
     setLoading(true);
-    await sbPost("events_catalogue", {
+    const _rec9081 = await sbPost("events_catalogue", {
       fondatrice_id: user?.id,
       nom: form.nom,
       categorie: form.categorie || "Autre",
@@ -7183,7 +9266,7 @@ function ErpProjetsF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("erp_projets", form._edit, d);
-    else await sbPost("erp_projets", d);
+    else (await sbPost("erp_projets", d)).ok || console.error("[erp_projets] post échec");
     reload(); setModal(null);
   };
 
@@ -7293,7 +9376,7 @@ function ErpTachesF({ user }) {
     const d = { ...form, fondatrice_id: user?.id, updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("erp_taches", form._edit, d);
-    else await sbPost("erp_taches", d);
+    else (await sbPost("erp_taches", d)).ok || console.error("[erp_taches] post échec");
     reload(); setModal(null);
   };
 
@@ -7565,6 +9648,17 @@ const NAV_F = [
   {id:"editorial",   ico:"📖", l:"Éditorial"},
   {id:"food",        ico:"🍃", l:"Food"},
   {id:"ia",          ico:"◎",  l:"IA"},
+  // ── ERP Central (LOT VI)
+  {id:"catalogue_admin", ico:"🗂",  l:"Catalogue"},
+  {id:"stock_central",   ico:"🏪",  l:"Stock ERP"},
+  {id:"workflow_erp",    ico:"📑",  l:"Factures"},
+  {id:"crm_central",     ico:"👥",  l:"CRM"},
+  {id:"recherche",       ico:"🔍",  l:"Recherche"},
+  {id:"messagerie",      ico:"💬",  l:"Messages"},
+  {id:"documents",       ico:"📁",  l:"Documents"},
+  {id:"vilo",            ico:"🤝",  l:"Vilo"},
+  {id:"editions",        ico:"📚",  l:"Éditions"},
+  {id:"motipy",          ico:"🌿",  l:"Mo Ti-Péyi"},
 ];
 
 // Placeholder pôle fondatrice
@@ -7804,9 +9898,13 @@ function ComptaWrapper({ user }: any) {
 function StudioIAWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/StudioIAF").then(m => setComp(()=>m.default));
+    import("../modules/assistant/BellaiaAssistant")
+      .then(m => setComp(()=>m.default))
+      .catch(() => {
+        import("../modules/core/StudioIAF").then(m => setComp(()=>m.default)).catch(e=>console.warn("[Bellaïa] StudioIAF fallback non disponible:",e.message));
+      });
   }, []);
-  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Studio IA…</div>;
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bellaïa IA…</div>;
   return <Comp user={user}/>;
 }
 
@@ -7830,6 +9928,77 @@ function FoodWrapper({ user }: any) {
   return <Comp user={user}/>;
 }
 
+// ── Wrapper Catalogue Admin (core)
+function CatalogueAdminWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/CatalogueAdmin").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Catalogue…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Stock Central (core)
+function StockCentralWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/BellaiaStocks").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Stock central…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Workflow ERP (core)
+function WorkflowERPWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/BellaWorkflowF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Workflow…</div>;
+  return <Comp user={user}/>;
+}
+
+
+// ── Wrapper CRM Central (crm module)
+function CRMWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/crm/ClientCenter").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement CRM…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Recherche Globale (search module)
+function RechercheWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/search/GlobalSearch").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Recherche…</div>;
+  return <Comp profil="fondatrice"/>;
+}
+
+// ── Wrapper Messagerie (messaging module)
+function MessagerieWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement messagerie…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Documents / GED (docs module)
+function DocumentsWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
+  return <Comp user={user}/>;
+}
+
 // ── Wrapper Générateur éditorial
 function EditorialWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
@@ -7847,6 +10016,36 @@ function OdysseeWrapper({ user }: any) {
     import("../modules/odyssee/OdysseeF").then(m => setComp(()=>m.default));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Odyssée…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Vilo'Assistance
+function ViloWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/vilo/ViloF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Vilo'Assistance…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Bella'Studio Éditions
+function EditionsWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/editions/EditionsF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Studio Éditions…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Mo Ti-Péyi
+function MoTiPeyiWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/motipy/MoTiPeyiF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Mo Ti-Péyi…</div>;
   return <Comp user={user}/>;
 }
 
@@ -7949,15 +10148,27 @@ export default function BellaiaApp() {
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
   }
-  if (preview === "hote")       return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
+  if (preview === "hote") {
+    // Si l'utilisateur est un talent Odyssée, afficher HoteOdyssee
+    const univHote = user?.univers || user?.module || "";
+    if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
+      return <><BandeauApercu/><div style={{paddingTop:36}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
+    }
+    return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
+  }
   if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
 
   // ── Routage par rôle
   if (espaceEffectif === "client")
     return <PortailClient user={user} produits={bshProd} evenements={bshEvts}
       onLogout={deconnexion} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
-  if (espaceEffectif === "hote")
+  if (espaceEffectif === "hote") {
+    const univHote = user?.univers || user?.module || "";
+    if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
+      return <HoteOdyssee user={user} onBack={deconnexion}/>;
+    }
     return <EspaceHote user={user} onLogout={deconnexion}/>;
+  }
   if (espaceEffectif === "partenaire")
     return <EspacePartenaire user={user} onLogout={deconnexion}/>;
 
@@ -7993,6 +10204,17 @@ export default function BellaiaApp() {
     editorial:   <EditorialWrapper user={user}/>,
     vilo:        <PlaceholderModule ico="📋" nom="Vilo'Assistance" desc="Assistance administrative — Phase 2"/>,
     mtp:         <PlaceholderModule ico="🌺" nom="Mo Ti-Péyi" desc="Livres jeunesse — Bibliothèque Éditoriale"/>,
+    // ── ERP Central (LOT VI)
+    catalogue_admin: <CatalogueAdminWrapper user={user}/>,
+    stock_central:   <StockCentralWrapper user={user}/>,
+    workflow_erp:    <WorkflowERPWrapper user={user}/>,
+    crm_central:     <CRMWrapper user={user}/>,
+    recherche:       <RechercheWrapper user={user}/>,
+    messagerie:      <MessagerieWrapper user={user}/>,
+    documents:       <DocumentsWrapper user={user}/>,
+    vilo:            <ViloWrapper user={user}/>,
+    editions:        <EditionsWrapper user={user}/>,
+    motipy:          <MoTiPeyiWrapper user={user}/>,
   };
 
   return (
@@ -8039,4 +10261,3 @@ export default function BellaiaApp() {
     </div>
   );
 }
-
