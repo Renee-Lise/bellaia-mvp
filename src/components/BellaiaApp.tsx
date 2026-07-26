@@ -10049,7 +10049,7 @@ function EditionsWrapper({ user }: any) {
 function MoTiPeyiWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/motipy/MoTiPeyiF").then(m => setComp(()=>m.default));
+    import("../modules/motipy").then(m => setComp(()=>m.default));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Mo Ti-Péyi…</div>;
   return <Comp user={user}/>;
