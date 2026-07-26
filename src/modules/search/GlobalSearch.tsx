@@ -9,7 +9,7 @@ import type {
 } from "./searchTypes";
 import {
   rechercherGlobal, TYPE_LABELS, TYPE_COLORS, fmtPrix,
-} from "./searchUtils";
+} from ".";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const CLR = {
