@@ -25,32 +25,161 @@ const WA = (msg="") => "https://wa.me/"+(ENV.WA)+(msg ? "?text=" + encodeURIComp
 
 
 // ═══════════════════════════════════════════════════════════
-// DESIGN TOKENS
+// BELLAÏA DESIGN SYSTEM V2 — Tokens officiels
+// Palettes validées par Renée-Lise Vilosa · Bella'Studio
 // ═══════════════════════════════════════════════════════════
-const B = {
-  night:"#0d0b12", deep:"#13101e", surface:"#1a1628", card:"#201c30",
-  violet:"#7c3aed", violetL:"#9d6ef5", violetG:"rgba(124,58,237,0.2)",
-  gold:"#c9a84c", goldL:"#f0d080", goldG:"rgba(201,168,76,0.15)",
-  cream:"#f5f0e8", muted:"#8b7fa8", mutedL:"#b8aed0",
-  border:"rgba(124,58,237,0.22)", borderG:"rgba(201,168,76,0.28)",
-  success:"#80e0a0", danger:"#f4a0a0", warning:"#f0d080",
+
+// ── Typographie ─────────────────────────────────────────────
+const FS = "'Georgia','Times New Roman',serif";       // Display / titres
+const SA = "'Inter',system-ui,-apple-system,sans-serif"; // Corps / UI
+const SM = "'Georgia',serif";                         // Sous-titres élégants
+
+// ── Échelle typographique ────────────────────────────────────
+const T = {
+  xs:"9px", sm:"11px", base:"13px", md:"15px",
+  lg:"18px", xl:"22px", "2xl":"28px", display:"36px",
+  w:{regular:400, medium:500, semibold:600, bold:700, black:900},
 };
+
+// ── Espacement ───────────────────────────────────────────────
+const SP = {
+  "1":"4px","2":"8px","3":"12px","4":"16px","5":"20px",
+  "6":"24px","8":"32px","10":"40px","12":"48px","16":"64px",
+};
+
+// ── Rayons ───────────────────────────────────────────────────
+const R = { sm:6, md:10, lg:14, xl:18, "2xl":24, full:9999 };
+
+// ── Transitions ──────────────────────────────────────────────
+const TR = { fast:"all .15s ease", base:"all .2s ease", slow:"all .35s ease" };
+
+// ── Palette principale Bella'Studio (Hub / Fondatrice) ───────
+// Violet nuit profond · Prune élégant · Or champagne · Crème ivoire
+const B = {
+  // Fonds
+  night:"#09070f",   // fond le plus sombre
+  deep:"#100d1a",    // fond principal app
+  surface:"#181428", // surfaces cards
+  card:"#1e1a30",    // cards élevées
+  overlay:"rgba(9,7,15,0.92)",
+
+  // Violet — couleur signature Bellaïa
+  violet:"#7c3aed",
+  violetL:"#9d6ef5",
+  violetD:"#5b21b6",
+  violetG:"rgba(124,58,237,0.18)",
+  violetGlow:"0 0 32px rgba(124,58,237,0.35), 0 0 8px rgba(124,58,237,0.2)",
+
+  // Or champagne — accent premium
+  gold:"#c9a84c",
+  goldL:"#e8c96a",
+  goldD:"#9a7a32",
+  goldG:"rgba(201,168,76,0.14)",
+  goldGlow:"0 0 24px rgba(201,168,76,0.3)",
+
+  // Texte
+  cream:"#f0ebff",   // texte principal
+  muted:"#8b7fa8",   // texte secondaire
+  mutedL:"#b8aed0",  // texte tertiaire
+  placeholder:"rgba(184,174,208,0.5)",
+
+  // Séparateurs
+  border:"rgba(124,58,237,0.22)",
+  borderG:"rgba(201,168,76,0.25)",
+  borderHover:"rgba(124,58,237,0.45)",
+
+  // États
+  success:"#6ee7a0",  successG:"rgba(110,231,160,0.15)",
+  danger:"#f87171",   dangerG:"rgba(248,113,113,0.15)",
+  warning:"#fbbf24",  warningG:"rgba(251,191,36,0.15)",
+  info:"#60a5fa",     infoG:"rgba(96,165,250,0.15)",
+};
+
+// ── Bella'Events — Vert émeraude · Or · Crème ────────────────
+const EV = {
+  fond:"#040f09",  night:"#0a1410",
+  vert:"#065f46",  vertL:"#059669", vertAcc:"#10b981",
+  or:"#c9a84c",    orL:"#e8c96a",
+  creme:"#e8f5ee", cremeD:"rgba(232,245,238,0.5)",
+  glow:"0 0 28px rgba(16,185,129,0.3)",
+  line:"rgba(16,185,129,0.2)", lineMed:"rgba(16,185,129,0.4)",
+  verre:"rgba(16,185,129,0.05)",
+  acc:"#34d399",
+};
+
+// ── Bella'Secret Home — Bordeaux · Noir · Or · Crème ─────────
 const BSH = {
-  fond:"#0e0914", prune:"#2a0d1e", bord:"#6B1A2B", bord2:"#8B2A3B",
-  rose:"#C9637A", or:"#C9A96E", creme:"#F5EEE6",
+  fond:"#0e0914",  prune:"#2a0d1e",
+  bord:"#6B1A2B",  bord2:"#8B2A3B",
+  rose:"#C9637A",  or:"#C9A96E",
+  creme:"#F5EEE6",
   cremeF:"rgba(245,238,230,.75)", cremeD:"rgba(245,238,230,.4)",
-  verre:"rgba(255,255,255,.04)", verre2:"rgba(255,255,255,.07)",
-  line:"rgba(201,169,110,.15)", lineMed:"rgba(201,169,110,.3)",
+  verre:"rgba(255,255,255,.04)",  verre2:"rgba(255,255,255,.07)",
+  line:"rgba(201,169,110,.15)",   lineMed:"rgba(201,169,110,.3)",
+  glow:"0 0 28px rgba(107,26,43,0.45)",
   vert:"#5aaa7a", ora:"#e88c3a", rouge:"#e84444",
 };
+
+// ── Bella'Odyssée — Prune · Violet · Or · Blanc ──────────────
 const BO = {
-  fond:"#05040f", prune:"#0d1535", acc:"#3730a3", acc2:"#4f46e5",
-  or:"#c9a84c", creme:"#f0eeff", cremeD:"rgba(240,238,255,.4)",
-  line:"rgba(99,102,241,0.2)", lineMed:"rgba(99,102,241,0.4)",
-  verre:"rgba(255,255,255,.03)", vert:"#5aaa7a", rouge:"#e84444",
+  fond:"#05040f",  prune:"#0f0d2a",
+  acc:"#4f46e5",   acc2:"#6366f1",  accD:"#3730a3",
+  or:"#c9a84c",    orL:"#e8c96a",
+  creme:"#f0eeff", cremeD:"rgba(240,238,255,.45)",
+  line:"rgba(99,102,241,0.2)",     lineMed:"rgba(99,102,241,0.4)",
+  verre:"rgba(255,255,255,.03)",
+  glow:"0 0 28px rgba(99,102,241,0.35)",
+  vert:"#5aaa7a",  rouge:"#e84444",
 };
-const FS = "'Georgia',serif";
-const SA = "Inter,system-ui,sans-serif";
+
+// ── Bella'Food — Terracotta · Beige · Vert sauge ─────────────
+const FD = {
+  fond:"#0d0a06",  surface:"#1a1208",
+  terra:"#c2603a", terraL:"#d4845e",
+  beige:"#e8ddc8", beigeD:"rgba(232,221,200,.45)",
+  sage:"#6b8f6b",  sageL:"#8aad8a",
+  cacao:"#6b4f3a",
+  or:"#c9a84c",    creme:"#f5efe6",
+  glow:"0 0 28px rgba(194,96,58,0.3)",
+  line:"rgba(194,96,58,0.2)",
+  verre:"rgba(255,255,255,.04)",
+};
+
+// ── Vilo'Assistance — Bleu pétrole · Marine · Blanc ──────────
+const VL = {
+  fond:"#04090f",  surface:"#0d1520",
+  petr:"#0d4f6b",  petrL:"#1a6d8f",
+  marine:"#0f2a4a",marineL:"#1a3f6b",
+  ciel:"#bfdbfe",  blanc:"#f0f7ff",
+  or:"#c9a84c",    vert:"#4ade80",
+  glow:"0 0 28px rgba(13,79,107,0.35)",
+  line:"rgba(29,78,216,0.2)",
+  verre:"rgba(255,255,255,.04)",
+};
+
+// ── Bella'Studio Éditions — Bleu nuit · Violet · Or ──────────
+const ED = {
+  fond:"#06050e",  surface:"#0f0d1f",
+  bleu:"#1e1b4b",  bleuL:"#312e81",
+  violet:"#7c3aed",violetL:"#9d6ef5",
+  or:"#c9a84c",    orL:"#e8c96a",
+  creme:"#ede9fe", cremeD:"rgba(237,233,254,.4)",
+  glow:"0 0 28px rgba(124,58,237,0.3)",
+  line:"rgba(124,58,237,0.18)",
+  verre:"rgba(255,255,255,.04)",
+};
+
+// ── Mo Ti-Péyi — Bleu ciel · Vert tropical · Jaune soleil ────
+const MTP = {
+  fond:"#041420",  surface:"#0a2030",
+  ciel:"#0ea5e9",  cielL:"#38bdf8",
+  vert:"#10b981",  vertL:"#34d399",
+  jaune:"#fbbf24", jauneL:"#fcd34d",
+  orange:"#f97316",blanc:"#f0faff",
+  glow:"0 0 28px rgba(14,165,233,0.3)",
+  line:"rgba(14,165,233,0.2)",
+  verre:"rgba(255,255,255,.04)",
+};
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
@@ -448,36 +577,187 @@ function useStore(key, init) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ATOMS BELLAÏA
+// BELLAÏA DESIGN SYSTEM V2 — Composants UI unifiés
+// Règle : tous les portails utilisent ces composants communs
 // ═══════════════════════════════════════════════════════════
-const Bdg = ({s}) => { const c = sCo(s); return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:99,background:c.bg,color:c.t,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{s}</span>; };
-const PBar = ({v, col}) => <div style={{height:5,background:"rgba(255,255,255,0.07)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:(Math.min(v||0,100))+"%",background:"linear-gradient(90deg,"+(col||B.violet)+","+(B.violetL)+")",borderRadius:99,transition:"width 0.5s"}}/></div>;
-const SH = ({t, s}) => <div style={{marginBottom:16}}><h2 style={{margin:0,fontSize:20,fontWeight:800,color:B.cream,fontFamily:FS,letterSpacing:"-0.02em"}}>{t}</h2>{s&&<p style={{margin:"3px 0 0",fontSize:12,color:B.muted}}>{s}</p>}</div>;
 
-const Btn = ({onClick, children, v="primary", sm, full, disabled}) => {
-  const st = {
-    primary:{background:"linear-gradient(135deg,"+(B.violet)+",#5b21b6)",color:"#fff",border:"none"},
-    gold:{background:"linear-gradient(135deg,"+(B.gold)+",#a07030)",color:B.night,border:"none"},
-    ghost:{background:"transparent",color:B.mutedL,border:"1px solid "+(B.border)},
-    danger:{background:"rgba(180,80,80,0.2)",color:B.danger,border:"1px solid rgba(180,80,80,0.3)"},
-    success:{background:"rgba(80,180,120,0.15)",color:B.success,border:"1px solid rgba(80,180,120,0.3)"},
+// ── Btn — Bouton universel (remplace Btn, BBtn, OBtn) ────────
+// v: primary|gold|ghost|danger|success|warning|outline
+// sz: sm|md|lg   full: pleine largeur   loading: spinner inline
+const Btn = ({onClick, children, v="primary", sz="md", full=false, disabled=false, loading=false}) => {
+  const base = {
+    cursor:disabled||loading?"not-allowed":"pointer",
+    borderRadius:R.md,fontFamily:SA,fontWeight:T.w.bold,
+    border:"none",display:"inline-flex",alignItems:"center",
+    justifyContent:"center",gap:6,transition:TR.base,
+    opacity:disabled?0.48:1,width:full?"100%":"auto",
+    letterSpacing:"0.01em",
   };
-  return <button onClick={onClick} disabled={disabled} style={{...st[v],padding:sm?"6px 12px":"10px 18px",borderRadius:10,fontWeight:700,fontSize:sm?11:13,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.5:1,width:full?"100%":"auto",fontFamily:SA,transition:"opacity 0.2s"}}>{children}</button>;
-};
-const Inp = ({value, onChange, placeholder, type="text", rows}) => {
-  const s = {width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"};
-  return rows ? <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...s,resize:"vertical"}}/> : <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={s}/>;
-};
-const Sel = ({value, onChange, options}) => <select value={value} onChange={onChange} style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>{options.map(o=><option key={o} value={o}>{o}</option>)}</select>;
-const Fld = ({label, children}) => <div style={{marginBottom:14}}><label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>{label}</label>{children}</div>;
-
-function Mdl({title, onClose, children}) {
+  const sizes = {
+    sm:{padding:"6px 14px",fontSize:T.sm},
+    md:{padding:"10px 20px",fontSize:T.base},
+    lg:{padding:"13px 28px",fontSize:T.md},
+  };
+  const vs = {
+    primary:{background:"linear-gradient(135deg,"+B.violet+","+B.violetD+")",color:"#fff",boxShadow:loading?"none":"0 2px 12px rgba(124,58,237,0.3)"},
+    gold:{background:"linear-gradient(135deg,"+B.gold+","+B.goldD+")",color:B.night,boxShadow:"0 2px 12px rgba(201,168,76,0.25)"},
+    ghost:{background:"rgba(255,255,255,0.04)",color:B.mutedL,border:"1px solid "+B.border},
+    danger:{background:B.dangerG,color:B.danger,border:"1px solid rgba(248,113,113,0.3)"},
+    success:{background:B.successG,color:B.success,border:"1px solid rgba(110,231,160,0.3)"},
+    warning:{background:B.warningG,color:B.warning,border:"1px solid rgba(251,191,36,0.3)"},
+    outline:{background:"transparent",color:B.violetL,border:"1px solid "+B.border},
+  };
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:B.deep,borderRadius:"20px 20px 0 0",border:"1px solid "+(B.border),padding:"20px 16px 32px",width:"100%",maxWidth:430,maxHeight:"90vh",overflowY:"auto"}}>
+    <button onClick={!disabled&&!loading?onClick:undefined} disabled={disabled||loading}
+      style={{...base,...sizes[sz],...vs[v]}}>
+      {loading && <span style={{width:12,height:12,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"ds-spin 0.7s linear infinite"}}/>}
+      {children}
+    </button>
+  );
+};
+
+// ── Inp — Input universel ────────────────────────────────────
+const Inp = ({value, onChange, placeholder, type="text", rows, icon, error}) => {
+  const base = {
+    width:"100%",background:B.surface,
+    border:"1px solid "+(error?B.danger:B.border),
+    borderRadius:R.md,padding:icon?"9px 12px 9px 36px":"9px 12px",
+    color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,
+    boxSizing:"border-box",transition:TR.fast,
+  };
+  const wrap = {position:"relative",width:"100%"};
+  const icStyle = {position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:B.muted,fontSize:14,pointerEvents:"none"};
+  if (rows) return (
+    <div style={wrap}>
+      <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+        style={{...base,resize:"vertical",padding:"9px 12px"}}/>
+      {error && <p style={{margin:"3px 0 0",fontSize:T.xs,color:B.danger}}>{error}</p>}
+    </div>
+  );
+  return (
+    <div style={wrap}>
+      {icon && <span style={icStyle}>{icon}</span>}
+      <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={base}/>
+      {error && <p style={{margin:"3px 0 0",fontSize:T.xs,color:B.danger}}>{error}</p>}
+    </div>
+  );
+};
+
+// ── Sel — Select universel ───────────────────────────────────
+const Sel = ({value, onChange, options}) => (
+  <select value={value} onChange={onChange}
+    style={{width:"100%",background:B.surface,border:"1px solid "+B.border,borderRadius:R.md,padding:"9px 12px",color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+    {options.map(o=><option key={o} value={o}>{o}</option>)}
+  </select>
+);
+
+// ── Fld — Champ labelisé ─────────────────────────────────────
+const Fld = ({label, children, required=false}) => (
+  <div style={{marginBottom:14}}>
+    <label style={{fontSize:T.xs,fontWeight:T.w.bold,color:B.mutedL,letterSpacing:"0.07em",textTransform:"uppercase",display:"block",marginBottom:5}}>
+      {label}{required&&<span style={{color:B.danger,marginLeft:2}}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+
+// ── Card — Carte universelle ─────────────────────────────────
+// accent: false|"violet"|"gold"|couleur hex
+const Card = ({children, accent=false, hover=false, glow=false, style:s={}}) => {
+  const borderTop = accent==="gold"?"3px solid "+B.gold:accent==="violet"?"3px solid "+B.violet:accent&&accent!==false?"3px solid "+accent:"none";
+  return (
+    <div style={{
+      background:B.card,border:"1px solid "+B.border,borderRadius:R.lg,
+      padding:"16px",borderTop,
+      boxShadow:glow?B.violetGlow:"0 2px 12px rgba(0,0,0,0.3)",
+      transition:TR.base,...s}}>
+      {children}
+    </div>
+  );
+};
+
+// ── SH — Section Header ──────────────────────────────────────
+const SH = ({t, s, action}) => (
+  <div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+    <div>
+      <h2 style={{margin:0,fontSize:T.xl,fontWeight:T.w.black,color:B.cream,fontFamily:FS,letterSpacing:"-0.02em"}}>{t}</h2>
+      {s&&<p style={{margin:"3px 0 0",fontSize:T.sm,color:B.muted}}>{s}</p>}
+    </div>
+    {action&&<div>{action}</div>}
+  </div>
+);
+
+// ── Bdg — Badge statut (conservé, utilise sCo) ───────────────
+const Bdg = ({s}) => { const c = sCo(s); return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:R.full,background:c.bg,color:c.t,fontSize:T.xs,fontWeight:T.w.bold,whiteSpace:"nowrap",letterSpacing:"0.04em"}}>{s}</span>; };
+
+// ── Tag — Tag coloré générique ───────────────────────────────
+const Tag = ({color=B.violet, children, sz=9}) => (
+  <span style={{background:color+"22",border:"1px solid "+color+"55",color,borderRadius:3,padding:"2px 8px",fontSize:sz,fontWeight:T.w.bold,whiteSpace:"nowrap"}}>
+    {children}
+  </span>
+);
+
+// ── PBar — Barre de progression ──────────────────────────────
+const PBar = ({v, col}) => (
+  <div style={{height:5,background:"rgba(255,255,255,0.07)",borderRadius:R.full,overflow:"hidden"}}>
+    <div style={{height:"100%",width:Math.min(v||0,100)+"%",background:"linear-gradient(90deg,"+(col||B.violet)+","+B.violetL+")",borderRadius:R.full,transition:"width 0.5s ease"}}/>
+  </div>
+);
+
+// ── Loader — Spinner universel ───────────────────────────────
+const Loader = ({size=24, color=B.violet}) => (
+  <div style={{display:"flex",justifyContent:"center",alignItems:"center",padding:20}}>
+    <div style={{width:size,height:size,border:"2px solid rgba(255,255,255,0.1)",borderTopColor:color,borderRadius:"50%",animation:"ds-spin 0.7s linear infinite"}}/>
+  </div>
+);
+
+// ── Stat — Carte statistique ─────────────────────────────────
+const Stat = ({label, value, sub, color=B.violetL, ico}) => (
+  <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:R.lg,padding:"14px 16px"}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+      <span style={{fontSize:T.xs,fontWeight:T.w.bold,color:B.muted,textTransform:"uppercase",letterSpacing:"0.07em"}}>{label}</span>
+      {ico&&<span style={{fontSize:16,opacity:0.7}}>{ico}</span>}
+    </div>
+    <div style={{fontSize:T.xl,fontWeight:T.w.black,color,fontFamily:FS}}>{value}</div>
+    {sub&&<div style={{fontSize:T.xs,color:B.muted,marginTop:3}}>{sub}</div>}
+  </div>
+);
+
+// ── Toast — Notification inline ──────────────────────────────
+const Toast = ({type="success", message, onClose}) => {
+  const cfg = {
+    success:{bg:B.successG,border:"1px solid rgba(110,231,160,0.3)",color:B.success,ico:"✓"},
+    error:  {bg:B.dangerG, border:"1px solid rgba(248,113,113,0.3)",color:B.danger, ico:"✕"},
+    warning:{bg:B.warningG,border:"1px solid rgba(251,191,36,0.3)", color:B.warning,ico:"⚠"},
+    info:   {bg:B.infoG,   border:"1px solid rgba(96,165,250,0.3)", color:B.info,   ico:"ℹ"},
+  };
+  const c = cfg[type]||cfg.info;
+  return (
+    <div style={{...c,borderRadius:R.md,padding:"10px 14px",display:"flex",gap:8,alignItems:"center",fontSize:T.sm}}>
+      <span style={{fontWeight:T.w.bold,color:c.color,flexShrink:0}}>{c.ico}</span>
+      <span style={{flex:1,color:B.cream}}>{message}</span>
+      {onClose&&<button onClick={onClose} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",padding:"0 2px",fontSize:14}}>✕</button>}
+    </div>
+  );
+};
+
+// ── Mdl — Modale universelle (bottom sheet mobile) ───────────
+function Mdl({title, onClose, children, wide=false}) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(6,4,12,0.88)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(4px)"}}
+      onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:B.deep,borderRadius:"22px 22px 0 0",border:"1px solid "+B.border,
+          borderBottom:"none",padding:"20px 16px 36px",width:"100%",
+          maxWidth:wide?600:440,maxHeight:"92vh",overflowY:"auto",
+          boxShadow:"0 -8px 40px rgba(0,0,0,0.6)"}}>
+        <div style={{width:36,height:4,background:B.border,borderRadius:2,margin:"0 auto 18px"}}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-          <h3 style={{margin:0,fontSize:17,fontWeight:800,color:B.cream,fontFamily:FS}}>{title}</h3>
-          <button onClick={onClose} style={{background:"none",border:"none",color:B.muted,fontSize:20,cursor:"pointer",padding:"0 4px"}}>✕</button>
+          <h3 style={{margin:0,fontSize:T.lg,fontWeight:T.w.black,color:B.cream,fontFamily:FS}}>{title}</h3>
+          <button onClick={onClose}
+            style={{background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,
+              color:B.muted,fontSize:14,cursor:"pointer",padding:"5px 9px",
+              borderRadius:R.sm,lineHeight:1}}>✕</button>
         </div>
         {children}
       </div>
@@ -485,29 +765,45 @@ function Mdl({title, onClose, children}) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// ATOMS BSH
-// ═══════════════════════════════════════════════════════════
-const BTag = ({c=BSH.bord, children, sz=9}) => <span style={{background:(c)+"22",border:"1px solid "+(c)+("55"),color:c,borderRadius:3,padding:"2px 7px",fontSize:sz,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
+// ── Compatibilité : alias pour les portails existants ────────
+// (évite de renommer chaque appel dans le code métier)
 const BBtn = ({children, v="ghost", sz="md", onClick, full=false, disabled=false}) => {
-  const base = {cursor:disabled?"not-allowed":"pointer",borderRadius:8,fontFamily:SA,fontWeight:600,transition:"all .2s",border:"none",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4,opacity:disabled?0.5:1};
-  const sizes = {sm:{padding:"6px 12px",fontSize:11},md:{padding:"10px 20px",fontSize:13},lg:{padding:"14px 28px",fontSize:15}};
-  const vs = {gold:{background:"linear-gradient(135deg,"+(BSH.or)+",#a87a3e)",color:BSH.fond},bord:{background:"linear-gradient(135deg,"+(BSH.bord)+","+(BSH.bord2)+")",color:BSH.creme},ghost:{background:"none",border:"1px solid "+(BSH.line),color:BSH.cremeF},danger:{background:(BSH.rouge)+"22",border:"1px solid "+(BSH.rouge)+("44"),color:BSH.rouge}};
-  return <button onClick={onClick} disabled={disabled} style={{...base,...sizes[sz],...vs[v],width:full?"100%":"auto"}}>{children}</button>;
+  const vMap = {gold:"gold",bord:"primary",ghost:"ghost",danger:"danger"};
+  return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full} disabled={disabled}>{children}</Btn>;
 };
-const BCard = ({children, accent=false, style:s={}}) => <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:14,padding:"14px 16px",borderTop:accent ? "3px solid "+(BSH.bord) : "1px solid "+(BSH.line),...s}}>{children}</div>;
-
-// ═══════════════════════════════════════════════════════════
-// ATOMS BO
-// ═══════════════════════════════════════════════════════════
-const OCard = ({children, accent=false, style:s={}}) => <div style={{background:BO.verre,border:"1px solid "+(BO.line),borderRadius:14,padding:"14px 16px",borderTop:accent ? "3px solid "+(BO.acc) : "1px solid "+(BO.line),...s}}>{children}</div>;
+const BCard = ({children, accent=false, style:s={}}) => (
+  <div style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:R.lg,padding:"14px 16px",
+    borderTop:accent?"3px solid "+BSH.bord:"1px solid "+BSH.line,...s}}>{children}</div>
+);
+const BTag = ({c=BSH.bord, children, sz=9}) => <Tag color={c} sz={sz}>{children}</Tag>;
+const OCard = ({children, accent=false, style:s={}}) => (
+  <div style={{background:BO.verre,border:"1px solid "+BO.line,borderRadius:R.lg,padding:"14px 16px",
+    borderTop:accent?"3px solid "+BO.acc:"1px solid "+BO.line,...s}}>{children}</div>
+);
 const OBtn = ({children, v="ghost", sz="md", onClick, full=false}) => {
-  const base = {cursor:"pointer",borderRadius:8,fontFamily:SA,fontWeight:600,border:"none",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4};
-  const sizes = {sm:{padding:"6px 12px",fontSize:11},md:{padding:"10px 20px",fontSize:13}};
-  const vs = {primary:{background:"linear-gradient(135deg,"+(BO.acc)+","+(BO.acc2)+")",color:"#fff"},gold:{background:"linear-gradient(135deg,"+(BO.or)+",#a87a3e)",color:BO.fond||"#000"},ghost:{background:"none",border:"1px solid "+(BO.line),color:BO.cremeD}};
-  return <button onClick={onClick} style={{...base,...sizes[sz],...vs[v],width:full?"100%":"auto"}}>{children}</button>;
+  const vMap = {primary:"primary",gold:"gold",ghost:"ghost"};
+  return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full}>{children}</Btn>;
 };
-const OTag = ({c=BO.acc, children, sz=9}) => <span style={{background:(c)+"22",border:"1px solid "+(c)+("55"),color:c,borderRadius:3,padding:"2px 7px",fontSize:sz,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
+const OTag = ({c=BO.acc, children, sz=9}) => <Tag color={c} sz={sz}>{children}</Tag>;
+
+// ── Keyframes globaux (injectés une seule fois) ──────────────
+if (typeof document !== "undefined" && !document.getElementById("ds-keyframes")) {
+  const s = document.createElement("style");
+  s.id = "ds-keyframes";
+  s.textContent = `
+    @keyframes ds-spin { to { transform: rotate(360deg); } }
+    @keyframes ds-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes ds-pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+    .ds-fadein { animation: ds-fadein 0.25s ease both; }
+    * { -webkit-tap-highlight-color: transparent; }
+    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(124,58,237,0.3); border-radius:2px; }
+    ::placeholder { color:rgba(184,174,208,0.45); }
+    input,select,textarea,button { font-family:'Inter',system-ui,sans-serif; }
+  `;
+  document.head.appendChild(s);
+}
 
 
 // ═══════════════════════════════════════════════════════════
