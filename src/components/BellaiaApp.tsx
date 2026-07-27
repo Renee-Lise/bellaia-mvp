@@ -5340,88 +5340,249 @@ function EcranConnexion({ onConnecte }) {
     setLoading(false);
   };
 
+  // ── Styles réutilisables locaux ────────────────────────────
+  const inputStyle = {
+    width:"100%", background:"rgba(250,248,245,0.96)",
+    border:"1px solid rgba(200,190,220,0.35)", borderRadius:R.md,
+    padding:"11px 12px 11px 38px", color:"#1a1428",
+    fontSize:T.base, outline:"none", fontFamily:SA,
+    boxSizing:"border-box" as const, transition:TR.fast,
+  };
+  const labelStyle = {
+    fontSize:T.xs, fontWeight:T.w.bold, color:B.mutedL,
+    letterSpacing:"0.07em", textTransform:"uppercase" as const,
+    display:"block", marginBottom:5,
+  };
+  const iconWrap = {position:"relative" as const, width:"100%"};
+  const iconPos  = {position:"absolute" as const, left:11, top:"50%", transform:"translateY(-50%)", color:"#8b7fa8", fontSize:15, pointerEvents:"none" as const};
+
+  const [showPwd, setShowPwd] = React.useState(false);
+
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 30% 0%,rgba(124,58,237,0.3),"+(B.night)+" 65%)",fontFamily:SA,alignItems:"center",justifyContent:"center",padding:"24px 20px"}}>
-      <div style={{textAlign:"center",maxWidth:340,width:"100%"}}>
-        {/* Logo */}
-        <div style={{width:64,height:64,borderRadius:18,background:"linear-gradient(135deg,"+(B.violet)+","+(B.gold)+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,margin:"0 auto 16px",boxShadow:"0 8px 32px rgba(124,58,237,0.3)"}}>◎</div>
-        <div style={{fontFamily:FS,fontSize:28,fontWeight:900,color:B.cream,letterSpacing:"-0.03em",marginBottom:4}}>Bellaïa</div>
-        <div style={{fontSize:10,color:B.muted,letterSpacing:"0.18em",textTransform:"uppercase",marginBottom:32}}>Bella'Studio Hub</div>
+    <div style={{
+      display:"flex", flexDirection:"column", minHeight:"100vh",
+      // Fond : triple halo + dégradé nuit
+      background:`
+        radial-gradient(ellipse 70% 50% at 15% 10%, rgba(124,58,237,0.28) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 85% 90%, rgba(90,20,55,0.22) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 30% at 60% 40%, rgba(201,168,76,0.07) 0%, transparent 50%),
+        ${B.night}
+      `,
+      fontFamily:SA, alignItems:"center", justifyContent:"center",
+      padding:"24px 20px", overflowY:"auto",
+    }}>
 
-        {/* Formulaire */}
-        <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:18,padding:"24px 20px",textAlign:"left"}}>
-          <div style={{fontSize:14,fontWeight:800,color:B.cream,fontFamily:FS,marginBottom:18,textAlign:"center"}}>{mode==="login"?"Connexion":"Créer un compte"}</div>
+      {/* ── Particules dorées décoratives ── */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+        {[
+          {top:"8%", left:"12%", s:3, op:0.35},  {top:"18%", right:"8%",  s:2, op:0.25},
+          {top:"35%", left:"5%",  s:2, op:0.2},   {top:"60%", right:"12%", s:3, op:0.3},
+          {top:"75%", left:"20%", s:2, op:0.2},   {top:"88%", right:"25%", s:2, op:0.25},
+          {top:"45%", left:"88%", s:3, op:0.2},   {top:"25%", left:"75%",  s:2, op:0.15},
+        ].map((p, i) => (
+          <div key={i} style={{
+            position:"absolute", width:p.s, height:p.s, borderRadius:"50%",
+            background:B.gold, opacity:p.op,
+            top:p.top, left:(p as any).left, right:(p as any).right,
+            animation:`ds-pulse ${2.5 + i * 0.4}s ease-in-out infinite`,
+            animationDelay:`${i * 0.3}s`,
+          }}/>
+        ))}
+      </div>
 
-          {erreur && <div style={{background:"rgba(180,80,80,0.2)",border:"1px solid rgba(180,80,80,0.4)",borderRadius:10,padding:"9px 12px",color:B.danger,fontSize:12,marginBottom:14,lineHeight:1.5}}>{erreur}</div>}
-          {succes && <div style={{background:"rgba(80,180,120,0.15)",border:"1px solid rgba(80,180,120,0.4)",borderRadius:10,padding:"9px 12px",color:"#7dd6a0",fontSize:12,marginBottom:14,lineHeight:1.5}}>{succes}</div>}
+      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:360,animation:"ds-fadein 0.5s ease both"}}>
 
+        {/* ── Logo + identité ── */}
+        <div style={{textAlign:"center",marginBottom:32}}>
+          {/* Halo derrière le logo */}
+          <div style={{position:"relative",display:"inline-block",marginBottom:16}}>
+            <div style={{
+              position:"absolute",inset:"-12px",borderRadius:"50%",
+              background:"radial-gradient(circle, rgba(124,58,237,0.35) 0%, transparent 70%)",
+              animation:"ds-pulse 3s ease-in-out infinite",
+            }}/>
+            <div style={{
+              width:72, height:72, borderRadius:20,
+              background:`linear-gradient(135deg, ${B.violet}, ${B.violetD} 50%, ${B.gold})`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:34, position:"relative", zIndex:1,
+              boxShadow:`0 8px 32px rgba(124,58,237,0.45), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`,
+            }}>◎</div>
+          </div>
+
+          <div style={{fontFamily:FS,fontSize:30,fontWeight:900,color:B.cream,letterSpacing:"-0.03em",marginBottom:3}}>Bellaïa</div>
+          <div style={{fontSize:11,color:B.muted,letterSpacing:"0.2em",textTransform:"uppercase",marginBottom:8}}>Bella'Studio Hub</div>
+          <div style={{fontSize:T.sm,color:B.mutedL,fontStyle:"italic",lineHeight:1.5}}>
+            Bonjour, je suis Bellaïa.<br/>
+            <span style={{color:B.violetL}}>Votre assistante intelligente.</span>
+          </div>
+        </div>
+
+        {/* ── Carte principale — formulaire ── */}
+        <div style={{
+          background:"rgba(30,26,48,0.75)",
+          backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)",
+          border:"1px solid rgba(124,58,237,0.25)",
+          borderRadius:R["2xl"], padding:"28px 24px",
+          boxShadow:"0 24px 64px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.06) inset",
+        }}>
+          {/* Onglets login / signup */}
+          <div style={{display:"flex",background:B.night,borderRadius:R.md,padding:3,marginBottom:24,border:"1px solid "+B.border}}>
+            {(["login","signup"] as const).map(m => (
+              <button key={m} onClick={()=>{setMode(m);setErreur("");setSucces("");}}
+                style={{flex:1,padding:"8px 0",borderRadius:7,border:"none",cursor:"pointer",fontFamily:SA,fontSize:T.sm,fontWeight:T.w.bold,transition:TR.base,
+                  background:mode===m?"linear-gradient(135deg,"+B.violet+","+B.violetD+")":"transparent",
+                  color:mode===m?"#fff":B.muted,
+                  boxShadow:mode===m?"0 2px 8px rgba(124,58,237,0.3)":"none",
+                }}>
+                {m==="login" ? "Connexion" : "Créer un compte"}
+              </button>
+            ))}
+          </div>
+
+          {/* Messages ── */}
+          {erreur && (
+            <div style={{display:"flex",gap:8,alignItems:"flex-start",background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.25)",borderRadius:R.md,padding:"10px 13px",marginBottom:16}}>
+              <span style={{flexShrink:0,fontSize:14}}>⚠️</span>
+              <span style={{fontSize:T.sm,color:B.danger,lineHeight:1.5}}>{erreur}</span>
+            </div>
+          )}
+          {succes && (
+            <div style={{display:"flex",gap:8,alignItems:"flex-start",background:"rgba(110,231,160,0.1)",border:"1px solid rgba(110,231,160,0.25)",borderRadius:R.md,padding:"10px 13px",marginBottom:16}}>
+              <span style={{flexShrink:0,fontSize:14}}>✅</span>
+              <span style={{fontSize:T.sm,color:B.success,lineHeight:1.5}}>{succes}</span>
+            </div>
+          )}
+
+          {/* Champs inscription */}
           {mode==="signup" && (
             <>
-              <div style={{display:"flex",gap:8,marginBottom:14}}>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Prénom</label>
-                  <input value={prenom} onChange={e=>setPrenom(e.target.value)} placeholder="Prénom" style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
-                </div>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Nom</label>
-                  <input value={nom} onChange={e=>setNom(e.target.value)} placeholder="Nom" style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+              <div style={{display:"flex",gap:10,marginBottom:14}}>
+                {([["prenom","Prénom",prenom,setPrenom],["nom","Nom",nom,setNom]] as any[]).map(([k,lbl,val,set])=>(
+                  <div key={k} style={{flex:1}}>
+                    <label style={labelStyle}>{lbl}</label>
+                    <input value={val} onChange={(e:any)=>set(e.target.value)} placeholder={lbl}
+                      style={{...inputStyle,paddingLeft:12}}/>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={labelStyle}>📱 Téléphone</label>
+                <div style={iconWrap}>
+                  <span style={iconPos}>📱</span>
+                  <input type="tel" value={telephone} onChange={e=>setTelephone(e.target.value)}
+                    placeholder="+594 694 ..." style={inputStyle}/>
                 </div>
               </div>
               <div style={{marginBottom:14}}>
-                <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Téléphone</label>
-                <input type="tel" value={telephone} onChange={e=>setTelephone(e.target.value)} placeholder="+594 ..." style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
-              </div>
-              <div style={{marginBottom:14}}>
-                <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Date de naissance *</label>
-                <input type="date" value={dateNaissance} onChange={e=>setDateNaissance(e.target.value)} style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
-                <div style={{fontSize:10,color:B.muted,marginTop:4}}>Obligatoire pour vérifier votre âge (certains espaces sont réservés aux majeurs).</div>
+                <label style={labelStyle}>🎂 Date de naissance *</label>
+                <input type="date" value={dateNaissance} onChange={e=>setDateNaissance(e.target.value)}
+                  style={{...inputStyle,paddingLeft:12,colorScheme:"dark"}}/>
+                <p style={{fontSize:T.xs,color:B.muted,marginTop:4,lineHeight:1.5}}>Obligatoire — certains espaces sont réservés aux majeurs.</p>
               </div>
             </>
           )}
 
+          {/* Email */}
           <div style={{marginBottom:14}}>
-            <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Email</label>
-            <input
-              type="email" value={email} onChange={e=>setEmail(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&(mode==="login"?connexion():inscription())}
-              placeholder="votre@email.com"
-              style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}
-            />
-          </div>
-          <div style={{marginBottom:20}}>
-            <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Mot de passe</label>
-            <input
-              type="password" value={password} onChange={e=>setPassword(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&(mode==="login"?connexion():inscription())}
-              placeholder="••••••••"
-              style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}
-            />
+            <label style={labelStyle}>📧 Email</label>
+            <div style={iconWrap}>
+              <span style={iconPos}>📧</span>
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&(mode==="login"?connexion():inscription())}
+                placeholder="votre@email.com" style={inputStyle}/>
+            </div>
           </div>
 
-          <button onClick={mode==="login"?connexion:inscription} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,"+(B.violet)+",#5b21b6)",border:"none",borderRadius:10,padding:"12px",color:"#fff",fontWeight:700,fontSize:14,cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1,fontFamily:SA}}>
-            {loading ? (mode==="login"?"Connexion…":"Création…") : (mode==="login"?"Se connecter":"Créer mon compte")}
+          {/* Mot de passe */}
+          <div style={{marginBottom:24}}>
+            <label style={labelStyle}>🔒 Mot de passe</label>
+            <div style={{...iconWrap,display:"flex",alignItems:"center"}}>
+              <span style={iconPos}>🔒</span>
+              <input type={showPwd?"text":"password"} value={password}
+                onChange={e=>setPassword(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&(mode==="login"?connexion():inscription())}
+                placeholder="••••••••" style={{...inputStyle,paddingRight:40}}/>
+              <button onClick={()=>setShowPwd(v=>!v)}
+                style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"#8b7fa8",fontSize:15,padding:4}}>
+                {showPwd?"👁":"👁‍🗨"}
+              </button>
+            </div>
+          </div>
+
+          {/* Bouton principal */}
+          <button onClick={mode==="login"?connexion:inscription} disabled={loading}
+            style={{
+              width:"100%",border:"none",borderRadius:R.md,padding:"13px",
+              background:loading?"rgba(124,58,237,0.4)":`linear-gradient(135deg, ${B.violet} 0%, ${B.violetD} 60%, #3b0ca3 100%)`,
+              color:"#fff",fontWeight:T.w.bold,fontSize:T.md,
+              cursor:loading?"not-allowed":"pointer",fontFamily:SA,
+              boxShadow:loading?"none":"0 4px 20px rgba(124,58,237,0.45), inset 0 1px 0 rgba(255,255,255,0.15)",
+              transition:TR.base,position:"relative",overflow:"hidden",
+            }}>
+            {loading ? (
+              <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <span style={{width:14,height:14,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"ds-spin 0.7s linear infinite"}}/>
+                {mode==="login"?"Connexion en cours…":"Création du compte…"}
+              </span>
+            ) : (
+              <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                {mode==="login"?"Se connecter ➡":"Créer mon compte ➡"}
+              </span>
+            )}
           </button>
 
-          <div style={{textAlign:"center",marginTop:16,fontSize:12,color:B.muted}}>
+          {/* Switch mode */}
+          <p style={{textAlign:"center",marginTop:18,fontSize:T.sm,color:B.muted,lineHeight:1.5}}>
             {mode==="login" ? (
-              <>Pas encore de compte ? <span onClick={()=>{setMode("signup");setErreur("");setSucces("");}} style={{color:B.gold,fontWeight:700,cursor:"pointer"}}>Créer un compte</span></>
+              <>Pas encore de compte ?{" "}
+                <span onClick={()=>{setMode("signup");setErreur("");setSucces("");}}
+                  style={{color:B.gold,fontWeight:T.w.bold,cursor:"pointer",textDecoration:"underline",textUnderlineOffset:2}}>
+                  Créer un compte
+                </span>
+              </>
             ) : (
-              <>Déjà inscrite ? <span onClick={()=>{setMode("login");setErreur("");setSucces("");}} style={{color:B.gold,fontWeight:700,cursor:"pointer"}}>Se connecter</span></>
+              <>Déjà inscrite ?{" "}
+                <span onClick={()=>{setMode("login");setErreur("");setSucces("");}}
+                  style={{color:B.gold,fontWeight:T.w.bold,cursor:"pointer",textDecoration:"underline",textUnderlineOffset:2}}>
+                  Se connecter
+                </span>
+              </>
             )}
-          </div>
+          </p>
         </div>
 
-        {/* Demande d'accès */}
-        <div style={{marginTop:20,background:"rgba(255,255,255,0.03)",border:"1px solid "+(B.border),borderRadius:14,padding:"16px 18px"}}>
-          <div style={{fontSize:12,color:B.muted,marginBottom:10,lineHeight:1.6}}>Pas encore de compte ?<br/>Contactez la fondatrice pour un accès.</div>
+        {/* ── Carte accès WhatsApp ── */}
+        <div style={{
+          marginTop:14,
+          background:"rgba(201,168,76,0.06)",
+          backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
+          border:"1px solid rgba(201,168,76,0.2)",
+          borderRadius:R.xl, padding:"16px 20px",
+        }}>
+          <p style={{fontSize:T.sm,color:B.muted,marginBottom:12,lineHeight:1.6,textAlign:"center"}}>
+            Pas encore de compte ? Contactez la fondatrice pour un accès.
+          </p>
           <button onClick={()=>window.open(WA("Bonjour, je souhaite accéder à la plateforme Bellaïa / Bella'Studio."),"_blank")}
-            style={{width:"100%",background:"transparent",border:"1px solid rgba(201,168,76,0.4)",borderRadius:10,padding:"10px",color:B.gold,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+            style={{
+              width:"100%",background:"transparent",
+              border:"1px solid rgba(201,168,76,0.35)",borderRadius:R.md,
+              padding:"11px",color:B.gold,fontWeight:T.w.bold,fontSize:T.sm,
+              cursor:"pointer",fontFamily:SA,transition:TR.base,
+              display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+            }}>
             💬 Demander un accès via WhatsApp
           </button>
         </div>
 
-        <div style={{marginTop:20,fontSize:10,color:B.muted}}>Bella'Studio · {ENV.VILLE}, {ENV.PAYS}</div>
-        <div style={{marginTop:8,fontSize:9,color:B.gold,letterSpacing:"0.1em",fontWeight:700}}>{BUILD_VERSION}</div>
+        {/* ── Footer ── */}
+        <p style={{textAlign:"center",marginTop:20,fontSize:T.xs,color:"rgba(139,127,168,0.5)"}}>
+          Bella'Studio · {ENV.VILLE}, {ENV.PAYS}
+        </p>
+        {/* BUILD_VERSION masqué en production — visible uniquement en dev */}
+        {process.env.NODE_ENV !== "production" && (
+          <p style={{textAlign:"center",fontSize:"9px",color:"rgba(201,168,76,0.3)",letterSpacing:"0.08em",marginTop:4}}>{BUILD_VERSION}</p>
+        )}
       </div>
     </div>
   );
