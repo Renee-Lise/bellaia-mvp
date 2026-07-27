@@ -1,6 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+// ═══════════════════════════════════════════════════════════
+// MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
+// Si ce texte apparaît sur l'écran de connexion, le build est à jour.
+// ═══════════════════════════════════════════════════════════
+const BUILD_VERSION = "BUILD 2026-06-23 · CrmF+Panier OK";
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES — Variables d'environnement (aucune coordonnée en dur)
 // Configurer dans Vercel → Settings → Environment Variables
@@ -14,37 +19,167 @@ const ENV = {
   VILLE:   process.env.NEXT_PUBLIC_VILLE       || "",   // ex: Sinnamary
   PAYS:    process.env.NEXT_PUBLIC_PAYS        || "Guyane française",
   NOM_ENT: process.env.NEXT_PUBLIC_NOM_ENT     || "Bella'Studio",
+  SQUARE_BOOKING: process.env.NEXT_PUBLIC_SQUARE_BOOKING_URL || "",  // planning Square (RDV Odyssée)
 };
-const WA = (msg="") => `https://wa.me/${ENV.WA}${msg ? "?text=" + encodeURIComponent(msg) : ""}`;
+const WA = (msg="") => "https://wa.me/"+(ENV.WA)+(msg ? "?text=" + encodeURIComponent(msg) : "");
 
 
 // ═══════════════════════════════════════════════════════════
-// DESIGN TOKENS
+// BELLAÏA DESIGN SYSTEM V2 — Tokens officiels
+// Palettes validées par Renée-Lise Vilosa · Bella'Studio
 // ═══════════════════════════════════════════════════════════
+
+// ── Typographie ─────────────────────────────────────────────
+const FS = "'Georgia','Times New Roman',serif";       // Display / titres
+const SA = "'Inter',system-ui,-apple-system,sans-serif"; // Corps / UI
+const SM = "'Georgia',serif";                         // Sous-titres élégants
+
+// ── Échelle typographique ────────────────────────────────────
+const T = {
+  xs:"9px", sm:"11px", base:"13px", md:"15px",
+  lg:"18px", xl:"22px", "2xl":"28px", display:"36px",
+  w:{regular:400, medium:500, semibold:600, bold:700, black:900},
+};
+
+// ── Espacement ───────────────────────────────────────────────
+const SP = {
+  "1":"4px","2":"8px","3":"12px","4":"16px","5":"20px",
+  "6":"24px","8":"32px","10":"40px","12":"48px","16":"64px",
+};
+
+// ── Rayons ───────────────────────────────────────────────────
+const R = { sm:6, md:10, lg:14, xl:18, "2xl":24, full:9999 };
+
+// ── Transitions ──────────────────────────────────────────────
+const TR = { fast:"all .15s ease", base:"all .2s ease", slow:"all .35s ease" };
+
+// ── Palette principale Bella'Studio (Hub / Fondatrice) ───────
+// Violet nuit profond · Prune élégant · Or champagne · Crème ivoire
 const B = {
-  night:"#0d0b12", deep:"#13101e", surface:"#1a1628", card:"#201c30",
-  violet:"#7c3aed", violetL:"#9d6ef5", violetG:"rgba(124,58,237,0.2)",
-  gold:"#c9a84c", goldL:"#f0d080", goldG:"rgba(201,168,76,0.15)",
-  cream:"#f5f0e8", muted:"#8b7fa8", mutedL:"#b8aed0",
-  border:"rgba(124,58,237,0.22)", borderG:"rgba(201,168,76,0.28)",
-  success:"#80e0a0", danger:"#f4a0a0", warning:"#f0d080",
+  // Fonds
+  night:"#09070f",   // fond le plus sombre
+  deep:"#100d1a",    // fond principal app
+  surface:"#181428", // surfaces cards
+  card:"#1e1a30",    // cards élevées
+  overlay:"rgba(9,7,15,0.92)",
+
+  // Violet — couleur signature Bellaïa
+  violet:"#7c3aed",
+  violetL:"#9d6ef5",
+  violetD:"#5b21b6",
+  violetG:"rgba(124,58,237,0.18)",
+  violetGlow:"0 0 32px rgba(124,58,237,0.35), 0 0 8px rgba(124,58,237,0.2)",
+
+  // Or champagne — accent premium
+  gold:"#c9a84c",
+  goldL:"#e8c96a",
+  goldD:"#9a7a32",
+  goldG:"rgba(201,168,76,0.14)",
+  goldGlow:"0 0 24px rgba(201,168,76,0.3)",
+
+  // Texte
+  cream:"#f0ebff",   // texte principal
+  muted:"#8b7fa8",   // texte secondaire
+  mutedL:"#b8aed0",  // texte tertiaire
+  placeholder:"rgba(184,174,208,0.5)",
+
+  // Séparateurs
+  border:"rgba(124,58,237,0.22)",
+  borderG:"rgba(201,168,76,0.25)",
+  borderHover:"rgba(124,58,237,0.45)",
+
+  // États
+  success:"#6ee7a0",  successG:"rgba(110,231,160,0.15)",
+  danger:"#f87171",   dangerG:"rgba(248,113,113,0.15)",
+  warning:"#fbbf24",  warningG:"rgba(251,191,36,0.15)",
+  info:"#60a5fa",     infoG:"rgba(96,165,250,0.15)",
 };
+
+// ── Bella'Events — Vert émeraude · Or · Crème ────────────────
+const EV = {
+  fond:"#040f09",  night:"#0a1410",
+  vert:"#065f46",  vertL:"#059669", vertAcc:"#10b981",
+  or:"#c9a84c",    orL:"#e8c96a",
+  creme:"#e8f5ee", cremeD:"rgba(232,245,238,0.5)",
+  glow:"0 0 28px rgba(16,185,129,0.3)",
+  line:"rgba(16,185,129,0.2)", lineMed:"rgba(16,185,129,0.4)",
+  verre:"rgba(16,185,129,0.05)",
+  acc:"#34d399",
+};
+
+// ── Bella'Secret Home — Bordeaux · Noir · Or · Crème ─────────
 const BSH = {
-  fond:"#0e0914", prune:"#2a0d1e", bord:"#6B1A2B", bord2:"#8B2A3B",
-  rose:"#C9637A", or:"#C9A96E", creme:"#F5EEE6",
+  fond:"#0e0914",  prune:"#2a0d1e",
+  bord:"#6B1A2B",  bord2:"#8B2A3B",
+  rose:"#C9637A",  or:"#C9A96E",
+  creme:"#F5EEE6",
   cremeF:"rgba(245,238,230,.75)", cremeD:"rgba(245,238,230,.4)",
-  verre:"rgba(255,255,255,.04)", verre2:"rgba(255,255,255,.07)",
-  line:"rgba(201,169,110,.15)", lineMed:"rgba(201,169,110,.3)",
+  verre:"rgba(255,255,255,.04)",  verre2:"rgba(255,255,255,.07)",
+  line:"rgba(201,169,110,.15)",   lineMed:"rgba(201,169,110,.3)",
+  glow:"0 0 28px rgba(107,26,43,0.45)",
   vert:"#5aaa7a", ora:"#e88c3a", rouge:"#e84444",
 };
+
+// ── Bella'Odyssée — Prune · Violet · Or · Blanc ──────────────
 const BO = {
-  fond:"#05040f", prune:"#0d1535", acc:"#3730a3", acc2:"#4f46e5",
-  or:"#c9a84c", creme:"#f0eeff", cremeD:"rgba(240,238,255,.4)",
-  line:"rgba(99,102,241,0.2)", lineMed:"rgba(99,102,241,0.4)",
-  verre:"rgba(255,255,255,.03)", vert:"#5aaa7a", rouge:"#e84444",
+  fond:"#05040f",  prune:"#0f0d2a",
+  acc:"#4f46e5",   acc2:"#6366f1",  accD:"#3730a3",
+  or:"#c9a84c",    orL:"#e8c96a",
+  creme:"#f0eeff", cremeD:"rgba(240,238,255,.45)",
+  line:"rgba(99,102,241,0.2)",     lineMed:"rgba(99,102,241,0.4)",
+  verre:"rgba(255,255,255,.03)",
+  glow:"0 0 28px rgba(99,102,241,0.35)",
+  vert:"#5aaa7a",  rouge:"#e84444",
 };
-const FS = "'Georgia',serif";
-const SA = "Inter,system-ui,sans-serif";
+
+// ── Bella'Food — Terracotta · Beige · Vert sauge ─────────────
+const FD = {
+  fond:"#0d0a06",  surface:"#1a1208",
+  terra:"#c2603a", terraL:"#d4845e",
+  beige:"#e8ddc8", beigeD:"rgba(232,221,200,.45)",
+  sage:"#6b8f6b",  sageL:"#8aad8a",
+  cacao:"#6b4f3a",
+  or:"#c9a84c",    creme:"#f5efe6",
+  glow:"0 0 28px rgba(194,96,58,0.3)",
+  line:"rgba(194,96,58,0.2)",
+  verre:"rgba(255,255,255,.04)",
+};
+
+// ── Vilo'Assistance — Bleu pétrole · Marine · Blanc ──────────
+const VL = {
+  fond:"#04090f",  surface:"#0d1520",
+  petr:"#0d4f6b",  petrL:"#1a6d8f",
+  marine:"#0f2a4a",marineL:"#1a3f6b",
+  ciel:"#bfdbfe",  blanc:"#f0f7ff",
+  or:"#c9a84c",    vert:"#4ade80",
+  glow:"0 0 28px rgba(13,79,107,0.35)",
+  line:"rgba(29,78,216,0.2)",
+  verre:"rgba(255,255,255,.04)",
+};
+
+// ── Bella'Studio Éditions — Bleu nuit · Violet · Or ──────────
+const ED = {
+  fond:"#06050e",  surface:"#0f0d1f",
+  bleu:"#1e1b4b",  bleuL:"#312e81",
+  violet:"#7c3aed",violetL:"#9d6ef5",
+  or:"#c9a84c",    orL:"#e8c96a",
+  creme:"#ede9fe", cremeD:"rgba(237,233,254,.4)",
+  glow:"0 0 28px rgba(124,58,237,0.3)",
+  line:"rgba(124,58,237,0.18)",
+  verre:"rgba(255,255,255,.04)",
+};
+
+// ── Mo Ti-Péyi — Bleu ciel · Vert tropical · Jaune soleil ────
+const MTP = {
+  fond:"#041420",  surface:"#0a2030",
+  ciel:"#0ea5e9",  cielL:"#38bdf8",
+  vert:"#10b981",  vertL:"#34d399",
+  jaune:"#fbbf24", jauneL:"#fcd34d",
+  orange:"#f97316",blanc:"#f0faff",
+  glow:"0 0 28px rgba(14,165,233,0.3)",
+  line:"rgba(14,165,233,0.2)",
+  verre:"rgba(255,255,255,.04)",
+};
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
@@ -61,6 +196,285 @@ const STATUTS_CMD = ["Demande reçue","Validation fondatrice","Paiement en atten
 const VIP_C = {Bronze:"#8B6030",Argent:"#8a9ab0",Or:BSH.or,Diamant:"#90d0f0"};
 const CMD_C = {"Paiement complet reçu":BSH.vert,Terminée:BSH.vert,Expédiée:BSH.rose,Préparation:BSH.bord,"Acompte reçu":BSH.or,"Paiement en attente":BSH.ora,Annulée:BSH.rouge,Confirmée:BSH.vert,"Demande reçue":BSH.or};
 const PRESTATIONS_BO = ["Extensions de cils","Blanchiment dentaire","Strass dentaires","Browlift","Lashlift","Soin visage","Autre"];
+// ── Prestations Bella'Odyssée détaillées (client + fondatrice)
+// prix:null + affichage "Sur devis" tant que le tarif n'est pas validé
+const PRESTATIONS_BO_DETAIL = [
+  {ico:"👁",nom:"Extensions de cils",desc:"Cils à cils, volume russe, méga volume, pose brésilienne, doll, cat/fox, remplissages.",duree:"1h30–2h30",prix:null,affichage:"Sur devis",
+    formules:[{l:"Cils à cils",p:null},{l:"Volume russe",p:null},{l:"Méga volume",p:null},{l:"Pose brésilienne",p:null},{l:"Doll effect",p:null},{l:"Cat / Fox effect",p:null},{l:"Remplissages",p:null}]},
+  {ico:"🦷",nom:"Blanchiment dentaire",desc:"Technique LED professionnelle. Résultat visible dès la première séance.",duree:"45min–1h30",prix:190,affichage:"À partir de 190€",
+    formules:[{l:"Formule 1",p:190},{l:"Formule 2",p:260},{l:"Formule 3",p:330},{l:"Formule 4",p:450}]},
+  {ico:"💎",nom:"Strass dentaires",desc:"Pose de bijoux dentaires sans dommage sur l'émail. Tendance et élégant.",duree:"30min",prix:40,affichage:"À partir de 40€",
+    formules:[{l:"Strass simple",p:40},{l:"Strass travaillé / spécial",p:50},{l:"Pack Duo",p:70},{l:"Pack Trio",p:95},{l:"Pack Mix",p:110}]},
+  {ico:"✨",nom:"Contour dentaire esthétique",desc:"Mise en valeur esthétique du contour dentaire.",duree:"sur rendez-vous",prix:170,affichage:"À partir de 170€",
+    formules:[{l:"Formule 1",p:170},{l:"Formule 2",p:300}]},
+  {ico:"🌿",nom:"Browlift",desc:"Restructuration et mise en forme des sourcils. Regard expressif et défini.",duree:"45min",prix:null,affichage:"Sur devis",formules:[]},
+  {ico:"🌟",nom:"Lashlift / Rehaussement de cils",desc:"Rehaussement permanent des cils naturels. Effet mascara sans mascara.",duree:"1h",prix:null,affichage:"Sur devis",formules:[]},
+  {ico:"🎨",nom:"Teinture sourcils",desc:"Teinture professionnelle des sourcils pour un regard défini.",duree:"20min",prix:null,affichage:"Sur devis",formules:[]},
+  {ico:"🖌",nom:"Teinture cils",desc:"Teinture des cils pour intensifier le regard sans maquillage.",duree:"20min",prix:null,affichage:"Sur devis",formules:[]},
+  {ico:"🧵",nom:"Épilation au fil",desc:"Épilation précise au fil, technique douce et nette.",duree:"15–30min",prix:null,affichage:"Sur devis",formules:[]},
+];
+
+// ═══════════════════════════════════════════════════════════
+// GESTION DES MINEURS — règles centralisées, réutilisables
+// Modifiables par la fondatrice (params) sans toucher au reste
+// ═══════════════════════════════════════════════════════════
+const AGE_MAJORITE = 18;
+
+// Calcule l'âge à partir d'une date de naissance (ISO "AAAA-MM-JJ")
+const calcAge = (dateNaissance) => {
+  if (!dateNaissance) return null;
+  const n = new Date(dateNaissance);
+  if (isNaN(n.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - n.getFullYear();
+  const m = now.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < n.getDate())) age--;
+  return age;
+};
+const estMineur = (dateNaissance) => {
+  const a = calcAge(dateNaissance);
+  return a !== null && a < AGE_MAJORITE;
+};
+
+// Règles d'accès par prestation Odyssée pour les mineurs
+// acces: "ok" (libre) | "parental" (accord représentant légal) | "interdit" (majeurs only)
+const REGLES_PRESTA_MINEUR = {
+  "Extensions de cils":            "parental",
+  "Browlift":                      "parental",
+  "Lashlift / Rehaussement de cils":"parental",
+  "Épilation au fil":              "parental",
+  "Strass dentaires":              "parental",
+  "Teinture sourcils":             "parental",
+  "Teinture cils":                 "parental",
+  "Blanchiment dentaire":          "interdit",
+  "Contour dentaire esthétique":   "interdit",
+};
+// Renvoie la règle applicable à une prestation pour un client donné
+// → {bloque:bool, parental:bool, message:string}
+const regleAcces = (nomPresta, dateNaissance) => {
+  if (!estMineur(dateNaissance)) return {bloque:false, parental:false, message:""};
+  const r = REGLES_PRESTA_MINEUR[nomPresta] || "ok";
+  if (r === "interdit") return {bloque:true, parental:false, message:"Cette prestation est réservée aux personnes majeures."};
+  if (r === "parental") return {bloque:false, parental:true, message:"Accord du représentant légal obligatoire."};
+  return {bloque:false, parental:false, message:""};
+};
+
+// ═══════════════════════════════════════════════════════════
+// RBAC CENTRALISÉ — contrôle d'accès aux modules par rôle/âge
+// Règle : un mineur n'accède QU'À Mo Ti-Péyi + Bella'Food.
+// Tous les autres modules (présents ET futurs) sont verrouillés.
+// Centralisé : un nouveau module hérite automatiquement des règles.
+// ═══════════════════════════════════════════════════════════
+const MODULES_MINEUR_OK = ["mtp", "bfd"];  // seuls modules autorisés aux mineurs
+const MSG_MODULE_MINEUR = "Ce service est réservé aux utilisateurs majeurs ou nécessite un représentant légal.";
+
+// Détermine si un module est accessible pour un utilisateur donné
+// roles fondatrice/assistante → accès total ; mineur → liste blanche ; majeur → tout
+const moduleAutorise = (moduleId, user) => {
+  const role = user?.role;
+  if (role === "fondatrice" || role === "assistante") return true;  // accès complet
+  if (estMineur(user?.date_naissance)) return MODULES_MINEUR_OK.includes(moduleId);
+  return true;  // majeur : accès normal
+};
+
+// ═══════════════════════════════════════════════════════════
+// BELLA'EVENS — Catalogue client (structuré pour future liaison ERP)
+// Chaque prestation porte les champs ERP : id, categorie, prix,
+// acompte_pct, cout_revient, fournisseur, stock_lie — prêts pour
+// catalogue/achats/stock/compta même si non encore exploités.
+// ═══════════════════════════════════════════════════════════
+const EVENTS_CONDITIONS = {
+  acompte_evenement: 30,   // % acompte prestations événementielles
+  acompte_gateau: 50,      // % acompte gâteaux
+  kit_min: 10,             // minimum kits anniversaire
+  livraison_km: 4,         // €/km
+  livraison_forfait: 50,   // forfait au-delà de 150km
+  livraison_seuil: 150,    // km
+  delai_sucre: "1 mois",   // pâte à sucre
+  delai_autre: "7 à 15 jours",
+};
+
+// Catégories (toutes pré-créées, certaines "sur devis")
+const EVENTS_CATEGORIES = [
+  {id:"anniv",   nom:"Anniversaires",          ico:"🎂", desc:"Décoration, papeterie et gâteaux pour anniversaires inoubliables."},
+  {id:"baby",    nom:"Baby Shower",            ico:"🍼", desc:"Mise en scène tendre pour célébrer l'arrivée de bébé."},
+  {id:"bapteme", nom:"Baptême",                ico:"🕊", desc:"Décoration et papeterie pour baptêmes."},
+  {id:"commu",   nom:"Communion",              ico:"✝", desc:"Prestations pour communions."},
+  {id:"gender",  nom:"Gender Reveal",          ico:"🎈", desc:"Révélation de genre festive et personnalisée."},
+  {id:"mariage", nom:"Mariage",                ico:"💍", desc:"Prestations mariage — sur devis personnalisé."},
+  {id:"papeterie",nom:"Papeterie personnalisée",ico:"✉️", desc:"Invitations, menus, étiquettes, kits personnalisés."},
+  {id:"deco",    nom:"Décoration",             ico:"🎀", desc:"Décoration complète et mise en scène."},
+  {id:"location",nom:"Location de matériel",   ico:"🔑", desc:"Arches, mobilier, accessoires à louer."},
+  {id:"gateaux", nom:"Gâteaux personnalisés",  ico:"🧁", desc:"Créations sucrées sur mesure, pâte à sucre."},
+  {id:"ballons", nom:"Ballons et arches",      ico:"🎈", desc:"Arches de ballons et compositions."},
+  {id:"cadeaux", nom:"Cadeaux invités",        ico:"🎁", desc:"Petites attentions personnalisées pour vos invités."},
+  {id:"formules",nom:"Formules combinées / Offres",ico:"⭐", desc:"Combinaisons gâteau, décoration et kits — offres complètes."},
+  {id:"unite",   nom:"À l'unité",              ico:"🛒", desc:"Commandez certains articles seuls, sans pack complet."},
+];
+
+// Sous-familles de la catégorie "À l'unité"
+const EVENTS_UNITE_FAMILLES = [
+  {id:"gourmandises", nom:"Gourmandises personnalisées", ico:"🍬"},
+  {id:"boissons",     nom:"Boissons personnalisées",     ico:"🧃"},
+  {id:"contenants",   nom:"Contenants",                  ico:"📦"},
+  {id:"goodies",      nom:"Goodies",                     ico:"🎈"},
+  {id:"papeterie_s",  nom:"Papeterie simple",            ico:"🏷"},
+  {id:"options_deco", nom:"Options décoratives",         ico:"🎀"},
+];
+
+// Sous-familles de la catégorie "Anniversaires" — packs non remplis / remplis
+const EVENTS_ANNIV_FAMILLES = [
+  {id:"anniv_non_rempli", nom:"Packs non remplis", ico:"📦"},
+  {id:"anniv_rempli",     nom:"Packs remplis",     ico:"🎁"},
+];
+
+// Prestations (prix validés ou null = "Sur devis")
+const EVENTS_PRESTATIONS = [
+  {id:"ev_kit_anniv", categorie:"papeterie", sous:"anniv", nom:"Kit anniversaire personnalisé", desc:"Papeterie complète (invitations, étiquettes, déco de table).", prix:22, unite:"kit", min_qte:10, acompte_pct:30, sur_devis:false, cout_revient:null, fournisseur:null, stock_lie:null, note:"Minimum 10 kits."},
+  {id:"ev_gateau",    categorie:"gateaux",   sous:"gateaux", nom:"Gâteau personnalisé", desc:"Création sucrée sur mesure, pâte à sucre possible.", prix:45, unite:"pièce", min_qte:1, acompte_pct:50, sur_devis:false, prix_des:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"À partir de 45€ · acompte 50% · délai 1 mois si pâte à sucre."},
+  {id:"ev_deco_std",  categorie:"deco",      sous:"deco", nom:"Décoration complète", desc:"Mise en scène complète de votre événement.", prix:80, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, prix_des:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"À partir de 80€.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"ev_deco_prem", categorie:"deco",      sous:"deco", nom:"Décoration premium", desc:"Décoration haut de gamme selon l'ampleur du projet.", prix:200, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, prix_jusqua:true, cout_revient:null, fournisseur:null, stock_lie:null, note:"Jusqu'à 200€ selon le projet.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  // Sur devis (prix non validés)
+  {id:"ev_baby",      categorie:"baby",      sous:"baby", nom:"Pack Baby Shower", desc:"Décoration et papeterie pour baby shower.", prix:null, acompte_pct:30, sur_devis:true},
+  {id:"ev_bapteme",   categorie:"bapteme",   sous:"bapteme", nom:"Pack Baptême", desc:"Décoration et papeterie pour baptême.", prix:null, acompte_pct:30, sur_devis:true},
+  {id:"ev_commu",     categorie:"commu",     sous:"commu", nom:"Pack Communion", desc:"Prestations pour communion.", prix:null, acompte_pct:30, sur_devis:true},
+  {id:"ev_gender",    categorie:"gender",    sous:"gender", nom:"Pack Gender Reveal", desc:"Mise en scène révélation de genre.", prix:null, acompte_pct:30, sur_devis:true},
+  {id:"ev_mariage",   categorie:"mariage",   sous:"mariage", nom:"Prestations Mariage", desc:"Décoration, papeterie et coordination mariage.", prix:null, acompte_pct:30, sur_devis:true},
+  {id:"ev_location",  categorie:"location",  sous:"location", nom:"Location de matériel", desc:"Arches, mobilier, accessoires événementiels.", prix:null, acompte_pct:30, sur_devis:true},
+  {id:"ev_ballons",   categorie:"ballons",   sous:"ballons", nom:"Arche de ballons", desc:"Compositions et arches de ballons sur mesure.", prix:null, acompte_pct:30, sur_devis:true, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"ev_cadeaux",   categorie:"cadeaux",   sous:"cadeaux", nom:"Cadeaux invités", desc:"Petites attentions personnalisées.", prix:null, acompte_pct:30, sur_devis:true, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+
+  // ── ARTICLES À L'UNITÉ (commandables seuls) ──
+  // Gourmandises personnalisées
+  {id:"u_chips",     categorie:"unite", sous:"gourmandises", type:"unite", nom:"Chips personnalisés", desc:"Sachet de chips personnalisé.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_popcorn",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Popcorn personnalisé", desc:"Popcorn en contenant personnalisé.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_bonbons",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini bonbons", desc:"Sachets de mini bonbons personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_haribo",    categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini Haribo", desc:"Mini sachets Haribo personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_nutella",   categorie:"unite", sous:"gourmandises", type:"unite", nom:"Mini Nutella", desc:"Mini pots Nutella personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_kinder",    categorie:"unite", sous:"gourmandises", type:"unite", nom:"Kinder Bueno", desc:"Kinder Bueno personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_choco",     categorie:"unite", sous:"gourmandises", type:"unite", nom:"Chocolats", desc:"Chocolats personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_pringles",  categorie:"unite", sous:"gourmandises", type:"unite", nom:"Pringles", desc:"Pringles personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  // Boissons personnalisées
+  {id:"u_eau",       categorie:"unite", sous:"boissons", type:"unite", nom:"Bouteille d'eau personnalisée", desc:"Étiquette personnalisée sur bouteille d'eau.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_caprisun",  categorie:"unite", sous:"boissons", type:"unite", nom:"Capri-Sun personnalisé", desc:"Capri-Sun avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"u_fruitshoot",categorie:"unite", sous:"boissons", type:"unite", nom:"Fruit Shoot personnalisé", desc:"Fruit Shoot personnalisé.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"u_champomy",  categorie:"unite", sous:"boissons", type:"unite", nom:"Champomy personnalisé", desc:"Champomy avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","mariage"]},
+  {id:"u_jus",       categorie:"unite", sous:"boissons", type:"unite", nom:"Jus personnalisé", desc:"Jus avec étiquette personnalisée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_minibouteille",categorie:"unite", sous:"boissons", type:"unite", nom:"Mini bouteilles", desc:"Mini bouteilles personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  // Contenants
+  {id:"u_boitepop",  categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes popcorn", desc:"Boîtes à popcorn personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_boitecad",  categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes cadeaux", desc:"Boîtes cadeaux personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_gablebox",  categorie:"unite", sous:"contenants", type:"unite", nom:"Gable box", desc:"Boîtes gable box personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_sacs",      categorie:"unite", sous:"contenants", type:"unite", nom:"Sacs cadeaux", desc:"Sacs cadeaux personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_pyramides", categorie:"unite", sous:"contenants", type:"unite", nom:"Boîtes pyramides", desc:"Boîtes pyramides personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_sachets",   categorie:"unite", sous:"contenants", type:"unite", nom:"Sachets personnalisés", desc:"Sachets personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  // Goodies
+  {id:"u_bulles",    categorie:"unite", sous:"goodies", type:"unite", nom:"Bulles de savon", desc:"Tubes à bulles personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_crayons",   categorie:"unite", sous:"goodies", type:"unite", nom:"Crayons", desc:"Crayons personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_coloriages",categorie:"unite", sous:"goodies", type:"unite", nom:"Coloriages", desc:"Livrets de coloriage personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_jeux",      categorie:"unite", sous:"goodies", type:"unite", nom:"Petits jeux", desc:"Petits jeux pour invités.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"u_cadeauxinv",categorie:"unite", sous:"goodies", type:"unite", nom:"Cadeaux invités", desc:"Cadeaux pour les invités.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  // Papeterie simple
+  {id:"u_stickers",  categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Stickers", desc:"Stickers personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_etiquettes",categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Étiquettes", desc:"Étiquettes personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_toppers",   categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Toppers", desc:"Toppers personnalisés.", prix:null, sur_devis:true, acompte_pct:30},
+  // Options décoratives
+  {id:"u_minidecor", categorie:"unite", sous:"options_deco", type:"option", nom:"Mini décor", desc:"Petits éléments décoratifs.", prix:null, sur_devis:true, acompte_pct:30},
+
+  // ── DÉTAIL DES CATÉGORIES (prestations spécifiques) ──
+  // Anniversaires (détail)
+  {id:"an_kit",      categorie:"anniv", sous:"anniv", type:"pack", nom:"Kit invité personnalisé", desc:"Kit complet pour chaque invité.", prix:22, unite:"kit", min_qte:10, acompte_pct:30, sur_devis:false, note:"Minimum 10 kits.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"an_formule",  categorie:"anniv", sous:"anniv", type:"prestation", nom:"Formule complète anniversaire", desc:"Organisation complète sur devis.", prix:null, sur_devis:true, acompte_pct:30},
+  // Papeterie (détail)
+  {id:"pa_invit_num",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitations numériques", desc:"Invitations au format numérique.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"pa_invit_imp",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitations imprimées", desc:"Invitations imprimées personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"pa_remerc",   categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Cartes de remerciement", desc:"Cartes de remerciement personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"pa_menus",    categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Menus buffet", desc:"Menus de buffet personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","bapteme","commu","mariage"]},
+  {id:"pa_affiches", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Affiches", desc:"Affiches personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"pa_fanions",  categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Fanions", desc:"Guirlandes de fanions personnalisées.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender"]},
+  {id:"pa_marqueplace",categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Marque-place", desc:"Marque-places personnalisés.", prix:null, sur_devis:true, acompte_pct:30, categories:["bapteme","commu","mariage"]},
+  // Décoration (détail)
+  {id:"de_minidecor",categorie:"deco", sous:"deco", type:"prestation", nom:"Mini décor", desc:"Décoration légère.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"de_table",    categorie:"deco", sous:"deco", type:"prestation", nom:"Décoration de table", desc:"Mise en scène de table.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"de_backdrop", categorie:"deco", sous:"deco", type:"prestation", nom:"Backdrop", desc:"Toile de fond décorative.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"de_sweettable",categorie:"deco", sous:"deco", type:"prestation", nom:"Sweet table", desc:"Table sucrée décorée.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"de_sceno",    categorie:"deco", sous:"deco", type:"prestation", nom:"Scénographie complète", desc:"Mise en scène complète de l'événement.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  // Gâteaux (détail)
+  {id:"ga_classique",categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Gâteau classique", desc:"Gâteau personnalisé classique.", prix:45, prix_des:true, sur_devis:false, acompte_pct:50, note:"À partir de 45€ · acompte 50%."},
+  {id:"ga_cakedesign",categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Cake design thème", desc:"Gâteau cake design sur thème.", prix:null, sur_devis:true, acompte_pct:50, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"ga_sculpte",  categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Gâteau sculpté", desc:"Gâteau sculpté sur mesure.", prix:null, sur_devis:true, acompte_pct:50},
+  {id:"ga_cupcakes", categorie:"gateaux", sous:"gateaux", type:"prestation", nom:"Cupcakes", desc:"Cupcakes personnalisés.", prix:null, sur_devis:true, acompte_pct:50, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"ga_toppers",  categorie:"gateaux", sous:"gateaux", type:"option", nom:"Toppers gâteau", desc:"Toppers décoratifs pour gâteau.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  // Location (détail)
+  {id:"lo_supports", categorie:"location", sous:"location", type:"prestation", nom:"Supports", desc:"Location de supports.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"lo_presentoirs",categorie:"location", sous:"location", type:"prestation", nom:"Présentoirs", desc:"Location de présentoirs.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"lo_arches",   categorie:"location", sous:"location", type:"prestation", nom:"Arches", desc:"Location d'arches.", prix:null, sur_devis:true, acompte_pct:30, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"lo_table",    categorie:"location", sous:"location", type:"prestation", nom:"Matériel de table", desc:"Location de matériel de table.", prix:null, sur_devis:true, acompte_pct:30},
+  {id:"lo_deco",     categorie:"location", sous:"location", type:"prestation", nom:"Éléments décoratifs", desc:"Location d'éléments décoratifs.", prix:null, sur_devis:true, acompte_pct:30},
+
+  // ── PACKS ANNIVERSAIRE — Non remplis (10 paliers, prix validés) ──
+  {id:"an_nr_1",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 1", desc:"Kit anniversaire non rempli, palier 1.", prix:25,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_2",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 2", desc:"Kit anniversaire non rempli, palier 2.", prix:45,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_3",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 3", desc:"Kit anniversaire non rempli, palier 3.", prix:65,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_4",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 4", desc:"Kit anniversaire non rempli, palier 4.", prix:85,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_5",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 5", desc:"Kit anniversaire non rempli, palier 5.", prix:105, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_6",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 6", desc:"Kit anniversaire non rempli, palier 6.", prix:125, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_7",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 7", desc:"Kit anniversaire non rempli, palier 7.", prix:145, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_8",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 8", desc:"Kit anniversaire non rempli, palier 8.", prix:165, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_9",  categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 9", desc:"Kit anniversaire non rempli, palier 9.", prix:185, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_nr_10", categorie:"anniv", sous:"anniv_non_rempli", type:"pack", nom:"Pack anniversaire non rempli 10",desc:"Kit anniversaire non rempli, palier 10.",prix:205, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+
+  // ── PACKS ANNIVERSAIRE — Remplis (10 paliers, prix validés) ──
+  {id:"an_r_1",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 1", desc:"Kit anniversaire rempli, palier 1.", prix:40,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_2",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 2", desc:"Kit anniversaire rempli, palier 2.", prix:75,  unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_3",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 3", desc:"Kit anniversaire rempli, palier 3.", prix:110, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_4",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 4", desc:"Kit anniversaire rempli, palier 4.", prix:145, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_5",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 5", desc:"Kit anniversaire rempli, palier 5.", prix:180, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_6",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 6", desc:"Kit anniversaire rempli, palier 6.", prix:215, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_7",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 7", desc:"Kit anniversaire rempli, palier 7.", prix:250, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_8",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 8", desc:"Kit anniversaire rempli, palier 8.", prix:285, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_9",  categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 9", desc:"Kit anniversaire rempli, palier 9.", prix:320, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"an_r_10", categorie:"anniv", sous:"anniv_rempli", type:"pack", nom:"Pack anniversaire rempli 10",desc:"Kit anniversaire rempli, palier 10.",prix:355, unite:"pack", min_qte:1, acompte_pct:30, sur_devis:false},
+
+  // ── PAPETERIE — Invitations, faire-part, suite coordonnée ──
+  {id:"pa_invit_num_classique",   categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitation numérique classique", desc:"Invitation digitale au design classique.", prix:15, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_num_animee",      categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitation numérique animée", desc:"Invitation digitale avec animation.", prix:25, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_num_interactive", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Invitation numérique interactive", desc:"Invitation digitale interactive (RSVP intégré).", prix:35, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_s10", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"10 cartes simples imprimées", desc:"Invitations imprimées simples, lot de 10.", prix:25, unite:"lot de 10", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_s20", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"20 cartes simples imprimées", desc:"Invitations imprimées simples, lot de 20.", prix:40, unite:"lot de 20", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_p10", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"10 cartes premium imprimées", desc:"Invitations imprimées premium, lot de 10.", prix:35, unite:"lot de 10", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_invit_imp_p20", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"20 cartes premium imprimées", desc:"Invitations imprimées premium, lot de 20.", prix:55, unite:"lot de 20", min_qte:1, acompte_pct:30, sur_devis:false},
+  {id:"pa_fp_digital",  categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Faire-part digital", desc:"Faire-part au format numérique.", prix:30, prix_des:true, unite:"design", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 30€."},
+  {id:"pa_fp_imprime",  categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Faire-part imprimé", desc:"Faire-part imprimé classique.", prix:50, prix_des:true, unite:"lot", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 50€."},
+  {id:"pa_fp_luxe",     categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Faire-part collection luxe", desc:"Faire-part haut de gamme, finitions premium.", prix:75, prix_des:true, unite:"lot", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 75€."},
+  {id:"pa_suite_coord", categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Suite papeterie coordonnée", desc:"Ensemble papeterie assorti (invitations, menus, étiquettes).", prix:60, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 60€."},
+  {id:"pa_mariage",     categorie:"papeterie", sous:"papeterie", type:"prestation", nom:"Papeterie mariage", desc:"Papeterie complète dédiée mariage.", prix:75, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 75€."},
+
+  // ── DÉCORATION — Signature, scénographie, prestige ──
+  {id:"de_signature",  categorie:"deco", sous:"deco", type:"prestation", nom:"Décoration signature", desc:"Décoration personnalisée à forte identité visuelle.", prix:150, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 150€."},
+  {id:"de_sceno_complete", categorie:"deco", sous:"deco", type:"prestation", nom:"Scénographie complète prestige", desc:"Mise en scène complète et immersive de l'événement.", prix:250, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 250€."},
+  {id:"de_prestige_mesure", categorie:"deco", sous:"deco", type:"prestation", nom:"Prestation prestige sur mesure", desc:"Création entièrement personnalisée haut de gamme.", prix:450, prix_des:true, unite:"prestation", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 450€."},
+
+  // ── FORMULES COMBINÉES / OFFRES ──
+  {id:"fo_gateau_deco",  categorie:"formules", sous:"formules", type:"pack", nom:"Formule Gâteau + Décoration", desc:"Combinaison gâteau personnalisé et décoration complète.", prix:120, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 120€."},
+  {id:"fo_gateau_kits",  categorie:"formules", sous:"formules", type:"pack", nom:"Formule Gâteau + Kits invités", desc:"Combinaison gâteau personnalisé et kits invités.", prix:250, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 250€."},
+  {id:"fo_deco_kits",    categorie:"formules", sous:"formules", type:"pack", nom:"Formule Décoration + Kits invités", desc:"Combinaison décoration complète et kits invités.", prix:300, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 300€."},
+  {id:"fo_offre_complete", categorie:"formules", sous:"formules", type:"pack", nom:"Offre complète événement", desc:"Décoration, gâteau et kits invités réunis pour un événement clé en main.", prix:400, prix_max:800, sur_devis:false, unite:"formule", min_qte:1, acompte_pct:30, note:"De 400€ à 800€ selon l'ampleur du projet."},
+  {id:"fo_bapteme_signature", categorie:"formules", sous:"formules", type:"pack", nom:"Baptême signature", desc:"Formule baptême avec décoration et papeterie assorties.", prix:300, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 300€."},
+  {id:"fo_bapteme_prestige",  categorie:"formules", sous:"formules", type:"pack", nom:"Baptême prestige", desc:"Formule baptême haut de gamme, scénographie incluse.", prix:550, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 550€."},
+  {id:"fo_welcome_favors", categorie:"formules", sous:"formules", type:"pack", nom:"Welcome favors invités", desc:"Cadeaux de bienvenue personnalisés pour les invités.", prix:120, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 120€."},
+  {id:"fo_mariage_signature", categorie:"formules", sous:"formules", type:"pack", nom:"Pack mariage signature", desc:"Formule mariage avec décoration et papeterie coordonnées.", prix:500, prix_des:true, unite:"formule", min_qte:1, acompte_pct:30, sur_devis:false, note:"À partir de 500€."},
+
+  // ── À L'UNITÉ — Options tarifées ajoutées ──
+  {id:"u_tube_bulles",   categorie:"unite", sous:"goodies", type:"unite", nom:"Tube à bulles personnalisé", desc:"Tube à bulles de savon personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_assiette",      categorie:"unite", sous:"contenants", type:"unite", nom:"Assiette personnalisée", desc:"Assiette jetable personnalisée.", prix:1.8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_timbale",       categorie:"unite", sous:"contenants", type:"unite", nom:"Timbale personnalisée", desc:"Gobelet/timbale personnalisé.", prix:1.5, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_popcorn_unite", categorie:"unite", sous:"gourmandises", type:"unite", nom:"Pop-corn personnalisé", desc:"Pop-corn en contenant personnalisé, à l'unité.", prix:3, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_sac_invite",    categorie:"unite", sous:"contenants", type:"unite", nom:"Sac cadeau invité", desc:"Sac cadeau personnalisé pour invités.", prix:4, prix_max:8, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, note:"De 4€ à 8€ selon le format.", categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_cake_topper",   categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Cake topper personnalisé", desc:"Topper décoratif personnalisé pour gâteau.", prix:10, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false, categories:["anniv","baby","bapteme","commu","gender","mariage"]},
+  {id:"u_etiquette_sticker", categorie:"unite", sous:"papeterie_s", type:"unite", nom:"Étiquette bouteille / sticker", desc:"Étiquette ou sticker personnalisé.", prix:1, unite:"pièce", min_qte:1, acompte_pct:30, sur_devis:false},
+];
+
 const sCo = s => ({
   "En cours":{bg:"rgba(124,58,237,0.2)",t:"#c4a8ff"},"En préparation":{bg:"rgba(201,168,76,0.2)",t:"#f0d080"},
   Idée:{bg:"rgba(139,127,168,0.18)",t:"#b8aed0"},"En pause":{bg:"rgba(180,80,80,0.2)",t:"#f4a0a0"},
@@ -90,14 +504,21 @@ const PROJETS_INIT = [
   {id:"p13",titre:"Mo Ti-Péyi — Collection 2",pole:"Mo Ti-Péyi",priorite:"Moyenne",statut:"En préparation",avancement:10,dateCible:"2026-12-31",revenusEstimes:2000},
 ];
 const PRODS_BSH_INIT = [
-  {id:"p1",name:"Ensemble Dentelle Noir",cat:"Lingerie",prix:39,promo:null,isNew:true,ico:"🖤",desc:"Ensemble 2 pièces dentelle guipure. XS–6XL+.",stock:12,min:3,achat:15},
-  {id:"p2",name:"Nuisette Satin Rose",cat:"Lingerie",prix:34,promo:27,isNew:false,ico:"🌸",desc:"Nuisette satin brossé, bretelles réglables. S–4XL.",stock:2,min:3,achat:12},
-  {id:"p3",name:"Body Brodé Or",cat:"Lingerie",prix:45,promo:null,isNew:true,ico:"✨",desc:"Body string broderies dorées.",stock:8,min:3,achat:18},
-  {id:"p4",name:"Coffret Nuit de Velours",cat:"Coffrets",prix:79,promo:null,isNew:false,ico:"🎁",desc:"Lingerie + bougie massage + huile + carte.",stock:8,min:3,achat:35},
-  {id:"p5",name:"Coffret Première Tentation",cat:"Coffrets",prix:49,promo:null,isNew:false,ico:"🌹",desc:"Lingerie + mini bougie + carte personnalisée.",stock:5,min:3,achat:22},
-  {id:"p6",name:"Bougie Massage Vanille",cat:"Bougies",prix:24,promo:null,isNew:false,ico:"🕯️",desc:"Fond à basse température — huile au toucher.",stock:15,min:5,achat:8},
-  {id:"p7",name:"Huile Corps Aphrodite",cat:"Huiles",prix:29,promo:22,isNew:false,ico:"💧",desc:"Huile de massage sèche, non grasse.",stock:3,min:5,achat:9},
-  {id:"p8",name:"Coffret Secret Couple",cat:"Couples",prix:89,promo:null,isNew:false,ico:"💑",desc:"Accessoires + bougie + huile + surprise.",stock:6,min:2,achat:40},
+  {id:"p1",name:"Body Résille Noir",cat:"Résille",prix:22,promo:null,isNew:true,ico:"🖤",desc:"Corps résille grande maille noir. Toutes morphologies XS–6XL+.",stock:12,min:3,achat:9},
+  {id:"p2",name:"Body Résille Rouge",cat:"Résille",prix:22,promo:null,isNew:false,ico:"❤️",desc:"Corps résille rouge passion. Grande maille extensible.",stock:10,min:3,achat:9},
+  {id:"p3",name:"Body Résille Bordeaux",cat:"Résille",prix:24,promo:null,isNew:false,ico:"🍷",desc:"Corps résille bordeaux profond. XS–6XL+.",stock:8,min:3,achat:10},
+  {id:"p4",name:"Body Résille Bleu Nuit",cat:"Résille",prix:24,promo:null,isNew:true,ico:"🌙",desc:"Corps résille bleu nuit mystérieux. XS–6XL+.",stock:8,min:3,achat:10},
+  {id:"p5",name:"Body Transparence Noir",cat:"Transparence",prix:28,promo:null,isNew:false,ico:"🖤",desc:"Body transparent noir mat, voile sensuel et raffiné.",stock:7,min:3,achat:12},
+  {id:"p6",name:"Body Transparence Nude",cat:"Transparence",prix:29,promo:22,isNew:false,ico:"🌸",desc:"Effet seconde peau exceptionnel. Toutes carnations.",stock:6,min:3,achat:12},
+  {id:"p7",name:"Body Transparence Bordeaux",cat:"Transparence",prix:29,promo:null,isNew:false,ico:"🍷",desc:"Voile bordeaux sophistiqué. Pièce signature BSH.",stock:5,min:3,achat:12},
+  {id:"p8",name:"Porte-Jarretelles Noir",cat:"Glamour",prix:25,promo:null,isNew:false,ico:"👠",desc:"Glamour classique. Fixations dorées. Toutes tailles.",stock:9,min:3,achat:10},
+  {id:"p9",name:"Porte-Jarretelles Rouge",cat:"Glamour",prix:25,promo:null,isNew:false,ico:"🔴",desc:"Rouge passion. Fixations dorées premium.",stock:7,min:3,achat:10},
+  {id:"p10",name:"Ensemble Dentelle Bleu Nuit",cat:"Premium",prix:45,promo:null,isNew:true,ico:"💎",desc:"2 pièces dentelle guipure bleu nuit. Finitions fil d'or.",stock:5,min:2,achat:20},
+  {id:"p11",name:"Oeufs de Kegel Trio",cat:"Bien-être",prix:45,promo:null,isNew:false,ico:"🌹",desc:"Set 3 tailles. Silicone médical. Rééducation périnéale.",stock:6,min:2,achat:18},
+  {id:"p12",name:"Masque Strass Boudoir",cat:"Boudoir",prix:29,promo:null,isNew:false,ico:"🎭",desc:"Strass cristal. Accessoire boudoir luxe.",stock:8,min:3,achat:11},
+  {id:"p13",name:"Coffret Nuit de Velours",cat:"Coffrets",prix:79,promo:null,isNew:false,ico:"🎁",desc:"Lingerie + bougie massage + huile + carte personnalisée.",stock:8,min:3,achat:35},
+  {id:"p14",name:"Coffret Lune de Miel",cat:"Mariage",prix:129,promo:null,isNew:false,ico:"💍",desc:"Collection mariage & nuit de noces premium.",stock:4,min:2,achat:55},
+  {id:"p15",name:"Coffret Secret Couple",cat:"Coffrets",prix:89,promo:null,isNew:false,ico:"💑",desc:"Accessoires + bougie + huile + surprise couple.",stock:6,min:2,achat:40},
 ];
 const EVTS_BSH_INIT = [
   {id:"e1",ico:"✨",nom:"Soirée Découverte",date:"2026-07-15",lieu:ENV.VILLE,cap:20,dispo:7,prix:25,desc:"2h30 d'univers BSH en petit comité."},
@@ -115,7 +536,7 @@ const CMDS_BSH_INIT = [
   {id:"BSH-003",client:"Aline B.",produit:"Coffret Secret Couple",montant:89,acompte:45,statut:"Acompte reçu",date:"2026-06-03",pmt:"SumUp",notes:"Solde à régler"},
 ];
 const FAQ_BSH = [
-  ["Comment commander ?","Via WhatsApp (${ENV.TEL}), le site ou lors d'un événement."],
+  ["Comment commander ?","Via WhatsApp ("+ENV.TEL+"), le site ou lors d'un événement."],
   ["Les colis sont-ils discrets ?","Oui. Emballage neutre sans mention du contenu."],
   ["Livrez-vous en Guyane ?","Oui — et aux Antilles et en France métropolitaine."],
   ["Modes de paiement ?","CB, Espèces, PayPal, Revolut, SumUp, Stripe."],
@@ -156,36 +577,187 @@ function useStore(key, init) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ATOMS BELLAÏA
+// BELLAÏA DESIGN SYSTEM V2 — Composants UI unifiés
+// Règle : tous les portails utilisent ces composants communs
 // ═══════════════════════════════════════════════════════════
-const Bdg = ({s}) => { const c = sCo(s); return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:99,background:c.bg,color:c.t,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{s}</span>; };
-const PBar = ({v, col}) => <div style={{height:5,background:"rgba(255,255,255,0.07)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(v||0,100)}%`,background:`linear-gradient(90deg,${col||B.violet},${B.violetL})`,borderRadius:99,transition:"width 0.5s"}}/></div>;
-const SH = ({t, s}) => <div style={{marginBottom:16}}><h2 style={{margin:0,fontSize:20,fontWeight:800,color:B.cream,fontFamily:FS,letterSpacing:"-0.02em"}}>{t}</h2>{s&&<p style={{margin:"3px 0 0",fontSize:12,color:B.muted}}>{s}</p>}</div>;
 
-const Btn = ({onClick, children, v="primary", sm, full, disabled}) => {
-  const st = {
-    primary:{background:`linear-gradient(135deg,${B.violet},#5b21b6)`,color:"#fff",border:"none"},
-    gold:{background:`linear-gradient(135deg,${B.gold},#a07030)`,color:B.night,border:"none"},
-    ghost:{background:"transparent",color:B.mutedL,border:`1px solid ${B.border}`},
-    danger:{background:"rgba(180,80,80,0.2)",color:B.danger,border:"1px solid rgba(180,80,80,0.3)"},
-    success:{background:"rgba(80,180,120,0.15)",color:B.success,border:`1px solid rgba(80,180,120,0.3)`},
+// ── Btn — Bouton universel (remplace Btn, BBtn, OBtn) ────────
+// v: primary|gold|ghost|danger|success|warning|outline
+// sz: sm|md|lg   full: pleine largeur   loading: spinner inline
+const Btn = ({onClick, children, v="primary", sz="md", full=false, disabled=false, loading=false}) => {
+  const base = {
+    cursor:disabled||loading?"not-allowed":"pointer",
+    borderRadius:R.md,fontFamily:SA,fontWeight:T.w.bold,
+    border:"none",display:"inline-flex",alignItems:"center",
+    justifyContent:"center",gap:6,transition:TR.base,
+    opacity:disabled?0.48:1,width:full?"100%":"auto",
+    letterSpacing:"0.01em",
   };
-  return <button onClick={onClick} disabled={disabled} style={{...st[v],padding:sm?"6px 12px":"10px 18px",borderRadius:10,fontWeight:700,fontSize:sm?11:13,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.5:1,width:full?"100%":"auto",fontFamily:SA,transition:"opacity 0.2s"}}>{children}</button>;
-};
-const Inp = ({value, onChange, placeholder, type="text", rows}) => {
-  const s = {width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"};
-  return rows ? <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...s,resize:"vertical"}}/> : <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={s}/>;
-};
-const Sel = ({value, onChange, options}) => <select value={value} onChange={onChange} style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>{options.map(o=><option key={o} value={o}>{o}</option>)}</select>;
-const Fld = ({label, children}) => <div style={{marginBottom:14}}><label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>{label}</label>{children}</div>;
-
-function Mdl({title, onClose, children}) {
+  const sizes = {
+    sm:{padding:"6px 14px",fontSize:T.sm},
+    md:{padding:"10px 20px",fontSize:T.base},
+    lg:{padding:"13px 28px",fontSize:T.md},
+  };
+  const vs = {
+    primary:{background:"linear-gradient(135deg,"+B.violet+","+B.violetD+")",color:"#fff",boxShadow:loading?"none":"0 2px 12px rgba(124,58,237,0.3)"},
+    gold:{background:"linear-gradient(135deg,"+B.gold+","+B.goldD+")",color:B.night,boxShadow:"0 2px 12px rgba(201,168,76,0.25)"},
+    ghost:{background:"rgba(255,255,255,0.04)",color:B.mutedL,border:"1px solid "+B.border},
+    danger:{background:B.dangerG,color:B.danger,border:"1px solid rgba(248,113,113,0.3)"},
+    success:{background:B.successG,color:B.success,border:"1px solid rgba(110,231,160,0.3)"},
+    warning:{background:B.warningG,color:B.warning,border:"1px solid rgba(251,191,36,0.3)"},
+    outline:{background:"transparent",color:B.violetL,border:"1px solid "+B.border},
+  };
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:B.deep,borderRadius:"20px 20px 0 0",border:`1px solid ${B.border}`,padding:"20px 16px 32px",width:"100%",maxWidth:430,maxHeight:"90vh",overflowY:"auto"}}>
+    <button onClick={!disabled&&!loading?onClick:undefined} disabled={disabled||loading}
+      style={{...base,...sizes[sz],...vs[v]}}>
+      {loading && <span style={{width:12,height:12,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"ds-spin 0.7s linear infinite"}}/>}
+      {children}
+    </button>
+  );
+};
+
+// ── Inp — Input universel ────────────────────────────────────
+const Inp = ({value, onChange, placeholder, type="text", rows, icon, error}) => {
+  const base = {
+    width:"100%",background:B.surface,
+    border:"1px solid "+(error?B.danger:B.border),
+    borderRadius:R.md,padding:icon?"9px 12px 9px 36px":"9px 12px",
+    color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,
+    boxSizing:"border-box",transition:TR.fast,
+  };
+  const wrap = {position:"relative",width:"100%"};
+  const icStyle = {position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:B.muted,fontSize:14,pointerEvents:"none"};
+  if (rows) return (
+    <div style={wrap}>
+      <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+        style={{...base,resize:"vertical",padding:"9px 12px"}}/>
+      {error && <p style={{margin:"3px 0 0",fontSize:T.xs,color:B.danger}}>{error}</p>}
+    </div>
+  );
+  return (
+    <div style={wrap}>
+      {icon && <span style={icStyle}>{icon}</span>}
+      <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={base}/>
+      {error && <p style={{margin:"3px 0 0",fontSize:T.xs,color:B.danger}}>{error}</p>}
+    </div>
+  );
+};
+
+// ── Sel — Select universel ───────────────────────────────────
+const Sel = ({value, onChange, options}) => (
+  <select value={value} onChange={onChange}
+    style={{width:"100%",background:B.surface,border:"1px solid "+B.border,borderRadius:R.md,padding:"9px 12px",color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+    {options.map(o=><option key={o} value={o}>{o}</option>)}
+  </select>
+);
+
+// ── Fld — Champ labelisé ─────────────────────────────────────
+const Fld = ({label, children, required=false}) => (
+  <div style={{marginBottom:14}}>
+    <label style={{fontSize:T.xs,fontWeight:T.w.bold,color:B.mutedL,letterSpacing:"0.07em",textTransform:"uppercase",display:"block",marginBottom:5}}>
+      {label}{required&&<span style={{color:B.danger,marginLeft:2}}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+
+// ── Card — Carte universelle ─────────────────────────────────
+// accent: false|"violet"|"gold"|couleur hex
+const Card = ({children, accent=false, hover=false, glow=false, style:s={}}) => {
+  const borderTop = accent==="gold"?"3px solid "+B.gold:accent==="violet"?"3px solid "+B.violet:accent&&accent!==false?"3px solid "+accent:"none";
+  return (
+    <div style={{
+      background:B.card,border:"1px solid "+B.border,borderRadius:R.lg,
+      padding:"16px",borderTop,
+      boxShadow:glow?B.violetGlow:"0 2px 12px rgba(0,0,0,0.3)",
+      transition:TR.base,...s}}>
+      {children}
+    </div>
+  );
+};
+
+// ── SH — Section Header ──────────────────────────────────────
+const SH = ({t, s, action}) => (
+  <div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+    <div>
+      <h2 style={{margin:0,fontSize:T.xl,fontWeight:T.w.black,color:B.cream,fontFamily:FS,letterSpacing:"-0.02em"}}>{t}</h2>
+      {s&&<p style={{margin:"3px 0 0",fontSize:T.sm,color:B.muted}}>{s}</p>}
+    </div>
+    {action&&<div>{action}</div>}
+  </div>
+);
+
+// ── Bdg — Badge statut (conservé, utilise sCo) ───────────────
+const Bdg = ({s}) => { const c = sCo(s); return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:R.full,background:c.bg,color:c.t,fontSize:T.xs,fontWeight:T.w.bold,whiteSpace:"nowrap",letterSpacing:"0.04em"}}>{s}</span>; };
+
+// ── Tag — Tag coloré générique ───────────────────────────────
+const Tag = ({color=B.violet, children, sz=9}) => (
+  <span style={{background:color+"22",border:"1px solid "+color+"55",color,borderRadius:3,padding:"2px 8px",fontSize:sz,fontWeight:T.w.bold,whiteSpace:"nowrap"}}>
+    {children}
+  </span>
+);
+
+// ── PBar — Barre de progression ──────────────────────────────
+const PBar = ({v, col}) => (
+  <div style={{height:5,background:"rgba(255,255,255,0.07)",borderRadius:R.full,overflow:"hidden"}}>
+    <div style={{height:"100%",width:Math.min(v||0,100)+"%",background:"linear-gradient(90deg,"+(col||B.violet)+","+B.violetL+")",borderRadius:R.full,transition:"width 0.5s ease"}}/>
+  </div>
+);
+
+// ── Loader — Spinner universel ───────────────────────────────
+const Loader = ({size=24, color=B.violet}) => (
+  <div style={{display:"flex",justifyContent:"center",alignItems:"center",padding:20}}>
+    <div style={{width:size,height:size,border:"2px solid rgba(255,255,255,0.1)",borderTopColor:color,borderRadius:"50%",animation:"ds-spin 0.7s linear infinite"}}/>
+  </div>
+);
+
+// ── Stat — Carte statistique ─────────────────────────────────
+const Stat = ({label, value, sub, color=B.violetL, ico}) => (
+  <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:R.lg,padding:"14px 16px"}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+      <span style={{fontSize:T.xs,fontWeight:T.w.bold,color:B.muted,textTransform:"uppercase",letterSpacing:"0.07em"}}>{label}</span>
+      {ico&&<span style={{fontSize:16,opacity:0.7}}>{ico}</span>}
+    </div>
+    <div style={{fontSize:T.xl,fontWeight:T.w.black,color,fontFamily:FS}}>{value}</div>
+    {sub&&<div style={{fontSize:T.xs,color:B.muted,marginTop:3}}>{sub}</div>}
+  </div>
+);
+
+// ── Toast — Notification inline ──────────────────────────────
+const Toast = ({type="success", message, onClose}) => {
+  const cfg = {
+    success:{bg:B.successG,border:"1px solid rgba(110,231,160,0.3)",color:B.success,ico:"✓"},
+    error:  {bg:B.dangerG, border:"1px solid rgba(248,113,113,0.3)",color:B.danger, ico:"✕"},
+    warning:{bg:B.warningG,border:"1px solid rgba(251,191,36,0.3)", color:B.warning,ico:"⚠"},
+    info:   {bg:B.infoG,   border:"1px solid rgba(96,165,250,0.3)", color:B.info,   ico:"ℹ"},
+  };
+  const c = cfg[type]||cfg.info;
+  return (
+    <div style={{...c,borderRadius:R.md,padding:"10px 14px",display:"flex",gap:8,alignItems:"center",fontSize:T.sm}}>
+      <span style={{fontWeight:T.w.bold,color:c.color,flexShrink:0}}>{c.ico}</span>
+      <span style={{flex:1,color:B.cream}}>{message}</span>
+      {onClose&&<button onClick={onClose} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",padding:"0 2px",fontSize:14}}>✕</button>}
+    </div>
+  );
+};
+
+// ── Mdl — Modale universelle (bottom sheet mobile) ───────────
+function Mdl({title, onClose, children, wide=false}) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(6,4,12,0.88)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(4px)"}}
+      onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:B.deep,borderRadius:"22px 22px 0 0",border:"1px solid "+B.border,
+          borderBottom:"none",padding:"20px 16px 36px",width:"100%",
+          maxWidth:wide?600:440,maxHeight:"92vh",overflowY:"auto",
+          boxShadow:"0 -8px 40px rgba(0,0,0,0.6)"}}>
+        <div style={{width:36,height:4,background:B.border,borderRadius:2,margin:"0 auto 18px"}}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-          <h3 style={{margin:0,fontSize:17,fontWeight:800,color:B.cream,fontFamily:FS}}>{title}</h3>
-          <button onClick={onClose} style={{background:"none",border:"none",color:B.muted,fontSize:20,cursor:"pointer",padding:"0 4px"}}>✕</button>
+          <h3 style={{margin:0,fontSize:T.lg,fontWeight:T.w.black,color:B.cream,fontFamily:FS}}>{title}</h3>
+          <button onClick={onClose}
+            style={{background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,
+              color:B.muted,fontSize:14,cursor:"pointer",padding:"5px 9px",
+              borderRadius:R.sm,lineHeight:1}}>✕</button>
         </div>
         {children}
       </div>
@@ -193,29 +765,45 @@ function Mdl({title, onClose, children}) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// ATOMS BSH
-// ═══════════════════════════════════════════════════════════
-const BTag = ({c=BSH.bord, children, sz=9}) => <span style={{background:`${c}22`,border:`1px solid ${c}55`,color:c,borderRadius:3,padding:"2px 7px",fontSize:sz,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
+// ── Compatibilité : alias pour les portails existants ────────
+// (évite de renommer chaque appel dans le code métier)
 const BBtn = ({children, v="ghost", sz="md", onClick, full=false, disabled=false}) => {
-  const base = {cursor:disabled?"not-allowed":"pointer",borderRadius:8,fontFamily:SA,fontWeight:600,transition:"all .2s",border:"none",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4,opacity:disabled?0.5:1};
-  const sizes = {sm:{padding:"6px 12px",fontSize:11},md:{padding:"10px 20px",fontSize:13},lg:{padding:"14px 28px",fontSize:15}};
-  const vs = {gold:{background:`linear-gradient(135deg,${BSH.or},#a87a3e)`,color:BSH.fond},bord:{background:`linear-gradient(135deg,${BSH.bord},${BSH.bord2})`,color:BSH.creme},ghost:{background:"none",border:`1px solid ${BSH.line}`,color:BSH.cremeF},danger:{background:`${BSH.rouge}22`,border:`1px solid ${BSH.rouge}44`,color:BSH.rouge}};
-  return <button onClick={onClick} disabled={disabled} style={{...base,...sizes[sz],...vs[v],width:full?"100%":"auto"}}>{children}</button>;
+  const vMap = {gold:"gold",bord:"primary",ghost:"ghost",danger:"danger"};
+  return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full} disabled={disabled}>{children}</Btn>;
 };
-const BCard = ({children, accent=false, style:s={}}) => <div style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:14,padding:"14px 16px",borderTop:accent?`3px solid ${BSH.bord}`:`1px solid ${BSH.line}`,...s}}>{children}</div>;
-
-// ═══════════════════════════════════════════════════════════
-// ATOMS BO
-// ═══════════════════════════════════════════════════════════
-const OCard = ({children, accent=false, style:s={}}) => <div style={{background:BO.verre,border:`1px solid ${BO.line}`,borderRadius:14,padding:"14px 16px",borderTop:accent?`3px solid ${BO.acc}`:`1px solid ${BO.line}`,...s}}>{children}</div>;
+const BCard = ({children, accent=false, style:s={}}) => (
+  <div style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:R.lg,padding:"14px 16px",
+    borderTop:accent?"3px solid "+BSH.bord:"1px solid "+BSH.line,...s}}>{children}</div>
+);
+const BTag = ({c=BSH.bord, children, sz=9}) => <Tag color={c} sz={sz}>{children}</Tag>;
+const OCard = ({children, accent=false, style:s={}}) => (
+  <div style={{background:BO.verre,border:"1px solid "+BO.line,borderRadius:R.lg,padding:"14px 16px",
+    borderTop:accent?"3px solid "+BO.acc:"1px solid "+BO.line,...s}}>{children}</div>
+);
 const OBtn = ({children, v="ghost", sz="md", onClick, full=false}) => {
-  const base = {cursor:"pointer",borderRadius:8,fontFamily:SA,fontWeight:600,border:"none",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4};
-  const sizes = {sm:{padding:"6px 12px",fontSize:11},md:{padding:"10px 20px",fontSize:13}};
-  const vs = {primary:{background:`linear-gradient(135deg,${BO.acc},${BO.acc2})`,color:"#fff"},gold:{background:`linear-gradient(135deg,${BO.or},#a87a3e)`,color:BO.fond||"#000"},ghost:{background:"none",border:`1px solid ${BO.line}`,color:BO.cremeD}};
-  return <button onClick={onClick} style={{...base,...sizes[sz],...vs[v],width:full?"100%":"auto"}}>{children}</button>;
+  const vMap = {primary:"primary",gold:"gold",ghost:"ghost"};
+  return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full}>{children}</Btn>;
 };
-const OTag = ({c=BO.acc, children, sz=9}) => <span style={{background:`${c}22`,border:`1px solid ${c}55`,color:c,borderRadius:3,padding:"2px 7px",fontSize:sz,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
+const OTag = ({c=BO.acc, children, sz=9}) => <Tag color={c} sz={sz}>{children}</Tag>;
+
+// ── Keyframes globaux (injectés une seule fois) ──────────────
+if (typeof document !== "undefined" && !document.getElementById("ds-keyframes")) {
+  const s = document.createElement("style");
+  s.id = "ds-keyframes";
+  s.textContent = `
+    @keyframes ds-spin { to { transform: rotate(360deg); } }
+    @keyframes ds-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes ds-pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+    .ds-fadein { animation: ds-fadein 0.25s ease both; }
+    * { -webkit-tap-highlight-color: transparent; }
+    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(124,58,237,0.3); border-radius:2px; }
+    ::placeholder { color:rgba(184,174,208,0.45); }
+    input,select,textarea,button { font-family:'Inter',system-ui,sans-serif; }
+  `;
+  document.head.appendChild(s);
+}
 
 
 // ═══════════════════════════════════════════════════════════
@@ -236,11 +824,11 @@ function FAQItem({q, r}) {
   const [open, setOpen] = useState(false);
   return (
     <div>
-      <button onClick={() => setOpen(!open)} style={{width:"100%",background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:open?"10px 10px 0 0":10,padding:"11px 14px",color:BSH.creme,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,fontFamily:SA}}>
+      <button onClick={() => setOpen(!open)} style={{width:"100%",background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:open?"10px 10px 0 0":10,padding:"11px 14px",color:BSH.creme,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,fontFamily:SA}}>
         <span style={{lineHeight:1.4,flex:1,paddingRight:8}}>{q}</span>
         <span style={{color:BSH.or,flexShrink:0}}>{open?"▲":"▼"}</span>
       </button>
-      {open && <div style={{background:`${BSH.bord}0e`,border:`1px solid ${BSH.bord}30`,borderTop:"none",borderRadius:"0 0 10px 10px",padding:"11px 14px",fontSize:12,color:BSH.cremeF,lineHeight:1.75}}>{r}</div>}
+      {open && <div style={{background:(BSH.bord)+"0e",border:"1px solid "+(BSH.bord)+("30"),borderTop:"none",borderRadius:"0 0 10px 10px",padding:"11px 14px",fontSize:12,color:BSH.cremeF,lineHeight:1.75}}>{r}</div>}
     </div>
   );
 }
@@ -254,35 +842,43 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
   const [cart, setCart] = useState([]);
   const [fav, setFav] = useState([]);
   const [modal, setModal] = useState(null);
-  const [pmtChoisi, setPmtChoisi] = useState("WhatsApp");
+  const [pmtChoisi, setPmtChoisi] = useState("SumUp");
   const [nomClient, setNomClient] = useState("");
   const cartN = cart.reduce((s,i) => s+i.qty, 0);
   const cartT = cart.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
   const addCart = p => setCart(c => { const e=c.find(x=>x.id===p.id); return e?c.map(x=>x.id===p.id?{...x,qty:x.qty+1}:x):[...c,{...p,qty:1}]; });
   const togFav = id => setFav(f => f.includes(id)?f.filter(x=>x!==id):[...f,id]);
 
-  const genId = () => "BSH-" + Date.now().toString().slice(-6);
+  const genId = async () => { try { return await genererReference("BSH"); } catch(e) { alert(e.message); return null; } };
 
   const [sumupLoading, setSumupLoading] = useState(false);
   const [sumupErreur, setSumupErreur] = useState(null);
+  const [cmdConfirmee, setCmdConfirmee] = useState(null);
 
   const confirmerCommande = async () => {
-    const id = genId();
-    const produitStr = cart.map(i=>`${i.name} ×${i.qty}`).join(", ");
+    // ── Uniquement les articles sélectionnés
+    const selectionnes = cart.filter(i => i.selected !== false);
+    if (selectionnes.length === 0) return;
+
+    const id = await genId();
+    if (!id) return; // genererReference a échoué
+    const produitStr = selectionnes.map(i=>(i.name)+" ×"+(i.qty)).join(", ");
+    const totalSel   = selectionnes.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
+
     const cmd = {
       id,
-      client: nomClient || "Client web",
+      client:  nomClient || "Client web",
       produit: produitStr,
-      montant: cartT,
+      montant: totalSel,
       acompte: 0,
-      statut: "Demande reçue",
-      date: today(),
-      pmt: pmtChoisi,
-      notes: `Commande web — ${new Date().toLocaleString("fr-FR")}`,
+      statut:  "Demande reçue",
+      date:    today(),
+      pmt:     pmtChoisi,
+      notes:   "Commande web — "+(new Date().toLocaleString("fr-FR")),
     };
     if (onNewCommande) await onNewCommande(cmd);
 
-    // ── SumUp : paiement direct — jamais WhatsApp
+    // ── SumUp : paiement direct
     if (pmtChoisi === "SumUp") {
       setSumupLoading(true);
       setSumupErreur(null);
@@ -291,14 +887,17 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            montant: cartT,
-            description: `Commande BSH ${id} — ${produitStr}`,
-            univers: "BSH",
+            montant:     totalSel,
+            description: "Commande BSH "+(id)+" — "+(produitStr),
+            univers:     "BSH",
+            items:       selectionnes.map(i=>({nom:i.name,qty:i.qty,prix:(i.promo||i.prix)})),
           }),
         });
         const d = await r.json();
         if (d.url) {
-          setCart([]); setNomClient(""); setModal(null);
+          // Conserver les articles non sélectionnés dans le panier
+          setCart(c => c.filter(i => i.selected === false));
+          setNomClient(""); setModal(null);
           window.location.href = d.url;
         } else {
           setSumupErreur(d.error || "Erreur SumUp — réessayez ou choisissez un autre mode.");
@@ -311,24 +910,21 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
       return;
     }
 
-    // ── Tous les autres modes → WhatsApp ou information
-    setCart([]); setNomClient(""); setModal(null);
-    const pmtInfo = pmtChoisi === "PayPal"
-      ? `\nPayPal : ${ENV.PAYPAL}`
-      : pmtChoisi === "WhatsApp"
-      ? `\nPaiement à confirmer avec la fondatrice`
-      : `\nMode de paiement : ${pmtChoisi}`;
-    const msg = `🌹 *NOUVELLE COMMANDE ${id}*\n\nClient : ${nomClient || "Non renseigné"}\nProduits : ${produitStr}\nTotal : ${cartT}€\nPaiement : ${pmtChoisi}${pmtInfo}\nDate : ${new Date().toLocaleString("fr-FR")}\n\nMerci de confirmer ma commande.`;
-    window.open(WA(msg), "_blank");
-  };
+    // ── PayPal : afficher les instructions de paiement (PAS de WhatsApp auto)
+    // Conserver les articles non sélectionnés
+    setCart(c => c.filter(i => i.selected === false));
+    setNomClient("");
+    setCmdConfirmee({ id, produitStr, totalSel, pmt: pmtChoisi });
+    setModal("confirmation");
+  }
 
   // Gate +18
   if (!gate) return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 20% 0%,${BSH.prune},${BSH.fond})`,alignItems:"center",justifyContent:"center",fontFamily:SA,padding:"20px"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(BSH.prune)+","+(BSH.fond)+")",alignItems:"center",justifyContent:"center",fontFamily:SA,padding:"20px"}}>
       <div style={{textAlign:"center",maxWidth:320,width:"100%"}}>
         <div style={{fontFamily:FS,fontSize:26,color:BSH.or,letterSpacing:3,marginBottom:4}}>✦ Bella'Secret Home</div>
         <div style={{fontSize:9,color:BSH.cremeD,letterSpacing:4,marginBottom:32}}>L'INTIMITÉ ÉLEVÉE AU RANG D'ART</div>
-        <div style={{background:BSH.verre2,border:`1px solid ${BSH.line}`,borderRadius:18,padding:"28px 22px"}}>
+        <div style={{background:BSH.verre2,border:"1px solid "+(BSH.line),borderRadius:18,padding:"28px 22px"}}>
           <div style={{fontSize:40,marginBottom:12}}>🔞</div>
           <div style={{fontFamily:FS,fontSize:16,color:BSH.creme,marginBottom:8}}>Accès réservé aux adultes</div>
           <div style={{fontSize:12,color:BSH.cremeD,marginBottom:24,lineHeight:1.7}}>Ce site contient du contenu réservé aux personnes majeures. En entrant, vous certifiez avoir 18 ans ou plus.</div>
@@ -344,23 +940,23 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
   const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"vip",l:"💎"},{id:"faq",l:"❓"}];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 10% 0%,${BSH.prune},${BSH.fond} 60%)`,fontFamily:SA}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)",fontFamily:SA}}>
       {/* Header BSH */}
-      <div style={{padding:"10px 14px",borderBottom:`1px solid ${BSH.line}`,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid "+(BSH.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:BSH.or,letterSpacing:2}}>✦ Bella'Secret Home</div>
           <div style={{fontSize:8,color:BSH.cremeD,letterSpacing:3}}>INTIMITÉ · ÉLÉGANCE · DÉSIR</div>
         </div>
         <div style={{display:"flex",gap:7,alignItems:"center"}}>
-          {cartN > 0 && <button onClick={() => setModal("cart")} style={{background:`${BSH.bord}33`,border:`1px solid ${BSH.bord}`,borderRadius:8,padding:"5px 10px",color:BSH.creme,cursor:"pointer",fontSize:11,fontFamily:SA}}>🛍 {cartN} · {cartT}€</button>}
-          <button onClick={onBack} style={{background:"none",border:`1px solid ${BSH.line}`,borderRadius:8,padding:"5px 9px",color:BSH.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+          {cartN > 0 && <button onClick={() => setModal("cart")} style={{background:(BSH.bord)+"33",border:"1px solid "+(BSH.bord),borderRadius:8,padding:"5px 10px",color:BSH.creme,cursor:"pointer",fontSize:11,fontFamily:SA}}>🛍 {cartN} · {cartT}€</button>}
+          <button onClick={onBack} style={{background:"none",border:"1px solid "+(BSH.line),borderRadius:8,padding:"5px 9px",color:BSH.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
         </div>
       </div>
 
       {/* Nav BSH */}
-      <div style={{display:"flex",justifyContent:"space-around",padding:"8px 12px",borderBottom:`1px solid ${BSH.line}`,background:"rgba(0,0,0,0.2)",flexShrink:0}}>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"8px 12px",borderBottom:"1px solid "+(BSH.line),background:"rgba(0,0,0,0.2)",flexShrink:0}}>
         {PAGES.map(p => (
-          <button key={p.id} onClick={() => setPage(p.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:page===p.id?`2px solid ${BSH.or}`:"2px solid transparent"}}>
+          <button key={p.id} onClick={() => setPage(p.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:page===p.id ? "2px solid "+(BSH.or) : "2px solid transparent"}}>
             <span style={{fontSize:18}}>{p.l}</span>
             <span style={{fontSize:8,color:page===p.id?BSH.or:BSH.cremeD,fontWeight:700,textTransform:"capitalize"}}>{p.id}</span>
           </button>
@@ -380,7 +976,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {produits.slice(0,4).map(p => (
                 <BCard key={p.id} accent style={{padding:"12px",cursor:"pointer"}} onClick={() => setPage("boutique")}>
-                  <div style={{fontSize:30,textAlign:"center",padding:"8px 0",background:`${BSH.bord}18`,borderRadius:9,marginBottom:7}}>{p.ico||"🌹"}</div>
+                  <div style={{fontSize:30,textAlign:"center",padding:"8px 0",background:(BSH.bord)+"18",borderRadius:9,marginBottom:7}}>{p.ico||"🌹"}</div>
                   <div style={{fontFamily:FS,fontSize:11,fontWeight:600,color:BSH.creme,marginBottom:3,lineHeight:1.3}}>{p.name}</div>
                   <div style={{fontSize:14,fontWeight:700,color:BSH.or,fontFamily:FS}}>{p.promo||p.prix}€</div>
                 </BCard>
@@ -411,7 +1007,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
               {produits.map(p => (
                 <BCard key={p.id} accent style={{padding:"11px",cursor:"pointer"}} onClick={() => setModal({type:"prod",p})}>
                   <div style={{position:"relative"}}>
-                    <div style={{fontSize:30,textAlign:"center",padding:"7px 0",background:`${BSH.bord}18`,borderRadius:8,marginBottom:6}}>{p.ico||"🌹"}</div>
+                    <div style={{fontSize:30,textAlign:"center",padding:"7px 0",background:(BSH.bord)+"18",borderRadius:8,marginBottom:6}}>{p.ico||"🌹"}</div>
                     <button onClick={e=>{e.stopPropagation();togFav(p.id);}} style={{position:"absolute",top:2,right:2,background:"none",border:"none",cursor:"pointer",fontSize:13}}>{fav.includes(p.id)?"❤️":"🤍"}</button>
                   </div>
                   {p.isNew && <BTag c={BSH.vert} sz={8}>Nouveau</BTag>}
@@ -444,7 +1040,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
                         <BTag c={BSH.bord} sz={9}>📍 {e.lieu}</BTag>
                         <BTag c={BSH.rose} sz={9}>🎟 {e.prix}€</BTag>
                       </div>
-                      <div style={{background:"rgba(255,255,255,.05)",borderRadius:3,height:4,marginBottom:4}}><div style={{background:`linear-gradient(90deg,${BSH.bord},${BSH.rose})`,height:"100%",borderRadius:3,width:`${pct}%`}}/></div>
+                      <div style={{background:"rgba(255,255,255,.05)",borderRadius:3,height:4,marginBottom:4}}><div style={{background:"linear-gradient(90deg,"+(BSH.bord)+","+(BSH.rose)+")",height:"100%",borderRadius:3,width:(pct)+"%"}}/></div>
                       <div style={{fontSize:10,color:BSH.cremeD}}>{e.dispo} place{e.dispo!==1?"s":""} restante{e.dispo!==1?"s":""}</div>
                     </div>
                   </div>
@@ -459,15 +1055,27 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
           <div style={{display:"flex",flexDirection:"column",gap:11}}>
             <h2 style={{fontFamily:FS,fontSize:18,color:BSH.or,margin:0,textAlign:"center"}}>Club VIP ✦</h2>
             <p style={{color:BSH.cremeD,textAlign:"center",fontSize:12,margin:0,lineHeight:1.7}}>Un cercle exclusif d'expériences et de privilèges.</p>
+
+            {/* ── Historique commandes ── */}
+            {cmdConfirmee && (
+              <div style={{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginBottom:8}}>📦 Dernière commande</div>
+                <div style={{fontSize:12,color:"#fff",fontWeight:700}}>{cmdConfirmee.id}</div>
+                <div style={{fontSize:11,color:BSH.cremeD,marginTop:3}}>{cmdConfirmee.produitStr}</div>
+                <div style={{fontSize:11,color:BSH.or,fontWeight:700,marginTop:3}}>{cmdConfirmee.totalSel}€</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:4}}>Statut : en attente de confirmation</div>
+              </div>
+            )}
+
             {VIP_LEVELS.map(v => (
-              <BCard key={v.level} style={{borderTop:`4px solid ${v.color}`,padding:"16px 14px"}}>
+              <BCard key={v.level} style={{borderTop:"4px solid "+(v.color),padding:"16px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                   <div style={{fontFamily:FS,fontSize:16,fontWeight:700,color:v.color}}>{v.level}</div>
                   <div style={{fontSize:14,color:BSH.or,fontWeight:700}}>{v.prix}</div>
                 </div>
                 {v.avs.map(a => <div key={a} style={{fontSize:11,color:BSH.cremeD,marginBottom:5,display:"flex",gap:7}}><span style={{color:v.color,flexShrink:0}}>✓</span>{a}</div>)}
                 <div style={{marginTop:12}}>
-                  <BBtn v="bord" sz="sm" full onClick={() => window.open(WA(`Bonjour, je souhaite rejoindre le Club VIP ${v.level} Bella'Secret Home`),"_blank")}>Rejoindre le Club {v.level} →</BBtn>
+                  <BBtn v="bord" sz="sm" full onClick={() => window.open(WA("Bonjour, je souhaite rejoindre le Club VIP "+(v.level)+" Bella'Secret Home"),"_blank")}>Rejoindre le Club {v.level} →</BBtn>
                 </div>
               </BCard>
             ))}
@@ -486,66 +1094,159 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
       {/* MODALS */}
       {modal === "cart" && (
         <Mdl title="Ma commande 🛍️" onClose={() => setModal(null)}>
-          {cart.length === 0 ? <p style={{color:B.muted,textAlign:"center",padding:"16px"}}>Votre panier est vide.</p> : <>
-            {/* Récap produits */}
-            {cart.map(i => (
-              <div key={i.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${B.border}`}}>
-                <div style={{display:"flex",gap:9,alignItems:"center"}}><span style={{fontSize:20}}>{i.ico}</span><span style={{fontSize:12,color:B.cream}}>{i.name} ×{i.qty}</span></div>
-                <div style={{display:"flex",gap:9,alignItems:"center"}}>
-                  <span style={{fontSize:13,color:B.gold,fontWeight:700}}>{(i.promo||i.prix)*i.qty}€</span>
-                  <button onClick={() => setCart(c=>c.filter(x=>x.id!==i.id))} style={{background:"none",border:"none",color:B.danger,cursor:"pointer",fontSize:16}}>✕</button>
+          {cart.length === 0
+            ? <p style={{color:B.muted,textAlign:"center",padding:"16px"}}>Votre panier est vide.</p>
+            : <>
+              {/* ── Légende */}
+              <div style={{fontSize:10,color:B.muted,marginBottom:8,lineHeight:1.6}}>
+                Cochez les articles à payer. Les autres restent dans le panier.
+              </div>
+
+              {/* ── Liste articles avec sélection + quantités */}
+              {cart.map(i => {
+                const prixU = i.promo || i.prix;
+                const selected = i.selected !== false; // true par défaut
+                return (
+                  <div key={i.id} style={{display:"flex",gap:8,alignItems:"center",padding:"10px 0",borderBottom:"1px solid "+(BSH.line)}}>
+                    {/* Checkbox sélection */}
+                    <input type="checkbox" checked={selected}
+                      onChange={() => setCart(c => c.map(x => x.id===i.id ? {...x, selected:!selected} : x))}
+                      style={{width:18,height:18,accentColor:BSH.or,flexShrink:0,cursor:"pointer"}}/>
+                    {/* Icône + nom */}
+                    <span style={{fontSize:20,flexShrink:0}}>{i.ico}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:600,color:selected?BSH.creme:B.muted,lineHeight:1.3}}>{i.name}</div>
+                      <div style={{fontSize:11,color:B.gold}}>{prixU}€/u</div>
+                    </div>
+                    {/* Contrôles quantité */}
+                    <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+                      <button
+                        onClick={() => {
+                          if (i.qty <= 1) {
+                            if (window.confirm("Supprimer \""+(i.name)+"\" du panier ?")) {
+                              setCart(c => c.filter(x => x.id !== i.id));
+                            }
+                          } else {
+                            setCart(c => c.map(x => x.id===i.id ? {...x, qty:x.qty-1} : x));
+                          }
+                        }}
+                        style={{width:28,height:28,borderRadius:8,border:"1px solid "+(BSH.line),background:"rgba(255,255,255,0.07)",color:BSH.creme,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:SA}}>
+                        −
+                      </button>
+                      <span style={{minWidth:20,textAlign:"center",fontSize:13,fontWeight:700,color:selected?BSH.creme:B.muted}}>{i.qty}</span>
+                      <button
+                        onClick={() => setCart(c => c.map(x => x.id===i.id ? {...x, qty:x.qty+1} : x))}
+                        style={{width:28,height:28,borderRadius:8,border:"1px solid "+(BSH.line),background:"rgba(255,255,255,0.07)",color:BSH.creme,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:SA}}>
+                        +
+                      </button>
+                    </div>
+                    {/* Sous-total article */}
+                    <div style={{textAlign:"right",flexShrink:0,minWidth:48}}>
+                      <div style={{fontSize:13,fontWeight:700,color:selected?B.gold:B.muted}}>{prixU*i.qty}€</div>
+                      <button onClick={() => setCart(c => c.filter(x => x.id !== i.id))}
+                        style={{background:"none",border:"none",cursor:"pointer",color:B.muted,fontSize:11,marginTop:2,fontFamily:SA,padding:0}}>
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* ── Total sélectionnés */}
+              <div style={{margin:"14px 0 6px",padding:"10px 12px",background:(BSH.bord)+"15",border:"1px solid "+(BSH.line),borderRadius:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:12,color:B.muted}}>
+                    Total sélectionné ({cart.filter(i=>i.selected!==false).length} article{cart.filter(i=>i.selected!==false).length!==1?"s":""})
+                  </span>
+                  <span style={{fontSize:22,fontWeight:700,color:B.gold,fontFamily:FS}}>
+                    {cart.filter(i=>i.selected!==false).reduce((s,i)=>(s+(i.promo||i.prix)*i.qty),0)}€
+                  </span>
                 </div>
-              </div>
-            ))}
-            <div style={{display:"flex",justifyContent:"space-between",margin:"14px 0 16px"}}>
-              <span style={{fontSize:16,color:B.cream,fontFamily:FS}}>Total</span>
-              <span style={{fontSize:22,fontWeight:700,color:B.gold,fontFamily:FS}}>{cartT}€</span>
-            </div>
-            {/* Nom client */}
-            <div style={{marginBottom:12}}>
-              <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Votre prénom</label>
-              <input value={nomClient} onChange={e=>setNomClient(e.target.value)} placeholder="Prénom (facultatif)" style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
-            </div>
-            {/* Mode de paiement */}
-            <div style={{marginBottom:18}}>
-              <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:8}}>Mode de paiement</label>
-              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-                {[
-                  {id:"WhatsApp",ico:"💬",label:"WhatsApp"},
-                  {id:"SumUp",ico:"💳",label:"SumUp"},
-                  {id:"PayPal",ico:"🅿",label:"PayPal"},
-                  {id:"Revolut",ico:"🔵",label:"Revolut"},
-                  {id:"Espèces",ico:"💵",label:"Espèces"},
-                ].map(p => (
-                  <button key={p.id} onClick={() => setPmtChoisi(p.id)} style={{padding:"7px 12px",borderRadius:9,border:`2px solid ${pmtChoisi===p.id?BSH.or:BSH.line}`,background:pmtChoisi===p.id?`${BSH.or}22`:"transparent",color:pmtChoisi===p.id?BSH.or:BSH.cremeD,cursor:"pointer",fontSize:12,fontWeight:pmtChoisi===p.id?700:400,fontFamily:SA}}>
-                    {p.ico} {p.label}
-                  </button>
-                ))}
-              </div>
-              {pmtChoisi === "PayPal" && <div style={{fontSize:11,color:B.gold,marginTop:8}}>📧 ${ENV.PAYPAL}</div>}
-            </div>
-            {/* Bouton confirmer — dynamique selon mode paiement */}
-            {pmtChoisi === "SumUp" ? (
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                <Btn v="gold" full onClick={confirmerCommande} disabled={sumupLoading}>
-                  {sumupLoading ? "⏳ Redirection SumUp…" : `💳 Payer maintenant par SumUp — ${cartT}€`}
-                </Btn>
-                {sumupErreur && (
-                  <div style={{fontSize:11,color:"#ef4444",textAlign:"center",padding:"6px 8px",background:"rgba(239,68,68,0.08)",borderRadius:8}}>
-                    {sumupErreur}
+                {cart.some(i=>i.selected===false) && (
+                  <div style={{fontSize:10,color:B.muted,marginTop:4}}>
+                    {cart.filter(i=>i.selected===false).length} article{cart.filter(i=>i.selected===false).length!==1?"s":""} non sélectionné{cart.filter(i=>i.selected===false).length!==1?"s":""} conservé{cart.filter(i=>i.selected===false).length!==1?"s":""} dans le panier.
                   </div>
                 )}
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
               </div>
-            ) : (
-              <Btn v="gold" full onClick={confirmerCommande}>
-                {pmtChoisi === "WhatsApp" ? "💬 Envoyer la commande sur WhatsApp →" : `✅ Confirmer la commande — ${pmtChoisi}`}
-              </Btn>
-            )}
-            <p style={{textAlign:"center",fontSize:10,color:B.muted,marginTop:8,lineHeight:1.6}}>
-              Un numéro de commande sera généré automatiquement.<br/>La fondatrice recevra votre commande en temps réel.
-            </p>
-          </>}
+
+              {/* ── Nom client */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Votre prénom (facultatif)</label>
+                <input value={nomClient} onChange={e=>setNomClient(e.target.value)} placeholder="Prénom" style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid "+(BSH.line),borderRadius:10,padding:"9px 12px",color:BSH.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+              </div>
+
+              {/* ── Mode de paiement */}
+              <div style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:7}}>Mode de paiement</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                  {[
+                    {id:"SumUp",ico:"💳",label:"SumUp"},
+                    {id:"PayPal",ico:"🅿",label:"PayPal"},
+                  ].map(p => (
+                    <button key={p.id} onClick={() => setPmtChoisi(p.id)}
+                      style={{padding:"7px 12px",borderRadius:9,border:"1px solid "+(pmtChoisi===p.id?BSH.or:BSH.line),background:pmtChoisi===p.id?(BSH.or+"22"):"transparent",color:pmtChoisi===p.id?BSH.or:BSH.cremeD,cursor:"pointer",fontSize:12,fontFamily:SA,fontWeight:pmtChoisi===p.id?700:400}}>
+                      {p.ico} {p.label}
+                    </button>
+                  ))}
+                </div>
+                {pmtChoisi === "PayPal" && <div style={{fontSize:11,color:B.gold,marginTop:8}}>📧 {ENV.PAYPAL}</div>}
+              </div>
+
+              {/* ── Bouton payer */}
+              {(() => {
+                const selectionnes = cart.filter(i => i.selected !== false);
+                const totalSel = selectionnes.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
+                const disabled = selectionnes.length === 0 || totalSel <= 0;
+                if (pmtChoisi === "SumUp") return (
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    <Btn v="gold" full onClick={confirmerCommande} disabled={sumupLoading||disabled}>
+                      {sumupLoading ? "⏳ Redirection SumUp…" : "💳 Payer par SumUp — "+(totalSel)+"€"}
+                    </Btn>
+                    {sumupErreur && (
+                      <div style={{fontSize:11,color:"#ef4444",textAlign:"center",padding:"6px 8px",background:"rgba(239,68,68,0.1)",borderRadius:8}}>
+                        {sumupErreur}
+                      </div>
+                    )}
+                    <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
+                  </div>
+                );
+                return (
+                  <Btn v="gold" full onClick={confirmerCommande} disabled={disabled}>
+                    {disabled
+                      ? "Sélectionnez au moins un article"
+                      : "🅿 Payer par PayPal — "+(totalSel)+"€"}
+                  </Btn>
+                );
+              })()}
+              <p style={{textAlign:"center",fontSize:10,color:B.muted,marginTop:8,lineHeight:1.6}}>
+                Un numéro de commande sera généré automatiquement.<br/>La fondatrice recevra votre commande en temps réel.
+              </p>
+            </>}
+        </Mdl>
+      )}
+      {modal === "confirmation" && cmdConfirmee && (
+        <Mdl title="Commande enregistrée ✓" onClose={() => {setModal(null); setCmdConfirmee(null);}}>
+          <div style={{textAlign:"center",fontSize:48,marginBottom:12}}>🌹</div>
+          <p style={{textAlign:"center",fontSize:14,color:BSH.creme,marginBottom:6,fontWeight:600}}>
+            Merci ! Votre commande <span style={{color:BSH.or}}>{cmdConfirmee.id}</span> est enregistrée.
+          </p>
+          <p style={{textAlign:"center",fontSize:12,color:B.muted,marginBottom:16,lineHeight:1.6}}>
+            {cmdConfirmee.produitStr}<br/>
+            <span style={{fontSize:18,fontWeight:700,color:BSH.or,fontFamily:FS}}>{cmdConfirmee.totalSel}€</span>
+          </p>
+          {cmdConfirmee.pmt === "PayPal" && (
+            <div style={{background:(BSH.bord)+"15",border:"1px solid "+(BSH.line),borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+              <div style={{fontSize:12,fontWeight:700,color:BSH.creme,marginBottom:6}}>🅿 Régler par PayPal</div>
+              <div style={{fontSize:11,color:B.muted,lineHeight:1.7}}>
+                Envoyez <span style={{color:BSH.or,fontWeight:700}}>{cmdConfirmee.totalSel}€</span> à l'adresse PayPal :
+              </div>
+              <div style={{fontSize:13,color:B.gold,fontWeight:700,marginTop:6,wordBreak:"break-all"}}>{ENV.PAYPAL}</div>
+              <div style={{fontSize:10,color:B.muted,marginTop:8,lineHeight:1.6}}>
+                Indiquez la référence <span style={{color:BSH.creme}}>{cmdConfirmee.id}</span> dans le message PayPal. La fondatrice validera votre commande dès réception.
+              </div>
+            </div>
+          )}
+          <Btn v="gold" full onClick={() => {setModal(null); setCmdConfirmee(null);}}>Terminé</Btn>
         </Mdl>
       )}
       {modal?.type === "prod" && (
@@ -557,7 +1258,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <Btn v="gold" full onClick={() => {addCart(modal.p); setModal(null);}}>🛒 Ajouter au panier</Btn>
-            <Btn v="ghost" full onClick={() => window.open(WA(`Bonjour, je voudrais commander : ${modal.p.name}`),"_blank")}>💬 Commander via WhatsApp</Btn>
+            <Btn v="ghost" full onClick={() => window.open(WA("Bonjour, je voudrais commander : "+(modal.p.name)),"_blank")}>💬 Commander via WhatsApp</Btn>
           </div>
         </Mdl>
       )}
@@ -566,28 +1267,29 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
           <div style={{textAlign:"center",fontSize:40,marginBottom:10}}>{modal.e.ico}</div>
           <p style={{color:B.muted,fontSize:13,textAlign:"center",marginBottom:16,lineHeight:1.6}}>{modal.e.desc}</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:18}}>
-            {[["📅 Date",fmt(modal.e.date)],["📍 Lieu",modal.e.lieu],["🎟 Prix",`${modal.e.prix}€/pers.`],["👥 Places",`${modal.e.dispo} restante${modal.e.dispo!==1?"s":""}`]].map(([l,v]) => (
-              <div key={l} style={{background:B.surface,borderRadius:9,padding:"9px 11px",border:`1px solid ${B.border}`}}>
+            {[["📅 Date",fmt(modal.e.date)],["📍 Lieu",modal.e.lieu],["🎟 Prix",(modal.e.prix)+"€/pers."],["👥 Places",(modal.e.dispo)+" restante"+(modal.e.dispo!==1?"s":"")]].map(([l,v]) => (
+              <div key={l} style={{background:B.surface,borderRadius:9,padding:"9px 11px",border:"1px solid "+(B.border)}}>
                 <div style={{fontSize:9,color:B.gold,marginBottom:3,fontWeight:700}}>{l}</div>
                 <div style={{fontSize:12,color:B.cream,fontWeight:600}}>{v}</div>
               </div>
             ))}
           </div>
           <Btn v="gold" full onClick={async () => {
-            const id = genId();
+            const id = await genId();
+            if (!id) return;
             const cmd = {
               id,
               client: "Client web",
-              produit: `Événement : ${modal.e.nom} — ${fmt(modal.e.date)}`,
+              produit: "Événement : "+(modal.e.nom)+" — "+(fmt(modal.e.date)),
               montant: modal.e.prix,
               acompte: 0,
               statut: "Demande reçue",
               date: today(),
               pmt: "À confirmer",
-              notes: `Réservation événement web — ${new Date().toLocaleString("fr-FR")}`,
+              notes: "Réservation événement web — "+(new Date().toLocaleString("fr-FR")),
             };
             if (onNewCommande) await onNewCommande(cmd);
-            const msg = `🌹 *RÉSERVATION ${id}*\n\nÉvénement : ${modal.e.nom}\nDate : ${fmt(modal.e.date)}\nLieu : ${modal.e.lieu}\nTarif : ${modal.e.prix}€/pers.\nDate réservation : ${new Date().toLocaleString("fr-FR")}\n\nMerci de confirmer ma réservation.`;
+            const msg = "🌹 *RÉSERVATION "+(id)+"*\\n\\nÉvénement : "+(modal.e.nom)+"\\nDate : "+(fmt(modal.e.date))+"\\nLieu : "+(modal.e.lieu)+"\\nTarif : "+(modal.e.prix)+"€/pers.\\nDate réservation : "+(new Date().toLocaleString("fr-FR"))+"\\n\\nMerci de confirmer ma réservation.";
             setModal(null);
             window.open(WA(msg), "_blank");
           }}>Réserver via WhatsApp →</Btn>
@@ -600,28 +1302,36 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
 // ═══════════════════════════════════════════════════════════
 // ── ESPACE CLIENT BELLA'ODYSSÉE
 // ═══════════════════════════════════════════════════════════
-function ClientOdyssee({rdvs, onBack}) {
+function ClientOdyssee({user, rdvs, onBack}) {
+  const mineur = estMineur(user?.date_naissance);
+  const ageClient = calcAge(user?.date_naissance);
   const [page, setPage] = useState("accueil");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({prestation:PRESTATIONS_BO[0],date:today(),heure:"10h00",nom:"",tel:""});
+  const [rdvEnvoi,  setRdvEnvoi]  = useState(false);
+  const [rdvSucces, setRdvSucces] = useState(null); // référence RDV créé
+  const [paiementOd,setPaiementOd]= useState(null); // {dossier, facRef, cmdRef}
 
   const PAGES = [{id:"accueil",l:"🏠"},{id:"prestations",l:"💅"},{id:"rdv",l:"📅"},{id:"galerie",l:"📸"},{id:"contact",l:"📞"}];
 
+  // Écran paiement si demandé
+  if (paiementOd) return <EcranPaiement paiement={paiementOd} onBack={()=>setPaiementOd(null)} bu="ODYSSEE"/>;
+
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 20% 0%,${BO.prune},${BO.fond} 65%)`,fontFamily:SA}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(BO.prune)+","+(BO.fond)+" 65%)",fontFamily:SA}}>
       {/* Header */}
-      <div style={{padding:"10px 14px",borderBottom:`1px solid ${BO.line}`,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.35)",flexShrink:0}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid "+(BO.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.35)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:BO.or,letterSpacing:2}}>💅 Bella'Odyssée</div>
           <div style={{fontSize:8,color:BO.cremeD,letterSpacing:3}}>BEAUTÉ · SOINS · ÉLÉGANCE</div>
         </div>
-        <button onClick={onBack} style={{background:"none",border:`1px solid ${BO.line}`,borderRadius:8,padding:"5px 9px",color:BO.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        <button onClick={onBack} style={{background:"none",border:"1px solid "+(BO.line),borderRadius:8,padding:"5px 9px",color:BO.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
       </div>
 
       {/* Nav */}
-      <div style={{display:"flex",justifyContent:"space-around",padding:"8px 12px",borderBottom:`1px solid ${BO.line}`,background:"rgba(0,0,0,0.2)",flexShrink:0}}>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"8px 12px",borderBottom:"1px solid "+(BO.line),background:"rgba(0,0,0,0.2)",flexShrink:0}}>
         {PAGES.map(p => (
-          <button key={p.id} onClick={() => setPage(p.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:page===p.id?`2px solid ${BO.or}`:"2px solid transparent"}}>
+          <button key={p.id} onClick={() => setPage(p.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:page===p.id ? "2px solid "+(BO.or) : "2px solid transparent"}}>
             <span style={{fontSize:18}}>{p.l}</span>
             <span style={{fontSize:8,color:page===p.id?BO.or:BO.cremeD,fontWeight:700,textTransform:"capitalize"}}>{p.id==="rdv"?"RDV":p.id}</span>
           </button>
@@ -637,7 +1347,7 @@ function ClientOdyssee({rdvs, onBack}) {
             <div style={{textAlign:"center",padding:"16px 0 8px"}}>
               <div style={{fontSize:52,marginBottom:10}}>💅</div>
               <div style={{fontFamily:FS,fontSize:22,color:BO.or,letterSpacing:2,marginBottom:6}}>Bella'Odyssée</div>
-              <div style={{fontSize:13,color:BO.cremeD,lineHeight:1.8}}>Studio beauté & soins à ${ENV.VILLE}.<br/>Extensions de cils · Browlift · Lashlift<br/>Blanchiment · Strass dentaires</div>
+              <div style={{fontSize:13,color:BO.cremeD,lineHeight:1.8}}>Studio beauté & soins à {ENV.VILLE}.<br/>Extensions de cils · Browlift · Lashlift<br/>Blanchiment · Strass dentaires</div>
             </div>
             <OCard accent style={{textAlign:"center",padding:"18px 16px"}}>
               <div style={{fontFamily:FS,fontSize:14,color:BO.or,marginBottom:8}}>Prendre rendez-vous ✦</div>
@@ -660,13 +1370,7 @@ function ClientOdyssee({rdvs, onBack}) {
         {page === "prestations" && (
           <div style={{display:"flex",flexDirection:"column",gap:11}}>
             <h2 style={{fontFamily:FS,fontSize:18,color:BO.or,margin:0}}>Nos Prestations</h2>
-            {[
-              {ico:"👁",nom:"Extensions de cils",desc:"Pose classique, volume russe ou mega volume. Résultat naturel à spectaculaire selon vos envies.",duree:"1h30-2h30",prix:"À partir de 45€"},
-              {ico:"🦷",nom:"Blanchiment dentaire",desc:"Technique LED professionnelle. Résultat visible dès la première séance.",duree:"45min",prix:"À partir de 59€"},
-              {ico:"✨",nom:"Strass dentaires",desc:"Pose de bijoux dentaires sans dommage sur l'émail. Tendance et élégant.",duree:"30min",prix:"À partir de 25€"},
-              {ico:"🌿",nom:"Browlift",desc:"Restructuration et mise en forme des sourcils. Regard expressif et défini.",duree:"45min",prix:"À partir de 35€"},
-              {ico:"🌟",nom:"Lashlift",desc:"Rehaussement permanent des cils naturels. Effet mascara sans mascara.",duree:"1h",prix:"À partir de 40€"},
-            ].map(p => (
+            {PRESTATIONS_BO_DETAIL.map(p => (
               <OCard key={p.nom} accent>
                 <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
                   <div style={{fontSize:28,flexShrink:0,marginTop:2}}>{p.ico}</div>
@@ -675,9 +1379,33 @@ function ClientOdyssee({rdvs, onBack}) {
                     <div style={{fontSize:12,color:BO.cremeD,marginBottom:9,lineHeight:1.6}}>{p.desc}</div>
                     <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10}}>
                       <OTag c={BO.acc} sz={9}>⏱ {p.duree}</OTag>
-                      <OTag c={BO.or} sz={9}>💰 {p.prix}</OTag>
+                      <OTag c={BO.or} sz={9}>💰 {p.affichage}</OTag>
                     </div>
-                    <OBtn v="primary" sz="sm" full onClick={() => {setForm({...form,prestation:p.nom});setPage("rdv");}}>Réserver ce soin →</OBtn>
+                    {p.formules && p.formules.length > 0 && (
+                      <div style={{marginBottom:10,padding:"8px 10px",background:"rgba(255,255,255,0.04)",borderRadius:8}}>
+                        {p.formules.map((f,idx) => (
+                          <div key={idx} style={{display:"flex",justifyContent:"space-between",fontSize:11,color:BO.cremeD,padding:"2px 0"}}>
+                            <span>{f.l}</span>
+                            <span style={{color:f.p?BO.or:BO.cremeD,fontWeight:f.p?700:400}}>{f.p  ? (f.p)+"€" : "Sur devis"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(() => {
+                      const r = regleAcces(p.nom, user?.date_naissance);
+                      if (r.bloque) return (
+                        <div>
+                          <div style={{fontSize:11,color:"#e07a7a",background:"rgba(224,68,68,0.1)",border:"1px solid rgba(224,68,68,0.3)",borderRadius:8,padding:"8px 10px",marginBottom:6,textAlign:"center"}}>🔒 {r.message}</div>
+                          <OBtn v="primary" sz="sm" full onClick={() => { setModal("rdv"); setForm(f=>({...f,prestation:p.nom,prix:p.formules[0]?.p||p.prix})); }}>Réserver ce soin</OBtn>
+                        </div>
+                      );
+                      return (
+                        <div>
+                          {r.parental && <div style={{fontSize:10,color:BO.or,background:"rgba(212,175,100,0.1)",borderRadius:8,padding:"6px 9px",marginBottom:6,textAlign:"center"}}>⚠ {r.message}</div>}
+                          <OBtn v="primary" sz="sm" full onClick={() => {setForm({...form,prestation:p.nom,parentalRequis:r.parental});setPage("rdv");}}>Réserver ce soin →</OBtn>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </OCard>
@@ -692,39 +1420,72 @@ function ClientOdyssee({rdvs, onBack}) {
             <OCard accent>
               <div style={{marginBottom:14}}>
                 <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Votre prénom</label>
-                <input value={form.nom} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Votre prénom" style={{width:"100%",background:"rgba(255,255,255,.06)",border:`1px solid ${BO.line}`,borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+                <input value={form.nom} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Votre prénom" style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
               </div>
               <div style={{marginBottom:14}}>
                 <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Prestation souhaitée</label>
-                <select value={form.prestation} onChange={e=>setForm({...form,prestation:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.06)",border:`1px solid ${BO.line}`,borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
-                  {PRESTATIONS_BO.filter(p=>p!=="Autre").map(p=><option key={p} value={p}>{p}</option>)}
+                <select value={form.prestation} onChange={e=>setForm({...form,prestation:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+                  {PRESTATIONS_BO_DETAIL.map(p=><option key={p.nom} value={p.nom}>{p.nom}</option>)}
                 </select>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
                 <div>
                   <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Date souhaitée</label>
-                  <input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.06)",border:`1px solid ${BO.line}`,borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+                  <input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
                 </div>
                 <div>
                   <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Heure</label>
-                  <select value={form.heure} onChange={e=>setForm({...form,heure:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.06)",border:`1px solid ${BO.line}`,borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+                  <select value={form.heure} onChange={e=>setForm({...form,heure:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
                     {["8h00","9h00","10h00","11h00","13h00","14h00","15h00","16h00","17h00"].map(h=><option key={h}>{h}</option>)}
                   </select>
                 </div>
               </div>
               <div style={{marginBottom:16}}>
                 <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Téléphone / WhatsApp</label>
-                <input value={form.tel} onChange={e=>setForm({...form,tel:e.target.value})} placeholder="+594..." style={{width:"100%",background:"rgba(255,255,255,.06)",border:`1px solid ${BO.line}`,borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+                <input value={form.tel} onChange={e=>setForm({...form,tel:e.target.value})} placeholder="+594..." style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
               </div>
-              <OBtn v="primary" sz="md" full disabled={!form.nom.trim()} onClick={() => {
-                const msg=`Bonjour, je souhaite prendre rendez-vous pour : ${form.prestation}\nDate : ${fmt(form.date)} à ${form.heure}\nPrénom : ${form.nom}\nTél : ${form.tel||"À préciser"}`;
-                window.open(WA(msg),"_blank");
-              }}>💬 Envoyer ma demande via WhatsApp</OBtn>
+              {ENV.SQUARE_BOOKING ? (
+                <OBtn v="primary" sz="md" full onClick={() => window.open(ENV.SQUARE_BOOKING,"_blank")}>
+                  📅 Réserver en ligne (planning)
+                </OBtn>
+              ) : (
+                <OBtn v="primary" sz="md" full disabled={!form.nom.trim() || rdvEnvoi} onClick={async () => {
+                  setRdvEnvoi(true);
+                  let rdvRef = "";
+                  try { rdvRef = await genererReference("BO"); }
+                  catch(e) { alert(e.message); setRdvEnvoi(false); return; }
+                  // Créer dans bellaia_commandes
+                  const res = await sbPost("bellaia_commandes", {
+                    bu:"ODYSSEE", reference:rdvRef,
+                    client_nom:form.nom, client_tel:form.tel||null,
+                    statut:"BROUILLON", total:0,
+                    date_commande:new Date().toISOString().split("T")[0],
+                    date_livraison:form.date,
+                    notes:form.heure+" — "+form.prestation,
+                    lignes:JSON.stringify([{libelle:form.prestation,qte:1,prixUnitaire:0,total:0}]),
+                  });
+                  if (!res.ok) {
+                    alert("Impossible d'enregistrer le RDV. "+( res.error||"Réessayez."));
+                    setRdvEnvoi(false); return;
+                  }
+                  // GED auto-save
+                  gedAutoSave({titre:"RDV "+rdvRef+" — "+form.nom, module:"ODYSSEE",
+                    categorie:"bon_commande", reference:rdvRef, clientNom:form.nom,
+                  }).catch(e=>console.warn('[Bellaïa][GED]',e.message));
+                  // WA avec référence
+                  const msg="Bonjour, je souhaite prendre rendez-vous 💅\nRéf : "+rdvRef+"\nSoin : "+form.prestation+"\nDate : "+fmt(form.date)+" à "+form.heure+"\nPrénom : "+form.nom+(form.tel?"\nTél : "+form.tel:"");
+                  window.open(WA(msg),"_blank");
+                  setRdvSucces(rdvRef);
+                  setRdvEnvoi(false);
+                }}>
+                  {rdvEnvoi ? "Envoi…" : "💬 Envoyer ma demande via WhatsApp"}
+                </OBtn>
+              )}
               <p style={{textAlign:"center",fontSize:10,color:BO.cremeD,marginTop:8}}>Confirmation rapide · Acompte possible</p>
             </OCard>
             <OCard style={{padding:"12px 14px"}}>
               <div style={{fontSize:12,fontWeight:700,color:BO.creme,marginBottom:6}}>📍 Nous trouver</div>
-              <div style={{fontSize:11,color:BO.cremeD,lineHeight:1.8}}>${ENV.ADRESSE}<br/><br/>${ENV.VILLE}, ${ENV.PAYS}</div>
+              <div style={{fontSize:11,color:BO.cremeD,lineHeight:1.8}}>{ENV.ADRESSE}<br/><br/>{ENV.VILLE}, {ENV.PAYS}</div>
             </OCard>
           </div>
         )}
@@ -744,7 +1505,7 @@ function ClientOdyssee({rdvs, onBack}) {
                 <div style={{fontFamily:FS,fontSize:12,fontWeight:700,color:BO.or,marginBottom:9}}>💅 {g.presta}</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                   {[{l:"Avant",v:g.avant,c:"rgba(180,80,80,0.2)"},{l:"Après",v:g.apres,c:"rgba(80,180,120,0.2)"}].map(x=>(
-                    <div key={x.l} style={{background:x.c,borderRadius:9,padding:"10px",textAlign:"center",border:`1px solid ${x.l==="Avant"?BO.rouge||"#e84444":"rgba(80,180,120,0.3)"}`}}>
+                    <div key={x.l} style={{background:x.c,borderRadius:9,padding:"10px",textAlign:"center",border:"1px solid "+(x.l==="Avant"?BO.rouge||"#e84444":"rgba(80,180,120,0.3)")}}>
                       <div style={{fontSize:9,fontWeight:800,color:x.l==="Avant"?"#f4a0a0":"#80e0a0",marginBottom:4,letterSpacing:"0.08em"}}>{x.l.toUpperCase()}</div>
                       <div style={{fontSize:11,color:BO.creme,lineHeight:1.5}}>{x.v}</div>
                     </div>
@@ -762,8 +1523,8 @@ function ClientOdyssee({rdvs, onBack}) {
             <h2 style={{fontFamily:FS,fontSize:18,color:BO.or,margin:0}}>Contact</h2>
             {[
               {ico:"💬",t:"WhatsApp",v:ENV.TEL,action:()=>window.open(WA(),"_blank"),cta:"Envoyer un message"},
-              {ico:"📧",t:"E-mail",v:ENV.EMAIL,action:()=>window.open("mailto:${ENV.EMAIL}","_blank"),cta:"Envoyer un e-mail"},
-              {ico:"📍",t:"Adresse",v:`${ENV.ADRESSE}\n${ENV.VILLE}, ${ENV.PAYS}`,action:null,cta:null},
+              {ico:"📧",t:"E-mail",v:ENV.EMAIL,action:()=>window.open("mailto:"+(ENV.EMAIL),"_blank"),cta:"Envoyer un e-mail"},
+              {ico:"📍",t:"Adresse",v:(ENV.ADRESSE)+"\\n"+(ENV.VILLE)+", "+(ENV.PAYS),action:null,cta:null},
             ].map(c => (
               <OCard key={c.t} style={{padding:"14px 16px"}}>
                 <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
@@ -786,16 +1547,948 @@ function ClientOdyssee({rdvs, onBack}) {
 // ═══════════════════════════════════════════════════════════
 // ── PLACEHOLDER UNIVERS (Events, Food, Vilo, Éditions, MTP)
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT VILO'ASSISTANCE
+// ═══════════════════════════════════════════════════════════
+function ClientVilo({ user, onBack }) {
+  const [page,     setPage]     = React.useState("accueil");
+  const [form,     setForm]     = React.useState({type:"Aide ménagère", adresse:"", date:"", heure:"", detail:""});
+  const [envoi,    setEnvoi]    = React.useState(false);
+  const [succes,   setSucces]   = React.useState(null);
+  const [demandes, setDemandes] = React.useState([]);
+
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?bu=eq.VILO&client_nom=ilike.*${encodeURIComponent(user?.prenom||"")}*&order=created_at.desc&limit=10`, {
+          headers:{ apikey:SB_KEY, Authorization:"Bearer "+token }
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setDemandes(Array.isArray(d) ? d : []);
+      } catch(e) { console.warn('[Bellaïa][chargement]', e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, []);
+
+  const TYPES = ["Aide ménagère","Garde d'enfants","Assistance administrative","Courses","Accompagnement médical","Autre"];
+  const STATUTS_COL = { BROUILLON:"#60a5fa", COMMANDE:"#22c55e", PRODUCTION:"#fb923c", LIVRE:"#a855f7", ANNULE:"#f87171" };
+
+  const envoyerDemande = async () => {
+    if (!form.type || !form.date) return;
+    setEnvoi(true);
+    const ref = await genererReference("VILO");
+    let saved = false;
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes`, {
+        method:"POST",
+        headers:{ apikey:SB_KEY, Authorization:"Bearer "+(await getTokenAsync()), "Content-Type":"application/json", Prefer:"return=representation" },
+        body: JSON.stringify({ bu:"VILO", reference:ref, client_nom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client",
+          statut:"BROUILLON", total:0, date_livraison:form.date,
+          notes:`${form.heure||""} — ${form.type}${form.adresse?" — "+form.adresse:""}${form.detail?" — "+form.detail:""}` })
+      });
+      saved = r.ok;
+      if (saved) {
+        gedAutoSave({titre:"Demande "+ref+" — "+([user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client"),
+          module:"VILO", categorie:"bon_commande", reference:ref,
+          clientNom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client",
+        }).catch(e=>console.warn('[Bellaïa][GED]',e.message));
+      }
+    } catch {}
+    // Toujours ouvrir WhatsApp en complément
+    // GED auto-save — non bloquant
+    gedAutoSave({titre:"Demande "+ref+" — "+form.nom, module:"VILO",
+      categorie:"bon_commande", reference:ref, clientNom:form.nom,
+    }).catch(e=>console.warn("[GED]",e.message));
+    const msg = `Bonjour 🤝\n\nDemande Vilo'Assistance (Réf: ${ref})\nService : ${form.type}\nDate : ${form.date}${form.heure?" à "+form.heure:""}${form.adresse?"\nAdresse : "+form.adresse:""}${form.detail?"\nDétail : "+form.detail:""}\n\nMerci`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    setSucces(ref);
+    setEnvoi(false);
+  };
+
+  const inp2 = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(29,78,216,0.3)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
+  const acc  = "#1d4ed8";
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a3a,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(29,78,216,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#93c5fd"}}>🤝 Vilo'Assistance</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(29,78,216,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {[["accueil","🏠","Accueil"],["demande","📋","Ma demande"],["suivi","📦","Suivi"],["contact","💬","Contact"]].map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #93c5fd":"2px solid transparent"}}>
+            <span style={{fontSize:16}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#93c5fd":B.muted,fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 24px"}}>
+
+        {page==="accueil" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:4}}>Bienvenue{user?.prenom?", "+user.prenom:""}</div>
+            <div style={{fontSize:12,color:B.muted,marginBottom:8}}>Vilo'Assistance · Services à domicile & accompagnement</div>
+            {[
+              {ico:"🏠",nom:"Aide ménagère",desc:"Nettoyage, repassage, entretien"},
+              {ico:"👶",nom:"Garde d'enfants",desc:"Babysitting, accompagnement scolaire"},
+              {ico:"📋",nom:"Assistance administrative",desc:"Démarches, courriers, dossiers"},
+              {ico:"🛒",nom:"Courses",desc:"Achats et livraison à domicile"},
+              {ico:"🏥",nom:"Accompagnement médical",desc:"Transport, rendez-vous médicaux"},
+            ].map(s=>(
+              <div key={s.nom} onClick={()=>{setForm(f=>({...f,type:s.nom}));setPage("demande");}} style={{background:"rgba(29,78,216,0.08)",border:"1px solid rgba(29,78,216,0.2)",borderRadius:12,padding:"12px 14px",cursor:"pointer",display:"flex",gap:12,alignItems:"center"}}>
+                <span style={{fontSize:22,flexShrink:0}}>{s.ico}</span>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{s.nom}</div>
+                  <div style={{fontSize:11,color:B.muted}}>{s.desc}</div>
+                </div>
+                <span style={{marginLeft:"auto",color:"rgba(147,197,253,0.5)",fontSize:16}}>›</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="demande" && !succes && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Nouvelle demande</div>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <label style={{fontSize:10,color:B.muted}}>Type de service</label>
+              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={{...inp2,background:"#0d1a3a"}}>
+                {TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            {[["Adresse","adresse","text","Ex: 12 rue des Flamboyants, Sinnamary"],["Date souhaitée","date","date",""],["Heure","heure","time",""]].map(([l,k,t,ph])=>(
+              <div key={k} style={{display:"flex",flexDirection:"column",gap:4}}>
+                <label style={{fontSize:10,color:B.muted}}>{l}</label>
+                <input type={t} placeholder={ph} value={(form)[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={inp2}/>
+              </div>
+            ))}
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <label style={{fontSize:10,color:B.muted}}>Détails de la demande</label>
+              <textarea rows={3} value={form.detail} onChange={e=>setForm(f=>({...f,detail:e.target.value}))} style={{...inp2,resize:"vertical"}} placeholder="Précisez vos besoins…"/>
+            </div>
+            <button onClick={envoyerDemande} disabled={envoi||!form.date} style={{background:"linear-gradient(135deg,"+acc+",#1e40af)",border:"none",borderRadius:12,padding:"13px",color:"#fff",fontWeight:700,fontSize:13,cursor:(!form.date||envoi)?"not-allowed":"pointer",opacity:(!form.date||envoi)?0.6:1,fontFamily:SA}}>
+              {envoi?"Envoi…":"✅ Envoyer ma demande"}
+            </button>
+          </div>
+        )}
+
+        {page==="demande" && succes && (
+          <div style={{textAlign:"center",padding:"32px 16px"}}>
+            <div style={{fontSize:48,marginBottom:16}}>✅</div>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:8}}>Demande envoyée !</div>
+            <div style={{fontSize:12,color:B.muted,marginBottom:4}}>Référence : <strong style={{color:"#93c5fd"}}>{succes}</strong></div>
+            <div style={{fontSize:11,color:B.muted,marginBottom:24}}>Notre équipe vous contactera dans les 24h.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button onClick={()=>{setSucces(null);setForm({type:"Aide ménagère",adresse:"",date:"",heure:"",detail:""});}} style={{background:"rgba(29,78,216,0.2)",border:"1px solid rgba(29,78,216,0.4)",borderRadius:12,padding:"11px",color:"#93c5fd",fontWeight:700,cursor:"pointer",fontFamily:SA}}>+ Nouvelle demande</button>
+              <button onClick={()=>setPage("suivi")} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"11px",color:B.muted,cursor:"pointer",fontFamily:SA}}>Voir mon suivi</button>
+            </div>
+          </div>
+        )}
+
+        {page==="suivi" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:8}}>Mes demandes</div>
+            {demandes.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontStyle:"italic"}}>Aucune demande enregistrée.</div>}
+            {demandes.map(d=>(
+              <div key={d.id} style={{background:"rgba(29,78,216,0.08)",border:"1px solid rgba(29,78,216,0.2)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{d.reference}</div>
+                  <span style={{fontSize:9,color:(STATUTS_COL[d.statut]||B.muted),fontWeight:700}}>{d.statut}</span>
+                </div>
+                <div style={{fontSize:11,color:B.muted}}>{d.notes?.split("—")[1]?.trim()||"Service à domicile"}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",marginTop:3}}>{d.date_livraison||""}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12,paddingTop:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Nous contacter</div>
+            {[
+              {ico:"💬",label:"WhatsApp",desc:"Réponse rapide 7j/7",onClick:()=>window.open(WA("Bonjour, je souhaite des informations sur Vilo'Assistance"),"_blank")},
+              {ico:"📧",label:"Email",desc:"contact@bellastudio.fr",onClick:()=>window.open("mailto:contact@bellastudio.fr")},
+            ].map(c=>(
+              <button key={c.label} onClick={c.onClick} style={{background:"rgba(29,78,216,0.1)",border:"1px solid rgba(29,78,216,0.25)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+                <span style={{fontSize:24}}>{c.ico}</span>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{c.label}</div>
+                  <div style={{fontSize:11,color:B.muted}}>{c.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT BELLA'STUDIO ÉDITIONS
+// ═══════════════════════════════════════════════════════════
+function ClientEditions({ user, onBack }) {
+  const [page,    setPage]    = React.useState("catalogue");
+  const [commandes,setCommandes]=React.useState([]);
+  const acc = "#6366f1";
+
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?bu=eq.EDITIONS&order=created_at.desc&limit=10`, {
+          headers:{ apikey:SB_KEY, Authorization:"Bearer "+token }
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setCommandes(Array.isArray(d) ? d : []);
+      } catch(e) { console.warn('[Bellaïa][chargement]', e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, []);
+
+  const CATALOGUE = [
+    {ico:"📖",titre:"Ebook Bellaïa — Gestion d'activité",cat:"Ebook",prix:14.90,desc:"Guide complet pour gérer votre activité créative au quotidien.",pages:85},
+    {ico:"🎓",titre:"Formation — Création de contenu",cat:"Formation",prix:29.90,desc:"5 modules pour créer du contenu engageant sur les réseaux sociaux.",modules:5},
+    {ico:"📋",titre:"Pack Modèles Business",cat:"Template",prix:9.90,desc:"10 modèles professionnels : devis, factures, contrats.",pages:10},
+    {ico:"🎙",titre:"Podcast — Entrepreneur en Guyane",cat:"Audio",prix:0,desc:"Série de 8 épisodes sur l'entrepreneuriat en Guyane. Gratuit.",modules:8},
+    {ico:"📚",titre:"Guide — Réseaux sociaux Antilles-Guyane",cat:"Ebook",prix:19.90,desc:"Stratégie adaptée au marché des Antilles-Guyane.",pages:65},
+  ];
+
+  const acheter = (p) => {
+    // GED auto-save — non bloquant
+    gedAutoSave({titre:"Achat Éditions — "+p.titre, module:"EDITIONS",
+      categorie:"bon_commande", clientNom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client"
+    }).catch(e=>console.warn("[GED]",e.message));
+    if (p.prix===0) {
+      window.open(WA(`Bonjour, je souhaite accéder gratuitement à : ${p.titre}`), "_blank");
+    } else {
+      window.open(WA(`Bonjour, je souhaite acheter : ${p.titre} — ${p.prix}€`), "_blank");
+    }
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#1e1b4b,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(99,102,241,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#a5b4fc"}}>📚 Bella'Studio Éditions</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(99,102,241,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {[["catalogue","📚","Catalogue"],["commandes","📦","Mes achats"],["contact","💬","Contact"]].map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #a5b4fc":"2px solid transparent"}}>
+            <span style={{fontSize:16}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#a5b4fc":B.muted,fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 24px"}}>
+        {page==="catalogue" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:8}}>Notre catalogue</div>
+            {CATALOGUE.map(p=>(
+              <div key={p.titre} style={{background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:13,padding:"13px 14px"}}>
+                <div style={{display:"flex",gap:10,marginBottom:8}}>
+                  <span style={{fontSize:26,flexShrink:0}}>{p.ico}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{p.titre}</div>
+                    <div style={{fontSize:10,color:"#a5b4fc",marginTop:1}}>{p.cat}{p.pages?" · "+p.pages+" pages":""}{p.modules?" · "+p.modules+" modules":""}</div>
+                    <div style={{fontSize:11,color:B.muted,marginTop:4,lineHeight:1.5}}>{p.desc}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:p.prix===0?"#22c55e":"#c9a96e"}}>
+                    {p.prix===0?"Gratuit":p.prix.toFixed(2).replace(".",",")+" €"}
+                  </div>
+                  <button onClick={()=>acheter(p)} style={{background:"linear-gradient(135deg,"+acc+",#4f46e5)",border:"none",borderRadius:9,padding:"8px 14px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                    {p.prix===0?"📥 Obtenir":"🛒 Acheter"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {page==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:8}}>Mes achats</div>
+            {commandes.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontStyle:"italic"}}>Aucun achat enregistré.{" "}
+              <button onClick={()=>setPage("catalogue")} style={{background:"none",border:"none",color:"#a5b4fc",cursor:"pointer",fontSize:11,fontFamily:SA}}>Voir le catalogue →</button>
+            </div>}
+            {commandes.map(c=>(
+              <div key={c.id} style={{background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{c.reference}</div>
+                  <div style={{fontSize:10,color:B.muted}}>{c.notes?.slice(0,40)||"Achat Éditions"}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:"#c9a96e"}}>{(c.total||0).toFixed(2).replace(".",",")}€</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Support & Questions</div>
+            <button onClick={()=>window.open(WA("Bonjour, j'ai une question sur Bella'Studio Éditions"),"_blank")} style={{background:"rgba(99,102,241,0.12)",border:"1px solid rgba(99,102,241,0.3)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+              <span style={{fontSize:24}}>💬</span><div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>WhatsApp</div><div style={{fontSize:11,color:B.muted}}>Questions, accès fichiers, support</div></div>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT MO TI-PÉYI
+// ═══════════════════════════════════════════════════════════
+function ClientMoTiPeyi({ user, onBack }) {
+  const [page,     setPage]     = React.useState("catalogue");
+  const [commandes,setCommandes]= React.useState([]);
+  const [modal,    setModal]    = React.useState(null);
+  const [form,     setForm]     = React.useState({clientNom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"",clientTel:"",produit:"",qte:1,prix:0,date:""});
+  const [succes,   setSucces]   = React.useState(null);
+  const acc = "#22c55e";
+
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  React.useEffect(()=>{
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?bu=eq.MOTIPY&order=created_at.desc&limit=10`,{
+          headers:{apikey:SB_KEY,Authorization:"Bearer "+token}
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setCommandes(Array.isArray(d) ? d : []);
+      } catch(e){ console.warn('[Bellaïa][chargement]',e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  },[]);
+
+  const PRODUITS = [
+    {nom:"Boîte complète Mo Ti-Péyi",desc:"120 cartes pédagogiques · PS à CP · Guyane",prix:29.90,ico:"🎴"},
+    {nom:"Pack Démarreur — 30 cartes",desc:"30 cartes essentielles pour découvrir le jeu",prix:12.90,ico:"🌱"},
+    {nom:"Extension Familles",desc:"Nouvelles familles de cartes thématiques",prix:14.90,ico:"🃏"},
+    {nom:"Fiche pédagogique PDF",desc:"Guide enseignant · Progressions PS-CP",prix:4.90,ico:"📋"},
+    {nom:"Poster A2 — Univers Mo Ti-Péyi",desc:"Affiche illustrée des personnages",prix:9.90,ico:"🖼"},
+  ];
+
+  const commander = async () => {
+    if (!form.produit || !form.clientNom) return;
+    const ref = await genererReference("MTP");
+    const total = form.qte * form.prix;
+    let saved = false;
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes`,{
+        method:"POST",
+        headers:{apikey:SB_KEY,Authorization:"Bearer "+(await getTokenAsync()),"Content-Type":"application/json",Prefer:"return=representation"},
+        body:JSON.stringify({bu:"MOTIPY",reference:ref,client_nom:form.clientNom,client_tel:form.clientTel,statut:"BROUILLON",total,date_commande:form.date||new Date().toISOString().split("T")[0],
+          lignes:JSON.stringify([{libelle:form.produit,qte:form.qte,prixUnitaire:form.prix,total}])})
+      });
+      saved = r.ok;
+    } catch {}
+    // GED auto-save bon de commande — non bloquant
+    gedAutoSave({titre:"Commande "+ref+" — "+form.clientNom, module:"MOTIPY",
+      categorie:"bon_commande", reference:ref, clientNom:form.clientNom,
+    }).catch(e=>console.warn("[GED]",e.message));
+    window.open(WA(`Bonjour 🌿\n\nCommande Mo Ti-Péyi (Réf: ${ref})\n${form.produit} × ${form.qte}\nTotal : ${total.toFixed(2).replace(".",",")}€\n\nClient : ${form.clientNom}${form.clientTel?"\nTél : "+form.clientTel:""}\n\nMerci !`), "_blank");
+    setSucces(ref);
+    setModal(null);
+  };
+
+  const inp3 = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0b1f0d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(34,197,94,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>🌿 Mo Ti-Péyi</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(34,197,94,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {[["catalogue","🃏","Catalogue"],["commandes","📦","Mes commandes"],["projet","🌿","Le projet"],["contact","💬","Contact"]].map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #4ade80":"2px solid transparent"}}>
+            <span style={{fontSize:15}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#4ade80":B.muted,fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 24px"}}>
+
+        {page==="catalogue" && !succes && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:6}}>Nos produits</div>
+            {PRODUITS.map(p=>(
+              <div key={p.nom} style={{background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.18)",borderRadius:13,padding:"12px 13px"}}>
+                <div style={{display:"flex",gap:10,marginBottom:8}}>
+                  <span style={{fontSize:24,flexShrink:0}}>{p.ico}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{p.nom}</div>
+                    <div style={{fontSize:11,color:B.muted,marginTop:2,lineHeight:1.5}}>{p.desc}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:"#c9a96e"}}>{p.prix.toFixed(2).replace(".",",")} €</div>
+                  <button onClick={()=>{setForm(f=>({...f,produit:p.nom,prix:p.prix,qte:1}));setModal("commande");}} style={{background:"linear-gradient(135deg,"+acc+",#16a34a)",border:"none",borderRadius:9,padding:"8px 14px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                    🛒 Commander
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="catalogue" && succes && (
+          <div style={{textAlign:"center",padding:"32px 16px"}}>
+            <div style={{fontSize:48,marginBottom:12}}>🎉</div>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:8}}>Commande envoyée !</div>
+            <div style={{fontSize:12,color:B.muted,marginBottom:4}}>Réf : <strong style={{color:"#4ade80"}}>{succes}</strong></div>
+            <div style={{fontSize:11,color:B.muted,marginBottom:24}}>WhatsApp ouvert pour finaliser votre commande.</div>
+            <button onClick={()=>setSucces(null)} style={{background:"rgba(34,197,94,0.15)",border:"1px solid rgba(34,197,94,0.3)",borderRadius:12,padding:"11px 20px",color:"#4ade80",fontWeight:700,cursor:"pointer",fontFamily:SA}}>+ Autre commande</button>
+          </div>
+        )}
+
+        {page==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:6}}>Mes commandes</div>
+            {commandes.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontStyle:"italic"}}>Aucune commande.<button onClick={()=>setPage("catalogue")} style={{background:"none",border:"none",color:"#4ade80",cursor:"pointer",fontFamily:SA}}> Commander →</button></div>}
+            {commandes.map(c=>(
+              <div key={c.id} style={{background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.18)",borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{c.reference}</div>
+                  <div style={{fontSize:10,color:B.muted}}>{c.date_commande||""} · {c.statut}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:"#c9a96e"}}>{(c.total||0).toFixed(2).replace(".",",")}€</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="projet" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>À propos de Mo Ti-Péyi</div>
+            <div style={{background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.18)",borderRadius:12,padding:"13px 14px",fontSize:12,color:B.muted,lineHeight:1.7}}>
+              Mo Ti-Péyi est un jeu de cartes pédagogique créé en Guyane pour enseigner la pensée computationnelle aux enfants de la Petite Section au CP.{" "}
+              Illustré avec les personnages, la faune et la flore de Guyane, il fait partie de la collection <strong style={{color:"#4ade80"}}>Mo Ti-Péyi</strong> de Bella'Studio.
+            </div>
+            {[{ico:"🌿",l:"Personnages guyanais"},
+              {ico:"🃏",l:"8 familles de cartes"},
+              {ico:"👶",l:"Adapté PS à CP"},
+              {ico:"🧠",l:"Pensée computationnelle"},
+            ].map(f=>(
+              <div key={f.l} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 12px",background:"rgba(34,197,94,0.05)",border:"1px solid rgba(34,197,94,0.12)",borderRadius:9}}>
+                <span style={{fontSize:20}}>{f.ico}</span>
+                <span style={{fontSize:12,color:"#fff"}}>{f.l}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:8}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:4}}>Contact</div>
+            <button onClick={()=>window.open(WA("Bonjour, j'ai une question sur Mo Ti-Péyi"),"_blank")} style={{background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.25)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+              <span style={{fontSize:24}}>💬</span><div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>WhatsApp</div><div style={{fontSize:11,color:B.muted}}>Commandes, livraisons, questions</div></div>
+            </button>
+          </div>
+        )}
+
+        {/* Modal commande */}
+        {modal==="commande" && (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+            <div style={{background:"#0b1f0d",border:"1px solid rgba(34,197,94,0.2)",borderRadius:16,padding:18,width:"100%",maxWidth:400}}>
+              <div style={{fontFamily:FS,fontSize:14,color:"#4ade80",marginBottom:14}}>{form.produit}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {[["Votre nom","clientNom","text"],["Téléphone","clientTel","tel"]].map(([l,k,t])=>(
+                  <div key={k} style={{display:"flex",flexDirection:"column",gap:3}}>
+                    <label style={{fontSize:10,color:B.muted}}>{l}</label>
+                    <input type={t} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={inp3}/>
+                  </div>
+                ))}
+                <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                  <label style={{fontSize:10,color:B.muted}}>Quantité</label>
+                  <input type="number" min="1" value={form.qte} onChange={e=>setForm(f=>({...f,qte:Number(e.target.value)}))} style={inp3}/>
+                </div>
+                <div style={{background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:8,padding:"8px 10px",fontSize:13,color:"#4ade80",fontWeight:700}}>
+                  Total : {(form.qte*form.prix).toFixed(2).replace(".",",")} €
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={commander} style={{flex:1,background:"linear-gradient(135deg,"+acc+",#16a34a)",border:"none",borderRadius:10,padding:"10px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>✅ Commander</button>
+                  <button onClick={()=>setModal(null)} style={{flex:1,background:"rgba(255,255,255,0.06)",border:"none",borderRadius:10,padding:"10px",color:B.muted,fontSize:12,cursor:"pointer",fontFamily:SA}}>Annuler</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+// ═══════════════════════════════════════════════════════════
+// COMPOSANT RÉUTILISABLE — EcranPaiement
+// Utilisé par ClientFood, ClientEvents (PortailSuiviClient), BSH, Odyssée...
+// ═══════════════════════════════════════════════════════════
+function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
+  const [payMode,    setPayMode]   = React.useState(null);
+  const [payLoading, setPayLoading]= React.useState(false);
+  const [paySucces,  setPaySucces] = React.useState(null);
+
+  const dos     = paiement?.dossier || {};
+  const total   = dos.montant_estime || dos.total || 0;
+  const acompte = paiement?.acompte || Math.round(total * 0.3);
+  const facRef  = paiement?.facRef  || "";
+
+  const fmtPx = (n) => n ? Number(n).toFixed(2).replace(".",",")+" €" : "—";
+
+  const MODES_PAY = [
+    {id:"virement", ico:"🏦", label:"Virement bancaire",  desc:"Coordonnées envoyées par WhatsApp"},
+    {id:"especes",  ico:"💵", label:"Espèces",            desc:"En boutique sur rendez-vous"},
+    {id:"cheque",   ico:"📋", label:"Chèque",             desc:"À l'ordre de Bella'Studio"},
+    {id:"sumup",    ico:"💳", label:"SumUp (carte)",      desc:"Non configuré — utiliser virement"},
+    {id:"paypal",   ico:"🅿",  label:"PayPal",            desc:"Non configuré — utiliser virement"},
+  ];
+
+  const confirmerPay = async (option) => {
+    setPayLoading(true);
+    const montant = option==="total" ? total : acompte;
+    const payRef  = await genererReference("PAY");
+    // Enregistrer dans bellaia_paiements
+    const resPAY = await sbPost("bellaia_paiements", {
+        business_unit:bu, reference:payRef, montant,
+        mode_paiement:payMode, statut:"en_attente",
+        source_table:bu==="FOOD"?"bellaia_commandes":"events_demandes",
+        source_id:dos.id,
+        notes:(option==="total"?"Paiement intégral":"Acompte 30%")+" — "+dos.reference,
+        date_paiement:new Date().toISOString(),
+    }, false);
+    if (!resPAY?.ok) {
+      setPayLoading(false);
+      alert(
+        "La demande de paiement n'a pas pu être enregistrée.\n"+
+        (resPAY?.error || "Erreur Supabase "+resPAY?.status)
+      );
+      return; // Pas de WA ni de succès si Supabase a refusé
+    }
+    // GED auto-save du reçu
+    await gedAutoSave({
+      titre:"Reçu "+payRef+" — "+(option==="total"?"Paiement intégral":"Acompte 30%"),
+      module:bu, categorie:"recu_paiement", reference:payRef,
+      clientNom:dos.client_nom||[dos.client_prenom,dos.client_nom].filter(Boolean).join(" ")||"",
+      entiteId:dos.id, entiteTable:bu==="FOOD"?"bellaia_commandes":"events_demandes",
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+    // Mode avec instructions WhatsApp
+    if (["virement","especes","cheque"].includes(payMode)) {
+      const instruc = payMode==="virement"
+        ? `Virement bancaire — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nCoordonnées bancaires envoyées par WhatsApp.`
+        : payMode==="especes"
+        ? `Paiement en espèces — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nÀ régler en boutique sur rendez-vous.`
+        : `Chèque — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nÀ l'ordre de Bella'Studio.`;
+      window.open(WA(instruc), "_blank");
+    }
+    // Notification fondatrice
+    await creerNotification({
+      pole:bu, type:"paiement_recu", titre:"Paiement "+payRef,
+      message:"Mode: "+payMode+" · "+montant.toFixed(2)+"€ · "+dos.reference+" — en attente de confirmation",
+      canal:"interne", sourceTable:bu==="FOOD"?"bellaia_commandes":"events_demandes", sourceId:dos.id,
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+    setPayLoading(false);
+    setPaySucces(payRef);
+    if (onSucces) onSucces(payRef);
+  };
+
+  if (paySucces) return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24,flexDirection:"column",textAlign:"center"}}>
+      <div style={{fontSize:56,marginBottom:12}}>🎉</div>
+      <div style={{fontFamily:FS,fontSize:20,color:"#fff",marginBottom:8}}>Paiement enregistré !</div>
+      <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginBottom:4}}>Réf : <strong style={{color:"#c9a96e"}}>{paySucces}</strong></div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",lineHeight:1.7,marginBottom:24,maxWidth:300}}>Demande de paiement enregistrée — en attente de confirmation.<br/>Vous serez notifié(e) par WhatsApp une fois validé.</div>
+      <button onClick={onBack} style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:12,padding:"11px 24px",color:"#22c55e",fontWeight:700,cursor:"pointer",fontFamily:SA}}>Fermer</button>
+    </div>
+  );
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.5)"}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#c9a96e"}}>💳 Finaliser le paiement</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>✕ Fermer</button>
+      </div>
+      <div style={{flex:1,padding:"16px 14px 28px",maxWidth:480,margin:"0 auto",width:"100%"}}>
+        {/* Récap */}
+        <div style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:12,padding:"12px 14px",marginBottom:18}}>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginBottom:3}}>Dossier</div>
+          <div style={{fontSize:14,fontWeight:700,color:"#fff"}}>{dos.reference}</div>
+          {total>0&&<div style={{fontSize:13,color:"#c9a96e",fontWeight:700,marginTop:4}}>Total : {fmtPx(total)}</div>}
+        </div>
+
+        {!payMode ? (
+          <>
+            <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:12}}>Choisissez votre option :</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+              <div onClick={()=>setPayMode("acompte")} style={{background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:12,padding:"14px",cursor:"pointer"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#c9a96e",marginBottom:3}}>Option A — Acompte (30%)</div>
+                <div style={{fontSize:20,fontWeight:800,color:"#fff"}}>{fmtPx(acompte)}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:2}}>Solde restant : {fmtPx(total-acompte)}</div>
+              </div>
+              <div onClick={()=>setPayMode("total")} style={{background:"rgba(21,128,61,0.1)",border:"1px solid rgba(21,128,61,0.3)",borderRadius:12,padding:"14px",cursor:"pointer"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#22c55e",marginBottom:3}}>Option B — Paiement intégral</div>
+                <div style={{fontSize:20,fontWeight:800,color:"#fff"}}>{fmtPx(total)}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:2}}>Règlement complet · Solde 0€</div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"9px 12px",marginBottom:14,display:"flex",justifyContent:"space-between"}}>
+              <span style={{fontSize:11,color:"rgba(255,255,255,0.6)"}}>Montant</span>
+              <span style={{fontSize:14,fontWeight:700,color:"#c9a96e"}}>{fmtPx(payMode==="total"?total:acompte)}</span>
+            </div>
+            <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:10}}>Mode de paiement :</div>
+            <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:16}}>
+              {MODES_PAY.map(m=>{
+                const nc = m.id==="sumup"||m.id==="paypal";
+                return (
+                  <div key={m.id} onClick={()=>!nc&&!payLoading&&confirmerPay(payMode)}
+                    style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"11px 13px",cursor:nc?"not-allowed":"pointer",opacity:nc?0.45:1,display:"flex",gap:10,alignItems:"center"}}>
+                    <span style={{fontSize:20}}>{m.ico}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.label}</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>{nc?"Non configuré — utiliser virement bancaire":m.desc}</div>
+                    </div>
+                    {!nc&&<span style={{color:"rgba(255,255,255,0.3)",fontSize:16}}>›</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={()=>setPayMode(null)} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"8px",color:"rgba(255,255,255,0.5)",fontSize:11,cursor:"pointer",fontFamily:SA,width:"100%"}}>‹ Changer d'option</button>
+            {payLoading&&<div style={{textAlign:"center",padding:12,color:"rgba(255,255,255,0.6)",fontSize:12}}>Enregistrement…</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAIL CLIENT BELLA'FOOD
+// Catalogue · Commande · Suivi · Facture · Paiement
+// ═══════════════════════════════════════════════════════════
+function ClientFood({ user, onBack }) {
+  const [page,      setPage]     = React.useState("catalogue");
+  const [commandes, setCommandes]= React.useState([]);
+  const [panier,    setPanier]   = React.useState([]);
+  const [modal,     setModal]    = React.useState(null); // "commande"|"paiement"
+  const [form,      setForm]     = React.useState({nom:"",tel:"",message:"",date:""});
+  const [succes,    setSucces]   = React.useState(null);
+  const [paiement,  setPaiement] = React.useState(null);
+  const [payMode,   setPayMode]  = React.useState(null);
+  const [payLoading,setPayLoading]=React.useState(false);
+
+  const FC = "#15803d"; const FC2 = "#22c55e"; const FC3 = "#c9a96e";
+
+  const CATALOGUE_FOOD = [
+    {id:"LC",  ico:"🎂", nom:"Layer Cake",        cat:"Gâteaux",   desc:"Gâteau à étages · 2 à 5 niveaux · sur devis", prix:null, tags:["personnalisé"]},
+    {id:"BC",  ico:"🍱", nom:"Bento Cake",         cat:"Gâteaux",   desc:"Mini-gâteau individuel · 1 à 4 parts",        prix:45,   tags:[]},
+    {id:"NC",  ico:"🔢", nom:"Number Cake",        cat:"Gâteaux",   desc:"Gâteau chiffre · chiffre ou lettre",          prix:null, tags:["personnalisé"]},
+    {id:"CPC", ico:"🧁", nom:"Cupcakes",           cat:"Gâteaux",   desc:"Boîte de 6 ou 12 cupcakes décorés",           prix:30,   tags:[]},
+    {id:"GLI", ico:"🍦", nom:"Glaces artisanales", cat:"Glaces",    desc:"Parfums variés · pot ou cornet",              prix:8,    tags:[]},
+    {id:"JUS", ico:"🥤", nom:"Jus naturels",       cat:"Boissons",  desc:"Jus de fruits frais · 1 L",                  prix:6,    tags:[]},
+    {id:"BUF", ico:"🍽",  nom:"Buffet traiteur",   cat:"Traiteur",  desc:"Buffet salé · complet · à partir de 10 pers",prix:null, tags:["sur-devis"]},
+  ];
+
+  React.useEffect(() => {
+    if (!SB_URL || !user) return;
+    let actif = true;
+    const charger = async () => {
+      try {
+        const token = await getTokenAsync();
+        const nom   = [user?.prenom,user?.nom].filter(Boolean).join(" ");
+        let params  = "bu=eq.FOOD&order=created_at.desc&limit=20";
+        if (nom) params += "&client_nom=ilike.*"+encodeURIComponent(nom)+"*";
+        const r = await fetch(SB_URL+"/rest/v1/bellaia_commandes?"+params, {
+          headers:{apikey:SB_KEY, Authorization:"Bearer "+token}
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setCommandes(Array.isArray(d) ? d : []);
+      } catch(e){ console.warn('[Bellaïa][chargement]',e.message); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, [user]);
+
+  const ajouterPanier = (p) => setPanier(prev => {
+    const idx = prev.findIndex(x=>x.id===p.id);
+    if (idx>=0) return prev.map((x,i)=>i===idx?{...x,qte:x.qte+1}:x);
+    return [...prev, {...p, qte:1}];
+  });
+
+  const totalPanier = panier.reduce((s,p)=>s+(p.prix||0)*p.qte,0);
+
+  const envoyerCommande = async () => {
+    if (!form.nom?.trim()) return;
+    setPayLoading(true);
+    const ref = await genererReference("FOOD");
+    const lignes = panier.map(p=>({libelle:p.nom,qte:p.qte,prixUnitaire:p.prix||0,total:(p.prix||0)*p.qte}));
+    const total = totalPanier;
+    // Créer dans bellaia_commandes
+    await fetch(SB_URL+"/rest/v1/bellaia_commandes", {
+      method:"POST",
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+(await getTokenAsync()),
+        "Content-Type":"application/json", Prefer:"return=representation"},
+      body: JSON.stringify({
+        bu:"FOOD", reference:ref, client_nom:form.nom, client_tel:form.tel,
+        statut:"BROUILLON", total, acompte:Math.round(total*0.3),
+        date_commande:new Date().toISOString().split("T")[0],
+        date_livraison:form.date||null,
+        lignes:JSON.stringify(lignes), notes:form.message,
+      })
+    }).then(async r => {
+      if (!r.ok) {
+        const e = await r.text().catch(()=>"");
+        console.error("[ClientFood] Commande non créée:", r.status, e);
+        setPayLoading(false);
+        alert("La commande n'a pas pu être enregistrée.\n"+(e||"Réessayez."));
+        return; // Pas de succès si Supabase refuse
+      }
+      // GED auto-save — non bloquant
+      gedAutoSave({titre:"Commande "+ref+" — "+form.nom, module:"FOOD",
+      categorie:"bon_commande", reference:ref, clientNom:form.nom,
+      contenuHtml:"<p>Commande "+ref+"</p><p>"+lignes.map(l=>l.libelle+" ×"+l.qte).join(", ")+"</p>",
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+    // Notif WhatsApp
+    const msg = "Bonjour 🍃\n\nCommande Bella'Food (Réf: "+ref+")\n"+
+      panier.map(p=>p.nom+" × "+p.qte+(p.prix?" ("+((p.prix||0)*p.qte).toFixed(2)+"€)":"")).join("\n")+
+      "\nTotal : "+(total>0?total.toFixed(2)+"€":"Sur devis")+
+      (form.date?"\nDate souhaitée : "+form.date:"")+
+      (form.message?"\nMessage : "+form.message:"")+
+      "\n\nClient : "+form.nom+(form.tel?" · "+form.tel:"");
+    window.open(WA(msg), "_blank");
+    setPayLoading(false);
+    setSucces(ref);
+    setModal(null);
+    setCommandes(prev=>[{reference:ref,client_nom:form.nom,statut:"BROUILLON",total,created_at:new Date().toISOString(),...(form.date?{date_livraison:form.date}:{})}, ...prev]);
+    setPanier([]); setForm({nom:"",tel:"",message:"",date:""});
+    });
+  };
+
+  const fmtPx = (n) => n?Number(n).toFixed(2).replace(".",",")+" €":"Sur devis";
+  const fmtDt = (s) => { try{return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}catch{return s||""} };
+  const colSt = (s) => ({BROUILLON:"#60a5fa",COMMANDE:"#22c55e",FACTURE:"#c9a96e",ACOMPTE_RECU:"#22c55e",SOLDE_RECU:"#16a34a",PRODUCTION:"#fb923c",PRET:"#a855f7",LIVRE:"#22c55e",ANNULE:"#f87171"})[s]||"rgba(255,255,255,0.4)";
+
+  const inp4 = {background:"rgba(255,255,255,0.07)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none",width:"100%",boxSizing:"border-box"};
+
+  const ONGLETS = [["catalogue","🍃","Catalogue"],["panier","🛒","Panier"],["commandes","📦","Mes commandes"],["contact","💬","Contact"]];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a0d,#070d0a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(21,128,61,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>🍃 Bella'Food</div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {panier.length>0&&<span style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:99,padding:"2px 8px",fontSize:10,color:"#4ade80",fontWeight:700}}>🛒 {panier.length}</span>}
+          <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        </div>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-around",padding:"6px 10px",borderBottom:"1px solid rgba(21,128,61,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
+        {ONGLETS.map(([id,ico,l])=>(
+          <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #4ade80":"2px solid transparent"}}>
+            <span style={{fontSize:16}}>{ico}</span>
+            <span style={{fontSize:8,color:page===id?"#4ade80":"rgba(255,255,255,0.45)",fontWeight:700}}>{l}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 24px"}}>
+
+        {/* ── CATALOGUE ── */}
+        {page==="catalogue" && !succes && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:6}}>Notre catalogue</div>
+            {["Gâteaux","Glaces","Boissons","Traiteur"].map(cat=>(
+              <div key={cat}>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontWeight:700,letterSpacing:1,marginBottom:6,marginTop:10}}>{cat.toUpperCase()}</div>
+                {CATALOGUE_FOOD.filter(p=>p.cat===cat).map(p=>(
+                  <div key={p.id} style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.18)",borderRadius:12,padding:"11px 13px",marginBottom:7}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                      <div style={{display:"flex",gap:9}}>
+                        <span style={{fontSize:22,flexShrink:0}}>{p.ico}</span>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{p.nom}</div>
+                          <div style={{fontSize:11,color:"rgba(245,240,232,0.6)",lineHeight:1.4,marginTop:2}}>{p.desc}</div>
+                        </div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontSize:13,fontWeight:700,color:"#c9a96e",marginBottom:4}}>{fmtPx(p.prix)}</div>
+                        <button onClick={()=>ajouterPanier(p)} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:8,padding:"5px 11px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>
+                          + Ajouter
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PANIER ── */}
+        {page==="panier" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:4}}>Mon panier</div>
+            {panier.length===0&&(
+              <div style={{textAlign:"center",padding:"28px",color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>
+                Panier vide. <button onClick={()=>setPage("catalogue")} style={{background:"none",border:"none",color:"#4ade80",cursor:"pointer",fontFamily:SA}}>Voir le catalogue →</button>
+              </div>
+            )}
+            {panier.map((p,i)=>(
+              <div key={p.id} style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{p.ico} {p.nom}</div>
+                  {p.prix&&<div style={{fontSize:11,color:"#c9a96e"}}>×{p.qte} = {((p.prix||0)*p.qte).toFixed(2)}€</div>}
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <button onClick={()=>setPanier(prev=>prev.map((x,j)=>j===i?{...x,qte:Math.max(1,x.qte-1)}:x))} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:5,width:24,height:24,color:"#fff",cursor:"pointer",fontSize:14}}>−</button>
+                  <span style={{fontSize:13,color:"#fff",fontWeight:700,minWidth:20,textAlign:"center"}}>{p.qte}</span>
+                  <button onClick={()=>setPanier(prev=>prev.map((x,j)=>j===i?{...x,qte:x.qte+1}:x))} style={{background:"rgba(21,128,61,0.2)",border:"none",borderRadius:5,width:24,height:24,color:"#4ade80",cursor:"pointer",fontSize:14}}>+</button>
+                  <button onClick={()=>setPanier(prev=>prev.filter((_,j)=>j!==i))} style={{background:"rgba(248,113,113,0.1)",border:"none",borderRadius:5,width:24,height:24,color:"#f87171",cursor:"pointer",fontSize:12,marginLeft:4}}>✕</button>
+                </div>
+              </div>
+            ))}
+            {panier.length>0&&(
+              <>
+                <div style={{background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:10,padding:"10px 13px",display:"flex",justifyContent:"space-between"}}>
+                  <span style={{fontSize:13,color:"rgba(245,240,232,0.6)"}}>Total estimé</span>
+                  <span style={{fontSize:15,fontWeight:700,color:"#c9a96e"}}>{totalPanier>0?totalPanier.toFixed(2)+"€":"Sur devis"}</span>
+                </div>
+                <button onClick={()=>setModal("commande")} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:12,padding:"13px",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>
+                  ✅ Commander ({panier.length} article{panier.length>1?"s":""})
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── MES COMMANDES ── */}
+        {page==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:6}}>Mes commandes</div>
+            {commandes.length===0&&<div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>Aucune commande. Passez votre première commande !</div>}
+            {commandes.map(c=>(
+              <div key={c.id||c.reference} style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.18)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{c.reference}</div>
+                    <div style={{fontSize:10,color:"rgba(245,240,232,0.55)",marginTop:2}}>{fmtDt(c.created_at)}{c.date_livraison?" · Livraison : "+fmtDt(c.date_livraison):""}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#c9a96e"}}>{fmtPx(c.total)}</div>
+                    <span style={{fontSize:8,color:colSt(c.statut),fontWeight:700}}>{c.statut}</span>
+                  </div>
+                </div>
+                {!c.acompte_paye && c.total>0 && (
+                  <button onClick={()=>setPaiement({dossier:{...c,montant_estime:c.total,reference:c.reference,numero_devis:c.reference,client_prenom:"",client_nom:c.client_nom},facRef:c.facture_ref||c.reference})}
+                    style={{fontSize:10,padding:"5px 10px",borderRadius:7,cursor:"pointer",border:"1px solid rgba(21,128,61,0.4)",background:"rgba(21,128,61,0.12)",color:"#4ade80",fontFamily:SA,marginTop:4}}>
+                    💳 Payer l'acompte
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── CONTACT ── */}
+        {page==="contact" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:4}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:4}}>Contacter Bella'Food</div>
+            <button onClick={()=>window.open(WA("Bonjour 🍃 Je souhaite une information sur Bella'Food"),"_blank")} style={{background:"rgba(21,128,61,0.1)",border:"1px solid rgba(21,128,61,0.25)",borderRadius:12,padding:"14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer",textAlign:"left",width:"100%"}}>
+              <span style={{fontSize:24}}>💬</span>
+              <div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>WhatsApp</div><div style={{fontSize:11,color:"rgba(245,240,232,0.6)"}}>Commandes, gâteaux personnalisés, devis</div></div>
+            </button>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.55)",textAlign:"center",lineHeight:1.6,padding:"8px 0"}}>
+              Bella'Food · Bella'Studio<br/>Sinnamary, Guyane
+            </div>
+          </div>
+        )}
+
+        {/* Succès commande */}
+        {succes && (
+          <div style={{textAlign:"center",padding:"32px 16px"}}>
+            <div style={{fontSize:56,marginBottom:12}}>🎉</div>
+            <div style={{fontFamily:FS,fontSize:18,color:"#fff",marginBottom:8}}>Commande envoyée !</div>
+            <div style={{fontSize:12,color:"rgba(245,240,232,0.6)",marginBottom:4}}>Référence : <strong style={{color:"#4ade80"}}>{succes}</strong></div>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.55)",lineHeight:1.7,marginBottom:24}}>Votre commande a bien été enregistrée.<br/>Bella'Food vous contactera pour confirmer.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button onClick={()=>{setSucces(null);setPage("commandes");}} style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:12,padding:"11px 20px",color:"#4ade80",fontWeight:700,cursor:"pointer",fontFamily:SA}}>Voir mes commandes</button>
+              <button onClick={()=>{setSucces(null);setPage("catalogue");}} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 20px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontFamily:SA}}>Nouvelle commande</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── MODAL COMMANDE ── */}
+      {modal==="commande" && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto"}}>
+          <div style={{background:"#0d1a0d",border:"1px solid rgba(21,128,61,0.2)",borderRadius:16,padding:18,width:"100%",maxWidth:440,marginTop:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>Confirmer la commande</div>
+              <button onClick={()=>setModal(null)} style={{background:"none",border:"none",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:20}}>✕</button>
+            </div>
+            <div style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.15)",borderRadius:9,padding:"9px 11px",marginBottom:14,fontSize:11,color:"rgba(245,240,232,0.7)"}}>
+              {panier.map(p=><div key={p.id}>{p.ico} {p.nom} ×{p.qte}{p.prix?" — "+((p.prix||0)*p.qte).toFixed(2)+"€":""}</div>)}
+              {totalPanier>0&&<div style={{fontWeight:700,color:"#c9a96e",marginTop:5}}>Total : {totalPanier.toFixed(2)}€</div>}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {[["Votre nom *","nom","text"],["Téléphone","tel","tel"],["Date souhaitée","date","date"]].map(([l,k,t])=>(
+                <div key={k} style={{display:"flex",flexDirection:"column",gap:3}}>
+                  <label style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{l}</label>
+                  <input type={t} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={inp4}/>
+                </div>
+              ))}
+              <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                <label style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>Message (personnalisation, allergies…)</label>
+                <textarea rows={2} value={form.message||""} onChange={e=>setForm(f=>({...f,message:e.target.value}))} style={{...inp4,resize:"vertical"}}/>
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4}}>
+                <button onClick={envoyerCommande} disabled={!form.nom?.trim()||payLoading} style={{flex:1,background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:10,padding:"11px",color:"#fff",fontWeight:700,fontSize:12,cursor:(!form.nom?.trim()||payLoading)?"not-allowed":"pointer",fontFamily:SA,opacity:(!form.nom?.trim()||payLoading)?0.6:1}}>
+                  {payLoading?"Envoi…":"✅ Confirmer"}
+                </button>
+                <button onClick={()=>setModal(null)} style={{flex:1,background:"rgba(255,255,255,0.06)",border:"none",borderRadius:10,padding:"11px",color:"rgba(245,240,232,0.6)",fontSize:12,cursor:"pointer",fontFamily:SA}}>Annuler</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ÉCRAN PAIEMENT RÉUTILISÉ ── */}
+      {paiement && <EcranPaiement paiement={paiement} onBack={()=>setPaiement(null)} bu="FOOD"/>}
+    </div>
+  );
+}
+
 function PlaceholderUnivers({univers, onBack}) {
   const u = UNIVERS.find(x => x.id === univers);
   if (!u) return null;
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 20% 0%,${u.bg},${B.night} 65%)`,fontFamily:SA,alignItems:"center",justifyContent:"center",padding:"24px"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(u.bg)+","+(B.night)+" 65%)",fontFamily:SA,alignItems:"center",justifyContent:"center",padding:"24px"}}>
       <div style={{textAlign:"center",maxWidth:320}}>
-        <div style={{width:72,height:72,borderRadius:20,background:`${u.acc}30`,border:`1px solid ${u.acc}50`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 20px"}}>{u.ico}</div>
+        <div style={{width:72,height:72,borderRadius:20,background:(u.acc)+"30",border:"1px solid "+(u.acc)+("50"),display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 20px"}}>{u.ico}</div>
         <div style={{fontFamily:FS,fontSize:22,color:"#fff",marginBottom:6}}>{u.nom}</div>
         <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",marginBottom:8}}>{u.tag}</div>
-        <div style={{background:`${u.acc}20`,border:`1px solid ${u.acc}40`,borderRadius:12,padding:"16px",marginBottom:24}}>
+        <div style={{background:(u.acc)+"20",border:"1px solid "+(u.acc)+("40"),borderRadius:12,padding:"16px",marginBottom:24}}>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",lineHeight:1.8}}>
             ✦ Espace client en préparation<br/>
             <span style={{color:u.or,fontWeight:700}}>Prochainement disponible</span><br/>
@@ -804,10 +2497,10 @@ function PlaceholderUnivers({univers, onBack}) {
           </div>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <button onClick={() => window.open(WA(`Bonjour, je suis intéressé(e) par ${u.nom}`),"_blank")} style={{background:`linear-gradient(135deg,${u.acc},${u.acc2})`,border:"none",borderRadius:12,padding:"12px 20px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:SA}}>
+          <button onClick={() => window.open(WA("Bonjour, je suis intéressé(e) par "+(u.nom)),"_blank")} style={{background:"linear-gradient(135deg,"+(u.acc)+","+(u.acc2)+")",border:"none",borderRadius:12,padding:"12px 20px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:SA}}>
             💬 Nous contacter via WhatsApp
           </button>
-          <button onClick={onBack} style={{background:"none",border:`1px solid rgba(255,255,255,0.2)`,borderRadius:12,padding:"10px 20px",color:"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:12,fontFamily:SA}}>
+          <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.2)",borderRadius:12,padding:"10px 20px",color:"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:12,fontFamily:SA}}>
             ‹ Retour au portail
           </button>
         </div>
@@ -826,52 +2519,392 @@ function PlaceholderUnivers({univers, onBack}) {
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
+// ── Gestion de session Supabase ─────────────────────────────
+// Clés localStorage
+const LS_TOKEN   = "bellaia_token";
+const LS_REFRESH = "bellaia_refresh";
+const LS_EXPIRY  = "bellaia_expiry";  // timestamp Unix (secondes)
+
+function saveSession(session) {
+  if (typeof window === "undefined" || !session) return;
+  if (session.access_token)  localStorage.setItem(LS_TOKEN,   session.access_token);
+  if (session.refresh_token) localStorage.setItem(LS_REFRESH, session.refresh_token);
+  if (session.expires_at)    localStorage.setItem(LS_EXPIRY,  String(session.expires_at));
+  else if (session.expires_in) {
+    const exp = Math.floor(Date.now()/1000) + session.expires_in - 60;
+    localStorage.setItem(LS_EXPIRY, String(exp));
+  }
+}
+
+function clearSession() {
+  if (typeof window === "undefined") return;
+  [LS_TOKEN, LS_REFRESH, LS_EXPIRY, "bellaia_user"].forEach(k => localStorage.removeItem(k));
+}
+
+function isTokenExpired() {
+  if (typeof window === "undefined") return false;
+  const expiry = localStorage.getItem(LS_EXPIRY);
+  if (!expiry) return false; // pas de date connue → on tente quand même
+  return Date.now()/1000 > parseInt(expiry, 10);
+}
+
+// Rafraîchit le token via l'API Supabase Auth
+async function refreshSessionSb() {
+  const refreshToken = typeof window !== "undefined" ? localStorage.getItem(LS_REFRESH) : null;
+  if (!refreshToken) {
+    console.warn("[Bellaïa][Auth] Refresh tenté — aucun refresh_token disponible");
+    return false;
+  }
+  if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] Refresh tenté…");
+  try {
+    const r = await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SB_KEY },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const d = await r.json();
+    if (r.ok && d.access_token) {
+      saveSession(d);
+      if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] Refresh réussi ✅");
+      return true;
+    }
+    console.error("[Bellaïa][Auth] Refresh échoué ❌", r.status, d);
+    clearSession();
+    return false;
+  } catch (e) {
+    console.error("[Bellaïa][Auth] Refresh — erreur réseau", e);
+    return false;
+  }
+}
+
+// Retourne le meilleur token disponible.
+// Si le token est expiré → tente un refresh automatique.
+// Si pas de token → retourne SB_KEY (mode anon, pour les clients non connectés).
+async function getTokenAsync() {
+  if (typeof window === "undefined") return SB_KEY;
+  const stored = localStorage.getItem(LS_TOKEN);
+  if (!stored) return SB_KEY; // mode anon
+  if (isTokenExpired()) {
+    if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] JWT expiré — refresh…");
+    const ok = await refreshSessionSb();
+    if (!ok) {
+      console.warn("[Bellaïa][Auth] Session expirée — retour en mode anon");
+      return SB_KEY;
+    }
+  }
+  const fresh = localStorage.getItem(LS_TOKEN);
+  if (process.env.NODE_ENV==="development") console.info("[Bellaïa][Auth] Session OK");
+  return fresh || SB_KEY;
+}
+
+// Compatibilité synchrone (pour les rares cas qui ne peuvent pas await)
 function getToken() {
   if (typeof window === "undefined") return SB_KEY;
-  return localStorage.getItem("bellaia_token") || SB_KEY;
+  return localStorage.getItem(LS_TOKEN) || SB_KEY;
 }
+
 
 async function sbGet(table, params = {}) {
   const { select = "*", filters = {}, order = "created_at.desc", limit = 100 } = params;
-  const token = getToken();
-  let url = `${SB_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`;
-  Object.entries(filters).forEach(([k, v]) => { url += `&${k}=eq.${encodeURIComponent(String(v))}`; });
-  if (order) url += `&order=${order}`;
-  if (limit) url += `&limit=${limit}`;
-  const r = await fetch(url, { headers: { "apikey": SB_KEY, "Authorization": `Bearer ${token}`, "Content-Type": "application/json" } });
+  const token = await getTokenAsync();
+  let url = (SB_URL)+"/rest/v1/"+(table)+"?select="+(encodeURIComponent(select));
+  Object.entries(filters).forEach(([k, v]) => { url += "&"+(k)+"=eq."+(encodeURIComponent(String(v))); });
+  if (order) url += "&order="+(order);
+  if (limit) url += "&limit="+(limit);
+  const r = await fetch(url, { headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json" } });
   if (!r.ok) return [];
   const d = await r.json();
   return Array.isArray(d) ? d : [];
 }
 
 async function sbPost(table, data) {
-  const token = getToken();
-  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-    method: "POST",
-    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Prefer": "return=representation" },
-    body: JSON.stringify(data),
-  });
-  const d = await r.json();
-  return { ok: r.ok, data: d };
+  const token = await getTokenAsync();
+  const url = (SB_URL)+"/rest/v1/"+(table);
+  const headers = { "apikey": SB_KEY, "Authorization": "Bearer "+(token), "Content-Type": "application/json", "Prefer": "return=representation" };
+  const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(data) });
+  let d = null;
+  try { d = await r.json(); } catch { d = null; }
+  if (!r.ok) {
+    console.error("[sbPost] Erreur Supabase table="+table+" status="+r.status, d);
+  }
+  return { ok: r.ok, status: r.status, data: d, error: r.ok ? null : d };
 }
 
 async function sbPatch(table, id, data) {
-  const token = getToken();
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
-    method: "PATCH",
-    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Prefer": "return=representation" },
-    body: JSON.stringify(data),
+  const token = await getTokenAsync();
+  let r;
+  try {
+    r = await fetch((SB_URL)+"/rest/v1/"+(table)+"?id=eq."+(id), {
+      method: "PATCH",
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token),
+        "Content-Type": "application/json", "Prefer": "return=representation" },
+      body: JSON.stringify(data),
+    });
+  } catch(e) {
+    return { ok:false, status:0, data:null, error:e.message };
+  }
+  let d = null;
+  try { d = await r.json(); } catch {}
+  if (!r.ok) {
+    const msg = d?.message || d?.details || d?.hint || JSON.stringify(d) || "Erreur Supabase "+r.status;
+    console.error("[sbPatch:"+table+":"+id+"] "+r.status+" — "+msg);
+    return { ok:false, status:r.status, data:null, error:msg };
+  }
+  return { ok:true, status:r.status, data:Array.isArray(d)?d[0]:d, error:null };
+}
+
+async function sbDelete(table, id) {
+  const token = await getTokenAsync();
+  const r = await fetch((SB_URL)+"/rest/v1/"+(table)+"?id=eq."+(id), {
+    method: "DELETE",
+    headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token) },
   });
   return { ok: r.ok };
 }
 
-async function sbDelete(table, id) {
-  const token = getToken();
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
-    method: "DELETE",
-    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${token}` },
-  });
-  return { ok: r.ok };
+// ═══════════════════════════════════════════════════════════
+// FONDATIONS TRANSVERSES — Références métier + journal d'audit
+// Réutilisables par tous les pôles (Events, Odyssée, BSH, Food...)
+// ═══════════════════════════════════════════════════════════
+
+// Génère une référence lisible via la fonction SQL prochaine_reference()
+// Ex: genererReference("BE") → "BE-2026-000001"
+// Lance une erreur si la RPC échoue — aucun fallback horloge pour les références métier
+async function genererReference(prefixe) {
+  const token = await getTokenAsync();
+  let errMsg = "RPC prochaine_reference indisponible";
+  try {
+    const r = await fetch((SB_URL)+"/rest/v1/rpc/prochaine_reference", {
+      method: "POST",
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer "+(token),
+        "Content-Type": "application/json" },
+      body: JSON.stringify({ p_prefixe: prefixe }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      if (typeof d === "string" && d.length > 0) return d;
+      errMsg = "RPC retournée vide ou format inattendu: "+JSON.stringify(d);
+    } else {
+      const txt = await r.text().catch(()=>"");
+      errMsg = "HTTP "+r.status+" — "+txt.slice(0,120);
+    }
+  } catch(e) {
+    errMsg = "Erreur réseau: "+e.message;
+  }
+  // Aucun fallback — une référence métier invalide corromprait les données
+  throw new Error(
+    "Impossible de générer la référence "+prefixe+". "+errMsg+
+    "\nVérifiez que la fonction SQL prochaine_reference() existe dans Supabase."
+  );
+}
+
+// ── Helper events_demandes — aligne le payload sur la vraie structure Supabase
+// Colonnes réelles confirmées par information_schema (2026-07-01).
+// Ne jamais envoyer id (uuid auto), created_at, updated_at.
+function sanitizeEventsDemandePayload(p) {
+  // Convertisseurs
+  const toInt = (v) => { const n = parseInt(v, 10); return isNaN(n) ? null : n; };
+  const toNum = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+  const toHeure = (v) => {
+    if (!v) return null;
+    const s = String(v).replace("h", ":").trim();
+    return /^\d{1,2}:\d{2}$/.test(s) ? (s.length === 4 ? "0"+s : s) : null;
+  };
+  const toDate = (v) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+  return {
+    reference:        p.reference        || null,
+    statut:           p.statut           || "nouvelle_demande",
+    client_prenom:    p.client_prenom    || null,
+    client_nom:       p.client_nom       || null,
+    client_tel:       p.client_tel       || null,
+    client_email:     p.client_email     || null,
+    date_souhaitee:   toDate(p.date_souhaitee),
+    heure_souhaitee:  toHeure(p.heure_souhaitee),
+    type_evenement:   p.type_evenement   || null,
+    nb_invites:       toInt(p.nb_invites),
+    theme:            p.theme            || null,
+    couleurs:         p.couleurs         || null,
+    budget:           toNum(p.budget),
+    message:          p.message          || null,
+    pole:             p.pole             || "Bella'Events",
+    categorie:        p.categorie        || null,
+    prestation:       p.prestation       || null,
+    prix:             p.prix             || null,
+    acompte:          p.acompte          || null,
+    delai:            p.delai            || null,
+    type_prestation:  p.type_prestation  || null,
+    numero_devis:     p.numero_devis     || null,
+    montant_estime:   toNum(p.montant_estime),
+    montant_acompte:  toNum(p.montant_acompte),
+    montant_solde:    toNum(p.montant_solde),
+    mode_paiement:    p.mode_paiement    || null,
+    statut_paiement:  p.statut_paiement  || "non_paye",
+    liaison_comptable:p.liaison_comptable|| null,
+    // commande_id et planning_event_id : uuid, non envoyés à la création initiale
+  };
+}
+
+// Écrit une entrée dans le journal d'audit (audit_log)
+// module: ex "events_demandes" | action: ex "changement_statut"
+async function ecrireAudit({ module, entiteId, entiteRef, action, ancienStatut, nouveauStatut, champ, ancienneValeur, nouvelleValeur, commentaire, user }) {
+  try {
+    await sbPost("audit_log", {
+      module, entite_id: entiteId, entite_ref: entiteRef || null,
+      action,
+      ancien_statut: ancienStatut || null, nouveau_statut: nouveauStatut || null,
+      champ: champ || null, ancienne_valeur: ancienneValeur || null, nouvelle_valeur: nouvelleValeur || null,
+      commentaire: commentaire || null,
+      user_id: user?.id || null, user_nom: user ? ((user.prenom||"")+" "+(user.nom||"")).trim() : null, user_role: user?.role || null,
+    });
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOTEUR NOTIFICATIONS — Réutilisable par tous les pôles
+// Canal 'interne' actif. Email/SMS/WhatsApp branchés en Phase 2.
+// ═══════════════════════════════════════════════════════════
+
+// Types de notifications disponibles
+const NOTIF_TYPES = [
+  "rappel_rdv",
+  "validation_devis",
+  "refus_devis",
+  "confirmation_commande",
+  "refus_commande",
+  "demande_paiement",
+  "rappel_prestation",
+  "message_post_prestation",
+  "autre",
+];
+
+// Crée une notification interne (et future email/SMS/WhatsApp)
+async function creerNotification({ pole, type, titre, message, canal, userId, clientEmail, clientTel, datePrevue, sourceTable, sourceId }) {
+  try {
+    const reference = await genererReference("NOTIF");
+    const payload = {
+      reference,
+      user_id:           userId     || null,
+      client_email:      clientEmail|| null,
+      client_tel:        clientTel  || null,
+      pole:              pole       || null,
+      type_notification: type       || "autre",
+      titre:             titre,
+      message:           message,
+      canal:             canal      || "interne",
+      statut:            "a_envoyer",
+      date_prevue:       datePrevue ? new Date(datePrevue).toISOString() : null,
+      source_table:      sourceTable|| null,
+      source_id:         sourceId   || null,
+    };
+    const res = await sbPost("notifications", payload);
+    if (!res.ok) {
+      console.error("[Bellaïa][creerNotification] Échec:", res.error);
+    }
+    return res;
+  } catch (e) {
+    console.error("[Bellaïa][creerNotification] Erreur réseau:", e);
+    return { ok: false };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLANNING CENTRAL — Moteur de détection de conflits
+// Réutilisable par tous les pôles (Events, Odyssée, Food, BSH...)
+// ═══════════════════════════════════════════════════════════
+
+// Marges par défaut par pôle — utilisées si planning_config_marges
+// n'est pas (encore) chargée en base.
+const PLANNING_MARGES_DEFAUT = {
+  ODYSSEE:   { prepa:10, nettoyage:10, deplacement:20, marge:15 },
+  EVENTS:    { prepa:30, nettoyage:30, deplacement:30, marge:30 },
+  FOOD:      { prepa:30, nettoyage:20, deplacement:25, marge:20 },
+  BSH:       { prepa:10, nettoyage:10, deplacement:20, marge:15 },
+  VILO:      { prepa:5,  nettoyage:5,  deplacement:15, marge:10 },
+  STRUCTURE: { prepa:0,  nettoyage:0,  deplacement:0,  marge:10 },
+  GENERAL:   { prepa:0,  nettoyage:0,  deplacement:0,  marge:10 },
+};
+
+// Récupère la config de marges pour un pôle (base si possible, sinon défaut local)
+async function getPlanningMarges(pole) {
+  try {
+    const rows = await sbGet("planning_config_marges", { select:"*", filters:{pole}, order:null, limit:1 });
+    if (rows && rows[0]) {
+      const r = rows[0];
+      return { prepa:r.temps_preparation_min, nettoyage:r.temps_nettoyage_min, deplacement:r.temps_deplacement_min, marge:r.marge_securite_min };
+    }
+  } catch {}
+  return PLANNING_MARGES_DEFAUT[pole] || PLANNING_MARGES_DEFAUT.GENERAL;
+}
+
+// Calcule les bornes de blocage réelles (début préparation → fin nettoyage + marge)
+// à partir d'un créneau brut et des temps additionnels.
+function calculerBlocagePlanning(dateDebut, dateFin, temps) {
+  const debut = new Date(dateDebut);
+  const fin = new Date(dateFin);
+  const blocageDebut = new Date(debut.getTime() - (temps.deplacement + temps.prepa) * 60000);
+  const blocageFin = new Date(fin.getTime() + (temps.nettoyage + temps.marge) * 60000);
+  return { blocageDebut, blocageFin };
+}
+
+// Vérifie si un créneau est en conflit avec un événement existant du planning.
+// Retourne le ou les événements en conflit (tableau vide = aucun conflit).
+async function verifierConflitPlanning(blocageDebut, blocageFin, excludeId) {
+  try {
+    const url = (SB_URL)+"/rest/v1/planning_events?select=*&statut=neq.annulé"
+      +"&blocage_debut=lt."+(encodeURIComponent(blocageFin.toISOString()))
+      +"&blocage_fin=gt."+(encodeURIComponent(blocageDebut.toISOString()));
+    const token = await getTokenAsync();
+    const r = await fetch(url, { headers: { apikey: SB_KEY, Authorization: "Bearer "+(token), "Content-Type": "application/json" } });
+    if (!r.ok) return [];
+    const rows = await r.json();
+    return (rows || []).filter(ev => ev.id !== excludeId);
+  } catch {
+    return [];
+  }
+}
+
+// Crée un événement planning après vérification de conflit.
+// Si conflit détecté et force=false → ne crée rien, retourne {ok:false, conflits}.
+// Si force=true (passage outre, fondatrice uniquement) → crée quand même, marque conflit_force.
+async function creerEvenementPlanning(params, { force = false, user } = {}) {
+  const { pole, titre, dateDebut, dateFin, typeActivite, sourceTable, sourceId, lieu, necessitePresence } = params;
+  const temps = await getPlanningMarges(pole);
+  const { blocageDebut, blocageFin } = calculerBlocagePlanning(dateDebut, dateFin, temps);
+
+  const conflits = await verifierConflitPlanning(blocageDebut, blocageFin, null);
+  if (conflits.length > 0 && !force) {
+    return { ok: false, conflits };
+  }
+
+  let reference;
+  try { reference = await genererReference("PL"); }
+  catch(e) { alert(e.message); return null; }
+  const evt = {
+    reference,
+    type_activite: typeActivite || "evenement",
+    pole, titre,
+    source_table: sourceTable || null, source_id: sourceId || null,
+    date_debut: new Date(dateDebut).toISOString(),
+    date_fin: new Date(dateFin).toISOString(),
+    temps_preparation_min: temps.prepa, temps_nettoyage_min: temps.nettoyage,
+    temps_deplacement_min: temps.deplacement, marge_securite_min: temps.marge,
+    blocage_debut: blocageDebut.toISOString(), blocage_fin: blocageFin.toISOString(),
+    lieu: lieu || null,
+    statut: "confirmé",
+    necessite_presence_fondatrice: necessitePresence !== false,
+    conflit_force: conflits.length > 0,
+    conflit_commentaire: conflits.length > 0 ? "Créé malgré "+(conflits.length)+" conflit(s) détecté(s) — validé manuellement" : null,
+    fondatrice_id: user?.id || null,
+  };
+  const res = await sbPost("planning_events", evt);
+  if (res?.ok !== false) {
+    await ecrireAudit({
+      module: "planning_events", entiteId: res?.data?.[0]?.id || reference, entiteRef: reference,
+      action: "creation", commentaire: titre + (conflits.length>0 ? " (conflit forcé)" : ""), user,
+    });
+  }
+  return { ok: true, conflits, reference };
 }
 
 // ── Hook BSH Supabase avec fallback localStorage
@@ -883,13 +2916,13 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r) {
     // Essayer Supabase d'abord
     const load = async () => {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const key = getToken();
-      if (!url || !key) { setLoaded(true); return; }
+      const token = await getTokenAsync();
+      if (!url) { setLoaded(true); return; }
       try {
-        const r = await fetch(`${url}/rest/v1/${table}?order=created_at.desc&limit=200`, {
+        const r = await fetch((url)+"/rest/v1/"+(table)+"?order=created_at.desc&limit=200", {
           headers: {
-            apikey: key,
-            Authorization: `Bearer ${key}`,
+            apikey: SB_KEY,
+            Authorization: "Bearer "+(token),
             "Content-Type": "application/json",
           },
         });
@@ -976,13 +3009,15 @@ function DashF({ user, goto }) {
   const genBrief = async () => {
     setBriefLoading(true);
     try {
-      const ctx = `Tu es Bellaïa, assistante de Renée-Lise Vilosa, fondatrice de Bella'Studio.
-Données temps réel :
-- CA facturé ce mois : ${kpis.ca_mois||0}€ | Encaissé : ${kpis.encaisse_mois||0}€
-- En attente paiement : ${kpis.en_attente||0}€ | Factures en retard : ${kpis.nb_retard||0}
-- Clientes actives : ${kpis.nb_clientes||0} | Prospects : ${kpis.nb_prospects||0} | VIP : ${kpis.nb_vip||0}
-- Événements à venir : ${events.length}
-Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités du jour.`;
+      const ctx = [
+        "Tu es Bellaïa, assistante de Renée-Lise Vilosa, fondatrice de Bella Studio.",
+        "Données temps réel :",
+        "CA facturé ce mois : "+(kpis.ca_mois||0)+"€ | Encaissé : "+(kpis.encaisse_mois||0)+"€",
+        "En attente paiement : "+(kpis.en_attente||0)+"€ | Factures en retard : "+(kpis.nb_retard||0),
+        "Clientes actives : "+(kpis.nb_clientes||0)+" | Prospects : "+(kpis.nb_prospects||0)+" | VIP : "+(kpis.nb_vip||0),
+        "Evenements a venir : "+(events.length),
+        "Genere un brief matinal motivant, elegant, direct. 5 lignes max. Priorites du jour."
+      ].join(" | ");
       const r = await fetch("/api/chat", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:ctx,messages:[{role:"user",content:"Brief du matin"}]})});
       const d = await r.json();
       setBriefs(d.content?.[0]?.text||"");
@@ -997,9 +3032,9 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
     const h = Math.floor((diff%86400000)/3600000);
     const m = Math.floor((diff%3600000)/60000);
     const s = Math.floor((diff%60000)/1000);
-    if (j>1) return `J-${j}`;
+    if (j>1) return "J-"+(j);
     if (j===1) return "Demain";
-    return `${h}h ${String(m).padStart(2,"0")}m ${String(s).padStart(2,"0")}s`;
+    return (h)+"h "+(String(m).padStart(2,"0"))+"m "+(String(s).padStart(2,"0"))+"s";
   };
 
   const POLES = [
@@ -1023,7 +3058,7 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
       </div>
 
       {/* Brief IA */}
-      <div style={{background:`linear-gradient(135deg,${B.violet}20,${B.gold}10)`,border:`1px solid ${B.border}`,borderRadius:14,padding:"13px 15px"}}>
+      <div style={{background:"linear-gradient(135deg,"+(B.violet)+"20,"+(B.gold)+"10)",border:"1px solid "+(B.border),borderRadius:14,padding:"13px 15px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:briefs?8:0}}>
           <span style={{fontSize:12,fontWeight:700,color:B.gold}}>✦ Brief Bellaïa</span>
           <Btn sm v="ghost" onClick={genBrief} disabled={briefLoading}>{briefLoading?"…":briefs?"Actualiser":"Générer"}</Btn>
@@ -1040,12 +3075,12 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
-            {l:"CA facturé",v:`${(kpis.ca_mois||0).toLocaleString("fr")}€`,acc:true},
-            {l:"Encaissé",v:`${(kpis.encaisse_mois||0).toLocaleString("fr")}€`,acc:true},
-            {l:"En attente",v:`${(kpis.en_attente||0).toLocaleString("fr")}€`},
+            {l:"CA facturé",v:((kpis.ca_mois||0).toLocaleString("fr"))+"€",acc:true},
+            {l:"Encaissé",v:((kpis.encaisse_mois||0).toLocaleString("fr"))+"€",acc:true},
+            {l:"En attente",v:((kpis.en_attente||0).toLocaleString("fr"))+"€"},
             {l:"Retards",v:kpis.nb_retard||0,warn:(kpis.nb_retard||0)>0},
           ].map(s=>(
-            <div key={s.l} style={{background:B.card,border:`1px solid ${s.warn?"rgba(180,80,80,0.5)":s.acc?B.borderG:B.border}`,borderRadius:11,padding:"11px 12px"}}>
+            <div key={s.l} style={{background:B.card,border:"1px solid "+(s.warn?"rgba(180,80,80,0.5)":s.acc?B.borderG:B.border),borderRadius:11,padding:"11px 12px"}}>
               <div style={{fontSize:20,fontWeight:900,color:s.warn?B.danger:s.acc?B.gold:B.violetL,fontFamily:FS}}>{s.v}</div>
               <div style={{fontSize:10,color:B.muted,marginTop:2}}>{s.l}</div>
             </div>
@@ -1061,7 +3096,7 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
           {[{l:"Clientes",v:kpis.nb_clientes||0},{l:"Prospects",v:kpis.nb_prospects||0},{l:"VIP",v:kpis.nb_vip||0}].map(s=>(
-            <div key={s.l} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:11,padding:"10px 9px",textAlign:"center"}}>
+            <div key={s.l} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"10px 9px",textAlign:"center"}}>
               <div style={{fontSize:19,fontWeight:900,color:B.violetL,fontFamily:FS}}>{s.v}</div>
               <div style={{fontSize:10,color:B.muted,marginTop:2}}>{s.l}</div>
             </div>
@@ -1077,7 +3112,7 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
             <span style={{fontSize:11,color:B.violetL,cursor:"pointer"}} onClick={()=>goto("calendrier")}>Voir tout →</span>
           </div>
           {events.slice(0,3).map(e=>(
-            <div key={e.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:11,padding:"10px 13px",marginBottom:6,borderLeft:`3px solid ${e.couleur||B.violet}`}}>
+            <div key={e.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"10px 13px",marginBottom:6,borderLeft:"3px solid "+(e.couleur||B.violet)}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{e.titre}</div>
@@ -1107,7 +3142,7 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
         <div style={{fontSize:12,fontWeight:800,color:B.cream,marginBottom:10}}>Pôles Bella'Studio</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {POLES.map(p=>(
-            <div key={p.id} style={{background:B.card,border:`1px solid ${p.col}30`,borderRadius:11,padding:"10px 12px",cursor:"pointer",borderLeft:`3px solid ${p.col}`}} onClick={()=>goto(p.id)}>
+            <div key={p.id} style={{background:B.card,border:"1px solid "+(p.col)+("30"),borderRadius:11,padding:"10px 12px",cursor:"pointer",borderLeft:"3px solid "+(p.col)}} onClick={()=>goto(p.id)}>
               <div style={{fontSize:18,marginBottom:4}}>{p.ico}</div>
               <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{p.nom}</div>
             </div>
@@ -1118,10 +3153,310 @@ Génère un brief matinal motivant, élégant, direct. 5 lignes max. Priorités 
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+// ACTIVITÉS CLIENT — CRM Phase 1
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// FICHE CLIENT COMPLÈTE — Historique chronologique complet
+// ═══════════════════════════════════════════════════════════
+function FicheClientF({ client, onClose }) {
+  const [ong, setOng] = useState("apercu");
+  const [invoices, setInvoices]   = useState([]);
+  const [quotes, setQuotes]       = useState([]);
+  const [payments, setPayments]   = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [cmds, setCmds]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    if (!client?.id) return;
+    const load = async () => {
+      setLoading(true);
+      const [inv, quo, pay, act, cmd] = await Promise.all([
+        sbGet("invoices",          { select:"*", order:"date_emission.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id||x.client_nom===(client.prenom||"")+" "+(client.nom||"").trim())),
+        sbGet("quotes",            { select:"*", order:"date_emission.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id||x.client_nom===(client.prenom||"")+" "+(client.nom||"").trim())),
+        sbGet("payments",          { select:"*", order:"date_paiement.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id)),
+        sbGet("client_activities", { select:"*", order:"date_activite.desc", limit:50 }).then(d=>(d||[]).filter(x=>x.client_id===client.id)),
+        sbGet("events_commandes",  { select:"*", order:"created_at.desc",   limit:50 }).then(d=>(d||[]).filter(x=>x.client_email===client.email||x.client_nom===(client.prenom||"")+" "+(client.nom||"").trim())),
+      ]);
+      setInvoices(inv); setQuotes(quo); setPayments(pay);
+      setActivities(act); setCmds(cmd);
+      setLoading(false);
+    };
+    load();
+  }, [client?.id]);
+
+  const totalEncaisse = payments.filter(p=>p.statut==="reçu").reduce((s,p)=>s+(parseFloat(p.montant)||0),0);
+  const totalFacture  = invoices.reduce((s,i)=>s+(parseFloat(i.total_ttc)||0),0);
+
+  const ONGS = [
+    {id:"apercu",    l:"📊 Aperçu"},
+    {id:"factures",  l:"💰 Factures ("+(invoices.length)+")"},
+    {id:"devis",     l:"📋 Devis ("+(quotes.length)+")"},
+    {id:"paiements", l:"💳 Paiements ("+(payments.length)+")"},
+    {id:"commandes", l:"🛒 Commandes ("+(cmds.length)+")"},
+    {id:"activites", l:"⚡ Activités ("+(activities.length)+")"},
+  ];
+
+  const nomComplet = (client.prenom||"")+" "+(client.nom||"").trim() || client.email || "—";
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{background:B.deep,borderBottom:"1px solid "+(B.border),padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:800,color:B.cream,fontFamily:FS}}>{nomComplet}</div>
+          <div style={{fontSize:11,color:B.muted,marginTop:2}}>{client.email||"—"} · {client.ville||"—"} · {client.vip_level||"Bronze"}</div>
+        </div>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:10,padding:"8px 14px",color:B.cream,cursor:"pointer",fontSize:14,fontFamily:SA}}>✕</button>
+      </div>
+
+      {/* Navigation onglets */}
+      <div style={{display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch",padding:"10px 14px",borderBottom:"1px solid "+(B.border),background:B.deep,flexShrink:0}}>
+        {ONGS.map(o=>(
+          <button key={o.id} onClick={()=>setOng(o.id)}
+            style={{padding:"5px 11px",borderRadius:99,border:"1px solid "+(ong===o.id?B.gold:B.border),background:ong===o.id?(B.gold+"18"):"transparent",color:ong===o.id?B.gold:B.muted,cursor:"pointer",fontSize:10,fontWeight:ong===o.id?700:400,whiteSpace:"nowrap",fontFamily:SA}}>
+            {o.l}
+          </button>
+        ))}
+      </div>
+
+      {/* Contenu */}
+      <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+        {loading && <div style={{textAlign:"center",color:B.muted,padding:30}}>Chargement…</div>}
+
+        {/* Aperçu */}
+        {!loading && ong==="apercu" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {[
+                {l:"Total facturé",  v:(totalFacture.toFixed(2))+"€",  c:B.gold},
+                {l:"Total encaissé", v:(totalEncaisse.toFixed(2))+"€", c:"#4ade80"},
+                {l:"Devis",          v:quotes.length,                   c:B.violetL},
+                {l:"Commandes",      v:cmds.length,                     c:"#0d9488"},
+              ].map(k=>(
+                <div key={k.l} style={{flex:1,minWidth:70,background:(k.c)+"12",border:"1px solid "+(k.c)+("30"),borderRadius:12,padding:"12px 10px",textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:k.c,fontFamily:FS}}>{k.v}</div>
+                  <div style={{fontSize:9,color:B.muted,marginTop:2}}>{k.l}</div>
+                </div>
+              ))}
+            </div>
+            {/* Infos client */}
+            <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
+              <div style={{fontSize:11,fontWeight:700,color:B.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.05em"}}>Informations</div>
+              {[
+                ["Email",        client.email],
+                ["Téléphone",    client.telephone],
+                ["Ville",        client.ville],
+                ["Canal",        client.canal_acquisition],
+                ["Client depuis",client.created_at?.slice(0,10)],
+                ["Notes",        client.notes_internes],
+              ].filter(([,v])=>v).map(([l,v])=>(
+                <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
+                  <span style={{color:B.muted}}>{l}</span>
+                  <span style={{color:B.cream,fontWeight:500,maxWidth:"60%",textAlign:"right"}}>{v}</span>
+                </div>
+              ))}
+            </div>
+            {/* Chronologie récente */}
+            <div style={{fontSize:11,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginTop:4}}>Activité récente</div>
+            {[
+              ...invoices.slice(0,3).map(i=>({date:i.date_emission,ico:"💰",txt:"Facture "+(i.numero||i.id?.slice(0,8)||"—")+" — "+(parseFloat(i.total_ttc||0).toFixed(0))+"€",statut:i.statut})),
+              ...quotes.slice(0,2).map(q=>({date:q.date_emission,ico:"📋",txt:"Devis "+(q.numero||q.id?.slice(0,8)||"—")+" — "+(parseFloat(q.total_ttc||0).toFixed(0))+"€",statut:q.statut})),
+              ...activities.slice(0,3).map(a=>({date:a.date_activite,ico:"⚡",txt:a.notes||a.type_activite,statut:""})),
+            ].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,6).map((item,i)=>(
+              <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 0",borderBottom:"1px solid "+(B.border)}}>
+                <span style={{fontSize:16,flexShrink:0}}>{item.ico}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:B.cream}}>{item.txt}</div>
+                  {item.statut&&<span style={{fontSize:9,color:B.muted}}>{item.statut}</span>}
+                </div>
+                <div style={{fontSize:10,color:B.muted,flexShrink:0}}>{item.date||"—"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Factures */}
+        {!loading && ong==="factures" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {invoices.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucune facture</div>:
+            invoices.map(inv=>(
+              <div key={inv.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{inv.numero||inv.id?.slice(0,8)||"—"}</div><div style={{fontSize:10,color:B.muted}}>{inv.objet||"—"} · {inv.date_emission||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:B.gold}}>{parseFloat(inv.total_ttc||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{inv.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Devis */}
+        {!loading && ong==="devis" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {quotes.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucun devis</div>:
+            quotes.map(q=>(
+              <div key={q.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{q.numero||q.id?.slice(0,8)||"—"}</div><div style={{fontSize:10,color:B.muted}}>{q.objet||"—"} · {q.date_emission||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:B.gold}}>{parseFloat(q.total_ttc||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{q.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Paiements */}
+        {!loading && ong==="paiements" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {payments.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucun paiement</div>:
+            payments.map(p=>(
+              <div key={p.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{p.mode_paiement||p.provider||"—"}</div><div style={{fontSize:10,color:B.muted}}>{p.date_paiement||"—"} · {p.reference||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:p.statut==="reçu"?"#4ade80":B.gold}}>{parseFloat(p.montant||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{p.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Commandes */}
+        {!loading && ong==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {cmds.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucune commande</div>:
+            cmds.map(cmd=>(
+              <div key={cmd.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream}}>{cmd.type_evenement||"Commande"}</div><div style={{fontSize:10,color:B.muted}}>{cmd.date_evenement||"—"}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:B.gold}}>{parseFloat(cmd.montant_total||0).toFixed(2)}€</div><div style={{fontSize:10,color:B.muted}}>{cmd.statut}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Activités */}
+        {!loading && ong==="activites" && (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {activities.length===0?<div style={{textAlign:"center",color:B.muted,padding:20}}>Aucune activité enregistrée</div>:
+            activities.map(a=>(
+              <div key={a.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px",borderLeft:"3px solid "+(B.violetL)}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:12,fontWeight:600,color:B.cream,textTransform:"capitalize"}}>{a.type_activite}</div><div style={{fontSize:10,color:B.muted}}>{a.notes||"—"}</div></div>
+                  <div style={{fontSize:10,color:B.muted}}>{a.date_activite||"—"}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActivitesCrmF() {
+  const [activites, setActivites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+
+  const TYPES_ACT = ["appel","email","rdv","devis","commande","paiement","relance","note","autre"];
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await sbGet("client_activities", {
+          select: "*, clients(nom,prenom)",
+          order: "date_activite.desc",
+          limit: 100,
+        });
+        setActivites(data || []);
+      } catch {}
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const save = async () => {
+    if (!form.type_activite) return;
+    await sbPost("client_activities", {
+      ...form,
+      date_activite: form.date_activite || new Date().toISOString().split("T")[0],
+    });
+    setModal(false);
+    setForm({});
+    // Recharger
+    const data = await sbGet("client_activities", { select: "*, clients(nom,prenom)", order: "date_activite.desc", limit: 100 });
+    setActivites(data || []);
+  };
+
+  const TYPE_ICO = {appel:"📞",email:"📧",rdv:"📅",devis:"📋",commande:"🛒",paiement:"💳",relance:"🔔",note:"📝",autre:"⚡"};
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:800,color:B.cream,fontFamily:FS}}>⚡ Activités clients</div>
+          <div style={{fontSize:10,color:B.muted}}>{activites.length} activité{activites.length>1?"s":""} enregistrée{activites.length>1?"s":""}</div>
+        </div>
+        <Btn v="gold" onClick={()=>{setForm({type_activite:"note",date_activite:new Date().toISOString().split("T")[0]});setModal(true);}}>
+          + Activité
+        </Btn>
+      </div>
+
+      {loading && <div style={{textAlign:"center",color:B.muted,padding:20}}>Chargement…</div>}
+
+      {!loading && activites.length === 0 && (
+        <div style={{textAlign:"center",color:B.muted,padding:24,fontSize:13}}>
+          Aucune activité enregistrée.<br/>
+          <span style={{fontSize:11}}>Enregistrez vos appels, emails, rdv et notes clients ici.</span>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {activites.map(a => (
+          <div key={a.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"10px 13px",borderLeft:"3px solid "+(B.violetL)}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                  <span style={{fontSize:14}}>{TYPE_ICO[a.type_activite]||"⚡"}</span>
+                  <span style={{fontSize:11,fontWeight:700,color:B.cream,textTransform:"capitalize"}}>{a.type_activite}</span>
+                  {a.clients?.nom&&<span style={{fontSize:10,color:B.muted}}>· {a.clients.prenom||""} {a.clients.nom}</span>}
+                </div>
+                {a.notes&&<div style={{fontSize:11,color:B.muted,lineHeight:1.5}}>{a.notes}</div>}
+              </div>
+              <div style={{fontSize:10,color:B.muted,flexShrink:0,marginLeft:8}}>{a.date_activite||"—"}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modal&&(
+        <Mdl title="Nouvelle activité" onClose={()=>setModal(false)}>
+          <Fld label="Type *">
+            <Sel value={form.type_activite||"note"} onChange={e=>setForm({...form,type_activite:e.target.value})} options={TYPES_ACT}/>
+          </Fld>
+          <Fld label="Date"><Inp type="date" value={form.date_activite||""} onChange={e=>setForm({...form,date_activite:e.target.value})}/></Fld>
+          <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Description de l'activité" rows={3}/></Fld>
+          <Fld label="Résultat"><Inp value={form.resultat||""} onChange={e=>setForm({...form,resultat:e.target.value})} placeholder="Ex : devis envoyé, RDV confirmé…"/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={save} full v="gold">Enregistrer</Btn>
+            <Btn onClick={()=>setModal(false)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
 function CrmF({ user }) {
   const [ong, setOng] = useState("clients");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
+  const [ficheClient, setFicheClient] = useState(null); // FicheClientF ouverte
   const [search, setSearch] = useState("");
   const [poles, setPoles] = useState([]);
 
@@ -1134,27 +3469,68 @@ function CrmF({ user }) {
 
   // Clients filtrés
   const clientsFiltres = clients.filter(c =>
-    !search || `${c.nom} ${c.prenom} ${c.email} ${c.tel}`.toLowerCase().includes(search.toLowerCase())
+    !search || (c.nom)+" "+(c.prenom)+" "+(c.email)+" "+(c.tel).toLowerCase().includes(search.toLowerCase())
   );
   const prospectsFiltres = prospects.filter(p =>
-    !search || `${p.nom} ${p.prenom} ${p.email}`.toLowerCase().includes(search.toLowerCase())
+    !search || (p.nom)+" "+(p.prenom)+" "+(p.email).toLowerCase().includes(search.toLowerCase())
   );
 
   const saveClient = async () => {
     if (!form.nom?.trim()) return;
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit; delete d._type;
-    if (form._edit) await sbPatch("clients", form._edit, d);
-    else await sbPost("clients", d);
+    if (form._edit) {
+      const rp = await sbPatch("clients", form._edit, d);
+      if (!rp.ok) { alert("Erreur mise à jour client.\n"+(rp.error||"")); return; }
+    } else {
+      const rc = await sbPost("clients", d);
+      if (!rc.ok) { alert("Erreur création client.\n"+(rc.error||"")); return; }
+    }
     rCli(); setModal(null);
+  };
+
+  const convertirProspect = async (prospect) => {
+    if (!confirm("Convertir "+(prospect.prenom||"")+" "+(prospect.nom)+" en client ?")) return;
+    // 1. Créer le client depuis le prospect
+    const clientData = {
+      nom:               prospect.nom,
+      prenom:            prospect.prenom || "",
+      email:             prospect.email  || "",
+      telephone:         prospect.telephone || "",
+      ville:             prospect.ville  || "",
+      type_client:       "cliente",
+      statut:            "actif",
+      canal_acquisition: prospect.source || "WhatsApp",
+      notes_internes:    prospect.notes  || "",
+      fondatrice_id:     getFondId(),
+    };
+    const rcConv = await sbPost("clients", clientData);
+    if (!rcConv.ok) { alert("Erreur conversion prospect.\n"+(rcConv.error||"")); return; }
+    // 2. Marquer le prospect comme converti
+    const rProspConv = await sbPatch("prospects", prospect.id, { statut: "converti", updated_at: new Date().toISOString() });
+    if (!rProspConv.ok) console.error("[convertirProspect] sbPatch prospects:", rProspConv.error);
+    // 3. Enregistrer l'activité (non bloquant)
+    sbPost("client_activities", {
+      type_activite: "note",
+      notes:         "Converti depuis prospect le "+(today()),
+      date_activite: today(),
+      fondatrice_id: getFondId(),
+    });
+    rPro();
+    alert("✅ "+(prospect.prenom||"")+" "+(prospect.nom)+" converti en client !");
   };
 
   const saveProspect = async () => {
     if (!form.nom?.trim()) return;
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit; delete d._type;
-    if (form._edit) await sbPatch("prospects", form._edit, d);
-    else await sbPost("prospects", d);
+    if (form._edit) {
+      const rpp = await sbPatch("prospects", form._edit, d);
+      if (!rpp.ok) { alert("Erreur mise à jour prospect.\n"+(rpp.error||"")); return; }
+    } else {
+      const rpn = await sbPost("prospects", d);
+      if (!rpn.ok) { alert("Erreur création prospect.\n"+(rpn.error||"")); return; }
+    }
     rPro(); setModal(null);
   };
 
@@ -1170,17 +3546,17 @@ function CrmF({ user }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
-      <SH t="CRM" s={`${clients.length} cliente${clients.length!==1?"s":""} · ${prospects.length} prospect${prospects.length!==1?"s":""}`}/>
+      <SH t="CRM" s={(clients.length)+" cliente"+(clients.length!==1?"s":"")+" · "+(prospects.length)+" prospect"+(prospects.length!==1?"s":"")}/>
 
       {/* Onglets */}
       <div style={{display:"flex",gap:6}}>
-        {[["clients","👥 Clientes"],["prospects","🎯 Prospects"],["relances","🔔 Relances"]].map(([id,l])=>(
+        {[["clients","👥 Clientes"],["prospects","🎯 Prospects"],["relances","🔔 Relances"],["activites","⚡ Activités"]].map(([id,l])=>(
           <button key={id} onClick={()=>setOng(id)} style={{padding:"6px 12px",borderRadius:99,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:ong===id?B.violet:B.card,color:ong===id?"#fff":B.muted,fontFamily:SA}}>{l}</button>
         ))}
       </div>
 
       {/* Recherche */}
-      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher..." style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher..." style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
 
       {/* ── CLIENTES ── */}
       {ong==="clients"&&(
@@ -1191,21 +3567,22 @@ function CrmF({ user }) {
           {lCli&&<div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {!lCli&&clientsFiltres.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune cliente</div>}
           {clientsFiltres.map(c=>(
-            <div key={c.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
+            <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
-                    <span style={{fontSize:14,fontWeight:800,color:B.cream,fontFamily:FS}}>{c.nom}{c.prenom?` ${c.prenom}`:""}</span>
-                    {c.niveau_fidelite&&c.niveau_fidelite!=="standard"&&<span style={{fontSize:9,fontWeight:700,color:fideliteColor(c.niveau_fidelite),background:`${fideliteColor(c.niveau_fidelite)}22`,borderRadius:4,padding:"1px 6px"}}>{c.niveau_fidelite}</span>}
+                    <span style={{fontSize:14,fontWeight:800,color:B.cream,fontFamily:FS}}>{c.nom}{c.prenom ? " "+(c.prenom) : ""}</span>
+                    {c.niveau_fidelite&&c.niveau_fidelite!=="standard"&&<span style={{fontSize:9,fontWeight:700,color:fideliteColor(c.niveau_fidelite),background:(fideliteColor(c.niveau_fidelite))+"22",borderRadius:4,padding:"1px 6px"}}>{c.niveau_fidelite}</span>}
                   </div>
                   {c.tel&&<div style={{fontSize:11,color:B.muted}}>{c.tel}</div>}
-                  {c.ville&&<div style={{fontSize:11,color:B.muted}}>📍 {c.ville}{c.pole?` · ${c.pole}`:""}</div>}
+                  {c.ville&&<div style={{fontSize:11,color:B.muted}}>📍 {c.ville}{c.pole ? " · "+(c.pole) : ""}</div>}
                   {c.preferences&&<div style={{fontSize:11,color:B.muted,marginTop:2}}>💫 {c.preferences}</div>}
                 </div>
                 <div style={{textAlign:"right",flexShrink:0}}>
                   {(c.ca_total||0)>0&&<div style={{fontSize:14,fontWeight:700,color:B.gold,marginBottom:4}}>{c.ca_total}€</div>}
                   <Bdg s={c.statut||"actif"}/>
                   <div style={{display:"flex",gap:4,marginTop:6,justifyContent:"flex-end"}}>
+                    <Btn sm v="ghost" onClick={()=>setFicheClient(c)}>📋 Fiche</Btn>
                     <Btn sm v="ghost" onClick={()=>{setForm({...c,_edit:c.id});setModal("cli");}}>✏</Btn>
                     <Btn sm v="danger" onClick={()=>delClient(c.id)}>✕</Btn>
                   </div>
@@ -1225,10 +3602,10 @@ function CrmF({ user }) {
           {lPro&&<div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {!lPro&&prospectsFiltres.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucun prospect</div>}
           {prospectsFiltres.map(p=>(
-            <div key={p.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
+            <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:800,color:B.cream,fontFamily:FS,marginBottom:3}}>{p.nom}{p.prenom?` ${p.prenom}`:""}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:B.cream,fontFamily:FS,marginBottom:3}}>{p.nom}{p.prenom ? " "+(p.prenom) : ""}</div>
                   {p.tel&&<div style={{fontSize:11,color:B.muted}}>{p.tel}</div>}
                   {p.interet&&<div style={{fontSize:11,color:B.muted,marginTop:2}}>💡 {p.interet}</div>}
                   {p.date_relance&&<div style={{fontSize:11,color:new Date(p.date_relance)<new Date()?B.warning:B.muted,marginTop:2}}>🔔 Relance : {fmt(p.date_relance)}</div>}
@@ -1237,6 +3614,7 @@ function CrmF({ user }) {
                   <Bdg s={p.statut||"nouveau"}/>
                   {p.probabilite&&<div style={{fontSize:10,color:B.muted,marginTop:3}}>{p.probabilite}% conv.</div>}
                   <div style={{display:"flex",gap:4,marginTop:6,justifyContent:"flex-end"}}>
+                    {p.statut!=="converti"&&<Btn sm v="gold" onClick={()=>convertirProspect(p)}>→ Client</Btn>}
                     <Btn sm v="ghost" onClick={()=>{setForm({...p,_edit:p.id});setModal("pro");}}>✏</Btn>
                     <Btn sm v="danger" onClick={()=>delProspect(p.id)}>✕</Btn>
                   </div>
@@ -1255,14 +3633,14 @@ function CrmF({ user }) {
             <div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>✅ Aucune relance en attente</div>
           )}
           {prospects.filter(p=>p.statut!=="converti"&&p.statut!=="perdu"&&(!p.date_relance||new Date(p.date_relance)<=new Date())).map(p=>(
-            <div key={p.id} style={{background:B.card,border:"1px solid rgba(201,168,76,0.4)",borderRadius:13,padding:"12px 14px",borderLeft:`3px solid ${B.gold}`}}>
+            <div key={p.id} style={{background:B.card,border:"1px solid rgba(201,168,76,0.4)",borderRadius:13,padding:"12px 14px",borderLeft:"3px solid "+(B.gold)}}>
               <div style={{display:"flex",justifyContent:"space-between"}}>
                 <div>
-                  <div style={{fontSize:13,fontWeight:700,color:B.cream}}>{p.nom}{p.prenom?` ${p.prenom}`:""}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:B.cream}}>{p.nom}{p.prenom ? " "+(p.prenom) : ""}</div>
                   {p.tel&&<div style={{fontSize:11,color:B.muted}}>{p.tel}</div>}
                   {p.interet&&<div style={{fontSize:11,color:B.muted,marginTop:2}}>{p.interet}</div>}
                 </div>
-                <Btn sm v="gold" onClick={()=>window.open(`https://wa.me/${(p.tel||ENV.WA).replace(/\D/g,"")}?text=Bonjour ${p.prenom||p.nom}, suite à notre échange...`,"_blank")}>💬 Relancer</Btn>
+                <Btn sm v="gold" onClick={()=>window.open("https://wa.me/"+((p.tel||ENV.WA).replace(/\D/g,""))+"?text=Bonjour "+(p.prenom||p.nom)+", suite à notre échange...","_blank")}>💬 Relancer</Btn>
               </div>
             </div>
           ))}
@@ -1307,11 +3685,22 @@ function CrmF({ user }) {
             <Fld label="Source"><Sel value={form.source||"WhatsApp"} onChange={e=>setForm({...form,source:e.target.value})} options={SOURCES}/></Fld>
             <Fld label="Relance"><Inp type="date" value={form.date_relance||""} onChange={e=>setForm({...form,date_relance:e.target.value})}/></Fld>
           </div>
-          <Fld label={`Probabilité : ${form.probabilite||50}%`}><input type="range" min={0} max={100} value={form.probabilite||50} onChange={e=>setForm({...form,probabilite:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/></Fld>
+          <Fld label={"Probabilité : "+(form.probabilite||50)+"%"}><input type="range" min={0} max={100} value={form.probabilite||50} onChange={e=>setForm({...form,probabilite:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/></Fld>
           <Fld label="Budget estimé (€)"><Inp type="number" value={form.budget_estime||""} onChange={e=>setForm({...form,budget_estime:parseFloat(e.target.value)||null})}/></Fld>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
           <div style={{display:"flex",gap:8}}><Btn onClick={saveProspect} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
         </Mdl>
+      )}
+      {ong==="activites"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <ActivitesCrmF/>
+        </div>
+      )}
+      {ficheClient && (
+        <FicheClientF
+          client={ficheClient}
+          onClose={() => setFicheClient(null)}
+        />
       )}
     </div>
   );
@@ -1348,27 +3737,110 @@ function FinancesP1({ user }) {
   const statutInvColor = s => ({payée:"rgba(80,180,120,0.2)",partiellement_payée:"rgba(201,168,76,0.2)",envoyée:"rgba(124,58,237,0.2)",en_retard:"rgba(180,80,80,0.2)",annulée:"rgba(80,80,80,0.2)",brouillon:"rgba(139,127,168,0.15)"}[s]||"rgba(139,127,168,0.15)");
   const statutInvText = s => ({payée:B.success,partiellement_payée:B.warning,envoyée:B.violetL,en_retard:B.danger,annulée:B.muted,brouillon:B.muted}[s]||B.muted);
 
+  // ── Items multi-lignes (état partagé pour devis et factures)
+  const [formItems, setFormItems] = useState([]);
+
+  const addItem = () => setFormItems(it => [...it, {desc:"",qte:1,pu:0,tva:20}]);
+  const removeItem = (i) => setFormItems(it => it.filter((_,j)=>j!==i));
+  const updateItem = (i, k, v) => setFormItems(it => it.map((x,j)=>j===i?{...x,[k]:v}:x));
+  const calcTotalHT = () => formItems.reduce((s,i)=>(parseFloat(i.qte)||0)*(parseFloat(i.pu)||0)+s,0);
+  const calcTotalTTC = () => formItems.reduce((s,i)=>{
+    const ht=(parseFloat(i.qte)||0)*(parseFloat(i.pu)||0);
+    const tva=ht*(parseFloat(i.tva)||20)/100;
+    return s+ht+tva;
+  },0);
+
+  // ── Ouvrir modal avec items vides
+  const ouvrirModalInv = (doc=null) => {
+    setForm(doc||{});
+    setFormItems(doc?[{desc:doc.objet||"",qte:1,pu:parseFloat(doc.total_ttc)||0,tva:20}]:[{desc:"",qte:1,pu:0,tva:20}]);
+    setModal("inv");
+  };
+  const ouvrirModalDev = (doc=null) => {
+    setForm(doc||{});
+    setFormItems(doc?[{desc:doc.objet||"",qte:1,pu:parseFloat(doc.total_ttc)||0,tva:20}]:[{desc:"",qte:1,pu:0,tva:20}]);
+    setModal("dev");
+  };
+
   const createInvoice = async () => {
     if (!form.client_nom?.trim()) return;
-    await sbPost("invoices", { ...form, fondatrice_id: getFondId(), solde_restant: form.total_ttc || 0 });
-    rInv(); setModal(null);
+    const totalTTC = formItems.length > 0 ? calcTotalTTC() : parseFloat(form.total_ttc)||0;
+    const totalHT  = formItems.length > 0 ? calcTotalHT()  : totalTTC/1.2;
+    const inv = await sbPost("invoices", {
+      ...form,
+      fondatrice_id: getFondId(),
+      total_ht:      parseFloat(totalHT.toFixed(2)),
+      total_ttc:     parseFloat(totalTTC.toFixed(2)),
+      solde_restant: parseFloat(totalTTC.toFixed(2)),
+      objet:         formItems.map(i=>i.desc).filter(Boolean).join(", ") || form.objet || "",
+    });
+    // Sauvegarder les items
+    if (inv?.id && formItems.length > 0) {
+      for (const [idx, item] of formItems.entries()) {
+        if (!item.desc) continue;
+        const riItem = await sbPost("invoice_items", {
+          invoice_id:   inv.id,
+          designation:  item.desc,
+          quantite:     parseFloat(item.qte)||1,
+          prix_unitaire:parseFloat(item.pu)||0,
+          taux_tva:     parseFloat(item.tva)||20,
+          montant_ht:   (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0),
+          montant_ttc:  (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0)*(1+(parseFloat(item.tva)||20)/100),
+          ordre:        idx+1,
+        });
+      }
+    }
+    rInv(); setModal(null); setFormItems([]);
   };
 
   const createQuote = async () => {
     if (!form.client_nom?.trim()) return;
-    await sbPost("quotes", { ...form, fondatrice_id: getFondId() });
-    rQuo(); setModal(null);
+    const totalTTC = formItems.length > 0 ? calcTotalTTC() : parseFloat(form.total_ttc)||0;
+    const totalHT  = formItems.length > 0 ? calcTotalHT()  : totalTTC/1.2;
+    const q = await sbPost("quotes", {
+      ...form,
+      fondatrice_id: getFondId(),
+      total_ht:      parseFloat(totalHT.toFixed(2)),
+      total_ttc:     parseFloat(totalTTC.toFixed(2)),
+      objet:         formItems.map(i=>i.desc).filter(Boolean).join(", ") || form.objet || "",
+    });
+    if (q?.id && formItems.length > 0) {
+      for (const [idx, item] of formItems.entries()) {
+        if (!item.desc) continue;
+        const rqItem = await sbPost("quote_items", {
+          quote_id:     q.id,
+          designation:  item.desc,
+          quantite:     parseFloat(item.qte)||1,
+          prix_unitaire:parseFloat(item.pu)||0,
+          taux_tva:     parseFloat(item.tva)||20,
+          montant_ht:   (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0),
+          montant_ttc:  (parseFloat(item.qte)||1)*(parseFloat(item.pu)||0)*(1+(parseFloat(item.tva)||20)/100),
+          ordre:        idx+1,
+        });
+      }
+    }
+    rQuo(); setModal(null); setFormItems([]);
+  };
+
+  // ── Export PDF (window.print avec mise en forme)
+  const exportPDF = (doc, type) => {
+    const lignes = formItems.length > 0 ? formItems : [{desc:doc.objet||"—",qte:1,pu:parseFloat(doc.total_ttc)||0,tva:20}];
+    const html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\n<title>"+(type)+" "+(doc.numero||doc.id?.slice(0,8)||"")+"</title>\n<style>\n  body{font-family:Georgia,serif;padding:40px;color:#1a1a1a;max-width:700px;margin:auto}\n  h1{font-size:24px;color:#7c3aed;margin-bottom:4px}\n  .meta{font-size:12px;color:#666;margin-bottom:24px}\n  .client{background:#f5f5f5;padding:12px 16px;border-radius:8px;margin-bottom:24px}\n  table{width:100%;border-collapse:collapse;margin-bottom:16px}\n  th{background:#7c3aed;color:#fff;padding:8px 10px;text-align:left;font-size:12px}\n  td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}\n  .total{text-align:right;font-size:14px;font-weight:700;margin-top:8px}\n  .footer{margin-top:40px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}\n</style></head><body>\n<h1>Bella'Studio — "+(type)+"</h1>\n<div class=\"meta\">N° "+(doc.numero||doc.id?.slice(0,8)||"—")+" · "+(doc.date_emission||new Date().toLocaleDateString("fr-FR"))+" · Pôle : "+(doc.pole||"—")+"</div>\n<div class=\"client\"><strong>Client :</strong> "+(doc.client_nom||"—")+"<br/><strong>Objet :</strong> "+(doc.objet||"—")+"</div>\n<table>\n<thead><tr><th>Désignation</th><th>Qté</th><th>PU HT</th><th>TVA</th><th>Total TTC</th></tr></thead>\n<tbody>"+(lignes.map(i=>"<tr><td>"+(i.desc||"—")+"</td><td>"+(i.qte||1)+"</td><td>"+parseFloat(i.pu||0).toFixed(2)+"€</td><td>"+(i.tva||20)+"%</td><td>"+((parseFloat(i.qte)||1)*(parseFloat(i.pu)||0)*(1+(parseFloat(i.tva)||20)/100)).toFixed(2)+"€</td></tr>").join(""))+"</tbody>\n</table>\n<div class=\"total\">Total TTC : <span style=\"color:#7c3aed\">"+(parseFloat(doc.total_ttc||0).toFixed(2))+" €</span></div>\n"+(doc.conditions ? "<p style=\"font-size:11px;color:#666;margin-top:16px\">Conditions : "+(doc.conditions)+"</p>" : "")+"\n<div class=\"footer\">Bella'Studio · Sinnamary, Guyane française · bella.studio973@hotmail.com</div>\n</body></html>";
+    const win = window.open("","_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
 
   const createPayment = async () => {
     if (!form.montant) return;
-    await sbPost("payments", { ...form, fondatrice_id: getFondId() });
+    const rPay = await sbPost("payments", { ...form, fondatrice_id: getFondId() });
+    if (!rPay.ok) { alert("Erreur enregistrement paiement.\n"+(rPay.error||"")); return; }
     rPay(); rInv(); setModal(null);
   };
 
   const createExpense = async () => {
     if (!form.designation?.trim() || !form.montant) return;
-    await sbPost("expenses", { ...form, fondatrice_id: getFondId() });
+    const rExp = await sbPost("expenses", { ...form, fondatrice_id: getFondId() });
+    if (!rExp.ok) { alert("Erreur enregistrement dépense.\n"+(rExp.error||"")); return; }
     rExp(); setModal(null);
   };
 
@@ -1380,8 +3852,8 @@ function FinancesP1({ user }) {
 
       {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-        {[{l:"CA encaissé",v:`${caTotal.toLocaleString("fr")}€`,acc:true},{l:"En attente",v:`${enAttente.toLocaleString("fr")}€`},{l:"Dépenses",v:`${depTotal.toLocaleString("fr")}€`},{l:"Factures",v:invoices.length}].map(s=>(
-          <div key={s.l} style={{background:B.card,border:`1px solid ${s.acc?B.borderG:B.border}`,borderRadius:12,padding:"12px 11px"}}>
+        {[{l:"CA encaissé",v:(caTotal.toLocaleString("fr"))+"€",acc:true},{l:"En attente",v:(enAttente.toLocaleString("fr"))+"€"},{l:"Dépenses",v:(depTotal.toLocaleString("fr"))+"€"},{l:"Factures",v:invoices.length}].map(s=>(
+          <div key={s.l} style={{background:B.card,border:"1px solid "+(s.acc?B.borderG:B.border),borderRadius:12,padding:"12px 11px"}}>
             <div style={{fontSize:20,fontWeight:900,color:s.acc?B.gold:B.violetL,fontFamily:FS}}>{s.v}</div>
             <div style={{fontSize:10,color:B.muted,marginTop:2}}>{s.l}</div>
           </div>
@@ -1398,10 +3870,10 @@ function FinancesP1({ user }) {
       {/* ── FACTURES ── */}
       {ong==="factures"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setModal("inv");}}>+ Facture</Btn></div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setouvrirModalInv();}}>+ Facture</Btn></div>
           {lInv&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {invoices.map(inv=>(
-            <div key={inv.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
+            <div key={inv.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <div>
                   <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
@@ -1410,7 +3882,7 @@ function FinancesP1({ user }) {
                   </div>
                   <div style={{fontSize:13,fontWeight:700,color:B.cream}}>{inv.client_nom}</div>
                   {inv.objet&&<div style={{fontSize:11,color:B.muted}}>{inv.objet}</div>}
-                  <div style={{fontSize:10,color:B.muted,marginTop:2}}>📅 {fmt(inv.date_emission)}{inv.date_echeance?` · Échéance ${fmt(inv.date_echeance)}`:""}</div>
+                  <div style={{fontSize:10,color:B.muted,marginTop:2}}>📅 {fmt(inv.date_emission)}{inv.date_echeance ? " · Échéance "+(fmt(inv.date_echeance)) : ""}</div>
                 </div>
                 <div style={{textAlign:"right",flexShrink:0}}>
                   <div style={{fontSize:16,fontWeight:900,color:B.gold,fontFamily:FS}}>{(inv.total_ttc||0).toLocaleString("fr")}€</div>
@@ -1420,6 +3892,7 @@ function FinancesP1({ user }) {
               <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                 {inv.statut==="envoyée"&&<Btn sm v="gold" onClick={()=>{setForm({invoice_id:inv.id,client_id:inv.client_id,montant:inv.solde_restant,type_paiement:"paiement",date_paiement:today(),statut:"reçu"});setModal("pay");}}>+ Paiement</Btn>}
                 {inv.statut==="brouillon"&&<Btn sm v="ghost" onClick={()=>patchInvoiceStatut(inv.id,"envoyée")}>Marquer envoyée</Btn>}
+                <Btn sm v="ghost" onClick={()=>exportPDF(inv,"Facture")}>📄 PDF</Btn>
                 <Btn sm v="ghost" onClick={()=>{setForm({...inv,_edit:inv.id});setModal("inv");}}>✏</Btn>
                 <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("invoices",inv.id).then(rInv);}}>✕</Btn>
               </div>
@@ -1431,10 +3904,10 @@ function FinancesP1({ user }) {
       {/* ── DEVIS ── */}
       {ong==="devis"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setModal("dev");}}>+ Devis</Btn></div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setouvrirModalDev();}}>+ Devis</Btn></div>
           {lQuo&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {quotes.map(q=>(
-            <div key={q.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
+            <div key={q.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                 <div>
                   <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
@@ -1443,11 +3916,12 @@ function FinancesP1({ user }) {
                   </div>
                   <div style={{fontSize:13,fontWeight:700,color:B.cream}}>{q.client_nom}</div>
                   {q.objet&&<div style={{fontSize:11,color:B.muted}}>{q.objet}</div>}
-                  <div style={{fontSize:10,color:B.muted}}>📅 {fmt(q.date_emission)}{q.date_validite?` · Valide jusqu'au ${fmt(q.date_validite)}`:""}</div>
+                  <div style={{fontSize:10,color:B.muted}}>📅 {fmt(q.date_emission)}{q.date_validite ? " · Valide jusqu'au "+(fmt(q.date_validite)) : ""}</div>
                 </div>
                 <div style={{fontSize:16,fontWeight:900,color:B.gold,fontFamily:FS}}>{(q.total_ttc||0).toLocaleString("fr")}€</div>
               </div>
               <div style={{display:"flex",gap:5}}>
+                <Btn sm v="ghost" onClick={()=>exportPDF(q,"Devis")}>📄 PDF</Btn>
                 <Btn sm v="ghost" onClick={()=>{setForm({...q,_edit:q.id});setModal("dev");}}>✏</Btn>
                 <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("quotes",q.id).then(rQuo);}}>✕</Btn>
               </div>
@@ -1462,10 +3936,10 @@ function FinancesP1({ user }) {
           <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({type_paiement:"paiement",statut:"reçu",date_paiement:today()});setModal("pay");}}>+ Paiement</Btn></div>
           {lPay&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {payments.map(p=>(
-            <div key={p.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{p.type_paiement} · {p.mode_paiement}</div>
-                <div style={{fontSize:10,color:B.muted}}>📅 {fmt(p.date_paiement)}{p.reference?` · Réf: ${p.reference}`:""}</div>
+                <div style={{fontSize:10,color:B.muted}}>📅 {fmt(p.date_paiement)}{p.reference ? " · Réf: "+(p.reference) : ""}</div>
                 {p.notes&&<div style={{fontSize:10,color:B.muted}}>{p.notes}</div>}
               </div>
               <div style={{textAlign:"right"}}>
@@ -1483,10 +3957,10 @@ function FinancesP1({ user }) {
           <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({categorie:"autre",date_depense:today(),mode_paiement:"Espèces"});setModal("dep");}}>+ Dépense</Btn></div>
           {lExp&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {expenses.map(e=>(
-            <div key={e.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div key={e.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{e.designation}</div>
-                <div style={{fontSize:10,color:B.muted}}>{e.categorie}{e.pole?` · ${e.pole}`:""} · {fmt(e.date_depense)}</div>
+                <div style={{fontSize:10,color:B.muted}}>{e.categorie}{e.pole ? " · "+(e.pole) : ""} · {fmt(e.date_depense)}</div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div style={{fontSize:15,fontWeight:700,color:B.danger}}>-{(e.montant||0).toLocaleString("fr")}€</div>
@@ -1499,40 +3973,82 @@ function FinancesP1({ user }) {
 
       {/* MODALS */}
       {modal==="inv"&&(
-        <Mdl title={form._edit?"Modifier facture":"Nouvelle facture"} onClose={()=>setModal(null)}>
+        <Mdl title={form._edit?"Modifier facture":"Nouvelle facture"} onClose={()=>{setModal(null);setFormItems([])}}>
           <Fld label="Client *"><Inp value={form.client_nom||""} onChange={e=>setForm({...form,client_nom:e.target.value})} placeholder="Nom du client"/></Fld>
-          <Fld label="Objet"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet de la facture"/></Fld>
-          <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
+          <Fld label="Objet (résumé)"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet global"/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Fld label="Total TTC (€)"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0,total_ht:parseFloat(e.target.value)||0})}/></Fld>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
             <Fld label="Statut"><Sel value={form.statut||"brouillon"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS_INV}/></Fld>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Date émission"><Inp type="date" value={form.date_emission||today()} onChange={e=>setForm({...form,date_emission:e.target.value})}/></Fld>
-            <Fld label="Échéance"><Inp type="date" value={form.date_echeance||""} onChange={e=>setForm({...form,date_echeance:e.target.value})}/></Fld>
+            <Fld label="Date échéance"><Inp type="date" value={form.date_echeance||""} onChange={e=>setForm({...form,date_echeance:e.target.value})}/></Fld>
           </div>
-          <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
+          {/* Lignes multi-produits */}
+          <div style={{marginTop:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:11,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Lignes de facturation</div>
+              <button onClick={addItem} style={{fontSize:11,padding:"3px 10px",borderRadius:8,border:"1px solid "+(B.gold),background:(B.gold)+"18",color:B.gold,cursor:"pointer",fontFamily:SA}}>+ Ligne</button>
+            </div>
+            {formItems.map((it,i)=>(
+              <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1fr 1fr 1fr auto",gap:5,marginBottom:5,alignItems:"center"}}>
+                <Inp value={it.desc} onChange={e=>updateItem(i,"desc",e.target.value)} placeholder="Désignation"/>
+                <Inp type="number" value={it.qte} onChange={e=>updateItem(i,"qte",e.target.value)} placeholder="Qté"/>
+                <Inp type="number" value={it.pu} onChange={e=>updateItem(i,"pu",e.target.value)} placeholder="PU HT"/>
+                <Inp type="number" value={it.tva} onChange={e=>updateItem(i,"tva",e.target.value)} placeholder="TVA%"/>
+                <button onClick={()=>removeItem(i)} style={{background:"rgba(239,68,68,0.15)",border:"none",borderRadius:6,padding:"4px 7px",color:"#ef4444",cursor:"pointer",fontSize:12}}>✕</button>
+              </div>
+            ))}
+            {formItems.length===0&&<div style={{fontSize:11,color:B.muted,padding:"8px 0"}}>Aucune ligne — cliquez "+ Ligne" ou saisissez un total manuel ci-dessous.</div>}
+            {formItems.length>0&&(
+              <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.gold,marginTop:6}}>
+                Total TTC calculé : {calcTotalTTC().toFixed(2)}€
+              </div>
+            )}
+          </div>
+          {formItems.length===0&&<Fld label="Total TTC (€) — manuel"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0})}/></Fld>}
+          <Fld label="Conditions"><Inp value={form.conditions||"Paiement à réception."} onChange={e=>setForm({...form,conditions:e.target.value})}/></Fld>
           <div style={{display:"flex",gap:8}}>
-            <Btn onClick={createInvoice} full>Enregistrer</Btn>
+            <Btn onClick={createInvoice} full v="gold">Enregistrer</Btn>
             <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
           </div>
         </Mdl>
       )}
       {modal==="dev"&&(
-        <Mdl title={form._edit?"Modifier devis":"Nouveau devis"} onClose={()=>setModal(null)}>
+        <Mdl title={form._edit?"Modifier devis":"Nouveau devis"} onClose={()=>{setModal(null);setFormItems([])}}>
           <Fld label="Client *"><Inp value={form.client_nom||""} onChange={e=>setForm({...form,client_nom:e.target.value})} placeholder="Nom du client"/></Fld>
-          <Fld label="Objet"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet du devis"/></Fld>
-          <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
+          <Fld label="Objet (résumé)"><Inp value={form.objet||""} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Objet global"/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Fld label="Total TTC (€)"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0,total_ht:parseFloat(e.target.value)||0})}/></Fld>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_CODES}/></Fld>
             <Fld label="Statut"><Sel value={form.statut||"brouillon"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS_DEV}/></Fld>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Date émission"><Inp type="date" value={form.date_emission||today()} onChange={e=>setForm({...form,date_emission:e.target.value})}/></Fld>
             <Fld label="Validité"><Inp type="date" value={form.date_validite||""} onChange={e=>setForm({...form,date_validite:e.target.value})}/></Fld>
           </div>
-          <Fld label="Conditions"><Inp value={form.conditions||"30% d'acompte à la signature."} onChange={e=>setForm({...form,conditions:e.target.value})} rows={2}/></Fld>
-          <div style={{display:"flex",gap:8}}><Btn onClick={createQuote} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+          <div style={{marginTop:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:11,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Lignes du devis</div>
+              <button onClick={addItem} style={{fontSize:11,padding:"3px 10px",borderRadius:8,border:"1px solid "+(B.gold),background:(B.gold)+"18",color:B.gold,cursor:"pointer",fontFamily:SA}}>+ Ligne</button>
+            </div>
+            {formItems.map((it,i)=>(
+              <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1fr 1fr 1fr auto",gap:5,marginBottom:5,alignItems:"center"}}>
+                <Inp value={it.desc} onChange={e=>updateItem(i,"desc",e.target.value)} placeholder="Désignation"/>
+                <Inp type="number" value={it.qte} onChange={e=>updateItem(i,"qte",e.target.value)} placeholder="Qté"/>
+                <Inp type="number" value={it.pu} onChange={e=>updateItem(i,"pu",e.target.value)} placeholder="PU HT"/>
+                <Inp type="number" value={it.tva} onChange={e=>updateItem(i,"tva",e.target.value)} placeholder="TVA%"/>
+                <button onClick={()=>removeItem(i)} style={{background:"rgba(239,68,68,0.15)",border:"none",borderRadius:6,padding:"4px 7px",color:"#ef4444",cursor:"pointer",fontSize:12}}>✕</button>
+              </div>
+            ))}
+            {formItems.length===0&&<div style={{fontSize:11,color:B.muted,padding:"8px 0"}}>Aucune ligne — cliquez "+ Ligne" ou saisissez un total manuel.</div>}
+            {formItems.length>0&&<div style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.gold,marginTop:6}}>Total TTC : {calcTotalTTC().toFixed(2)}€</div>}
+          </div>
+          {formItems.length===0&&<Fld label="Total TTC (€) — manuel"><Inp type="number" value={form.total_ttc||0} onChange={e=>setForm({...form,total_ttc:parseFloat(e.target.value)||0})}/></Fld>}
+          <Fld label="Conditions"><Inp value={form.conditions||"30% d\'acompte à la signature."} onChange={e=>setForm({...form,conditions:e.target.value})}/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={createQuote} full v="gold">Enregistrer</Btn>
+            <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
+          </div>
         </Mdl>
       )}
       {modal==="pay"&&(
@@ -1570,6 +4086,527 @@ function FinancesP1({ user }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// NOTIFICATIONS — Centre de notifications fondatrice
+// ═══════════════════════════════════════════════════════════
+function NotificationsF({ user }) {
+  const { data: notifs, loading, reload } = useP1Data("notifications", { select:"*", order:"created_at.desc", limit:100 }, []);
+  const CANAUX = ["tous","interne","email","whatsapp","sms"];
+  const STATUTS_NOTIF = ["brouillon","a_envoyer","envoye","echoue","lu"];
+  const COL_STATUT_N = {
+    brouillon:"rgba(255,255,255,0.08)", a_envoyer:"rgba(201,168,76,0.2)",
+    envoye:"rgba(16,185,129,0.2)", echoue:"rgba(180,80,80,0.2)", lu:"rgba(255,255,255,0.05)"
+  };
+  const TXT_STATUT_N = {
+    brouillon:B.muted, a_envoyer:B.warning, envoye:B.success, echoue:B.danger, lu:B.mutedL
+  };
+  const ICO_CANAL = { interne:"🔔", email:"✉️", whatsapp:"💬", sms:"📱" };
+  const [filtre, setFiltre] = useState("tous");
+  const [form, setForm] = useState({});
+  const [modal, setModal] = useState(false);
+
+  const affichees = notifs.filter(n => filtre==="tous" || n.canal===filtre);
+  const nbNonLues = notifs.filter(n => n.statut==="a_envoyer").length;
+
+  const marquerLu = async (n) => {
+    await sbPatch("notifications", n.id, { statut:"lu", date_envoi: new Date().toISOString() });
+    reload();
+  };
+
+  const creerManuelle = async () => {
+    if (!form.titre?.trim() || !form.message?.trim()) { alert("Titre et message requis."); return; }
+    await creerNotification({
+      pole: form.pole || null, type: form.type || "autre",
+      titre: form.titre, message: form.message, canal: form.canal || "interne",
+      clientEmail: form.client_email || null, clientTel: form.client_tel || null,
+      datePrevue: form.date_prevue || null,
+    });
+    setModal(false); setForm({}); reload();
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <SH t="Notifications" s="Alertes internes — Email / WhatsApp / SMS en Phase 2"/>
+          {nbNonLues>0 && <span style={{fontSize:10,background:"rgba(201,168,76,0.2)",color:B.warning,borderRadius:99,padding:"2px 10px",fontWeight:700}}>{nbNonLues} à envoyer</span>}
+        </div>
+        <Btn sm v="gold" onClick={()=>{setForm({canal:"interne",type:"autre"});setModal(true);}}>+ Créer</Btn>
+      </div>
+      <div style={{display:"flex",gap:5,overflowX:"auto"}}>
+        {CANAUX.map(c=>(
+          <button key={c} onClick={()=>setFiltre(c)} style={{padding:"4px 10px",borderRadius:99,border:"1px solid "+B.border,cursor:"pointer",fontSize:10,fontWeight:700,background:filtre===c?B.surface:"transparent",color:filtre===c?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>
+            {ICO_CANAL[c]||"◈"} {c==="tous"?"Toutes":c}
+          </button>
+        ))}
+      </div>
+      {loading && <div style={{textAlign:"center",padding:20,color:B.muted,fontSize:12}}>Chargement…</div>}
+      {!loading && affichees.length===0 && <div style={{textAlign:"center",padding:24,color:B.muted,fontSize:13}}>Aucune notification pour le moment.</div>}
+      {affichees.map(n=>(
+        <div key={n.id} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:"12px 14px",opacity:n.statut==="lu"?0.6:1}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:11}}>{ICO_CANAL[n.canal]||"🔔"}</span>
+              <span style={{fontSize:9,background:COL_STATUT_N[n.statut]||"rgba(255,255,255,0.05)",color:TXT_STATUT_N[n.statut]||B.muted,borderRadius:4,padding:"2px 7px",fontWeight:700}}>{n.statut}</span>
+              {n.pole && <span style={{fontSize:9,color:B.muted}}>{n.pole}</span>}
+            </div>
+            <span style={{fontSize:10,color:B.muted}}>{n.created_at?fmt(n.created_at.split("T")[0]):""}</span>
+          </div>
+          <div style={{fontSize:12,fontWeight:700,color:B.cream,marginBottom:3}}>{n.titre}</div>
+          <div style={{fontSize:11,color:B.muted,lineHeight:1.5,whiteSpace:"pre-line"}}>{n.message}</div>
+          {n.statut!=="lu" && (
+            <div style={{marginTop:8}}>
+              <Btn sm v="ghost" onClick={()=>marquerLu(n)}>✓ Marquer lu</Btn>
+            </div>
+          )}
+        </div>
+      ))}
+      {modal && (
+        <Mdl title="Nouvelle notification" onClose={()=>setModal(false)}>
+          <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})}/></Fld>
+          <Fld label="Message *"><Inp value={form.message||""} onChange={e=>setForm({...form,message:e.target.value})}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Canal"><Sel value={form.canal||"interne"} onChange={e=>setForm({...form,canal:e.target.value})} options={["interne","email","whatsapp","sms"]}/></Fld>
+            <Fld label="Type"><Sel value={form.type||"autre"} onChange={e=>setForm({...form,type:e.target.value})} options={NOTIF_TYPES}/></Fld>
+          </div>
+          <Fld label="Email client"><Inp type="email" value={form.client_email||""} onChange={e=>setForm({...form,client_email:e.target.value})}/></Fld>
+          <Fld label="Tél client"><Inp value={form.client_tel||""} onChange={e=>setForm({...form,client_tel:e.target.value})}/></Fld>
+          <Fld label="Date prévue (optionnel)"><Inp type="datetime-local" value={form.date_prevue||""} onChange={e=>setForm({...form,date_prevue:e.target.value})}/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={creerManuelle} full v="gold">Créer</Btn>
+            <Btn onClick={()=>setModal(false)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLANNING HORAIRES — Configuration des plages par pôle
+// ═══════════════════════════════════════════════════════════
+function PlanningHorairesF({ user }) {
+  const { data: horaires, loading, reload } = useP1Data("planning_horaires", { select:"*", order:"pole.asc,jour_semaine.asc", limit:100 }, []);
+  const [form, setForm] = useState({});
+  const [modal, setModal] = useState(false);
+  const JOURS = ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+  const POLES_H = ["GENERAL","ODYSSEE","EVENTS","FOOD","BSH","VILO","STRUCTURE"];
+
+  const sauvegarder = async () => {
+    const d = {
+      pole: form.pole, jour_semaine: parseInt(form.jour_semaine),
+      heure_ouverture: form.est_ferme ? null : (form.heure_ouverture||null),
+      heure_fermeture: form.est_ferme ? null : (form.heure_fermeture||null),
+      pause_debut: form.pause_debut || null, pause_fin: form.pause_fin || null,
+      est_ferme: !!form.est_ferme,
+    };
+    if (form._id) {
+      const rPH = await sbPatch("planning_horaires", form._id, d);
+      if (!rPH.ok) console.error("[planning_horaires] patch:", rPH.error);
+    } else {
+      const rPHn = await sbPost("planning_horaires", d);
+      if (!rPHn.ok) console.error("[planning_horaires] post:", rPHn.error);
+    }
+    setModal(false); setForm({}); reload();
+  };
+
+  const groupes = POLES_H.map(pole => ({
+    pole, jours: horaires.filter(h => h.pole===pole).sort((a,b)=>a.jour_semaine-b.jour_semaine)
+  })).filter(g => g.jours.length > 0);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <SH t="Horaires & disponibilités" s="Configuration par pôle — compatibles Square Bookings"/>
+        <Btn sm v="gold" onClick={()=>{setForm({pole:"GENERAL",jour_semaine:1,est_ferme:false});setModal(true);}}>+ Ajouter</Btn>
+      </div>
+      {loading && <div style={{textAlign:"center",padding:20,color:B.muted,fontSize:12}}>Chargement…</div>}
+      {groupes.map(g=>(
+        <div key={g.pole} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:"12px 14px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:B.cream,marginBottom:8}}>{g.pole}</div>
+          {g.jours.map(h=>(
+            <div key={h.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid "+B.border+"33"}}>
+              <span style={{fontSize:11,color:B.muted,minWidth:80}}>{JOURS[h.jour_semaine]}</span>
+              <span style={{fontSize:11,color:h.est_ferme?B.danger:B.success,fontWeight:600}}>
+                {h.est_ferme ? "Fermé" : (h.heure_ouverture||"?")+" – "+(h.heure_fermeture||"?")}
+                {h.pause_debut && !h.est_ferme ? " (pause "+h.pause_debut+"–"+h.pause_fin+")" : ""}
+              </span>
+              <Btn sm v="ghost" onClick={()=>{setForm({...h,_id:h.id,pole:h.pole,jour_semaine:h.jour_semaine});setModal(true);}}>✏</Btn>
+            </div>
+          ))}
+        </div>
+      ))}
+      {!loading && groupes.length===0 && <div style={{textAlign:"center",padding:24,color:B.muted,fontSize:13}}>Aucun horaire configuré — exécutez d'abord planning_horaires.sql dans Supabase.</div>}
+      {modal && (
+        <Mdl title={(form._id?"Modifier":"Ajouter")+" un horaire"} onClose={()=>setModal(false)}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_H}/></Fld>
+            <Fld label="Jour"><Sel value={String(form.jour_semaine||1)} onChange={e=>setForm({...form,jour_semaine:e.target.value})} options={JOURS.map((j,i)=>({value:String(i),label:j}))}/></Fld>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <input type="checkbox" checked={!!form.est_ferme} onChange={e=>setForm({...form,est_ferme:e.target.checked})} style={{width:16,height:16,accentColor:B.danger}}/>
+            <label style={{fontSize:12,color:B.cream}}>Jour fermé</label>
+          </div>
+          {!form.est_ferme && (
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <Fld label="Ouverture"><Inp type="time" value={form.heure_ouverture||""} onChange={e=>setForm({...form,heure_ouverture:e.target.value})}/></Fld>
+                <Fld label="Fermeture"><Inp type="time" value={form.heure_fermeture||""} onChange={e=>setForm({...form,heure_fermeture:e.target.value})}/></Fld>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <Fld label="Pause début (opt.)"><Inp type="time" value={form.pause_debut||""} onChange={e=>setForm({...form,pause_debut:e.target.value})}/></Fld>
+                <Fld label="Pause fin (opt.)"><Inp type="time" value={form.pause_fin||""} onChange={e=>setForm({...form,pause_fin:e.target.value})}/></Fld>
+              </div>
+            </>
+          )}
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={sauvegarder} full v="gold">Sauvegarder</Btn>
+            <Btn onClick={()=>setModal(false)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLANNING CENTRAL BELLAÏA — Vue unifiée tous pôles
+// Distinct de CalendrierP1 (agenda général) — celui-ci est
+// alimenté par planning_events avec détection de conflits.
+// ═══════════════════════════════════════════════════════════
+function PlanningCentralF({ user }) {
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({});
+  const [filtrePole, setFiltrePole] = useState("tous");
+  const [conflitApercu, setConflitApercu] = useState(null);
+  const [ongletPlanning, setOngletPlanning] = useState("calendrier");
+  const [vue, setVue] = useState("semaine"); // "jour" | "semaine" | "liste"
+  const [dateRef, setDateRef] = useState(new Date());
+
+  const { data: events, loading, reload } = useP1Data("planning_events", { select:"*", order:"date_debut.asc", limit:200 }, []);
+
+  const POLES_PLANNING = ["tous","ODYSSEE","EVENTS","FOOD","BSH","VILO","STRUCTURE","GENERAL"];
+  const POLE_ICO = { ODYSSEE:"💅", EVENTS:"✨", FOOD:"🍃", BSH:"✦", VILO:"📋", STRUCTURE:"🏗", GENERAL:"◈" };
+  const POLE_COL = { ODYSSEE:"#3730a3", EVENTS:"#065f46", FOOD:"#15803d", BSH:"#6B1A2B", VILO:"#1d4ed8", STRUCTURE:"#0f766e", GENERAL:B.violet };
+
+  // ── Helpers grille calendrier ──
+  const HEURE_DEBUT = 7;   // 7h
+  const HEURE_FIN = 21;    // 21h
+  const HEURES = Array.from({length: HEURE_FIN-HEURE_DEBUT+1}, (_,i) => HEURE_DEBUT+i);
+
+  const debutSemaine = (d) => { const x=new Date(d); const jour=x.getDay()||7; x.setDate(x.getDate()-jour+1); x.setHours(0,0,0,0); return x; };
+  const joursSemaine = (d) => { const lundi=debutSemaine(d); return Array.from({length:7},(_,i)=>{ const j=new Date(lundi); j.setDate(lundi.getDate()+i); return j; }); };
+  const memeJour = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+
+  const eventsDuJour = (jour) => events.filter(e => e.statut!=="annulé" && memeJour(new Date(e.date_debut), jour) && (filtrePole==="tous"||e.pole===filtrePole));
+
+  // Position verticale en % depuis HEURE_DEBUT, pour placer un événement dans la grille
+  const positionEvt = (ev) => {
+    const debut = new Date(ev.date_debut);
+    const fin = new Date(ev.date_fin);
+    const minDebut = (debut.getHours()-HEURE_DEBUT)*60 + debut.getMinutes();
+    const minFin = (fin.getHours()-HEURE_DEBUT)*60 + fin.getMinutes();
+    const totalMin = (HEURE_FIN-HEURE_DEBUT)*60;
+    const top = Math.max(0, (minDebut/totalMin)*100);
+    const height = Math.max(2, ((minFin-minDebut)/totalMin)*100);
+    return { top, height };
+  };
+
+  const conflitsDuJour = (jour) => {
+    const evs = eventsDuJour(jour);
+    const conf = new Set();
+    for (let i=0;i<evs.length;i++) for (let j=i+1;j<evs.length;j++) {
+      const a=evs[i], b=evs[j];
+      if (new Date(a.blocage_debut||a.date_debut) < new Date(b.blocage_fin||b.date_fin) && new Date(a.blocage_fin||a.date_fin) > new Date(b.blocage_debut||b.date_debut)) {
+        conf.add(a.id); conf.add(b.id);
+      }
+    }
+    return conf;
+  };
+
+  const naviguer = (sens) => {
+    const d = new Date(dateRef);
+    if (vue==="jour") d.setDate(d.getDate()+sens);
+    else d.setDate(d.getDate()+sens*7);
+    setDateRef(d);
+  };
+
+  const aVenir = events.filter(e => new Date(e.date_fin) >= new Date() && e.statut !== "annulé" && (filtrePole==="tous" || e.pole===filtrePole));
+
+  const ouvrirNouveau = () => {
+    setForm({ pole:"GENERAL", typeActivite:"tache", date:today(), heure:"10:00", dureeMin:60, necessitePresence:true });
+    setModal("nouveau");
+  };
+
+  const creer = async () => {
+    if (!form.titre?.trim() || !form.date) { alert("Titre et date requis."); return; }
+    const dateDebut = new Date(form.date+"T"+(form.heure||"10:00"));
+    const dateFin = new Date(dateDebut.getTime() + (parseInt(form.dureeMin)||60)*60000);
+    const res = await creerEvenementPlanning({
+      pole: form.pole, titre: form.titre, dateDebut, dateFin,
+      typeActivite: form.typeActivite || "tache", lieu: form.lieu,
+      necessitePresence: form.necessitePresence !== false,
+    }, { user });
+    if (!res.ok) {
+      setConflitApercu({ conflits: res.conflits, form: {...form} });
+      return;
+    }
+    setModal(null); setForm({});
+    reload();
+  };
+
+  const forcer = async () => {
+    if (!conflitApercu) return;
+    const f = conflitApercu.form;
+    const dateDebut = new Date(f.date+"T"+(f.heure||"10:00"));
+    const dateFin = new Date(dateDebut.getTime() + (parseInt(f.dureeMin)||60)*60000);
+    await creerEvenementPlanning({
+      pole: f.pole, titre: f.titre, dateDebut, dateFin,
+      typeActivite: f.typeActivite || "tache", lieu: f.lieu,
+      necessitePresence: f.necessitePresence !== false,
+    }, { force: true, user });
+    setConflitApercu(null); setModal(null); setForm({});
+    reload();
+  };
+
+  const annulerEvenement = async (ev) => {
+    if (!confirm("Annuler cet événement du planning ?")) return;
+    await sbPatch("planning_events", ev.id, { statut: "annulé" });
+    await ecrireAudit({ module:"planning_events", entiteId:ev.id, entiteRef:ev.reference, action:"changement_statut", ancienStatut:ev.statut, nouveauStatut:"annulé", user });
+    reload();
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <SH t="Planning central" s="Tous les pôles · Détection automatique des conflits"/>
+        {ongletPlanning==="calendrier" && <Btn sm onClick={ouvrirNouveau}>+ Activité</Btn>}
+      </div>
+
+      {/* Onglets principaux planning */}
+      <div style={{display:"flex",gap:5}}>
+        {[["calendrier","📅 Calendrier"],["horaires","🕐 Horaires"],["notifications","🔔 Notifications"]].map(([id,l])=>(
+          <button key={id} onClick={()=>setOngletPlanning(id)} style={{flex:1,padding:"7px 10px",borderRadius:10,border:"1px solid "+(ongletPlanning===id?B.gold:B.border),background:ongletPlanning===id?(B.gold+"18"):"transparent",color:ongletPlanning===id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:ongletPlanning===id?700:400,fontFamily:SA}}>{l}</button>
+        ))}
+      </div>
+
+      {ongletPlanning==="horaires" && <PlanningHorairesF user={user}/>}
+      {ongletPlanning==="notifications" && <NotificationsF user={user}/>}
+
+      {ongletPlanning==="calendrier" && <>
+
+      {/* Sélecteur de vue */}
+      <div style={{display:"flex",gap:5}}>
+        {[["jour","📆 Jour"],["semaine","🗓 Semaine"],["liste","📋 Liste"]].map(([id,l])=>(
+          <button key={id} onClick={()=>setVue(id)} style={{flex:1,padding:"7px 10px",borderRadius:10,border:"1px solid "+(vue===id?B.gold:B.border),background:vue===id?(B.gold+"18"):"transparent",color:vue===id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:vue===id?700:400,fontFamily:SA}}>{l}</button>
+        ))}
+      </div>
+
+      {/* Navigation temporelle (jour/semaine uniquement) */}
+      {vue!=="liste" && (
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:B.surface,border:"1px solid "+B.border,borderRadius:10,padding:"8px 12px"}}>
+          <button onClick={()=>naviguer(-1)} style={{background:"none",border:"none",color:B.cream,fontSize:16,cursor:"pointer",padding:"2px 8px"}}>‹</button>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:12,fontWeight:700,color:B.cream}}>
+              {vue==="jour" ? dateRef.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}) : (()=>{ const js=joursSemaine(dateRef); return js[0].toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" – "+js[6].toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}); })()}
+            </div>
+            <button onClick={()=>setDateRef(new Date())} style={{background:"none",border:"none",color:B.gold,fontSize:9,cursor:"pointer",marginTop:2}}>Aujourd'hui</button>
+          </div>
+          <button onClick={()=>naviguer(1)} style={{background:"none",border:"none",color:B.cream,fontSize:16,cursor:"pointer",padding:"2px 8px"}}>›</button>
+        </div>
+      )}
+
+      {/* Filtres pôle */}
+      <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2}}>
+        {POLES_PLANNING.map(p=>(
+          <button key={p} onClick={()=>setFiltrePole(p)} style={{padding:"5px 11px",borderRadius:99,border:"1px solid "+(B.border),cursor:"pointer",fontSize:10,fontWeight:700,background:filtrePole===p?B.surface:"transparent",color:filtrePole===p?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>
+            {p==="tous"?"Tous":(POLE_ICO[p]||"◈")+" "+p}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Panneau Square Bookings — synchronisation désactivée tant qu'OAuth non configuré ── */}
+      <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3}}>
+            <span style={{fontSize:12}}>□</span>
+            <span style={{fontSize:12,fontWeight:700,color:B.muted}}>Square Bookings</span>
+            <span style={{fontSize:9,padding:"2px 8px",borderRadius:99,background:"rgba(255,255,255,0.06)",color:B.muted,fontWeight:700}}>Non connecté</span>
+          </div>
+          <div style={{fontSize:11,color:B.muted}}>Synchronisation à configurer plus tard — le planning Bellaïa reste pleinement utilisable.</div>
+        </div>
+        {ENV.SQUARE_BOOKING && <a href={ENV.SQUARE_BOOKING} target="_blank" rel="noreferrer" style={{fontSize:10,color:B.gold,textDecoration:"none",flexShrink:0,marginLeft:12}}>Voir →</a>}
+      </div>
+
+      {loading && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
+
+      {/* ── VUE JOUR ── */}
+      {!loading && vue==="jour" && (()=>{ const conf = conflitsDuJour(dateRef); const evs = eventsDuJour(dateRef);
+        return (
+        <div style={{display:"flex",border:"1px solid "+B.border,borderRadius:12,overflow:"hidden",background:B.surface}}>
+          <div style={{width:42,flexShrink:0,borderRight:"1px solid "+B.border}}>
+            {HEURES.map(h=>(
+              <div key={h} style={{height:48,fontSize:9,color:B.muted,textAlign:"right",paddingRight:5,paddingTop:2,borderBottom:"1px solid "+B.border+"55"}}>{h}h</div>
+            ))}
+          </div>
+          <div style={{flex:1,position:"relative"}}>
+            {HEURES.map(h=>(<div key={h} style={{height:48,borderBottom:"1px solid "+B.border+"55"}}/>))}
+            {evs.map(ev=>{
+              const {top,height} = positionEvt(ev);
+              const totalPx = HEURES.length*48;
+              return (
+                <div key={ev.id} onClick={()=>setModal({type:"detail",ev})}
+                  style={{position:"absolute",top:(top/100*totalPx)+"px",height:Math.max(20,height/100*totalPx)+"px",left:4,right:4,background:(POLE_COL[ev.pole]||B.violet)+(conf.has(ev.id)?"cc":"dd"),border:conf.has(ev.id)?"2px solid "+B.danger:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"3px 6px",overflow:"hidden",cursor:"pointer"}}>
+                  <div style={{fontSize:9,fontWeight:700,color:"#fff",lineHeight:1.3}}>{POLE_ICO[ev.pole]} {ev.titre}</div>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,0.8)"}}>{new Date(ev.date_debut).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>
+                  {conf.has(ev.id) && <div style={{fontSize:8,color:"#fff",fontWeight:700}}>⚠ Conflit</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        ); })()}
+
+      {/* ── VUE SEMAINE ── */}
+      {!loading && vue==="semaine" && (
+        <div style={{display:"flex",border:"1px solid "+B.border,borderRadius:12,overflow:"hidden",background:B.surface,overflowX:"auto"}}>
+          <div style={{width:36,flexShrink:0,borderRight:"1px solid "+B.border,paddingTop:28}}>
+            {HEURES.map(h=>(<div key={h} style={{height:38,fontSize:8,color:B.muted,textAlign:"right",paddingRight:4,borderBottom:"1px solid "+B.border+"55"}}>{h}h</div>))}
+          </div>
+          {joursSemaine(dateRef).map(jour=>{
+            const conf = conflitsDuJour(jour);
+            const evs = eventsDuJour(jour);
+            const totalPx = HEURES.length*38;
+            return (
+              <div key={jour.toISOString()} style={{flex:1,minWidth:70,borderRight:"1px solid "+B.border+"55"}}>
+                <div style={{height:28,textAlign:"center",borderBottom:"1px solid "+B.border,background:memeJour(jour,new Date())?(B.gold+"15"):"transparent"}}>
+                  <div style={{fontSize:8,color:B.muted,textTransform:"uppercase"}}>{jour.toLocaleDateString("fr-FR",{weekday:"short"})}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:memeJour(jour,new Date())?B.gold:B.cream}}>{jour.getDate()}</div>
+                </div>
+                <div style={{position:"relative"}}>
+                  {HEURES.map(h=>(<div key={h} style={{height:38,borderBottom:"1px solid "+B.border+"33"}}/>))}
+                  {evs.map(ev=>{
+                    const {top,height} = positionEvt(ev);
+                    return (
+                      <div key={ev.id} onClick={()=>setModal({type:"detail",ev})}
+                        style={{position:"absolute",top:(top/100*totalPx)+"px",height:Math.max(14,height/100*totalPx)+"px",left:2,right:2,background:(POLE_COL[ev.pole]||B.violet)+(conf.has(ev.id)?"cc":"dd"),border:conf.has(ev.id)?"2px solid "+B.danger:"none",borderRadius:4,padding:"1px 3px",overflow:"hidden",cursor:"pointer"}}>
+                        <div style={{fontSize:7,fontWeight:700,color:"#fff",lineHeight:1.2}}>{POLE_ICO[ev.pole]}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── VUE LISTE (existante, conservée) ── */}
+      {!loading && vue==="liste" && aVenir.length===0 && <div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune activité planifiée.</div>}
+
+      {!loading && vue==="liste" && aVenir.map(ev=>(
+        <div key={ev.id} style={{background:B.card,border:"1px solid "+(ev.conflit_force?"rgba(180,80,80,0.5)":B.border),borderRadius:13,padding:"13px 14px",borderLeft:"3px solid "+(POLE_COL[ev.pole]||B.violet)}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
+                <span style={{fontSize:14}}>{POLE_ICO[ev.pole]||"◈"}</span>
+                <span style={{fontSize:13,fontWeight:700,color:B.cream}}>{ev.titre}</span>
+                {ev.conflit_force && <span style={{fontSize:8,background:"rgba(180,80,80,0.2)",color:B.danger,borderRadius:4,padding:"2px 6px",fontWeight:700}}>⚠ Conflit forcé</span>}
+              </div>
+              <div style={{fontSize:10,color:B.muted}}>
+                {new Date(ev.date_debut).toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"short"})} · {new Date(ev.date_debut).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} → {new Date(ev.date_fin).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+              </div>
+              {ev.lieu && <div style={{fontSize:10,color:B.muted,marginTop:1}}>📍 {ev.lieu}</div>}
+              <div style={{fontSize:9,color:B.muted,marginTop:3}}>
+                Préparation {ev.temps_preparation_min}min · Nettoyage {ev.temps_nettoyage_min}min · Marge {ev.marge_securite_min}min
+              </div>
+            </div>
+            <Btn sm v="danger" onClick={()=>annulerEvenement(ev)}>✕</Btn>
+          </div>
+        </div>
+      ))}
+
+      {/* Modal détail événement (clic sur un bloc de la grille) */}
+      {modal?.type==="detail" && (
+        <Mdl title={modal.ev.titre} onClose={()=>setModal(null)}>
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:12}}>
+            <span style={{fontSize:18}}>{POLE_ICO[modal.ev.pole]||"◈"}</span>
+            <span style={{fontSize:12,fontWeight:700,color:B.cream}}>{modal.ev.pole}</span>
+            {modal.ev.conflit_force && <span style={{fontSize:9,background:"rgba(180,80,80,0.2)",color:B.danger,borderRadius:4,padding:"2px 7px",fontWeight:700}}>⚠ Conflit forcé</span>}
+          </div>
+          <div style={{background:B.surface,border:"1px solid "+B.border,borderRadius:10,padding:"11px 13px",marginBottom:10}}>
+            <div style={{fontSize:11,color:B.muted,marginBottom:3}}>Horaire</div>
+            <div style={{fontSize:13,color:B.cream,fontWeight:600}}>
+              {new Date(modal.ev.date_debut).toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})}<br/>
+              → {new Date(modal.ev.date_fin).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+            </div>
+          </div>
+          {modal.ev.lieu && <div style={{fontSize:12,color:B.muted,marginBottom:8}}>📍 {modal.ev.lieu}</div>}
+          <div style={{fontSize:10,color:B.muted,marginBottom:14}}>
+            Préparation {modal.ev.temps_preparation_min}min · Déplacement {modal.ev.temps_deplacement_min}min · Nettoyage {modal.ev.temps_nettoyage_min}min · Marge {modal.ev.marge_securite_min}min
+          </div>
+          {modal.ev.reference && <div style={{fontSize:10,color:B.gold,marginBottom:14}}>Réf. {modal.ev.reference}</div>}
+          <Btn v="danger" full onClick={()=>{annulerEvenement(modal.ev);setModal(null);}}>Annuler cette activité</Btn>
+        </Mdl>
+      )}
+
+      {/* Modal nouvelle activité */}
+      {modal==="nouveau" && (
+        <Mdl title="Nouvelle activité planning" onClose={()=>setModal(null)}>
+          <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})} placeholder="Titre de l'activité"/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Pôle"><Sel value={form.pole||"GENERAL"} onChange={e=>setForm({...form,pole:e.target.value})} options={POLES_PLANNING.slice(1)}/></Fld>
+            <Fld label="Type"><Sel value={form.typeActivite||"tache"} onChange={e=>setForm({...form,typeActivite:e.target.value})} options={["prestation","evenement","livraison","production","tache"]}/></Fld>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Date *"><Inp type="date" value={form.date||""} onChange={e=>setForm({...form,date:e.target.value})}/></Fld>
+            <Fld label="Heure"><Inp type="time" value={form.heure||"10:00"} onChange={e=>setForm({...form,heure:e.target.value})}/></Fld>
+          </div>
+          <Fld label="Durée (minutes)"><Inp type="number" value={form.dureeMin||60} onChange={e=>setForm({...form,dureeMin:e.target.value})}/></Fld>
+          <Fld label="Lieu"><Inp value={form.lieu||""} onChange={e=>setForm({...form,lieu:e.target.value})} placeholder="Lieu (optionnel)"/></Fld>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <input type="checkbox" checked={form.necessitePresence!==false} onChange={e=>setForm({...form,necessitePresence:e.target.checked})} style={{accentColor:B.violet,width:16,height:16}}/>
+            <label style={{fontSize:12,color:B.cream,cursor:"pointer"}}>Nécessite la présence de la fondatrice</label>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={creer} full v="gold">Créer</Btn>
+            <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+
+      {/* Modal conflit (création directe planning) */}
+      {conflitApercu && (
+        <Mdl title="⚠ Conflit de planning détecté" onClose={()=>setConflitApercu(null)}>
+          <div style={{background:"rgba(180,80,80,0.12)",border:"1px solid rgba(180,80,80,0.35)",borderRadius:12,padding:"12px 14px",marginBottom:14}}>
+            <div style={{fontSize:12,color:B.danger,fontWeight:700,marginBottom:6}}>Ce créneau chevauche déjà :</div>
+            {conflitApercu.conflits.map(c=>(
+              <div key={c.id} style={{fontSize:12,color:B.cream,marginBottom:4,paddingLeft:6,borderLeft:"2px solid "+B.danger}}>
+                <strong>{c.titre}</strong> ({c.pole})<br/>
+                <span style={{fontSize:10,color:B.muted}}>{new Date(c.date_debut).toLocaleString("fr-FR")} → {new Date(c.date_fin).toLocaleString("fr-FR")}</span>
+              </div>
+            ))}
+          </div>
+          {user?.role !== "assistante" ? (
+            <div style={{display:"flex",gap:8}}>
+              <Btn v="danger" full onClick={forcer}>Forcer malgré le conflit</Btn>
+              <Btn v="ghost" onClick={()=>setConflitApercu(null)}>Choisir une autre date</Btn>
+            </div>
+          ) : (
+            <div>
+              <div style={{fontSize:11,color:B.warning,marginBottom:10}}>Seule la fondatrice peut forcer un créneau en conflit.</div>
+              <Btn v="ghost" full onClick={()=>setConflitApercu(null)}>Choisir une autre date</Btn>
+            </div>
+          )}
+        </Mdl>
+      )}
+
+      </>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // CALENDRIER — Phase 1 Supabase + compte à rebours
 // ═══════════════════════════════════════════════════════════
 function CalendrierP1({ user }) {
@@ -1595,10 +4632,10 @@ function CalendrierP1({ user }) {
     const h = Math.floor((diff % 86400000) / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
-    if (j === 0) return { label: `${h}h ${String(m).padStart(2,"0")}m ${String(s).padStart(2,"0")}s`, urgent: true };
-    if (j <= 7)  return { label: `J-${j}`, urgent: true };
-    if (j <= 30) return { label: `J-${j}`, urgent: false };
-    return { label: `J-${j}`, urgent: false };
+    if (j === 0) return { label: (h)+"h "+(String(m).padStart(2,"0"))+"m "+(String(s).padStart(2,"0"))+"s", urgent: true };
+    if (j <= 7)  return { label: "J-"+(j), urgent: true };
+    if (j <= 30) return { label: "J-"+(j), urgent: false };
+    return { label: "J-"+(j), urgent: false };
   };
 
   const save = async () => {
@@ -1606,7 +4643,7 @@ function CalendrierP1({ user }) {
     const d = { ...form, fondatrice_id: user?.id, updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("calendar_events", form._edit, d);
-    else await sbPost("calendar_events", d);
+    else (await sbPost("calendar_events", d)).ok || console.error("[calendar_eve] post échec");
     reload(); setModal(null);
   };
 
@@ -1615,12 +4652,12 @@ function CalendrierP1({ user }) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-        <SH t="Calendrier" s={`${aVenir.length} événement${aVenir.length!==1?"s":""} à venir`}/>
+        <SH t="Calendrier" s={(aVenir.length)+" événement"+(aVenir.length!==1?"s":"")+" à venir"}/>
         <Btn sm onClick={()=>{setForm({type_event:"evenement",statut:"planifié",couleur:B.violet,toute_journee:false,compte_rebours:false,alertes_jours:[30,15,7,3,1],date_debut:today()});setModal("evt");}}>+ Événement</Btn>
       </div>
 
       {/* Heure actuelle */}
-      <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"10px 14px",textAlign:"center"}}>
+      <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"10px 14px",textAlign:"center"}}>
         <div style={{fontSize:22,fontWeight:900,color:B.cream,fontFamily:FS,letterSpacing:"0.05em"}}>{now.toLocaleTimeString("fr-FR")}</div>
         <div style={{fontSize:11,color:B.muted}}>{now.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
       </div>
@@ -1632,7 +4669,7 @@ function CalendrierP1({ user }) {
       {aVenir.map(e => {
         const cd = countdown(e.date_debut);
         return (
-          <div key={e.id} style={{background:B.card,border:`1px solid ${cd.urgent?"rgba(201,168,76,0.4)":B.border}`,borderRadius:13,padding:"13px 14px",borderLeft:`3px solid ${e.couleur||B.violet}`}}>
+          <div key={e.id} style={{background:B.card,border:"1px solid "+(cd.urgent?"rgba(201,168,76,0.4)":B.border),borderRadius:13,padding:"13px 14px",borderLeft:"3px solid "+(e.couleur||B.violet)}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
                 <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
@@ -1662,7 +4699,7 @@ function CalendrierP1({ user }) {
         <div>
           <div style={{fontSize:11,fontWeight:700,color:B.muted,marginBottom:7,letterSpacing:"0.06em",textTransform:"uppercase"}}>Terminés / Annulés</div>
           {passes.slice(0,5).map(e=>(
-            <div key={e.id} style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:11,padding:"10px 13px",marginBottom:6,opacity:0.6}}>
+            <div key={e.id} style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:11,padding:"10px 13px",marginBottom:6,opacity:0.6}}>
               <div style={{display:"flex",justifyContent:"space-between"}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:600,color:B.cream}}>{TYPE_ICO[e.type_event]||"◈"} {e.titre}</div>
@@ -1727,37 +4764,37 @@ function DocumentsP1({ user }) {
     const d = { ...form, fondatrice_id: user?.id, updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("documents", form._edit, d);
-    else await sbPost("documents", d);
+    else (await sbPost("documents", d)).ok || console.error("[documents] post échec");
     reload(); setModal(null);
   };
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-        <SH t="Documents" s={`${docs.length} document${docs.length!==1?"s":""}`}/>
+        <SH t="Documents" s={(docs.length)+" document"+(docs.length!==1?"s":"")}/>
         <Btn sm onClick={()=>{setForm({type_doc:"autre",statut:"actif",partage_client:false});setModal("doc");}}>+ Document</Btn>
       </div>
 
       {/* Recherche */}
-      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher un document..." style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher un document..." style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
 
       {/* Filtres type */}
       <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:2}}>
         {["tous",...TYPES].map(t=>(
-          <button key={t} onClick={()=>setFiltre(t)} style={{padding:"4px 9px",borderRadius:99,border:`1px solid ${B.border}`,cursor:"pointer",fontSize:10,fontWeight:700,background:filtre===t?B.surface:"transparent",color:filtre===t?B.cream:B.muted,flexShrink:0,whiteSpace:"nowrap",fontFamily:SA}}>
-            {t==="tous"?"Tous":`${TYPE_ICO[t]||"📄"} ${t}`}
+          <button key={t} onClick={()=>setFiltre(t)} style={{padding:"4px 9px",borderRadius:99,border:"1px solid "+(B.border),cursor:"pointer",fontSize:10,fontWeight:700,background:filtre===t?B.surface:"transparent",color:filtre===t?B.cream:B.muted,flexShrink:0,whiteSpace:"nowrap",fontFamily:SA}}>
+            {t==="tous"?"Tous":(TYPE_ICO[t]||"📄")+" "+(t)}
           </button>
         ))}
       </div>
 
       {/* Modèles disponibles */}
       {templates.length > 0 && (
-        <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+        <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
           <div style={{fontSize:11,fontWeight:700,color:B.mutedL,marginBottom:8,letterSpacing:"0.06em",textTransform:"uppercase"}}>Modèles disponibles</div>
           <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
             {templates.map(t=>(
-              <button key={t.id} onClick={()=>{setForm({titre:`${t.nom} — ${new Date().toLocaleDateString("fr-FR")}`,type_doc:t.type_doc,pole:t.pole,statut:"brouillon",contenu:t.contenu,notes:`Créé depuis le modèle : ${t.nom}`});setModal("doc");}}
-                style={{background:`${B.violet}18`,border:`1px solid ${B.border}`,borderRadius:8,padding:"5px 10px",color:B.violetL,cursor:"pointer",fontSize:11,fontFamily:SA}}>
+              <button key={t.id} onClick={()=>{setForm({titre:(t.nom)+" — "+(new Date().toLocaleDateString("fr-FR")),type_doc:t.type_doc,pole:t.pole,statut:"brouillon",contenu:t.contenu,notes:"Créé depuis le modèle : "+(t.nom)});setModal("doc");}}
+                style={{background:(B.violet)+"18",border:"1px solid "+(B.border),borderRadius:8,padding:"5px 10px",color:B.violetL,cursor:"pointer",fontSize:11,fontFamily:SA}}>
                 {TYPE_ICO[t.type_doc]||"📄"} {t.nom}
               </button>
             ))}
@@ -1769,7 +4806,7 @@ function DocumentsP1({ user }) {
       {loading&&<div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
       {!loading&&docsFiltres.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucun document</div>}
       {docsFiltres.map(d=>(
-        <div key={d.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
+        <div key={d.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{flex:1}}>
               <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:4}}>
@@ -1778,7 +4815,7 @@ function DocumentsP1({ user }) {
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 <Bdg s={d.statut}/>
-                {d.pole&&<span style={{fontSize:9,background:`${B.violet}18`,color:B.violetL,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{d.pole}</span>}
+                {d.pole&&<span style={{fontSize:9,background:(B.violet)+"18",color:B.violetL,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{d.pole}</span>}
                 {d.partage_client&&<span style={{fontSize:9,background:"rgba(80,180,120,0.15)",color:B.success,borderRadius:4,padding:"2px 6px",fontWeight:700}}>Partagé</span>}
                 {d.signe&&<span style={{fontSize:9,background:"rgba(201,168,76,0.15)",color:B.gold,borderRadius:4,padding:"2px 6px",fontWeight:700}}>Signé</span>}
               </div>
@@ -1824,72 +4861,161 @@ function DocumentsP1({ user }) {
 
 function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,evenements,setEvenements}) {
   const[sec,setSec]=useState("dash");const[modal,setModal]=useState(null);const[form,setForm]=useState({});
+  const[detailCmd,setDetailCmd]=useState(null);
+  const majStatut=(id,nouveauStatut)=>{
+    setCommandes(p=>p.map(x=>x.id===id?{...x,statut:nouveauStatut}:x));
+    setDetailCmd(d=>d&&d.id===id?{...d,statut:nouveauStatut}:d);
+  };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
   const SECS=[{id:"dash",l:"🏠"},{id:"cmds",l:"🧾"},{id:"crm",l:"👥"},{id:"stock",l:"📦"},{id:"evts",l:"📅"},{id:"fin",l:"€"},{id:"params",l:"⚙"}];
 
   return(
-    <div style={{display:"flex",flexDirection:"column",minHeight:"100%",background:`radial-gradient(ellipse at 10% 0%,${BSH.prune},${BSH.fond} 60%)`}}>
-      <div style={{padding:"10px 14px",borderBottom:`1px solid ${BSH.line}`,display:"flex",alignItems:"center",gap:8}}>
+    <div style={{display:"flex",flexDirection:"column",minHeight:"100%",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)"}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid "+(BSH.line),display:"flex",alignItems:"center",gap:8}}>
         <span style={{fontFamily:FS,fontSize:13,color:BSH.or,letterSpacing:2}}>✦ Bella'Secret Home</span>
         <span style={{fontSize:8,color:BSH.cremeD,letterSpacing:2}}>BACK-OFFICE</span>
       </div>
-      <div style={{display:"flex",justifyContent:"space-around",padding:"7px",borderBottom:`1px solid ${BSH.line}`,background:"rgba(0,0,0,0.2)"}}>
-        {SECS.map(s=><button key={s.id} onClick={()=>setSec(s.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:sec===s.id?`2px solid ${BSH.or}`:"2px solid transparent"}}><span style={{fontSize:17}}>{s.l}</span></button>)}
+      <div style={{display:"flex",justifyContent:"space-around",padding:"7px",borderBottom:"1px solid "+(BSH.line),background:"rgba(0,0,0,0.2)"}}>
+        {SECS.map(s=><button key={s.id} onClick={()=>setSec(s.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:sec===s.id ? "2px solid "+(BSH.or) : "2px solid transparent"}}><span style={{fontSize:17}}>{s.l}</span></button>)}
       </div>
       <div style={{padding:"12px",color:BSH.creme,fontFamily:SA}}>
         {sec==="dash"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-            {[{ico:"€",v:`${ca}€`,l:"CA",c:BSH.or},{ico:"📦",v:commandes.length,l:"Commandes",c:BSH.rose},{ico:"👥",v:clientes.length,l:"Clientes",c:BSH.vert},{ico:"⚠",v:crit.length,l:"Critique",c:crit.length>0?BSH.rouge:BSH.vert}].map(s=>(
-              <div key={s.l} style={{flex:1,minWidth:70,background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:11,padding:"10px 8px",textAlign:"center",borderTop:`3px solid ${s.c}`}}>
+            {[{ico:"€",v:(ca)+"€",l:"CA",c:BSH.or},{ico:"📦",v:commandes.length,l:"Commandes",c:BSH.rose},{ico:"👥",v:clientes.length,l:"Clientes",c:BSH.vert},{ico:"⚠",v:crit.length,l:"Critique",c:crit.length>0?BSH.rouge:BSH.vert}].map(s=>(
+              <div key={s.l} style={{flex:1,minWidth:70,background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"10px 8px",textAlign:"center",borderTop:"3px solid "+(s.c)}}>
                 <div style={{fontSize:16,marginBottom:2}}>{s.ico}</div><div style={{fontSize:18,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{s.v}</div><div style={{fontSize:9,color:BSH.cremeD,marginTop:1}}>{s.l}</div>
               </div>
             ))}
           </div>
-          {crit.length>0&&<div style={{background:`${BSH.rouge}15`,border:`1px solid ${BSH.rouge}40`,borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:11,fontWeight:700,color:BSH.rouge,marginBottom:6}}>⚠ Stock critique</div>{crit.map(p=><div key={p.id} style={{fontSize:11,color:BSH.creme,marginBottom:3}}>{p.name} — <span style={{color:BSH.rouge}}>{p.stock} restants</span></div>)}</div>}
-          <div style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Dernières commandes</div>{commandes.slice(0,4).map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${BSH.line}`}}><div><div style={{fontSize:11,color:BSH.creme}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div></div>)}</div>
+          {crit.length>0&&<div style={{background:(BSH.rouge)+"15",border:"1px solid "+(BSH.rouge)+("40"),borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:11,fontWeight:700,color:BSH.rouge,marginBottom:6}}>⚠ Stock critique</div>{crit.map(p=><div key={p.id} style={{fontSize:11,color:BSH.creme,marginBottom:3}}>{p.name} — <span style={{color:BSH.rouge}}>{p.stock} restants</span></div>)}</div>}
+          {/* Mini-portail BSH — Accès rapide */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[
+              {ico:"🛍",l:"Boutique",   sub:"Produits & commandes", dest:"stock"},
+              {ico:"💎",l:"Espace VIP", sub:"Clientes fidèles",     dest:"crm"},
+              {ico:"📅",l:"Événements", sub:"Sessions privées",      dest:"evts"},
+              {ico:"❓",l:"FAQ",         sub:"Questions fréquentes",  dest:"params"},
+            ].map(c=>(
+              <div key={c.dest} onClick={()=>setSec(c.dest)} style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:12,padding:"12px 10px",cursor:"pointer",textAlign:"center"}}>
+                <div style={{fontSize:24,marginBottom:4}}>{c.ico}</div>
+                <div style={{fontSize:12,fontWeight:700,color:BSH.creme,marginBottom:2}}>{c.l}</div>
+                <div style={{fontSize:9,color:BSH.cremeD}}>{c.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Produits mis en avant — cliquables */}
+          {produits.filter(p=>p.stock>0).slice(0,3).length > 0 && (
+            <div style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:11,padding:"12px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>✦ Nouveautés / Produits</div>
+              <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                {produits.filter(p=>p.stock>0).slice(0,3).map(p=>(
+                  <div key={p.id} onClick={()=>{setForm({...p,_edit:p.id});setModal("prod");}} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 8px",background:"rgba(255,255,255,0.04)",borderRadius:8,cursor:"pointer",border:"1px solid "+BSH.line}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:600,color:BSH.creme}}>{p.ico||"✦"} {p.name}</div>
+                      <div style={{fontSize:9,color:BSH.cremeD}}>{p.cat} · {p.stock} en stock</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:14,fontWeight:700,color:BSH.or,fontFamily:FS}}>{p.prix}€</div>
+                      <div style={{fontSize:8,color:BSH.cremeD}}>Voir →</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Dernières commandes</div>{commandes.slice(0,4).map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+(BSH.line)}}><div><div style={{fontSize:11,color:BSH.creme}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div></div>)}</div>
         </div>}
         {sec==="cmds"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({statut:"Demande reçue",date:today(),montant:0,acompte:0,pmt:"WhatsApp"});setModal("cmd");}}>+ Nouvelle</BBtn></div>
-          {commandes.map(c=><div key={c.id} style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:12,padding:"12px 14px"}}>
-            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{display:"flex",gap:5,marginBottom:2}}><span style={{fontSize:10,color:BSH.or,fontWeight:700}}>{c.id}</span><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div><div style={{fontSize:12,fontWeight:600}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit} · {c.pmt}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:BSH.or,fontFamily:FS}}>{c.montant}€</div>{c.acompte>0&&<div style={{fontSize:9,color:BSH.cremeD}}>Acompte {c.acompte}€</div>}<div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("cmd");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setCommandes(p=>p.filter(x=>x.id!==c.id));}}>✕</BBtn></div></div></div>
+          {commandes.map(c=><div key={c.id} onClick={()=>setDetailCmd(c)} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{display:"flex",gap:5,marginBottom:2}}><span style={{fontSize:10,color:BSH.or,fontWeight:700}}>{c.id}</span><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div><div style={{fontSize:12,fontWeight:600}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit} · {c.pmt}</div><div style={{fontSize:9,color:BSH.bord,marginTop:3}}>Toucher pour le détail →</div></div><div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:BSH.or,fontFamily:FS}}>{c.montant}€</div>{c.acompte>0&&<div style={{fontSize:9,color:BSH.cremeD}}>Acompte {c.acompte}€</div>}<div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={(e)=>{e.stopPropagation();setForm({...c,_edit:c.id});setModal("cmd");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={(e)=>{e.stopPropagation();if(confirm("Supprimer ?"))setCommandes(p=>p.filter(x=>x.id!==c.id));}}>✕</BBtn></div></div></div>
           </div>)}
         </div>}
         {sec==="crm"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({vip:"Bronze",canal:"WhatsApp"});setModal("cli");}}>+ Cliente</BBtn></div>
-          {clientes.map(c=><div key={c.id} style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:12,padding:"12px 14px"}}>
+          {clientes.map(c=><div key={c.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}>
             <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{fontSize:13,fontWeight:600}}>{c.nom}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.ville} · {c.canal}</div>{c.preferences&&<div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>💫 {c.preferences}</div>}</div><div style={{textAlign:"right"}}><BTag c={VIP_C[c.vip]||BSH.or} sz={9}>{c.vip}</BTag><div style={{fontSize:13,color:BSH.or,fontWeight:700,marginTop:4}}>{c.total||0}€</div><div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("cli");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setClientes(p=>p.filter(x=>x.id!==c.id));}}>✕</BBtn></div></div></div>
           </div>)}
         </div>}
         {sec==="stock"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({cat:"Lingerie",prix:0,achat:0,stock:0,min:3,ico:"✨"});setModal("prod");}}>+ Produit</BBtn></div>
-          {produits.map(p=><div key={p.id} style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:12,padding:"12px 14px",borderLeft:`3px solid ${p.stock<=p.min?BSH.rouge:BSH.vert}`}}>
+          {produits.map(p=><div key={p.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+(p.stock<=p.min?BSH.rouge:BSH.vert)}}>
             <div style={{display:"flex",justifyContent:"space-between"}}><div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{p.name}</div><div style={{fontSize:10,color:BSH.cremeD}}>{p.cat}</div><div style={{display:"flex",gap:5,marginTop:5,flexWrap:"wrap"}}><BTag c={BSH.or} sz={8}>Vente {p.prix}€</BTag><BTag c={BSH.vert} sz={8}>Marge {p.prix>0?Math.round((p.prix-p.achat)/p.prix*100):0}%</BTag></div></div><div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:22,fontWeight:700,color:p.stock<=p.min?BSH.rouge:BSH.vert,fontFamily:FS}}>{p.stock}</div><div style={{fontSize:9,color:BSH.cremeD}}>en stock</div><div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...p,_edit:p.id});setModal("prod");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setProduits(p=>p.filter(x=>x.id!==p.id));}}>✕</BBtn></div></div></div>
           </div>)}
         </div>}
         {sec==="evts"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({ico:"✨",cap:20,dispo:20,prix:25,lieu:ENV.VILLE});setModal("evt");}}>+ Événement</BBtn></div>
-          {evenements.map(e=>{const v=e.cap-e.dispo;const pct=e.cap>0?Math.round((v/e.cap)*100):0;return(<div key={e.id} style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:12,padding:"12px 14px"}}>
+          {evenements.map(e=>{const v=e.cap-e.dispo;const pct=e.cap>0?Math.round((v/e.cap)*100):0;return(<div key={e.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}><div><div style={{fontSize:13,fontWeight:700}}>{e.ico} {e.nom}</div><div style={{fontSize:10,color:BSH.cremeD}}>{fmt(e.date)} · {e.lieu}</div></div><BTag c={BSH.or}>{e.prix}€</BTag></div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:7}}>{[["Cap.",e.cap],["Vendus",v],["CA",`${v*e.prix}€`]].map(([l,val])=><div key={l} style={{background:"rgba(255,255,255,.04)",borderRadius:7,padding:"5px 7px",textAlign:"center"}}><div style={{fontSize:13,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{val}</div><div style={{fontSize:9,color:BSH.cremeD}}>{l}</div></div>)}</div>
-            <div style={{background:"rgba(255,255,255,.04)",borderRadius:3,height:4,marginBottom:5}}><div style={{background:`linear-gradient(90deg,${BSH.bord},${BSH.rose})`,height:"100%",borderRadius:3,width:`${pct}%`}}/></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:7}}>{[["Cap.",e.cap],["Vendus",v],["CA",(v*e.prix)+"€"]].map(([l,val])=><div key={l} style={{background:"rgba(255,255,255,.04)",borderRadius:7,padding:"5px 7px",textAlign:"center"}}><div style={{fontSize:13,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{val}</div><div style={{fontSize:9,color:BSH.cremeD}}>{l}</div></div>)}</div>
+            <div style={{background:"rgba(255,255,255,.04)",borderRadius:3,height:4,marginBottom:5}}><div style={{background:"linear-gradient(90deg,"+(BSH.bord)+","+(BSH.rose)+")",height:"100%",borderRadius:3,width:(pct)+"%"}}/></div>
             <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color:BSH.cremeD}}>{pct}% · {e.dispo} restantes</span><div style={{display:"flex",gap:4}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...e,_edit:e.id});setModal("evt");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setEvenements(p=>p.filter(x=>x.id!==e.id));}}>✕</BBtn></div></div>
           </div>);})}
         </div>}
         {sec==="fin"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-            {[{v:`${ca}€`,l:"CA encaissé",c:BSH.or},{v:commandes.length>0?`${Math.round(ca/Math.max(commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").length,1))}€`:"—",l:"Panier moyen",c:BSH.rose}].map(s=><div key={s.l} style={{flex:1,background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:11,padding:"12px",borderTop:`3px solid ${s.c}`}}><div style={{fontSize:22,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{s.v}</div><div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{s.l}</div></div>)}
+            {[{v:(ca)+"€",l:"CA encaissé",c:BSH.or},{v:commandes.length>0 ? (Math.round(ca/Math.max(commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").length,1)))+"€" : "—",l:"Panier moyen",c:BSH.rose}].map(s=><div key={s.l} style={{flex:1,background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px",borderTop:"3px solid "+(s.c)}}><div style={{fontSize:22,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{s.v}</div><div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{s.l}</div></div>)}
           </div>
-          <div style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Toutes les commandes</div>{commandes.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${BSH.line}`}}><div><div style={{fontSize:11}}>{c.client}</div><div style={{fontSize:9,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={7}>{c.statut}</BTag></div></div>)}</div>
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Toutes les commandes</div>{commandes.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+(BSH.line)}}><div><div style={{fontSize:11}}>{c.client}</div><div style={{fontSize:9,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={7}>{c.statut}</BTag></div></div>)}</div>
         </div>}
         {sec==="params"&&<div style={{display:"flex",flexDirection:"column",gap:9}}>
-          {[{t:"Coordonnées",items:[["Nom","Bella'Secret Home"],["Adresse",ENV.ADRESSE],["Ville",`${ENV.VILLE} — ${ENV.PAYS}`],["E-mail",ENV.EMAIL],["WhatsApp",ENV.TEL]]},{t:"Paiements",items:[["SumUp","Principal — Phase 2"],["Stripe","À configurer"],["PayPal",ENV.PAYPAL]]},{t:"Données",items:[["Stockage","Artifact persistant"],["Supabase","Phase 2"],["Sécurité","Fondatrice uniquement"]]}].map(s=>(
-            <div key={s.t} style={{background:BSH.verre,border:`1px solid ${BSH.line}`,borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8,fontFamily:FS}}>{s.t}</div>{s.items.map(([l,v])=><div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:`1px solid ${BSH.line}22`,gap:8}}><span style={{fontSize:10,color:BSH.cremeD,flexShrink:0}}>{l}</span><span style={{fontSize:10,color:BSH.creme,textAlign:"right",wordBreak:"break-all"}}>{v}</span></div>)}</div>
+          {[{t:"Coordonnées",items:[["Nom","Bella'Secret Home"],["Adresse",ENV.ADRESSE],["Ville",(ENV.VILLE)+" — "+(ENV.PAYS)],["E-mail",ENV.EMAIL],["WhatsApp",ENV.TEL]]},{t:"Paiements",items:[["SumUp","Principal — Phase 2"],["Stripe","À configurer"],["PayPal",ENV.PAYPAL]]},{t:"Données",items:[["Stockage","Artifact persistant"],["Supabase","Phase 2"],["Sécurité","Fondatrice uniquement"]]}].map(s=>(
+            <div key={s.t} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8,fontFamily:FS}}>{s.t}</div>{s.items.map(([l,v])=><div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid "+(BSH.line)+"22",gap:8}}><span style={{fontSize:10,color:BSH.cremeD,flexShrink:0}}>{l}</span><span style={{fontSize:10,color:BSH.creme,textAlign:"right",wordBreak:"break-all"}}>{v}</span></div>)}</div>
           ))}
         </div>}
       </div>
 
       {/* Modals BSH */}
+      {detailCmd&&(()=>{
+        const c=detailCmd;
+        const montant=parseFloat(c.montant)||0;
+        const acompte=parseFloat(c.acompte)||0;
+        const solde=Math.max(montant-acompte,0);
+        const paye=c.statut==="Paiement complet reçu"||c.statut==="Terminée";
+        return(
+        <Mdl title={"Commande "+(c.id)} onClose={()=>setDetailCmd(null)}>
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:BSH.cremeD,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Statut</div>
+            <select value={c.statut} onChange={e=>majStatut(c.id,e.target.value)}
+              style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid "+(BSH.line),borderRadius:10,padding:"10px 12px",color:BSH.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+              {STATUTS_CMD.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:10}}>
+            <div style={{fontSize:10,color:BSH.cremeD,marginBottom:3}}>👤 CLIENTE</div>
+            <div style={{fontSize:14,fontWeight:700,color:BSH.creme}}>{c.client}</div>
+          </div>
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:10}}>
+            <div style={{fontSize:10,color:BSH.cremeD,marginBottom:3}}>🛍 PRODUITS</div>
+            <div style={{fontSize:13,color:BSH.creme}}>{c.produit}</div>
+          </div>
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:10}}>
+            <div style={{fontSize:10,color:BSH.cremeD,marginBottom:7}}>💳 PAIEMENT · {c.pmt||"—"}</div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"3px 0"}}><span style={{color:BSH.cremeD}}>Montant total</span><span style={{color:BSH.creme,fontWeight:700}}>{montant.toFixed(2)}€</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"3px 0"}}><span style={{color:BSH.cremeD}}>Acompte reçu</span><span style={{color:BSH.or,fontWeight:700}}>{acompte.toFixed(2)}€</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:14,padding:"6px 0 0",borderTop:"1px solid "+(BSH.line),marginTop:5}}><span style={{color:BSH.cremeD}}>Solde restant</span><span style={{color:solde>0?BSH.rouge:BSH.vert,fontWeight:700}}>{solde.toFixed(2)}€</span></div>
+          </div>
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:10}}>
+            <div style={{fontSize:10,color:BSH.cremeD,marginBottom:3}}>🧾 FACTURE</div>
+            <div style={{fontSize:12,color:BSH.creme}}>Réf. {c.id} · {c.date||"—"}</div>
+            <div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{paye?"Facture acquittée":"En attente de règlement"}</div>
+          </div>
+          <div style={{background:(BSH.bord)+"12",border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:14}}>
+            <div style={{fontSize:10,color:BSH.or,marginBottom:6,fontWeight:700}}>📒 TRACE PRÉ-COMPTABLE</div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0"}}><span style={{color:BSH.cremeD}}>Journal</span><span style={{color:BSH.creme}}>Ventes BSH</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0"}}><span style={{color:BSH.cremeD}}>Écriture</span><span style={{color:BSH.creme}}>{paye?"CA encaissé":acompte>0?"Acompte encaissé":"À encaisser"}</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0"}}><span style={{color:BSH.cremeD}}>Statut compta</span><span style={{color:paye?BSH.vert:BSH.or}}>{paye?"auto_validé":"brouillon"}</span></div>
+            <div style={{fontSize:9,color:BSH.cremeD,marginTop:6,lineHeight:1.5}}>Cette commande alimentera le journal des ventes de la pré-comptabilité Bellaïa.</div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <BBtn v="ghost" sz="md" onClick={()=>{setForm({...c,_edit:c.id});setDetailCmd(null);setModal("cmd");}}>✏ Modifier</BBtn>
+            <BBtn v="gold" sz="md" onClick={()=>setDetailCmd(null)}>Fermer</BBtn>
+          </div>
+        </Mdl>
+      );})()}
       {modal==="cmd"&&<Mdl title={form._edit?"Modifier":"Nouvelle commande"} onClose={()=>setModal(null)}>
         <Fld label="Cliente"><Inp value={form.client||""} onChange={e=>setForm({...form,client:e.target.value})} placeholder="Nom"/></Fld>
         <Fld label="Produit"><Inp value={form.produit||""} onChange={e=>setForm({...form,produit:e.target.value})} placeholder="Produit"/></Fld>
@@ -1902,7 +5028,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <Fld label="Paiement"><Sel value={form.pmt||"WhatsApp"} onChange={e=>setForm({...form,pmt:e.target.value})} options={["WhatsApp","SumUp","Stripe","PayPal","Revolut","Espèces"]}/></Fld>
         </div>
         <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
-        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.client?.trim())return;const id=form._edit||"BSH-"+Date.now().toString().slice(-6);if(form._edit)await setCommandes(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setCommandes(p=>[...p,{...form,id}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.client?.trim())return;const id=form._edit||await genererReference("BSH");if(form._edit)await setCommandes(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setCommandes(p=>[...p,{...form,id}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="cli"&&<Mdl title={form._edit?"Modifier":"Nouvelle cliente"} onClose={()=>setModal(null)}>
         <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Nom complet"/></Fld>
@@ -1989,20 +5115,18 @@ function IAF({ user, bshCmds, bshProduits }) {
     setInput("");
     setLoading(true);
 
-    const contexte = `Tu es Bellaïa, assistante IA de Renée-Lise Vilosa, fondatrice de Bella'Studio (Sinnamary, Guyane française).
-Tu connais son écosystème : Bella'Secret Home (lingerie), Bella'Odyssée (beauté), Bella'Events (événementiel), Bella'Food (traiteur), Vilo'Assistance (admin), Bella'Structure (modèles numériques), Mo Ti-Péyi (livres jeunesse).
-Principe : "Bellaïa prépare. Renée-Lise décide."
-Tu ne prends jamais de décision seule. Tu proposes, résumes, rédiges, analyses.
-
-Données actuelles :
-${kpis ? `- CA mois : ${kpis.ca_mois||0}€ | Encaissé : ${kpis.encaisse_mois||0}€ | En attente : ${kpis.en_attente_pmt||0}€` : "- Finances : données en chargement"}
-- Projets en cours : ${projets.filter(p=>p.statut==="en_cours").length}/${projets.length}
-- Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="terminé").length}
-- Commandes BSH récentes : ${bshCmds?.length||0}
-- Produits BSH : ${bshProduits?.length||0}
-
-Projets actifs : ${projets.filter(p=>p.statut==="en_cours").map(p=>`${p.titre} (${p.avancement||0}%)`).join(", ")||"aucun"}
-Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="terminé").map(t=>t.titre).join(", ")||"aucune"}`;
+    const contexte = [
+      "Tu es Bellaia, assistante IA de Renee-Lise Vilosa, fondatrice de Bella Studio (Sinnamary, Guyane francaise).",
+      "Tu connais son ecosysteme : Bella Secret Home, Bella Odyssee, Bella Events, Bella Food, Vilo Assistance, Mo Ti-Peyi.",
+      "Principe : Bellaia prepare. Renee-Lise decide. Tu proposes, resumes, rediges, analyses.",
+      "Donnees actuelles :",
+      (kpis ? "CA mois : "+(kpis.ca_mois||0)+"€ | Encaisse : "+(kpis.encaisse_mois||0)+"€ | En attente : "+(kpis.en_attente_pmt||0)+"€" : "Finances en chargement"),
+      "Projets en cours : "+(projets.filter(p=>p.statut==="en_cours").length)+"/"+(projets.length),
+      "Taches urgentes : "+(taches.filter(t=>t.priorite==="urgente"&&t.statut!=="terminé").length),
+      "Commandes BSH : "+(bshCmds?.length||0)+" | Produits BSH : "+(bshProduits?.length||0),
+      "Projets actifs : "+(projets.filter(p=>p.statut==="en_cours").map(p=>p.titre+" ("+(p.avancement||0)+"%)").join(", ")||"aucun"),
+      "Taches urgentes : "+(taches.filter(t=>t.priorite==="urgente"&&t.statut!=="terminé").map(t=>t.titre).join(", ")||"aucune")
+    ].join(" | ");
 
     const nouvellesMsgs = [...msgs, { role: "user", content: msg }];
     setMsgs(nouvellesMsgs);
@@ -2029,19 +5153,19 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
   return (
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 120px)",fontFamily:SA}}>
       {/* Header IA */}
-      <div style={{padding:"12px 14px 8px",borderBottom:`1px solid ${B.border}`}}>
+      <div style={{padding:"12px 14px 8px",borderBottom:"1px solid "+(B.border)}}>
         <div style={{fontSize:16,fontWeight:800,color:B.cream,fontFamily:FS}}>◎ IA Bellaïa</div>
         <div style={{fontSize:10,color:B.muted}}>Votre assistante intelligente · Données temps réel</div>
         {/* KPIs rapides */}
         {kpis && (
           <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
             {[
-              {l:"CA mois",v:`${kpis.ca_mois||0}€`,c:B.gold},
-              {l:"En attente",v:`${kpis.en_attente_pmt||0}€`,c:"#f59e0b"},
+              {l:"CA mois",v:(kpis.ca_mois||0)+"€",c:B.gold},
+              {l:"En attente",v:(kpis.en_attente_pmt||0)+"€",c:"#f59e0b"},
               {l:"Projets actifs",v:projets.filter(p=>p.statut==="en_cours").length,c:B.violetL},
               {l:"Tâches urgentes",v:taches.filter(t=>t.priorite==="urgente"&&t.statut!=="terminé").length,c:"#ef4444"},
             ].map(k=>(
-              <div key={k.l} style={{background:`${k.c}15`,border:`1px solid ${k.c}40`,borderRadius:8,padding:"5px 10px",textAlign:"center",minWidth:70}}>
+              <div key={k.l} style={{background:(k.c)+"15",border:"1px solid "+(k.c)+("40"),borderRadius:8,padding:"5px 10px",textAlign:"center",minWidth:70}}>
                 <div style={{fontSize:14,fontWeight:700,color:k.c,fontFamily:FS}}>{k.v}</div>
                 <div style={{fontSize:8,color:B.muted,marginTop:1}}>{k.l}</div>
               </div>
@@ -2051,11 +5175,11 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
         {/* Tabs */}
         <div style={{display:"flex",gap:6,marginTop:10}}>
           {[{id:"chat",l:"💬 Chat"},
-            {id:"urgences",l:`⚡ Urgences (${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="terminé").length})`},
-            {id:"projets",l:`🎯 Projets (${projets.filter(p=>p.statut==="en_cours").length})`},
+            {id:"urgences",l:"⚡ Urgences ("+(taches.filter(t=>t.priorite==="urgente"&&t.statut!=="terminé").length)+")"},
+            {id:"projets",l:"🎯 Projets ("+(projets.filter(p=>p.statut==="en_cours").length)+")"},
           ].map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)}
-              style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${tab===t.id?B.gold:B.border}`,background:tab===t.id?`${B.gold}18`:"transparent",color:tab===t.id?B.gold:B.muted,cursor:"pointer",fontSize:10,fontWeight:tab===t.id?700:400,fontFamily:SA}}>
+              style={{padding:"5px 10px",borderRadius:8,border:"1px solid "+(tab===t.id?B.gold:B.border),background:tab===t.id?(B.gold+"18"):"transparent",color:tab===t.id?B.gold:B.muted,cursor:"pointer",fontSize:10,fontWeight:tab===t.id?700:400,fontFamily:SA}}>
               {t.l}
             </button>
           ))}
@@ -2065,10 +5189,10 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
       {/* Tab : Chat */}
       {tab === "chat" && (<>
         {/* Actions rapides */}
-        <div style={{padding:"10px 12px",borderBottom:`1px solid ${B.border}`,display:"flex",gap:7,overflowX:"auto",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
+        <div style={{padding:"10px 12px",borderBottom:"1px solid "+(B.border),display:"flex",gap:7,overflowX:"auto",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
           {ACTIONS_RAPIDES.map(a=>(
             <button key={a.label} onClick={()=>envoyer(a.prompt)} disabled={loading}
-              style={{padding:"6px 11px",borderRadius:20,border:`1px solid ${B.border}`,background:"rgba(124,58,237,0.1)",color:B.violetL,cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:SA,whiteSpace:"nowrap",flexShrink:0}}>
+              style={{padding:"6px 11px",borderRadius:20,border:"1px solid "+(B.border),background:"rgba(124,58,237,0.1)",color:B.violetL,cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:SA,whiteSpace:"nowrap",flexShrink:0}}>
               {a.label}
             </button>
           ))}
@@ -2078,14 +5202,14 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
         <div style={{flex:1,overflowY:"auto",padding:"12px",display:"flex",flexDirection:"column",gap:10}}>
           {msgs.map((m,i)=>(
             <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
-              <div style={{maxWidth:"82%",padding:"10px 13px",borderRadius:m.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",background:m.role==="user"?`linear-gradient(135deg,${B.violet},#9333ea)`:`rgba(255,255,255,0.06)`,border:m.role==="assistant"?`1px solid ${B.border}`:"none",fontSize:12,lineHeight:1.65,color:B.cream,whiteSpace:"pre-wrap"}}>
+              <div style={{maxWidth:"82%",padding:"10px 13px",borderRadius:m.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",background:m.role==="user"?"linear-gradient(135deg,"+(B.violet)+",#9333ea)":"rgba(255,255,255,0.06)",border:m.role==="assistant"?"1px solid "+(B.border):"none",fontSize:12,lineHeight:1.65,color:B.cream,whiteSpace:"pre-wrap"}}>
                 {m.content}
               </div>
             </div>
           ))}
           {loading && (
             <div style={{display:"flex",justifyContent:"flex-start"}}>
-              <div style={{padding:"10px 14px",borderRadius:14,background:`rgba(255,255,255,0.06)`,border:`1px solid ${B.border}`,fontSize:12,color:B.muted}}>
+              <div style={{padding:"10px 14px",borderRadius:14,background:"rgba(255,255,255,0.06)",border:"1px solid "+(B.border),fontSize:12,color:B.muted}}>
                 ◎ Bellaïa réfléchit…
               </div>
             </div>
@@ -2093,13 +5217,13 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
         </div>
 
         {/* Input */}
-        <div style={{padding:"10px 12px",borderTop:`1px solid ${B.border}`,display:"flex",gap:8,flexShrink:0}}>
+        <div style={{padding:"10px 12px",borderTop:"1px solid "+(B.border),display:"flex",gap:8,flexShrink:0}}>
           <input value={input} onChange={e=>setInput(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();envoyer();}}}
             placeholder="Message à Bellaïa…"
-            style={{flex:1,background:`rgba(255,255,255,0.05)`,border:`1px solid ${B.border}`,borderRadius:12,padding:"9px 13px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA}}/>
+            style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid "+(B.border),borderRadius:12,padding:"9px 13px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA}}/>
           <button onClick={()=>envoyer()} disabled={loading||!input.trim()}
-            style={{background:`linear-gradient(135deg,${B.violet},#9333ea)`,border:"none",borderRadius:12,padding:"9px 14px",color:"#fff",cursor:loading||!input.trim()?"not-allowed":"pointer",fontSize:14,opacity:loading||!input.trim()?0.5:1}}>
+            style={{background:"linear-gradient(135deg,"+(B.violet)+",#9333ea)",border:"none",borderRadius:12,padding:"9px 14px",color:"#fff",cursor:loading||!input.trim()?"not-allowed":"pointer",fontSize:14,opacity:loading||!input.trim()?0.5:1}}>
             ➤
           </button>
         </div>
@@ -2112,7 +5236,7 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
             const p={urgente:0,haute:1,normale:2,basse:3};
             return (p[a.priorite]||2)-(p[b.priorite]||2);
           }).map(t=>(
-            <div key={t.id} style={{background:`rgba(255,255,255,0.04)`,border:`1px solid ${t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.border}`,borderRadius:12,padding:"10px 13px",borderLeft:`3px solid ${t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.violetL}`}}>
+            <div key={t.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.border),borderRadius:12,padding:"10px 13px",borderLeft:"3px solid "+(t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.violetL)}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div style={{fontSize:12,fontWeight:600,color:B.cream}}>{t.titre}</div>
                 <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:t.priorite==="urgente"?"rgba(239,68,68,0.2)":t.priorite==="haute"?"rgba(245,158,11,0.2)":"rgba(124,58,237,0.2)",color:t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.violetL,fontWeight:700}}>
@@ -2132,13 +5256,13 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
       {tab === "projets" && (
         <div style={{flex:1,overflowY:"auto",padding:"12px",display:"flex",flexDirection:"column",gap:8}}>
           {projets.filter(p=>p.statut==="en_cours").map(p=>(
-            <div key={p.id} style={{background:`rgba(255,255,255,0.04)`,border:`1px solid ${B.border}`,borderRadius:12,padding:"10px 13px"}}>
+            <div key={p.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"10px 13px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <div style={{fontSize:12,fontWeight:600,color:B.cream}}>{p.titre}</div>
                 <span style={{fontSize:10,color:B.gold,fontWeight:700}}>{p.avancement||0}%</span>
               </div>
               <div style={{height:4,background:"rgba(255,255,255,0.07)",borderRadius:99,overflow:"hidden"}}>
-                <div style={{height:"100%",width:`${p.avancement||0}%`,background:`linear-gradient(90deg,${B.violet},${B.gold})`,borderRadius:99}}/>
+                <div style={{height:"100%",width:(p.avancement||0)+"%",background:"linear-gradient(90deg,"+(B.violet)+","+(B.gold)+")",borderRadius:99}}/>
               </div>
               <div style={{fontSize:10,color:B.muted,marginTop:5}}>{p.univers} · {p.priorite}</div>
             </div>
@@ -2154,10 +5278,16 @@ Tâches urgentes : ${taches.filter(t=>t.priorite==="urgente"&&t.statut!=="termin
 
 
 function EcranConnexion({ onConnecte }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [dateNaissance, setDateNaissance] = useState("");
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState("");
+  const [succes, setSucces] = useState("");
 
   const connexion = async () => {
     if (!email.trim() || !password.trim()) { setErreur("Renseignez votre email et mot de passe."); return; }
@@ -2170,64 +5300,289 @@ function EcranConnexion({ onConnecte }) {
       });
       const d = await r.json();
       if (!r.ok) { setErreur(d.error || "Connexion échouée."); setLoading(false); return; }
-      // Stocker session localement
       if (typeof window !== "undefined") {
         localStorage.setItem("bellaia_user", JSON.stringify(d.user));
-        if (d.session?.access_token) localStorage.setItem("bellaia_token", d.session.access_token);
+        saveSession(d.session);
       }
       onConnecte(d.user);
     } catch { setErreur("Erreur réseau. Réessayez."); }
     setLoading(false);
   };
 
+  const inscription = async () => {
+    if (!email.trim() || !password.trim()) { setErreur("Email et mot de passe requis."); return; }
+    if (!dateNaissance) { setErreur("La date de naissance est obligatoire."); return; }
+    if (password.length < 6) { setErreur("Le mot de passe doit faire au moins 6 caractères."); return; }
+    setLoading(true); setErreur(""); setSucces("");
+    try {
+      const r = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(), password,
+          prenom: prenom.trim(), nom: nom.trim(),
+          telephone: telephone.trim(), date_naissance: dateNaissance,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setErreur(d.error || "Inscription échouée."); setLoading(false); return; }
+      if (d.besoinConfirmation) {
+        setSucces("Compte créé ! Vérifiez votre boîte mail et cliquez sur le lien de confirmation, puis connectez-vous.");
+        setMode("login");
+      } else {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("bellaia_user", JSON.stringify(d.user));
+          saveSession(d.session);
+        }
+        onConnecte(d.user);
+      }
+    } catch { setErreur("Erreur réseau. Réessayez."); }
+    setLoading(false);
+  };
+
+  // ── Styles réutilisables locaux ────────────────────────────
+  const inputStyle = {
+    width:"100%", background:"rgba(250,248,245,0.96)",
+    border:"1px solid rgba(200,190,220,0.35)", borderRadius:R.md,
+    padding:"11px 12px 11px 38px", color:"#1a1428",
+    fontSize:T.base, outline:"none", fontFamily:SA,
+    boxSizing:"border-box" as const, transition:TR.fast,
+  };
+  const labelStyle = {
+    fontSize:T.xs, fontWeight:T.w.bold, color:B.mutedL,
+    letterSpacing:"0.07em", textTransform:"uppercase" as const,
+    display:"block", marginBottom:5,
+  };
+  const iconWrap = {position:"relative" as const, width:"100%"};
+  const iconPos  = {position:"absolute" as const, left:11, top:"50%", transform:"translateY(-50%)", color:"#8b7fa8", fontSize:15, pointerEvents:"none" as const};
+
+  const [showPwd, setShowPwd] = React.useState(false);
+
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 30% 0%,rgba(124,58,237,0.3),${B.night} 65%)`,fontFamily:SA,alignItems:"center",justifyContent:"center",padding:"24px 20px"}}>
-      <div style={{textAlign:"center",maxWidth:340,width:"100%"}}>
-        {/* Logo */}
-        <div style={{width:64,height:64,borderRadius:18,background:`linear-gradient(135deg,${B.violet},${B.gold})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,margin:"0 auto 16px",boxShadow:`0 8px 32px rgba(124,58,237,0.3)`}}>◎</div>
-        <div style={{fontFamily:FS,fontSize:28,fontWeight:900,color:B.cream,letterSpacing:"-0.03em",marginBottom:4}}>Bellaïa</div>
-        <div style={{fontSize:10,color:B.muted,letterSpacing:"0.18em",textTransform:"uppercase",marginBottom:32}}>Bella'Studio Hub</div>
+    <div style={{
+      display:"flex", flexDirection:"column", minHeight:"100vh",
+      // Fond : triple halo + dégradé nuit
+      background:`
+        radial-gradient(ellipse 70% 50% at 15% 10%, rgba(124,58,237,0.28) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 85% 90%, rgba(90,20,55,0.22) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 30% at 60% 40%, rgba(201,168,76,0.07) 0%, transparent 50%),
+        ${B.night}
+      `,
+      fontFamily:SA, alignItems:"center", justifyContent:"center",
+      padding:"24px 20px", overflowY:"auto",
+    }}>
 
-        {/* Formulaire */}
-        <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:18,padding:"24px 20px",textAlign:"left"}}>
-          <div style={{fontSize:14,fontWeight:800,color:B.cream,fontFamily:FS,marginBottom:18,textAlign:"center"}}>Connexion</div>
+      {/* ── Particules dorées décoratives ── */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+        {[
+          {top:"8%", left:"12%", s:3, op:0.35},  {top:"18%", right:"8%",  s:2, op:0.25},
+          {top:"35%", left:"5%",  s:2, op:0.2},   {top:"60%", right:"12%", s:3, op:0.3},
+          {top:"75%", left:"20%", s:2, op:0.2},   {top:"88%", right:"25%", s:2, op:0.25},
+          {top:"45%", left:"88%", s:3, op:0.2},   {top:"25%", left:"75%",  s:2, op:0.15},
+        ].map((p, i) => (
+          <div key={i} style={{
+            position:"absolute", width:p.s, height:p.s, borderRadius:"50%",
+            background:B.gold, opacity:p.op,
+            top:p.top, left:(p as any).left, right:(p as any).right,
+            animation:`ds-pulse ${2.5 + i * 0.4}s ease-in-out infinite`,
+            animationDelay:`${i * 0.3}s`,
+          }}/>
+        ))}
+      </div>
 
-          {erreur && <div style={{background:"rgba(180,80,80,0.2)",border:"1px solid rgba(180,80,80,0.4)",borderRadius:10,padding:"9px 12px",color:B.danger,fontSize:12,marginBottom:14,lineHeight:1.5}}>{erreur}</div>}
+      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:360,animation:"ds-fadein 0.5s ease both"}}>
 
-          <div style={{marginBottom:14}}>
-            <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Email</label>
-            <input
-              type="email" value={email} onChange={e=>setEmail(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&connexion()}
-              placeholder="votre@email.com"
-              style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}
-            />
+        {/* ── Logo + identité ── */}
+        <div style={{textAlign:"center",marginBottom:32}}>
+          {/* Halo derrière le logo */}
+          <div style={{position:"relative",display:"inline-block",marginBottom:16}}>
+            <div style={{
+              position:"absolute",inset:"-12px",borderRadius:"50%",
+              background:"radial-gradient(circle, rgba(124,58,237,0.35) 0%, transparent 70%)",
+              animation:"ds-pulse 3s ease-in-out infinite",
+            }}/>
+            <div style={{
+              width:72, height:72, borderRadius:20,
+              background:`linear-gradient(135deg, ${B.violet}, ${B.violetD} 50%, ${B.gold})`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:34, position:"relative", zIndex:1,
+              boxShadow:`0 8px 32px rgba(124,58,237,0.45), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`,
+            }}>◎</div>
           </div>
-          <div style={{marginBottom:20}}>
-            <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Mot de passe</label>
-            <input
-              type="password" value={password} onChange={e=>setPassword(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&connexion()}
-              placeholder="••••••••"
-              style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}
-            />
-          </div>
 
-          <button onClick={connexion} disabled={loading} style={{width:"100%",background:`linear-gradient(135deg,${B.violet},#5b21b6)`,border:"none",borderRadius:10,padding:"12px",color:"#fff",fontWeight:700,fontSize:14,cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1,fontFamily:SA}}>
-            {loading ? "Connexion…" : "Se connecter"}
-          </button>
+          <div style={{fontFamily:FS,fontSize:30,fontWeight:900,color:B.cream,letterSpacing:"-0.03em",marginBottom:3}}>Bellaïa</div>
+          <div style={{fontSize:11,color:B.muted,letterSpacing:"0.2em",textTransform:"uppercase",marginBottom:8}}>Bella'Studio Hub</div>
+          <div style={{fontSize:T.sm,color:B.mutedL,fontStyle:"italic",lineHeight:1.5}}>
+            Bonjour, je suis Bellaïa.<br/>
+            <span style={{color:B.violetL}}>Votre assistante intelligente.</span>
+          </div>
         </div>
 
-        {/* Demande d'accès */}
-        <div style={{marginTop:20,background:"rgba(255,255,255,0.03)",border:`1px solid ${B.border}`,borderRadius:14,padding:"16px 18px"}}>
-          <div style={{fontSize:12,color:B.muted,marginBottom:10,lineHeight:1.6}}>Pas encore de compte ?<br/>Contactez la fondatrice pour un accès.</div>
+        {/* ── Carte principale — formulaire ── */}
+        <div style={{
+          background:"rgba(30,26,48,0.75)",
+          backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)",
+          border:"1px solid rgba(124,58,237,0.25)",
+          borderRadius:R["2xl"], padding:"28px 24px",
+          boxShadow:"0 24px 64px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.06) inset",
+        }}>
+          {/* Onglets login / signup */}
+          <div style={{display:"flex",background:B.night,borderRadius:R.md,padding:3,marginBottom:24,border:"1px solid "+B.border}}>
+            {(["login","signup"] as const).map(m => (
+              <button key={m} onClick={()=>{setMode(m);setErreur("");setSucces("");}}
+                style={{flex:1,padding:"8px 0",borderRadius:7,border:"none",cursor:"pointer",fontFamily:SA,fontSize:T.sm,fontWeight:T.w.bold,transition:TR.base,
+                  background:mode===m?"linear-gradient(135deg,"+B.violet+","+B.violetD+")":"transparent",
+                  color:mode===m?"#fff":B.muted,
+                  boxShadow:mode===m?"0 2px 8px rgba(124,58,237,0.3)":"none",
+                }}>
+                {m==="login" ? "Connexion" : "Créer un compte"}
+              </button>
+            ))}
+          </div>
+
+          {/* Messages ── */}
+          {erreur && (
+            <div style={{display:"flex",gap:8,alignItems:"flex-start",background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.25)",borderRadius:R.md,padding:"10px 13px",marginBottom:16}}>
+              <span style={{flexShrink:0,fontSize:14}}>⚠️</span>
+              <span style={{fontSize:T.sm,color:B.danger,lineHeight:1.5}}>{erreur}</span>
+            </div>
+          )}
+          {succes && (
+            <div style={{display:"flex",gap:8,alignItems:"flex-start",background:"rgba(110,231,160,0.1)",border:"1px solid rgba(110,231,160,0.25)",borderRadius:R.md,padding:"10px 13px",marginBottom:16}}>
+              <span style={{flexShrink:0,fontSize:14}}>✅</span>
+              <span style={{fontSize:T.sm,color:B.success,lineHeight:1.5}}>{succes}</span>
+            </div>
+          )}
+
+          {/* Champs inscription */}
+          {mode==="signup" && (
+            <>
+              <div style={{display:"flex",gap:10,marginBottom:14}}>
+                {([["prenom","Prénom",prenom,setPrenom],["nom","Nom",nom,setNom]] as any[]).map(([k,lbl,val,set])=>(
+                  <div key={k} style={{flex:1}}>
+                    <label style={labelStyle}>{lbl}</label>
+                    <input value={val} onChange={(e:any)=>set(e.target.value)} placeholder={lbl}
+                      style={{...inputStyle,paddingLeft:12}}/>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={labelStyle}>📱 Téléphone</label>
+                <div style={iconWrap}>
+                  <span style={iconPos}>📱</span>
+                  <input type="tel" value={telephone} onChange={e=>setTelephone(e.target.value)}
+                    placeholder="+594 694 ..." style={inputStyle}/>
+                </div>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={labelStyle}>🎂 Date de naissance *</label>
+                <input type="date" value={dateNaissance} onChange={e=>setDateNaissance(e.target.value)}
+                  style={{...inputStyle,paddingLeft:12,colorScheme:"dark"}}/>
+                <p style={{fontSize:T.xs,color:B.muted,marginTop:4,lineHeight:1.5}}>Obligatoire — certains espaces sont réservés aux majeurs.</p>
+              </div>
+            </>
+          )}
+
+          {/* Email */}
+          <div style={{marginBottom:14}}>
+            <label style={labelStyle}>📧 Email</label>
+            <div style={iconWrap}>
+              <span style={iconPos}>📧</span>
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&(mode==="login"?connexion():inscription())}
+                placeholder="votre@email.com" style={inputStyle}/>
+            </div>
+          </div>
+
+          {/* Mot de passe */}
+          <div style={{marginBottom:24}}>
+            <label style={labelStyle}>🔒 Mot de passe</label>
+            <div style={{...iconWrap,display:"flex",alignItems:"center"}}>
+              <span style={iconPos}>🔒</span>
+              <input type={showPwd?"text":"password"} value={password}
+                onChange={e=>setPassword(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&(mode==="login"?connexion():inscription())}
+                placeholder="••••••••" style={{...inputStyle,paddingRight:40}}/>
+              <button onClick={()=>setShowPwd(v=>!v)}
+                style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"#8b7fa8",fontSize:15,padding:4}}>
+                {showPwd?"👁":"👁‍🗨"}
+              </button>
+            </div>
+          </div>
+
+          {/* Bouton principal */}
+          <button onClick={mode==="login"?connexion:inscription} disabled={loading}
+            style={{
+              width:"100%",border:"none",borderRadius:R.md,padding:"13px",
+              background:loading?"rgba(124,58,237,0.4)":`linear-gradient(135deg, ${B.violet} 0%, ${B.violetD} 60%, #3b0ca3 100%)`,
+              color:"#fff",fontWeight:T.w.bold,fontSize:T.md,
+              cursor:loading?"not-allowed":"pointer",fontFamily:SA,
+              boxShadow:loading?"none":"0 4px 20px rgba(124,58,237,0.45), inset 0 1px 0 rgba(255,255,255,0.15)",
+              transition:TR.base,position:"relative",overflow:"hidden",
+            }}>
+            {loading ? (
+              <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <span style={{width:14,height:14,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"ds-spin 0.7s linear infinite"}}/>
+                {mode==="login"?"Connexion en cours…":"Création du compte…"}
+              </span>
+            ) : (
+              <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                {mode==="login"?"Se connecter ➡":"Créer mon compte ➡"}
+              </span>
+            )}
+          </button>
+
+          {/* Switch mode */}
+          <p style={{textAlign:"center",marginTop:18,fontSize:T.sm,color:B.muted,lineHeight:1.5}}>
+            {mode==="login" ? (
+              <>Pas encore de compte ?{" "}
+                <span onClick={()=>{setMode("signup");setErreur("");setSucces("");}}
+                  style={{color:B.gold,fontWeight:T.w.bold,cursor:"pointer",textDecoration:"underline",textUnderlineOffset:2}}>
+                  Créer un compte
+                </span>
+              </>
+            ) : (
+              <>Déjà inscrite ?{" "}
+                <span onClick={()=>{setMode("login");setErreur("");setSucces("");}}
+                  style={{color:B.gold,fontWeight:T.w.bold,cursor:"pointer",textDecoration:"underline",textUnderlineOffset:2}}>
+                  Se connecter
+                </span>
+              </>
+            )}
+          </p>
+        </div>
+
+        {/* ── Carte accès WhatsApp ── */}
+        <div style={{
+          marginTop:14,
+          background:"rgba(201,168,76,0.06)",
+          backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
+          border:"1px solid rgba(201,168,76,0.2)",
+          borderRadius:R.xl, padding:"16px 20px",
+        }}>
+          <p style={{fontSize:T.sm,color:B.muted,marginBottom:12,lineHeight:1.6,textAlign:"center"}}>
+            Pas encore de compte ? Contactez la fondatrice pour un accès.
+          </p>
           <button onClick={()=>window.open(WA("Bonjour, je souhaite accéder à la plateforme Bellaïa / Bella'Studio."),"_blank")}
-            style={{width:"100%",background:"transparent",border:`1px solid rgba(201,168,76,0.4)`,borderRadius:10,padding:"10px",color:B.gold,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+            style={{
+              width:"100%",background:"transparent",
+              border:"1px solid rgba(201,168,76,0.35)",borderRadius:R.md,
+              padding:"11px",color:B.gold,fontWeight:T.w.bold,fontSize:T.sm,
+              cursor:"pointer",fontFamily:SA,transition:TR.base,
+              display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+            }}>
             💬 Demander un accès via WhatsApp
           </button>
         </div>
 
-        <div style={{marginTop:20,fontSize:10,color:B.muted}}>Bella'Studio · ${ENV.VILLE}, ${ENV.PAYS} française</div>
+        {/* ── Footer ── */}
+        <p style={{textAlign:"center",marginTop:20,fontSize:T.xs,color:"rgba(139,127,168,0.5)"}}>
+          Bella'Studio · {ENV.VILLE}, {ENV.PAYS}
+        </p>
+        {/* BUILD_VERSION masqué en production — visible uniquement en dev */}
+        {process.env.NODE_ENV !== "production" && (
+          <p style={{textAlign:"center",fontSize:"9px",color:"rgba(201,168,76,0.3)",letterSpacing:"0.08em",marginTop:4}}>{BUILD_VERSION}</p>
+        )}
       </div>
     </div>
   );
@@ -2247,20 +5602,38 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
       try {
         const token = typeof window !== "undefined" ? localStorage.getItem("bellaia_token") : null;
         if (!token) return;
-        const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+        const headers = { "Authorization": "Bearer "+(token), "Content-Type": "application/json" };
         // Commandes du client
-        const r1 = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/commandes_client?user_id=eq.${user.id}&order=created_at.desc`, { headers: { ...headers, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } });
+        const r1 = await fetch((process.env.NEXT_PUBLIC_SUPABASE_URL)+"/rest/v1/commandes_client?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: { ...headers, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } });
         if (r1.ok) { const d = await r1.json(); setMesCommandes(d); }
         // Réservations du client
-        const r2 = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/reservations_client?user_id=eq.${user.id}&order=created_at.desc`, { headers: { ...headers, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } });
+        const r2 = await fetch((process.env.NEXT_PUBLIC_SUPABASE_URL)+"/rest/v1/reservations_client?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: { ...headers, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } });
         if (r2.ok) { const d = await r2.json(); setMesReservations(d); }
       } catch {}
     };
     charger();
   }, [user.id]);
 
+  // ── Garde RBAC : bloque TOUT module non autorisé (mineur, accès direct URL inclus)
+  if (activeUnivers && !moduleAutorise(activeUnivers, user)) {
+    const uObj = UNIVERS_CLIENT.find(u => u.id === activeUnivers);
+    return (
+      <div style={{minHeight:"100vh",background:"#0d0b12",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+        <div style={{fontSize:18,fontWeight:700,color:"#e8dcc8",marginBottom:8,fontFamily:"Georgia,serif"}}>Accès restreint</div>
+        <div style={{fontSize:13,color:"#9a8fa5",marginBottom:8,maxWidth:320,lineHeight:1.6}}>{MSG_MODULE_MINEUR}</div>
+        {uObj && <div style={{fontSize:12,color:"#7a7088",marginBottom:24}}>{uObj.ico} {uObj.nom}</div>}
+        <button onClick={() => setActiveUnivers(null)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:10,padding:"10px 20px",color:"#e8dcc8",fontSize:13,cursor:"pointer"}}>← Retour au portail</button>
+      </div>
+    );
+  }
   if (activeUnivers === "bsh") return <ClientBSH produits={produits} evenements={evenements} onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
-  if (activeUnivers === "bo")  return <ClientOdyssee rdvs={mesReservations} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "bo")  return <ClientOdyssee user={user} rdvs={mesReservations} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "bev") return <ClientEvents onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
+  if (activeUnivers === "bfd")   return <ClientFood user={user} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "vilo")  return <ClientVilo user={user} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "bse")   return <ClientEditions user={user} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "mtp")   return <ClientMoTiPeyi user={user} onBack={() => setActiveUnivers(null)}/>;
   if (activeUnivers)           return <PlaceholderUnivers univers={activeUnivers} onBack={() => setActiveUnivers(null)}/>;
 
   const UNIVERS_CLIENT = [
@@ -2276,21 +5649,21 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream}}>
       {/* Header client — aucun bouton back-office */}
-      <div style={{padding:"12px 16px",borderBottom:`1px solid ${B.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:32,height:32,borderRadius:9,background:`linear-gradient(135deg,${B.violet},${B.gold})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
+          <div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,"+(B.violet)+","+(B.gold)+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
           <div>
             <div style={{fontSize:13,fontWeight:800,color:B.cream,fontFamily:FS}}>Bella'Studio</div>
             <div style={{fontSize:9,color:B.muted,letterSpacing:"0.08em"}}>{[user.prenom,user.nom].filter(Boolean).join(" ")||user.email}</div>
           </div>
         </div>
-        <button onClick={onLogout} style={{background:"none",border:`1px solid ${B.border}`,borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>Déconnexion</button>
+        <button onClick={onLogout} style={{background:"none",border:"1px solid "+(B.border),borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>Déconnexion</button>
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 24px"}}>
         {/* Bonjour */}
         <div style={{marginBottom:20}}>
-          <div style={{fontFamily:FS,fontSize:20,fontWeight:800,color:B.cream,marginBottom:4}}>Bonjour{user.prenom ? `, ${user.prenom}` : user.nom ? `, ${user.nom.split(" ")[0]}` : ""} ✦</div>
+          <div style={{fontFamily:FS,fontSize:20,fontWeight:800,color:B.cream,marginBottom:4}}>Bonjour{user.prenom ? ", "+(user.prenom) : user.nom ? ", "+(user.nom.split(" ")[0]) : ""} ✦</div>
           <div style={{fontSize:12,color:B.muted}}>Bienvenue dans votre espace Bella'Studio</div>
         </div>
 
@@ -2299,7 +5672,7 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
           <div style={{marginBottom:20}}>
             <div style={{fontSize:13,fontWeight:800,color:B.cream,marginBottom:10}}>Mes commandes récentes</div>
             {mesCommandes.slice(0,3).map(c => (
-              <div key={c.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"10px 13px",marginBottom:7}}>
+              <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"10px 13px",marginBottom:7}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div>
                     <div style={{fontSize:11,color:B.gold,fontWeight:700,marginBottom:2}}>{c.id}</div>
@@ -2318,24 +5691,26 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
         {/* Univers */}
         <div style={{fontSize:13,fontWeight:800,color:B.cream,marginBottom:12}}>Nos univers</div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {UNIVERS_CLIENT.map(u => (
-            <button key={u.id} onClick={() => setActiveUnivers(u.id)} style={{background:`linear-gradient(135deg,${u.acc}18,${u.acc}08)`,border:`1px solid ${u.acc}40`,borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",fontFamily:SA,width:"100%"}}>
+          {UNIVERS_CLIENT.map(u => {
+            const verrou = !moduleAutorise(u.id, user);
+            return (
+            <button key={u.id} onClick={() => verrou ? alert(MSG_MODULE_MINEUR) : setActiveUnivers(u.id)} style={{background:verrou?"rgba(255,255,255,0.03)":"linear-gradient(135deg,"+(u.acc)+"18,"+(u.acc)+"08)",border:verrou?"1px solid rgba(255,255,255,0.08)":"1px solid "+(u.acc)+"40",borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",fontFamily:SA,width:"100%",opacity:verrou?0.5:1}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:40,height:40,borderRadius:11,background:`${u.acc}25`,border:`1px solid ${u.acc}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{u.ico}</div>
+                <div style={{width:40,height:40,borderRadius:11,background:verrou?"rgba(255,255,255,0.06)":(u.acc)+"25",border:verrou?"1px solid rgba(255,255,255,0.1)":"1px solid "+(u.acc)+"40",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,filter:verrou?"grayscale(1)":"none"}}>{verrou?"🔒":u.ico}</div>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:800,color:"#fff",fontFamily:FS,marginBottom:2}}>{u.nom}</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>{u.tag}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:verrou?"rgba(255,255,255,0.6)":"#fff",fontFamily:FS,marginBottom:2}}>{u.nom}</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>{verrou?"Réservé aux majeurs":u.tag}</div>
                 </div>
-                <span style={{color:`${u.acc}88`,fontSize:18}}>›</span>
+                <span style={{color:verrou?"rgba(255,255,255,0.3)":(u.acc)+"88",fontSize:18}}>{verrou?"🔒":"›"}</span>
               </div>
             </button>
-          ))}
+          );})}
         </div>
 
         {/* Contact */}
-        <div style={{marginTop:16,background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px",textAlign:"center"}}>
+        <div style={{marginTop:16,background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px",textAlign:"center"}}>
           <div style={{fontSize:11,color:B.muted,marginBottom:8}}>Une question ? Contactez-nous</div>
-          <button onClick={()=>window.open(WA(),"_blank")} style={{background:"transparent",border:`1px solid rgba(201,168,76,0.4)`,borderRadius:9,padding:"8px 16px",color:B.gold,fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>💬 WhatsApp</button>
+          <button onClick={()=>window.open(WA(),"_blank")} style={{background:"transparent",border:"1px solid rgba(201,168,76,0.4)",borderRadius:9,padding:"8px 16px",color:B.gold,fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>💬 WhatsApp</button>
         </div>
       </div>
     </div>
@@ -2345,6 +5720,221 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
 // ═══════════════════════════════════════════════════════════
 // ESPACE HÔTE — données isolées par user_id
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// HoteOdyssee — Espace Talent / Technicienne beauté
+// Planning · Missions · Contrats · Paiements · Documents
+// ═══════════════════════════════════════════════════════════
+function HoteOdyssee({ user, onBack }) {
+  const [onglet, setOnglet] = React.useState("planning");
+  const [missions, setMissions] = React.useState([]);
+  const [loading,  setLoading]  = React.useState(false);
+  const [source,   setSource]   = React.useState("local");
+
+  const BO_ACC = "#9b59b6";
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL || !user) return;
+      setLoading(true);
+      try {
+        const token = await getTokenAsync();
+        const nom   = [user?.prenom, user?.nom].filter(Boolean).join(" ");
+        const r = await fetch(
+          SB_URL+"/rest/v1/bellaia_commandes?bu=eq.ODYSSEE&order=date_livraison.asc&limit=50",
+          { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+        );
+        const d = r.ok ? await r.json() : [];
+        if (actif) {
+          setMissions(Array.isArray(d) ? d : []);
+          if (d.length > 0) setSource("supabase");
+        }
+      } catch(e) { console.warn("[HoteOdyssee]", e.message); }
+      finally { if (actif) setLoading(false); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, [user]);
+
+  const fmtDt  = (s) => { try { return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s||""; } };
+  const colSt  = (s) => ({BROUILLON:"#60a5fa",COMMANDE:"#22c55e",PRODUCTION:"#fb923c",PRET:"#a855f7",LIVRE:"#16a34a",ANNULE:"#f87171"})[s]||"rgba(255,255,255,0.4)";
+
+  const ONGLETS = [
+    {id:"planning",  ico:"📅", l:"Planning"},
+    {id:"missions",  ico:"🎯", l:"Missions"},
+    {id:"contrats",  ico:"📝", l:"Contrats"},
+    {id:"paiements", ico:"💰", l:"Paiements"},
+    {id:"documents", ico:"📁", l:"Documents"},
+  ];
+
+  const imprimerFicheMission = (m) => {
+    const lignes = m.lignes ? (typeof m.lignes==="string"?JSON.parse(m.lignes):m.lignes) : [];
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Fiche Mission ${m.reference||""}</title>
+<style>body{font-family:Arial,sans-serif;padding:28px;max-width:640px;margin:0 auto;color:#111;font-size:13px}
+h1{color:#9b59b6;font-size:18px;border-bottom:2px solid #9b59b6;padding-bottom:6px}
+@media print{button{display:none}}</style></head><body>
+<h1>💅 Bella'Odyssée — Fiche Mission</h1>
+<p><strong>Référence :</strong> ${m.reference||"—"}</p>
+<p><strong>Client :</strong> ${m.client_nom||"—"}</p>
+<p><strong>Date :</strong> ${fmtDt(m.date_livraison||m.date_commande||"")}</p>
+${lignes.length>0?"<p><strong>Prestation :</strong> "+lignes.map(l=>l.libelle).join(", ")+"</p>":""}
+<p><strong>Total :</strong> <strong style="color:#9b59b6">${m.total?Number(m.total).toFixed(2)+"€":"Sur devis"}</strong></p>
+<p style="margin-top:20px;color:#6b7280;font-size:11px">Bella'Odyssée · Bella'Studio · Sinnamary, Guyane</p>
+</body></html>`;
+    const w = window.open("","_blank");
+    if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);}
+    // GED auto-save
+    gedAutoSave({titre:"Fiche mission "+(m.reference||""), module:"ODYSSEE", categorie:"fiche_mission",
+      reference:m.reference, clientNom:m.client_nom, entiteId:m.id, entiteTable:"bellaia_commandes"
+    }).catch(e=>console.warn("[GED]",e.message));
+  };
+
+  const missionsPlanning = missions.filter(m => ["COMMANDE","PRODUCTION","PRET"].includes(m.statut))
+    .sort((a,b) => (a.date_livraison||"") < (b.date_livraison||"") ? -1 : 1);
+  const missionsTerminees = missions.filter(m => ["LIVRE","CLOTURE"].includes(m.statut));
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#1a0a1e,#07050a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(155,89,182,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div>
+          <div style={{fontFamily:FS,fontSize:14,color:"#c9a96e"}}>💅 Espace Talent Odyssée</div>
+          <div style={{fontSize:9,color:"rgba(155,89,182,0.8)"}}>
+            {source==="supabase"?"✅ Synchronisé":"📦 Local"} · {missions.length} mission{missions.length>1?"s":""}
+          </div>
+        </div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+      </div>
+
+      <div style={{display:"flex",overflowX:"auto",padding:"6px 12px",borderBottom:"1px solid rgba(155,89,182,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0,gap:2}}>
+        {ONGLETS.map(o=>(
+          <button key={o.id} onClick={()=>setOnglet(o.id)} style={{padding:"5px 10px",borderRadius:99,border:"none",cursor:"pointer",fontSize:9,fontWeight:700,whiteSpace:"nowrap",fontFamily:SA,background:onglet===o.id?BO_ACC:"transparent",color:onglet===o.id?"#fff":"rgba(255,255,255,0.45)"}}>
+            {o.ico} {o.l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 28px"}}>
+
+        {/* ── PLANNING ── */}
+        {onglet==="planning" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Planning à venir</div>
+            {loading && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)"}}>Chargement…</div>}
+            {!loading && missionsPlanning.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune mission planifiée.</div>
+            )}
+            {missionsPlanning.map(m=>(
+              <div key={m.id} style={{background:"rgba(155,89,182,0.08)",border:"1px solid rgba(155,89,182,0.2)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                    <div style={{fontSize:11,color:"rgba(245,240,232,0.6)"}}>{m.client_nom}</div>
+                  </div>
+                  <span style={{fontSize:9,color:colSt(m.statut),fontWeight:700}}>{m.statut}</span>
+                </div>
+                <div style={{fontSize:10,color:"rgba(155,89,182,0.9)",fontWeight:700}}>
+                  📅 {fmtDt(m.date_livraison||m.date_commande||"")}
+                  {m.total?" · "+(Number(m.total).toFixed(2).replace(".",","))+" €":""}
+                </div>
+                <div style={{display:"flex",gap:6,marginTop:6}}>
+                  <button onClick={()=>imprimerFicheMission(m)} style={{fontSize:9,padding:"3px 8px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(201,168,76,0.4)",background:"transparent",color:"#c9a96e",fontFamily:SA}}>📄 Fiche</button>
+                  <button onClick={()=>window.open(WA(`Planning Bella'Odyssée — Mission ${m.reference}\nClient : ${m.client_nom}\nDate : ${fmtDt(m.date_livraison||"")}`),"_blank")} style={{fontSize:9,padding:"3px 8px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(37,211,102,0.3)",background:"transparent",color:"#25d366",fontFamily:SA}}>💬 WA</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MISSIONS ── */}
+        {onglet==="missions" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Toutes mes missions</div>
+            {missions.length===0 && !loading && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune mission assignée.</div>
+            )}
+            {missions.map(m=>(
+              <div key={m.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                  <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{m.client_nom} · {fmtDt(m.date_livraison||m.date_commande||"")}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#c9a96e"}}>{m.total?Number(m.total).toFixed(2).replace(".",",")+" €":"—"}</div>
+                  <span style={{fontSize:8,color:colSt(m.statut),fontWeight:700}}>{m.statut}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── CONTRATS ── */}
+        {onglet==="contrats" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Contrats & fiches</div>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.5)",fontStyle:"italic",marginBottom:8}}>
+              Imprimez une fiche mission depuis l'onglet Planning.
+            </div>
+            {missions.map(m=>(
+              <div key={m.id} style={{background:"rgba(155,89,182,0.06)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                  <div style={{fontSize:10,color:"rgba(245,240,232,0.5)"}}>{fmtDt(m.date_livraison||"")}</div>
+                </div>
+                <button onClick={()=>imprimerFicheMission(m)} style={{fontSize:10,padding:"5px 10px",borderRadius:7,cursor:"pointer",border:"1px solid rgba(201,168,76,0.4)",background:"transparent",color:"#c9a96e",fontFamily:SA}}>📄 Imprimer</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PAIEMENTS ── */}
+        {onglet==="paiements" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes paiements</div>
+            <div style={{background:"rgba(155,89,182,0.1)",border:"1px solid rgba(155,89,182,0.2)",borderRadius:10,padding:"10px 13px",marginBottom:4}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#9b59b6"}}>
+                Total missions terminées : {missionsTerminees.reduce((s,m)=>s+(m.total||0),0).toFixed(2).replace(".",",")} €
+              </div>
+            </div>
+            {missionsTerminees.length===0 && (
+              <div style={{textAlign:"center",padding:"16px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucun paiement enregistré.</div>
+            )}
+            {missionsTerminees.map(m=>(
+              <div key={m.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.reference}</div>
+                  <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{m.client_nom} · {fmtDt(m.date_livraison||"")}</div>
+                </div>
+                <div style={{fontSize:14,fontWeight:700,color:"#22c55e"}}>{m.total?Number(m.total).toFixed(2).replace(".",",")+" €":"—"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── DOCUMENTS ── */}
+        {onglet==="documents" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes documents</div>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.5)",lineHeight:1.7}}>
+              Les documents générés (fiches mission, contrats) apparaissent automatiquement ici après impression depuis l'onglet Planning ou Contrats.
+            </div>
+            {missions.filter(m=>m.statut!=="BROUILLON").map(m=>(
+              <div key={m.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(155,89,182,0.15)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>📄 Fiche {m.reference}</div>
+                  <div style={{fontSize:9,color:"rgba(245,240,232,0.5)"}}>{m.client_nom}</div>
+                </div>
+                <button onClick={()=>imprimerFicheMission(m)} style={{fontSize:9,padding:"4px 9px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(201,168,76,0.35)",background:"transparent",color:"#c9a96e",fontFamily:SA}}>📄 Ouvrir</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 function EspaceHote({ user, onLogout }) {
   const [ong, setOng] = useState("planning");
   const [missions, setMissions] = useState([]);
@@ -2356,11 +5946,11 @@ function EspaceHote({ user, onLogout }) {
       try {
         const token = typeof window !== "undefined" ? localStorage.getItem("bellaia_token") : null;
         if (!token) return;
-        const h = { "Authorization": `Bearer ${token}`, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, "Content-Type": "application/json" };
+        const h = { "Authorization": "Bearer "+(token), "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, "Content-Type": "application/json" };
         const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const r1 = await fetch(`${base}/rest/v1/missions_hote?user_id=eq.${user.id}&order=date.asc`, { headers: h });
+        const r1 = await fetch((base)+"/rest/v1/missions_hote?user_id=eq."+(user.id)+"&order=date.asc", { headers: h });
         if (r1.ok) setMissions(await r1.json());
-        const r2 = await fetch(`${base}/rest/v1/contrats?user_id=eq.${user.id}&order=created_at.desc`, { headers: h });
+        const r2 = await fetch((base)+"/rest/v1/contrats?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: h });
         if (r2.ok) setContrats(await r2.json());
       } catch {}
     };
@@ -2368,7 +5958,7 @@ function EspaceHote({ user, onLogout }) {
   }, [user.id]);
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 20% 0%,#0d2420,${B.night} 65%)`,fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d2420,"+(B.night)+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(13,148,136,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>🎭</span>
@@ -2391,7 +5981,7 @@ function EspaceHote({ user, onLogout }) {
             {missions.filter(m=>m.statut==="Confirmée"||m.statut==="Acceptée").map(m=>(
               <div key={m.id} style={{background:"rgba(13,148,136,0.1)",border:"1px solid rgba(13,148,136,0.3)",borderRadius:13,padding:"13px 15px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><div style={{fontSize:13,fontWeight:700,color:B.cream}}>{m.titre}</div><Bdg s={m.statut}/></div>
-                <div style={{fontSize:11,color:B.muted}}>{m.date&&`📅 ${fmt(m.date)}`}{m.lieu&&` · 📍 ${m.lieu}`}</div>
+                <div style={{fontSize:11,color:B.muted}}>{m.date&&"📅 "+(fmt(m.date))}{m.lieu&&" · 📍 "+(m.lieu)}</div>
                 {m.cachet>0&&<div style={{fontSize:13,fontWeight:700,color:"#0d9488",marginTop:5}}>💰 {m.cachet}€</div>}
               </div>
             ))}
@@ -2403,13 +5993,13 @@ function EspaceHote({ user, onLogout }) {
             <SH t="Mes Missions" s="Toutes les propositions"/>
             {missions.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune mission reçue pour l'instant.</div>}
             {missions.map(m=>(
-              <div key={m.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 15px"}}>
+              <div key={m.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 15px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><div style={{fontSize:13,fontWeight:700,color:B.cream}}>{m.titre}</div><Bdg s={m.statut}/></div>
                 {m.description&&<div style={{fontSize:11,color:B.muted,marginBottom:6,lineHeight:1.5}}>{m.description}</div>}
-                <div style={{fontSize:11,color:B.muted,marginBottom:6}}>{m.date&&`📅 ${fmt(m.date)}`}{m.lieu&&` · 📍 ${m.lieu}`}</div>
+                <div style={{fontSize:11,color:B.muted,marginBottom:6}}>{m.date&&"📅 "+(fmt(m.date))}{m.lieu&&" · 📍 "+(m.lieu)}</div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   {m.cachet>0&&<span style={{fontSize:13,fontWeight:700,color:B.gold}}>💰 {m.cachet}€</span>}
-                  {m.statut==="Proposée"&&<Btn sm v="success" onClick={()=>window.open(WA(`Bonjour, j'accepte la mission : ${m.titre}`),"_blank")}>Accepter →</Btn>}
+                  {m.statut==="Proposée"&&<Btn sm v="success" onClick={()=>window.open(WA("Bonjour, j'accepte la mission : "+(m.titre)),"_blank")}>Accepter →</Btn>}
                 </div>
               </div>
             ))}
@@ -2421,10 +6011,10 @@ function EspaceHote({ user, onLogout }) {
             <SH t="Mes Contrats"/>
             {contrats.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucun contrat pour l'instant.</div>}
             {contrats.map(c=>(
-              <div key={c.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+              <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:B.cream,fontWeight:600}}>{c.titre}</span><span style={{background:c.statut==="Signé"?"rgba(80,180,120,0.2)":"rgba(201,168,76,0.2)",color:c.statut==="Signé"?B.success:B.warning,borderRadius:99,padding:"3px 9px",fontSize:10,fontWeight:700}}>{c.statut}</span></div>
                 {c.date_creation&&<div style={{fontSize:11,color:B.muted,marginBottom:6}}>📅 {fmt(c.date_creation)}</div>}
-                {c.statut==="À signer"&&<Btn sm v="gold" onClick={()=>window.open(WA(`Bonjour, je souhaite signer le contrat : ${c.titre}`),"_blank")}>Signer via WhatsApp →</Btn>}
+                {c.statut==="À signer"&&<Btn sm v="gold" onClick={()=>window.open(WA("Bonjour, je souhaite signer le contrat : "+(c.titre)),"_blank")}>Signer via WhatsApp →</Btn>}
               </div>
             ))}
           </div>
@@ -2434,7 +6024,7 @@ function EspaceHote({ user, onLogout }) {
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             <SH t="Documents"/>
             {["Manuel Hôtesse BSH","Charte Éthique","Guide Tenues & Style","Politique Confidentialité"].map(d=>(
-              <div key={d} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:11,padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div key={d} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,color:B.cream}}>📄 {d}</span>
                 <Btn sm v="ghost" onClick={()=>window.open(WA(),"_blank")}>Demander</Btn>
               </div>
@@ -2445,7 +6035,7 @@ function EspaceHote({ user, onLogout }) {
         {ong==="messages"&&(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <SH t="Contact"/>
-            <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"14px"}}>
+            <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"14px"}}>
               <div style={{fontSize:12,color:B.muted,marginBottom:12,lineHeight:1.7}}>Pour toute communication avec Bella'Studio, contactez directement la fondatrice via WhatsApp.</div>
               <Btn v="gold" full onClick={()=>window.open(WA(),"_blank")}>💬 Contacter la fondatrice</Btn>
             </div>
@@ -2455,7 +6045,7 @@ function EspaceHote({ user, onLogout }) {
         {ong==="profil"&&(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <SH t="Mon Profil"/>
-            <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"16px",textAlign:"center"}}>
+            <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"16px",textAlign:"center"}}>
               <div style={{fontSize:44,marginBottom:10}}>🎭</div>
               <div style={{fontSize:15,fontWeight:700,color:B.cream,marginBottom:3}}>{[user.prenom,user.nom].filter(Boolean).join(" ")||"Hôte / Talent"}</div>
               <div style={{fontSize:12,color:B.muted,marginBottom:14}}>{user.email}</div>
@@ -2483,13 +6073,13 @@ function EspacePartenaire({ user, onLogout }) {
       try {
         const token = typeof window !== "undefined" ? localStorage.getItem("bellaia_token") : null;
         if (!token) return;
-        const h = { "Authorization": `Bearer ${token}`, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, "Content-Type": "application/json" };
+        const h = { "Authorization": "Bearer "+(token), "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, "Content-Type": "application/json" };
         const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const r1 = await fetch(`${base}/rest/v1/collaborations_partenaire?user_id=eq.${user.id}&order=created_at.desc`, { headers: h });
+        const r1 = await fetch((base)+"/rest/v1/collaborations_partenaire?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: h });
         if (r1.ok) setCollabs(await r1.json());
-        const r2 = await fetch(`${base}/rest/v1/factures_partenaire?user_id=eq.${user.id}&order=created_at.desc`, { headers: h });
+        const r2 = await fetch((base)+"/rest/v1/factures_partenaire?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: h });
         if (r2.ok) setFactures(await r2.json());
-        const r3 = await fetch(`${base}/rest/v1/contrats?user_id=eq.${user.id}&order=created_at.desc`, { headers: h });
+        const r3 = await fetch((base)+"/rest/v1/contrats?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: h });
         if (r3.ok) setContrats(await r3.json());
       } catch {}
     };
@@ -2497,7 +6087,7 @@ function EspacePartenaire({ user, onLogout }) {
   }, [user.id]);
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 20% 0%,#2d1a04,${B.night} 65%)`,fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#2d1a04,"+(B.night)+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(180,83,9,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>🤝</span>
@@ -2518,13 +6108,13 @@ function EspacePartenaire({ user, onLogout }) {
             <SH t="Mes Collaborations"/>
             {collabs.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune collaboration active pour l'instant.</div>}
             {collabs.map(c=>(
-              <div key={c.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 15px"}}>
+              <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 15px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><div style={{fontSize:13,fontWeight:700,color:B.cream}}>{c.titre}</div><Bdg s={c.statut}/></div>
                 {c.type&&<div style={{fontSize:11,color:B.muted,marginBottom:5}}>🏷 {c.type}</div>}
                 {c.montant>0&&<div style={{fontSize:14,fontWeight:700,color:B.gold}}>{c.montant}€</div>}
               </div>
             ))}
-            <button onClick={()=>window.open(WA("Bonjour, je souhaite proposer une nouvelle collaboration"),"_blank")} style={{background:"transparent",border:`1px solid rgba(180,83,9,0.4)`,borderRadius:10,padding:"10px",color:"#b45309",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA,marginTop:6}}>+ Proposer une collaboration</button>
+            <button onClick={()=>window.open(WA("Bonjour, je souhaite proposer une nouvelle collaboration"),"_blank")} style={{background:"transparent",border:"1px solid rgba(180,83,9,0.4)",borderRadius:10,padding:"10px",color:"#b45309",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA,marginTop:6}}>+ Proposer une collaboration</button>
           </div>
         )}
 
@@ -2533,7 +6123,7 @@ function EspacePartenaire({ user, onLogout }) {
             <SH t="Mes Factures"/>
             {factures.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucune facture pour l'instant.</div>}
             {factures.map(f=>(
-              <div key={f.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+              <div key={f.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,color:B.cream,fontWeight:600}}>{f.titre}</span><span style={{background:f.statut==="Payée"?"rgba(80,180,120,0.2)":"rgba(201,168,76,0.2)",color:f.statut==="Payée"?B.success:B.warning,borderRadius:99,padding:"3px 8px",fontSize:10,fontWeight:700}}>{f.statut}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}><span style={{fontSize:14,fontWeight:700,color:B.gold}}>{f.montant}€</span>{f.date_emission&&<span style={{fontSize:11,color:B.muted}}>📅 {fmt(f.date_emission)}</span>}</div>
               </div>
@@ -2546,10 +6136,10 @@ function EspacePartenaire({ user, onLogout }) {
             <SH t="Mes Contrats"/>
             {contrats.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Aucun contrat pour l'instant.</div>}
             {contrats.map(c=>(
-              <div key={c.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+              <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,color:B.cream,fontWeight:600}}>{c.titre}</span><span style={{background:c.statut==="Signé"?"rgba(80,180,120,0.2)":"rgba(201,168,76,0.2)",color:c.statut==="Signé"?B.success:B.warning,borderRadius:99,padding:"3px 8px",fontSize:10,fontWeight:700}}>{c.statut}</span></div>
                 {c.date_creation&&<div style={{fontSize:11,color:B.muted,marginBottom:6}}>📅 {fmt(c.date_creation)}</div>}
-                {c.statut==="À signer"&&<Btn sm v="gold" onClick={()=>window.open(WA(`Bonjour, je souhaite signer : ${c.titre}`),"_blank")}>Signer →</Btn>}
+                {c.statut==="À signer"&&<Btn sm v="gold" onClick={()=>window.open(WA("Bonjour, je souhaite signer : "+(c.titre)),"_blank")}>Signer →</Btn>}
               </div>
             ))}
           </div>
@@ -2559,7 +6149,7 @@ function EspacePartenaire({ user, onLogout }) {
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             <SH t="Documents Partenaires"/>
             {["Charte Partenariat BSH","Guide Événements","Politique Image & Communication","Tarifs Collaboration 2026"].map(d=>(
-              <div key={d} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:11,padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div key={d} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,color:B.cream}}>📄 {d}</span>
                 <Btn sm v="ghost" onClick={()=>window.open(WA(),"_blank")}>Demander</Btn>
               </div>
@@ -2570,7 +6160,7 @@ function EspacePartenaire({ user, onLogout }) {
         {ong==="messages"&&(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <SH t="Contact"/>
-            <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"14px"}}>
+            <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"14px"}}>
               <div style={{fontSize:12,color:B.muted,marginBottom:12,lineHeight:1.7}}>Contactez directement la fondatrice pour toute question relative à votre partenariat.</div>
               <Btn v="gold" full onClick={()=>window.open(WA("Bonjour, je suis partenaire Bella'Studio"),"_blank")}>💬 Contacter la fondatrice</Btn>
             </div>
@@ -2580,7 +6170,7 @@ function EspacePartenaire({ user, onLogout }) {
         {ong==="profil"&&(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <SH t="Mon Profil"/>
-            <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"16px",textAlign:"center"}}>
+            <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"16px",textAlign:"center"}}>
               <div style={{fontSize:44,marginBottom:10}}>🤝</div>
               <div style={{fontSize:15,fontWeight:700,color:B.cream,marginBottom:3}}>{[user.prenom,user.nom].filter(Boolean).join(" ")||"Partenaire"}</div>
               <div style={{fontSize:12,color:B.muted,marginBottom:14}}>{user.email}</div>
@@ -2657,23 +6247,23 @@ function BibliothequeF({ user }) {
 
   const lancerIA = async (action, contexte) => {
     setIaLoading(true); setIaResult("");
-    const projInfo = projetActif ? `Projet : "${projetActif.titre}" | Public : ${projetActif.public_cible||"—"} | Type : ${projetActif.type_projet}` : "";
-    const tomeInfo = tomeActif ? `Tome ${tomeActif.numero} : "${tomeActif.titre}" | Résumé : ${tomeActif.resume||"—"}` : "";
-    const chapInfo = contexte?.contenu ? `Chapitre ${contexte.numero} : "${contexte.titre}"\nContenu actuel :\n${contexte.contenu.slice(0,1500)}` : "";
+    const projInfo = projetActif ? "Projet : \""+(projetActif.titre)+"\" | Public : "+(projetActif.public_cible||"—")+" | Type : "+(projetActif.type_projet) : "";
+    const tomeInfo = tomeActif ? "Tome "+(tomeActif.numero)+" : \""+(tomeActif.titre)+"\" | Résumé : "+(tomeActif.resume||"—") : "";
+    const chapInfo = contexte?.contenu ? "Chapitre "+(contexte.numero)+" : \""+(contexte.titre)+"\"\nContenu actuel :\n"+(contexte.contenu.slice(0,1500)) : "";
 
     const PROMPTS = {
-      terminer_chapitre: `Tu es Bellaïa, assistante éditoriale de Renée-Lise Vilosa. ${projInfo}. ${tomeInfo}. ${chapInfo}. Termine ce chapitre de manière cohérente avec le ton et le public cible. Réponds directement avec le texte à ajouter, sans explication.`,
-      reecrire_chapitre: `Tu es Bellaïa, assistante éditoriale. ${projInfo}. ${tomeInfo}. ${chapInfo}. Réécris ce chapitre en améliorant la clarté, le rythme et l'adaptation au public cible. Réponds avec le texte réécrit complet.`,
-      exercices: `Tu es Bellaïa, assistante pédagogique. ${projInfo}. ${chapInfo}. Crée 5 exercices variés adaptés au public cible (QCM, vrai/faux, compléter, relier, créer). Format clair et structuré.`,
-      fiche_pedagogique: `Tu es Bellaïa. ${projInfo}. ${chapInfo}. Crée une fiche pédagogique complète : objectifs, compétences, matériel, déroulement, prolongements. Format Markdown.`,
-      evaluation: `Tu es Bellaïa. ${projInfo}. ${chapInfo}. Crée une évaluation formative : 10 questions progressives avec corrigé. Adaptée au public cible.`,
-      activites_manuelles: `Tu es Bellaïa. ${projInfo}. ${chapInfo}. Propose 3 activités manuelles créatives liées à ce chapitre. Matériel simple, réalisable à la maison. Format étapes claires.`,
-      coloriage: `Tu es Bellaïa. ${projInfo}. ${chapInfo}. Décris précisément une scène de coloriage à illustrer pour ce chapitre. Description détaillée pour un illustrateur : personnages, décor, ambiance, style.`,
-      quatrieme: `Tu es Bellaïa, éditrice. ${projInfo}. Rédige une 4ème de couverture accrocheuse et commerciale (150 mots max). Ton adapté au public cible.`,
-      fiche_kofi: `Tu es Bellaïa. ${projInfo}. Rédige une fiche produit Ko-fi complète : titre accrocheur, description, contenu inclus, public cible, bénéfices, appel à l'action. Prête à copier-coller.`,
-      description_kdp: `Tu es Bellaïa. ${projInfo}. Rédige une description Amazon KDP optimisée SEO (500 mots) : hook, présentation, contenu, bénéfices, public cible, mots-clés. Format HTML basique.`,
-      resume_commercial: `Tu es Bellaïa. ${projInfo}. Rédige un résumé commercial court (100 mots) pour réseaux sociaux et catalogue. Percutant et adapté au public.`,
-      terminer_tome: `Tu es Bellaïa, éditrice. ${projInfo}. ${tomeInfo}. Propose un plan détaillé pour terminer ce tome : chapitres restants, arcs narratifs, progression logique, conclusion. Format structuré.`,
+      terminer_chapitre: "Tu es Bellaïa, assistante éditoriale de Renée-Lise Vilosa. "+(projInfo)+". "+(tomeInfo)+". "+(chapInfo)+". Termine ce chapitre de manière cohérente avec le ton et le public cible. Réponds directement avec le texte à ajouter, sans explication.",
+      reecrire_chapitre: "Tu es Bellaïa, assistante éditoriale. "+(projInfo)+". "+(tomeInfo)+". "+(chapInfo)+". Réécris ce chapitre en améliorant la clarté, le rythme et l'adaptation au public cible. Réponds avec le texte réécrit complet.",
+      exercices: "Tu es Bellaïa, assistante pédagogique. "+(projInfo)+". "+(chapInfo)+". Crée 5 exercices variés adaptés au public cible (QCM, vrai/faux, compléter, relier, créer). Format clair et structuré.",
+      fiche_pedagogique: "Tu es Bellaïa. "+(projInfo)+". "+(chapInfo)+". Crée une fiche pédagogique complète : objectifs, compétences, matériel, déroulement, prolongements. Format Markdown.",
+      evaluation: "Tu es Bellaïa. "+(projInfo)+". "+(chapInfo)+". Crée une évaluation formative : 10 questions progressives avec corrigé. Adaptée au public cible.",
+      activites_manuelles: "Tu es Bellaïa. "+(projInfo)+". "+(chapInfo)+". Propose 3 activités manuelles créatives liées à ce chapitre. Matériel simple, réalisable à la maison. Format étapes claires.",
+      coloriage: "Tu es Bellaïa. "+(projInfo)+". "+(chapInfo)+". Décris précisément une scène de coloriage à illustrer pour ce chapitre. Description détaillée pour un illustrateur : personnages, décor, ambiance, style.",
+      quatrieme: "Tu es Bellaïa, éditrice. "+(projInfo)+". Rédige une 4ème de couverture accrocheuse et commerciale (150 mots max). Ton adapté au public cible.",
+      fiche_kofi: "Tu es Bellaïa. "+(projInfo)+". Rédige une fiche produit Ko-fi complète : titre accrocheur, description, contenu inclus, public cible, bénéfices, appel à l'action. Prête à copier-coller.",
+      description_kdp: "Tu es Bellaïa. "+(projInfo)+". Rédige une description Amazon KDP optimisée SEO (500 mots) : hook, présentation, contenu, bénéfices, public cible, mots-clés. Format HTML basique.",
+      resume_commercial: "Tu es Bellaïa. "+(projInfo)+". Rédige un résumé commercial court (100 mots) pour réseaux sociaux et catalogue. Percutant et adapté au public.",
+      terminer_tome: "Tu es Bellaïa, éditrice. "+(projInfo)+". "+(tomeInfo)+". Propose un plan détaillé pour terminer ce tome : chapitres restants, arcs narratifs, progression logique, conclusion. Format structuré.",
     };
 
     try {
@@ -2697,7 +6287,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId() };
     delete d._edit;
     if (form._edit) await sbPatch("collections", form._edit, d);
-    else await sbPost("collections", d);
+    else (await sbPost("collections", d)).ok || console.error("[collections] post échec");
     rCol(); setModal(null);
   };
 
@@ -2706,7 +6296,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("projets_editoriaux", form._edit, d);
-    else await sbPost("projets_editoriaux", d);
+    else (await sbPost("projets_editoriaux", d)).ok || console.error("[projets_edit] post échec");
     rPro(); setModal(null);
   };
 
@@ -2715,7 +6305,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("tomes", form._edit, d);
-    else await sbPost("tomes", d);
+    else (await sbPost("tomes", d)).ok || console.error("[tomes] post échec");
     rTom(); setModal(null);
   };
 
@@ -2724,7 +6314,7 @@ function BibliothequeF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("chapitres", form._edit, d);
-    else await sbPost("chapitres", d);
+    else (await sbPost("chapitres", d)).ok || console.error("[chapitres] post échec");
     rChap(); setModal(null);
   };
 
@@ -2757,7 +6347,7 @@ function BibliothequeF({ user }) {
               {l:"Chapitres",v:kpis[0]?.nb_chapitres_total||chapitres.length},
               {l:"Mots écrits",v:(kpis[0]?.nb_mots_total||0).toLocaleString("fr"),acc:true},
             ].map(s=>(
-              <div key={s.l} style={{background:B.card,border:`1px solid ${s.acc?B.borderG:B.border}`,borderRadius:12,padding:"12px 11px"}}>
+              <div key={s.l} style={{background:B.card,border:"1px solid "+(s.acc?B.borderG:B.border),borderRadius:12,padding:"12px 11px"}}>
                 <div style={{fontSize:20,fontWeight:900,color:s.acc?B.gold:B.violetL,fontFamily:FS}}>{s.v}</div>
                 <div style={{fontSize:10,color:B.muted,marginTop:2}}>{s.l}</div>
               </div>
@@ -2767,7 +6357,7 @@ function BibliothequeF({ user }) {
           {/* Projets récents */}
           <div style={{fontSize:12,fontWeight:800,color:B.cream,marginBottom:4}}>Projets récents</div>
           {projets.slice(0,5).map(p=>(
-            <div key={p.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px",cursor:"pointer"}} onClick={()=>{setProjetActif(p);setOng("redaction");}}>
+            <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px",cursor:"pointer"}} onClick={()=>{setProjetActif(p);setOng("redaction");}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <span style={{fontSize:13,fontWeight:700,color:B.cream,fontFamily:FS}}>{p.titre}</span>
                 <span style={{background:sCol(p.statut),color:sTxt(p.statut),borderRadius:99,padding:"2px 8px",fontSize:9,fontWeight:700}}>{p.statut}</span>
@@ -2788,7 +6378,7 @@ function BibliothequeF({ user }) {
           {collections.map(c=>{
             const pp = projets.filter(p=>p.collection_id===c.id);
             return (
-              <div key={c.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px",borderLeft:`3px solid ${c.couleur||B.violet}`}}>
+              <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px",borderLeft:"3px solid "+(c.couleur||B.violet)}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
                     <span style={{fontSize:22}}>{c.icone||"📚"}</span>
@@ -2798,8 +6388,7 @@ function BibliothequeF({ user }) {
                     </div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:11,color:B.violetL,fontWeight:700}}>{pp.length} projet{pp.length!==1?"s":""}</div>
-                    <div style={{display:"flex",gap:4,marginTop:4}}>
+                    <div style={{display:"flex",gap:4}}>
                       <Btn sm v="ghost" onClick={()=>{setForm({...c,_edit:c.id});setModal("col");}}>✏</Btn>
                       <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("collections",c.id).then(rCol);}}>✕</Btn>
                     </div>
@@ -2821,7 +6410,7 @@ function BibliothequeF({ user }) {
           {projets.map(p=>{
             const col = collections.find(c=>c.id===p.collection_id);
             return (
-              <div key={p.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
+              <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:800,color:B.cream,fontFamily:FS,marginBottom:2}}>{p.titre}</div>
@@ -2856,7 +6445,7 @@ function BibliothequeF({ user }) {
           {/* Sélecteur projet */}
           <div>
             <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Projet actif</label>
-            <select value={projetActif?.id||""} onChange={e=>{const p=projets.find(x=>x.id===e.target.value);setProjetActif(p||null);setTomeActif(null);}} style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA}}>
+            <select value={projetActif?.id||""} onChange={e=>{const p=projets.find(x=>x.id===e.target.value);setProjetActif(p||null);setTomeActif(null);}} style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA}}>
               <option value="">— Sélectionner un projet —</option>
               {projets.map(p=><option key={p.id} value={p.id}>{p.titre}</option>)}
             </select>
@@ -2865,7 +6454,7 @@ function BibliothequeF({ user }) {
           {projetActif&&(
             <>
               {/* Header projet */}
-              <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+              <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
                 <div style={{fontSize:14,fontWeight:800,color:B.cream,fontFamily:FS,marginBottom:3}}>{projetActif.titre}</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   <span style={{background:sCol(projetActif.statut),color:sTxt(projetActif.statut),borderRadius:99,padding:"2px 8px",fontSize:9,fontWeight:700}}>{projetActif.statut}</span>
@@ -2876,11 +6465,11 @@ function BibliothequeF({ user }) {
               {/* Tomes */}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:800,color:B.cream}}>Tomes ({tomesProjet.length})</span>
-                <Btn sm onClick={()=>{setForm({projet_id:projetActif.id,statut:"en_cours",avancement:0,numero:(tomesProjet.length||0)+1,titre:`Tome ${(tomesProjet.length||0)+1}`});setModal("tome");}}>+ Tome</Btn>
+                <Btn sm onClick={()=>{setForm({projet_id:projetActif.id,statut:"en_cours",avancement:0,numero:(tomesProjet.length||0)+1,titre:"Tome "+((tomesProjet.length||0)+1)});setModal("tome");}}>+ Tome</Btn>
               </div>
 
               {tomesProjet.map(t=>(
-                <div key={t.id} style={{background:B.card,border:`1px solid ${tomeActif?.id===t.id?"rgba(124,58,237,0.5)":B.border}`,borderRadius:12,padding:"11px 13px"}}>
+                <div key={t.id} style={{background:B.card,border:"1px solid "+(tomeActif?.id===t.id?"rgba(124,58,237,0.5)":B.border),borderRadius:12,padding:"11px 13px"}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                     <div style={{cursor:"pointer"}} onClick={()=>setTomeActif(tomeActif?.id===t.id?null:t)}>
                       <div style={{fontSize:12,fontWeight:700,color:B.cream}}>Tome {t.numero} — {t.titre}</div>
@@ -2898,10 +6487,10 @@ function BibliothequeF({ user }) {
                     <div style={{marginTop:10}}>
                       <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
                         <span style={{fontSize:11,fontWeight:700,color:B.violetL}}>Chapitres ({chapTome.length})</span>
-                        <Btn sm onClick={()=>{setForm({tome_id:t.id,statut:"brouillon",type_contenu:"texte",numero:(chapTome.length||0)+1,titre:`Chapitre ${(chapTome.length||0)+1}`});setModal("chap");}}>+ Chapitre</Btn>
+                        <Btn sm onClick={()=>{setForm({tome_id:t.id,statut:"brouillon",type_contenu:"texte",numero:(chapTome.length||0)+1,titre:"Chapitre "+((chapTome.length||0)+1)});setModal("chap");}}>+ Chapitre</Btn>
                       </div>
                       {chapTome.map(ch=>(
-                        <div key={ch.id} style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 11px",marginBottom:6}}>
+                        <div key={ch.id} style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 11px",marginBottom:6}}>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                             <div style={{flex:1}}>
                               <div style={{fontSize:11,fontWeight:700,color:B.cream}}>Ch.{ch.numero} — {ch.titre}</div>
@@ -2917,7 +6506,7 @@ function BibliothequeF({ user }) {
                               <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("chapitres",ch.id).then(rChap);}}>✕</Btn>
                             </div>
                           </div>
-                          {ch.contenu&&<div style={{fontSize:10,color:B.muted,lineHeight:1.5,marginTop:4,borderTop:`1px solid ${B.border}`,paddingTop:5}}>{ch.contenu.slice(0,150)}{ch.contenu.length>150?"…":""}</div>}
+                          {ch.contenu&&<div style={{fontSize:10,color:B.muted,lineHeight:1.5,marginTop:4,borderTop:"1px solid "+(B.border),paddingTop:5}}>{ch.contenu.slice(0,150)}{ch.contenu.length>150?"…":""}</div>}
                         </div>
                       ))}
                     </div>
@@ -2935,10 +6524,10 @@ function BibliothequeF({ user }) {
           <SH t="Bellaïa Éditoriale" s="Génération de contenu assistée par IA"/>
 
           {/* Contexte actif */}
-          <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 14px"}}>
+          <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"11px 14px"}}>
             <div style={{fontSize:11,fontWeight:700,color:B.mutedL,marginBottom:6,letterSpacing:"0.06em",textTransform:"uppercase"}}>Contexte actif</div>
             {projetActif ? (
-              <div style={{fontSize:12,color:B.cream}}>📖 {projetActif.titre}{tomeActif?` · Tome ${tomeActif.numero} : ${tomeActif.titre}`:""}</div>
+              <div style={{fontSize:12,color:B.cream}}>📖 {projetActif.titre}{tomeActif ? " · Tome "+(tomeActif.numero)+" : "+(tomeActif.titre) : ""}</div>
             ) : (
               <div style={{fontSize:12,color:B.muted}}>Aucun projet sélectionné — va dans Rédaction pour sélectionner un projet</div>
             )}
@@ -2950,12 +6539,12 @@ function BibliothequeF({ user }) {
             const actions = IA_ACTIONS.filter(a=>a.need===cat);
             const catLabel = {projet:"📖 Projet",tome:"📚 Tome",chapitre:"✍ Chapitre"}[cat];
             return (
-              <div key={cat} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px"}}>
+              <div key={cat} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px"}}>
                 <div style={{fontSize:10,fontWeight:700,color:B.mutedL,marginBottom:8,letterSpacing:"0.06em",textTransform:"uppercase"}}>{catLabel}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {actions.map(a=>(
                     <button key={a.id} onClick={()=>lancerIA(a.id, null)} disabled={iaLoading||!projetActif}
-                      style={{padding:"6px 11px",borderRadius:8,border:`1px solid ${B.border}`,background:B.surface,color:projetActif?B.cream:B.muted,cursor:projetActif?"pointer":"not-allowed",fontSize:11,fontFamily:SA,fontWeight:600}}>
+                      style={{padding:"6px 11px",borderRadius:8,border:"1px solid "+(B.border),background:B.surface,color:projetActif?B.cream:B.muted,cursor:projetActif?"pointer":"not-allowed",fontSize:11,fontFamily:SA,fontWeight:600}}>
                       {a.label}
                     </button>
                   ))}
@@ -2966,12 +6555,12 @@ function BibliothequeF({ user }) {
 
           {/* Résultat IA */}
           {iaLoading&&(
-            <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"14px",textAlign:"center"}}>
+            <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"14px",textAlign:"center"}}>
               <div style={{fontSize:13,color:B.gold}}>✦ Bellaïa rédige…</div>
             </div>
           )}
           {iaResult&&(
-            <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"14px"}}>
+            <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
                 <span style={{fontSize:12,fontWeight:700,color:B.gold}}>✦ Résultat Bellaïa</span>
                 <div style={{display:"flex",gap:6}}>
@@ -2984,9 +6573,9 @@ function BibliothequeF({ user }) {
           )}
 
           {/* Requête libre */}
-          <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+          <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
             <div style={{fontSize:11,fontWeight:700,color:B.mutedL,marginBottom:8,letterSpacing:"0.06em",textTransform:"uppercase"}}>Requête libre</div>
-            <textarea value={iaAction} onChange={e=>setIaAction(e.target.value)} placeholder="Ex : Crée le plan du chapitre 3 sur les animaux de Guyane..." rows={3} style={{width:"100%",background:B.card,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,resize:"vertical",boxSizing:"border-box",marginBottom:8}}/>
+            <textarea value={iaAction} onChange={e=>setIaAction(e.target.value)} placeholder="Ex : Crée le plan du chapitre 3 sur les animaux de Guyane..." rows={3} style={{width:"100%",background:B.card,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,resize:"vertical",boxSizing:"border-box",marginBottom:8}}/>
             <Btn v="primary" full disabled={!iaAction.trim()||iaLoading||!projetActif} onClick={()=>lancerIA(iaAction, null)}>◎ Demander à Bellaïa</Btn>
           </div>
         </div>
@@ -3010,7 +6599,7 @@ function BibliothequeF({ user }) {
         <Mdl title={form._edit?"Modifier projet":"Nouveau projet éditorial"} onClose={()=>setModal(null)}>
           <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})} placeholder="Titre du projet"/></Fld>
           <Fld label="Sous-titre"><Inp value={form.sous_titre||""} onChange={e=>setForm({...form,sous_titre:e.target.value})} placeholder="Sous-titre (optionnel)"/></Fld>
-          <Fld label="Collection"><select value={form.collection_id||""} onChange={e=>setForm({...form,collection_id:e.target.value})} style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA}}><option value="">— Aucune —</option>{collections.map(c=><option key={c.id} value={c.id}>{c.icone} {c.nom}</option>)}</select></Fld>
+          <Fld label="Collection"><select value={form.collection_id||""} onChange={e=>setForm({...form,collection_id:e.target.value})} style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA}}><option value="">— Aucune —</option>{collections.map(c=><option key={c.id} value={c.id}>{c.icone} {c.nom}</option>)}</select></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Type"><Sel value={form.type_projet||"livre"} onChange={e=>setForm({...form,type_projet:e.target.value})} options={TYPES_PROJ}/></Fld>
             <Fld label="Statut"><Sel value={form.statut||"idée"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS_PROJ}/></Fld>
@@ -3023,7 +6612,7 @@ function BibliothequeF({ user }) {
             <Fld label="Plateforme"><Sel value={form.plateforme||""} onChange={e=>setForm({...form,plateforme:e.target.value})} options={["", ...PLATEFORMES]}/></Fld>
             <Fld label="Prix vente €"><Inp type="number" value={form.prix_vente||""} onChange={e=>setForm({...form,prix_vente:parseFloat(e.target.value)||null})}/></Fld>
           </div>
-          <Fld label={`Avancement : ${form.avancement||0}%`}><input type="range" min={0} max={100} value={form.avancement||0} onChange={e=>setForm({...form,avancement:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/></Fld>
+          <Fld label={"Avancement : "+(form.avancement||0)+"%"}><input type="range" min={0} max={100} value={form.avancement||0} onChange={e=>setForm({...form,avancement:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/></Fld>
           <Fld label="Description / Notes"><Inp value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Description du projet" rows={3}/></Fld>
           <div style={{display:"flex",gap:8}}><Btn onClick={saveProjet} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
         </Mdl>
@@ -3034,7 +6623,7 @@ function BibliothequeF({ user }) {
           <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})} placeholder="Titre du tome"/></Fld>
           <Fld label="Résumé"><Inp value={form.resume||""} onChange={e=>setForm({...form,resume:e.target.value})} placeholder="Résumé du tome" rows={3}/></Fld>
           <Fld label="Statut"><Sel value={form.statut||"en_cours"} onChange={e=>setForm({...form,statut:e.target.value})} options={["en_cours","en_revision","validé","publié"]}/></Fld>
-          <Fld label={`Avancement : ${form.avancement||0}%`}><input type="range" min={0} max={100} value={form.avancement||0} onChange={e=>setForm({...form,avancement:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/></Fld>
+          <Fld label={"Avancement : "+(form.avancement||0)+"%"}><input type="range" min={0} max={100} value={form.avancement||0} onChange={e=>setForm({...form,avancement:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/></Fld>
           <div style={{display:"flex",gap:8}}><Btn onClick={saveTome} full>Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
         </Mdl>
       )}
@@ -3088,36 +6677,36 @@ function BellaStructureF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("structure_modeles", form._edit, d);
-    else await sbPost("structure_modeles", d);
+    else (await sbPost("structure_modeles", d)).ok || console.error("[structure_mo] post échec");
     rMod(); setModal(null);
   };
 
   const saveBacklog = async () => {
     if (!form.titre?.trim()) return;
-    await sbPost("structure_backlog", { ...form, fondatrice_id: getFondId(), statut: "backlog" });
+    const _rsb = await sbPost("structure_backlog", { ...form, fondatrice_id: getFondId(), statut: "backlog" });
     rBack(); setModal(null);
   };
 
-  const STATUT_COL = {brouillon:"rgba(139,127,168,0.25)",actif:`${B.violet}25`,publié:"rgba(80,180,120,0.2)"};
+  const STATUT_COL = {brouillon:"rgba(139,127,168,0.25)",actif:(B.violet)+"25",publié:"rgba(80,180,120,0.2)"};
   const STATUT_TXT = {brouillon:B.mutedL,actif:B.violetL,publié:B.success};
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
       {/* Header animé */}
-      <div style={{background:`linear-gradient(135deg,#0f766e22,#0d948822)`,border:"1px solid rgba(13,148,136,0.3)",borderRadius:16,padding:"16px",textAlign:"center"}}>
+      <div style={{background:"linear-gradient(135deg,#0f766e22,#0d948822)",border:"1px solid rgba(13,148,136,0.3)",borderRadius:16,padding:"16px",textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:6}}>🏗</div>
         <div style={{fontFamily:FS,fontSize:18,fontWeight:900,color:B.cream,marginBottom:3}}>Bella'Structure</div>
         <div style={{fontSize:12,color:B.muted}}>Modèles professionnels · Templates · Documents</div>
         <div style={{display:"flex",justifyContent:"center",gap:10,marginTop:10}}>
-          <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:9,padding:"6px 14px",textAlign:"center"}}>
+          <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:9,padding:"6px 14px",textAlign:"center"}}>
             <div style={{fontSize:16,fontWeight:700,color:"#0d9488"}}>{modeles.length}</div>
             <div style={{fontSize:9,color:B.muted}}>modèles</div>
           </div>
-          <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:9,padding:"6px 14px",textAlign:"center"}}>
+          <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:9,padding:"6px 14px",textAlign:"center"}}>
             <div style={{fontSize:16,fontWeight:700,color:B.gold}}>{modeles.filter(m=>m.statut==="publié").length}</div>
             <div style={{fontSize:9,color:B.muted}}>publiés</div>
           </div>
-          <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:9,padding:"6px 14px",textAlign:"center"}}>
+          <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:9,padding:"6px 14px",textAlign:"center"}}>
             <div style={{fontSize:16,fontWeight:700,color:B.violetL}}>{backlog.length}</div>
             <div style={{fontSize:9,color:B.muted}}>backlog</div>
           </div>
@@ -3134,10 +6723,10 @@ function BellaStructureF({ user }) {
       {/* ── BIBLIOTHÈQUE ── */}
       {ong==="bibliotheque"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher un modèle..." style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher un modèle..." style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
           <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:2}}>
             {CATS.slice(0,8).map(c=>(
-              <button key={c} onClick={()=>setFiltCat(c)} style={{padding:"4px 9px",borderRadius:99,border:`1px solid ${B.border}`,cursor:"pointer",fontSize:9,fontWeight:700,background:filtCat===c?B.surface:"transparent",color:filtCat===c?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>{c}</button>
+              <button key={c} onClick={()=>setFiltCat(c)} style={{padding:"4px 9px",borderRadius:99,border:"1px solid "+(B.border),cursor:"pointer",fontSize:9,fontWeight:700,background:filtCat===c?B.surface:"transparent",color:filtCat===c?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>{c}</button>
             ))}
           </div>
           {modelesFiltres.length===0&&(
@@ -3147,7 +6736,7 @@ function BellaStructureF({ user }) {
             </div>
           )}
           {modelesFiltres.map(m=>(
-            <div key={m.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px"}}>
+            <div key={m.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
@@ -3156,7 +6745,7 @@ function BellaStructureF({ user }) {
                   </div>
                   <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                     <span style={{background:STATUT_COL[m.statut]||B.surface,color:STATUT_TXT[m.statut]||B.muted,borderRadius:99,padding:"2px 8px",fontSize:9,fontWeight:700}}>{m.statut}</span>
-                    {m.categorie&&<span style={{fontSize:9,background:`${B.violet}15`,color:B.violetL,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{m.categorie}</span>}
+                    {m.categorie&&<span style={{fontSize:9,background:(B.violet)+"15",color:B.violetL,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{m.categorie}</span>}
                     {m.visible_client&&<span style={{fontSize:9,background:"rgba(80,180,120,0.15)",color:B.success,borderRadius:4,padding:"2px 6px",fontWeight:700}}>👁 Client</span>}
                   </div>
                 </div>
@@ -3174,16 +6763,16 @@ function BellaStructureF({ user }) {
       {/* ── BACKLOG ── */}
       {ong==="backlog"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div style={{background:`${B.violet}10`,border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 14px",marginBottom:4}}>
+          <div style={{background:(B.violet)+"10",border:"1px solid "+(B.border),borderRadius:12,padding:"11px 14px",marginBottom:4}}>
             <div style={{fontSize:11,color:B.muted,lineHeight:1.7}}>💡 Le backlog contient les projets ChatGPT et idées à intégrer dans Bellaïa. Chaque entrée peut être convertie en modèle actif.</div>
           </div>
           <Btn sm onClick={()=>{setForm({priorite:"normale"});setModal("back");}}>+ Ajouter au backlog</Btn>
           {backlog.length===0&&<div style={{textAlign:"center",padding:"28px",color:B.muted,fontSize:13}}>Backlog vide</div>}
           {backlog.map(b=>(
-            <div key={b.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+            <div key={b.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <span style={{fontSize:13,fontWeight:700,color:B.cream}}>{b.titre}</span>
-                <span style={{fontSize:9,background:b.priorite==="haute"?"rgba(180,80,80,0.2)":b.priorite==="normale"?`${B.violet}20`:"rgba(80,80,80,0.2)",color:b.priorite==="haute"?B.danger:b.priorite==="normale"?B.violetL:B.muted,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{b.priorite}</span>
+                <span style={{fontSize:9,background:b.priorite==="haute"?"rgba(180,80,80,0.2)":b.priorite==="normale"?(B.violet+"20"):"rgba(80,80,80,0.2)",color:b.priorite==="haute"?B.danger:b.priorite==="normale"?B.violetL:B.muted,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{b.priorite}</span>
               </div>
               {b.description&&<div style={{fontSize:11,color:B.muted,marginBottom:6,lineHeight:1.5}}>{b.description}</div>}
               {b.source&&<div style={{fontSize:10,color:B.muted}}>📎 Source : {b.source}</div>}
@@ -3199,7 +6788,7 @@ function BellaStructureF({ user }) {
       {/* ── AJOUTER ── */}
       {ong==="ajouter"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:14,padding:"14px"}}>
+          <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:14,padding:"14px"}}>
             <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:12}}>Nouveau modèle</div>
             <Fld label="Nom *"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Nom du modèle"/></Fld>
             <Fld label="Catégorie"><Sel value={form.categorie||"Autres"} onChange={e=>setForm({...form,categorie:e.target.value})} options={CATS.slice(1)}/></Fld>
@@ -3254,31 +6843,545 @@ function BellaStructureF({ user }) {
 const BE_FILTRES = ["Tous","Anniversaire","Baptême","Baby Shower","Communion","Retraite","Réception privée","Gender Reveal","Événement pro"];
 const BE_STATUTS_CMD = ["Demande reçue","Devis envoyé","Acompte reçu","En préparation","Livraison / Installation","Réalisé","Archivé","Annulé"];
 
+// ─── Composant éditeur de devis fondatrice ───────────────────
+function ModalGenerationDevis({ demande, user, onClose, onValide }) {
+  // Lignes initiales : depuis lignes_devis sauvegardées, ou estimation automatique
+  const lignesInit = React.useMemo(() => {
+    if (demande.lignes_devis && Array.isArray(demande.lignes_devis) && demande.lignes_devis.length > 0) {
+      return demande.lignes_devis;
+    }
+    return analyserDemandeClient({
+      prestation: demande.prestation, message: demande.message,
+      theme: demande.theme, couleurs: demande.couleurs,
+      nbInvites: demande.nb_invites, typeEvt: demande.type_evenement,
+      budget: demande.budget,
+    });
+  }, [demande]);
+
+  const [lignes, setLignes] = React.useState(lignesInit);
+  const [envoi,  setEnvoi]  = React.useState(false);
+  const [succes, setSucces] = React.useState("");
+  const [nouvelleLigne, setNouvelleLigne] = React.useState({libelle:"",pole:"EVENTS",categorie:"",qte:1,prixUnitaire:"",note:""});
+
+  const totalFinal = lignes
+    .filter(l => l.statut !== "suggestion" && l.total && l.total > 0)
+    .reduce((s, l) => s + Number(l.total), 0);
+
+  const acompte30 = Math.round(totalFinal * 0.3);
+
+  const majLigne = (i, champ, val) => {
+    setLignes(ls => ls.map((l, idx) => {
+      if (idx !== i) return l;
+      const updated = {...l, [champ]: val};
+      if (champ === "prixUnitaire" || champ === "qte") {
+        const pu = parseFloat(champ==="prixUnitaire"?val:l.prixUnitaire) || 0;
+        const q  = parseInt(champ==="qte"?val:l.qte) || 1;
+        updated.prixUnitaire = champ==="prixUnitaire" ? val : l.prixUnitaire;
+        updated.total = pu * q;
+        updated.statut = pu > 0 ? "automatique" : "a_completer";
+      }
+      return updated;
+    }));
+  };
+
+  const supprimerLigne = (i) => setLignes(ls => ls.filter((_,idx) => idx !== i));
+
+  const ajouterLigne = () => {
+    if (!nouvelleLigne.libelle.trim()) return;
+    const pu = parseFloat(nouvelleLigne.prixUnitaire) || 0;
+    const q  = parseInt(nouvelleLigne.qte) || 1;
+    setLignes(ls => [...ls, {
+      ...nouvelleLigne, prixUnitaire: pu, total: pu*q,
+      statut: pu > 0 ? "automatique" : "a_completer",
+      source: "Ajout manuel fondatrice",
+    }]);
+    setNouvelleLigne({libelle:"",pole:"EVENTS",categorie:"",qte:1,prixUnitaire:"",note:""});
+  };
+
+  const validerEtEnvoyer = async () => {
+    setEnvoi(true);
+    const numDevis = demande.numero_devis || await genererReference("DEV");
+    const montantFinal = totalFinal;
+    const acompteFinal = Math.round(montantFinal * 0.3);
+    const updates = {
+      lignes_devis: JSON.stringify(lignes),
+      statut: "devis_envoye",
+      numero_devis: numDevis,
+      montant_estime: montantFinal,
+      montant_acompte: acompteFinal,
+      montant_solde: montantFinal - acompteFinal,
+      devis_genere_at: new Date().toISOString(),
+      devis_envoye_at: new Date().toISOString(),
+    };
+    const res = await sbPatch("events_demandes", demande.id, updates);
+    if (!res.ok) { alert("Erreur sauvegarde devis."); setEnvoi(false); return; }
+    // Notification interne
+    await creerNotification({
+      pole:"EVENTS", type:"validation_devis",
+      titre: "Devis "+numDevis+" généré",
+      message: "Client : "+(demande.client_prenom||"")+" "+( demande.client_nom||"")+"\nMontant : "+montantFinal+"€\nRéférence : "+demande.reference,
+      canal:"interne", user,
+      sourceTable:"events_demandes", sourceId: demande.id,
+    });
+    // Message WhatsApp prérempli
+    const lienSuivi = "https://bellaia-11-azure.vercel.app";
+    const msgWA = [
+      "Bonjour "+(demande.client_prenom||"")+",",
+      "",
+      "Votre devis Bella'Events est disponible.",
+      "Référence : "+demande.reference,
+      "Devis N° : "+numDevis,
+      "Montant : "+montantFinal+"€",
+      "Acompte (30%) : "+acompteFinal+"€",
+      "",
+      "Retrouvez votre dossier ici : "+lienSuivi,
+      "",
+      "Belle journée, Bella'Events ✨",
+    ].join("\n");
+    setSucces(numDevis+"|||"+encodeURIComponent(msgWA));
+    setEnvoi(false);
+  };
+
+  if (succes) {
+    const [numDevis, msgEnc] = succes.split("|||");
+    const msgDecode = decodeURIComponent(msgEnc);
+    return (
+      <Mdl title={"Devis "+numDevis+" — Envoi"} onClose={onValide}>
+        <div style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:12,padding:14,marginBottom:14}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#10b981",marginBottom:4}}>✅ Devis généré — {numDevis}</div>
+          <div style={{fontSize:11,color:B.muted}}>Statut mis à jour → devis_envoyé · Notification interne créée</div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:B.cream,marginBottom:6}}>Envoyer par WhatsApp</div>
+          <div style={{fontSize:10,color:B.muted,background:B.surface,borderRadius:8,padding:"8px 10px",lineHeight:1.6,whiteSpace:"pre-wrap",marginBottom:8}}>{msgDecode}</div>
+          <a href={WA(msgDecode)} target="_blank" rel="noreferrer"
+            style={{display:"block",background:"rgba(37,211,102,0.12)",border:"1px solid rgba(37,211,102,0.3)",borderRadius:10,padding:"11px",textAlign:"center",color:"#25d366",fontWeight:700,fontSize:13,textDecoration:"none",fontFamily:SA}}>
+            💬 Ouvrir WhatsApp
+          </a>
+        </div>
+        <div style={{background:"rgba(255,255,255,0.04)",border:"1px dashed rgba(255,255,255,0.15)",borderRadius:10,padding:12,marginBottom:14}}>
+          <div style={{fontSize:11,color:B.muted}}>📧 E-mail automatique — service non configuré</div>
+          <div style={{fontSize:10,color:B.muted,marginTop:4}}>Configurez SMTP dans les variables Vercel pour activer l'envoi automatique.</div>
+        </div>
+        <Btn v="gold" full onClick={onValide}>Fermer</Btn>
+      </Mdl>
+    );
+  }
+
+  const COL_STATUT_L = {automatique:"rgba(16,185,129,0.12)", a_completer:"rgba(201,168,76,0.12)", suggestion:"rgba(124,58,237,0.12)"};
+  const TXT_STATUT_L = {automatique:"#10b981", a_completer:B.warning, suggestion:B.violetL};
+
+  return (
+    <Mdl title={"Devis — "+(demande.reference||demande.id)} onClose={onClose}>
+      {/* Résumé client */}
+      <div style={{background:B.surface,border:"1px solid "+B.border,borderRadius:10,padding:"10px 12px",marginBottom:12}}>
+        <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{demande.client_prenom} {demande.client_nom}</div>
+        <div style={{fontSize:11,color:B.muted}}>{demande.prestation} · {demande.type_evenement}</div>
+        {demande.date_souhaitee && <div style={{fontSize:10,color:B.muted}}>📅 {new Date(demande.date_souhaitee).toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"})}</div>}
+      </div>
+
+      {/* Lignes éditables */}
+      <div style={{fontSize:11,fontWeight:700,color:B.cream,marginBottom:6}}>Lignes du devis</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10,maxHeight:260,overflowY:"auto"}}>
+        {lignes.map((l, i) => (
+          <div key={i} style={{background:COL_STATUT_L[l.statut]||"rgba(255,255,255,0.04)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(255,255,255,0.07)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <input value={l.libelle} onChange={e=>majLigne(i,"libelle",e.target.value)}
+                style={{flex:1,background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"4px 8px",color:B.cream,fontSize:11,fontFamily:SA,marginRight:6}}/>
+              <button onClick={()=>supprimerLigne(i)} style={{background:"none",border:"none",color:B.danger,cursor:"pointer",fontSize:14,padding:"0 4px"}}>✕</button>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <div style={{display:"flex",flexDirection:"column",flex:1}}>
+                <label style={{fontSize:9,color:B.muted,marginBottom:2}}>Qté</label>
+                <input type="number" value={l.qte||1} onChange={e=>majLigne(i,"qte",e.target.value)}
+                  style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"4px 6px",color:B.cream,fontSize:11,fontFamily:SA,width:"100%"}}/>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",flex:2}}>
+                <label style={{fontSize:9,color:B.muted,marginBottom:2}}>Prix unitaire (€)</label>
+                <input type="number" value={l.prixUnitaire||""} onChange={e=>majLigne(i,"prixUnitaire",e.target.value)}
+                  placeholder="À compléter"
+                  style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"4px 6px",color:B.cream,fontSize:11,fontFamily:SA,width:"100%"}}/>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",flex:2,justifyContent:"flex-end"}}>
+                <label style={{fontSize:9,color:B.muted,marginBottom:2}}>Total</label>
+                <div style={{fontSize:13,fontWeight:700,color:l.total?TXT_STATUT_L[l.statut]:B.muted,padding:"4px 6px"}}>
+                  {l.total ? l.total+"€" : "—"}
+                </div>
+              </div>
+            </div>
+            {l.note && <div style={{fontSize:9,color:B.muted,marginTop:3,fontStyle:"italic"}}>{l.note}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* Ajouter une ligne */}
+      <div style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"8px 10px",marginBottom:12}}>
+        <div style={{fontSize:10,color:B.muted,marginBottom:6}}>+ Ajouter une ligne</div>
+        <input value={nouvelleLigne.libelle} onChange={e=>setNouvelleLigne({...nouvelleLigne,libelle:e.target.value})}
+          placeholder="Libellé de la prestation"
+          style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"6px 8px",color:B.cream,fontSize:11,fontFamily:SA,marginBottom:6,boxSizing:"border-box"}}/>
+        <div style={{display:"flex",gap:6}}>
+          <input type="number" value={nouvelleLigne.qte||1} onChange={e=>setNouvelleLigne({...nouvelleLigne,qte:e.target.value})}
+            placeholder="Qté"
+            style={{flex:1,background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"5px 6px",color:B.cream,fontSize:11,fontFamily:SA}}/>
+          <input type="number" value={nouvelleLigne.prixUnitaire||""} onChange={e=>setNouvelleLigne({...nouvelleLigne,prixUnitaire:e.target.value})}
+            placeholder="Prix €"
+            style={{flex:2,background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"5px 6px",color:B.cream,fontSize:11,fontFamily:SA}}/>
+          <button onClick={ajouterLigne} style={{background:B.violet,border:"none",borderRadius:6,padding:"5px 12px",color:"#fff",fontSize:11,cursor:"pointer",fontFamily:SA}}>+</button>
+        </div>
+      </div>
+
+      {/* Total */}
+      <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          <span style={{fontSize:12,color:B.muted}}>Total</span>
+          <span style={{fontSize:16,fontWeight:700,color:"#10b981"}}>{totalFinal}€</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+          <span style={{fontSize:11,color:B.muted}}>Acompte 30%</span>
+          <span style={{fontSize:12,color:B.warning}}>{acompte30}€</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+          <span style={{fontSize:11,color:B.muted}}>Solde</span>
+          <span style={{fontSize:12,color:B.muted}}>{totalFinal - acompte30}€</span>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={validerEtEnvoyer} full v="gold" disabled={envoi}>
+          {envoi?"Génération…":"✅ Valider et envoyer le devis"}
+        </Btn>
+        <Btn onClick={onClose} v="ghost">Annuler</Btn>
+      </div>
+    </Mdl>
+  );
+}
+
 function BellaEventsF({ user }) {
-  const [ong, setOng] = useState("catalogue");
+  const [ong, setOng] = useState("demandes");
+  const [modalDevis, setModalDevis] = useState(false);
+  const [formDevis, setFormDevis] = useState({});
+  const [modalConflit, setModalConflit] = useState(null); // {demande, conflits, dateDebut, dateFin}
+  const [modalDevisGen, setModalDevisGen] = useState(null); // demande → ouverture éditeur devis
+  // Demandes reçues via le formulaire client (table events_demandes)
+  const [demandesEvents, setDemandesEvents] = useState([]);
+  const [lDem, setLDem] = useState(true);
+  const [erreurDem, setErreurDem] = useState(null);
+  const rDem = useCallback(async () => {
+    setLDem(true); setErreurDem(null);
+    try {
+      const token = await getTokenAsync();
+      const r = await fetch((SB_URL)+"/rest/v1/events_demandes?select=*&order=created_at.desc&limit=100", {
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+(token), "Content-Type": "application/json" },
+      });
+      if (!r.ok) {
+        const errBody = await r.text();
+        console.error("[Bellaïa][events_demandes] Erreur lecture HTTP "+r.status+":", errBody);
+        setErreurDem("Impossible de charger les demandes (erreur "+r.status+"). Vérifiez la connexion ou la configuration Supabase.");
+        setDemandesEvents([]);
+      } else {
+        const rows = await r.json();
+        
+        setDemandesEvents(Array.isArray(rows) ? rows : []);
+      }
+    } catch (e) {
+      console.error("[Bellaïa][events_demandes] Erreur réseau:", e);
+      setErreurDem("Connexion impossible au serveur. Réessayez dans un instant.");
+      setDemandesEvents([]);
+    }
+    setLDem(false);
+  }, []);
+  useEffect(() => { rDem(); }, [rDem]);
+  const nbNouvelles = demandesEvents.filter(c => c.statut === "Nouvelle demande").length;
+
+  const STATUTS_EV = ["Nouvelle demande","À traiter","Devis envoyé","Accepté","Refusé","Converti en commande"];
+  const COL_STATUT = {
+    "Nouvelle demande":"rgba(201,168,76,0.2)","À traiter":"rgba(124,58,237,0.2)",
+    "Devis envoyé":"rgba(59,130,246,0.2)","Accepté":"rgba(16,185,129,0.2)",
+    "Refusé":"rgba(180,80,80,0.2)","Converti en commande":"rgba(80,180,120,0.2)"
+  };
+  const TXT_STATUT = {
+    "Nouvelle demande":B.warning,"À traiter":B.violetL,"Devis envoyé":"#3b82f6",
+    "Accepté":B.success,"Refusé":B.danger,"Converti en commande":B.success
+  };
+
+  const changerStatut = async (d, statut) => {
+    const ancienStatut = d.statut;
+    const rPatch6296 = await sbPatch("events_demandes", d.id, { statut, updated_at: new Date().toISOString() });
+    if (!rPatch6296.ok) console.error("[changerStatut] Patch events_demandes échoué:", rPatch6296.error);
+    await ecrireAudit({
+      module: "events_demandes", entiteId: d.id, entiteRef: d.reference,
+      action: "changement_statut", ancienStatut, nouveauStatut: statut, user,
+    });
+    rDem();
+  };
+
+  // Création manuelle d'un devis interne par la fondatrice — écrit dans events_demandes
+  const creerDevisInterne = async () => {
+    if (!formDevis.client?.trim() || !formDevis.tel?.trim()) { alert("Client et téléphone requis."); return; }
+    const ref = await genererReference("BE");
+    const reference = await genererReference("BE");
+    const montantNum = parseFloat(formDevis.montant) || 0;
+    const acompteNum = parseFloat(formDevis.acompte) || 0;
+    const soldeNum   = montantNum - acompteNum;
+    const demande = sanitizeEventsDemandePayload({
+      reference,
+      statut:          formDevis.statut || "nouvelle_demande",
+      client_prenom:   formDevis.client.trim(),
+      client_nom:      "",
+      client_tel:      formDevis.tel.trim(),
+      client_email:    formDevis.email || null,
+      date_souhaitee:  formDevis.date  || null,
+      heure_souhaitee: formDevis.heure || null,
+      nb_invites:      formDevis.invites || null,
+      theme:           formDevis.theme   || null,
+      couleurs:        formDevis.couleurs|| null,
+      budget:          formDevis.budget  || null,
+      pole:            "Bella'Events",
+      categorie:       formDevis.categorie || null,
+      prestation:      formDevis.prestation || "Devis interne",
+      type_prestation: "prestation",
+      acompte:         acompteNum > 0 ? acompteNum+"€" : null,
+      montant_estime:  montantNum || null,
+      montant_acompte: acompteNum || null,
+      montant_solde:   soldeNum   || null,
+    });
+    const res = await sbPost("events_demandes", demande);
+    if (!res.ok) {
+      console.error("[Bellaïa] Échec création devis interne:", res.error);
+      const sb = res.error;
+      const msg = [
+        "Erreur HTTP "+res.status,
+        sb?.message ? "Message : "+sb.message : null,
+        sb?.details ? "Détails : "+sb.details : null,
+        sb?.hint    ? "Hint : "+sb.hint       : null,
+      ].filter(Boolean).join("\n");
+      alert("Le devis n'a pas pu être enregistré :\n\n"+msg);
+      return;
+    }
+    await ecrireAudit({
+      module: "events_demandes", entiteId: ref, entiteRef: reference,
+      action: "creation", nouveauStatut: demande.statut,
+      commentaire: "Devis créé manuellement côté fondatrice", user,
+    });
+    setModalDevis(false);
+    setFormDevis({});
+    rDem();
+  };
+
+  // Convertir une demande en commande validée (events_commandes)
+  const convertirEnCommande = async (d) => {
+    const referenceCmd = await genererReference("BEC");
+    const cmd = {
+      reference: referenceCmd,
+      client_nom: (d.client_prenom+" "+(d.client_nom||"")).trim(),
+      client_tel: d.client_tel,
+      type_evenement: d.type_evenement || d.presta_nom,
+      date_evenement: d.date_souhaitee,
+      nb_invites: d.nb_invites ? parseInt(d.nb_invites)||null : null,
+      detail_besoin: d.message || d.presta_nom,
+      montant_total: d.montant || null,
+      acompte: d.acompte || null,
+      statut: "Demande reçue",
+      notes: "Convertie depuis demande "+(d.reference||d.id),
+      fondatrice_id: user?.id,
+    };
+    const rECmd = await sbPost("events_commandes", cmd);
+    if (!rECmd.ok) {
+      alert("La commande n'a pas pu être créée.\n"+(rECmd.error||"Réessayez."));
+      return;
+    }
+    await ecrireAudit({
+      module: "events_commandes", entiteId: d.id, entiteRef: referenceCmd,
+      action: "creation", commentaire: "Convertie depuis demande "+(d.reference||d.id), user,
+    });
+    await changerStatut(d, "Converti en commande");
+
+    // Création automatique dans le planning si une date est connue
+    if (d.date_souhaitee) {
+      const heure = d.heure_souhaitee || "10:00";
+      const dateDebut = new Date(d.date_souhaitee+"T"+(heure.replace("h",":").padEnd(5,"0")));
+      const dureeMin = d.duree_estimee_min || 120;
+      const dateFin = new Date(dateDebut.getTime() + dureeMin*60000);
+      const res = await creerEvenementPlanning({
+        pole: "EVENTS", titre: (d.presta_nom||"Événement")+" — "+(d.client_prenom||""),
+        dateDebut, dateFin, typeActivite: "evenement",
+        sourceTable: "events_commandes", sourceId: referenceCmd,
+      }, { user });
+      if (!res.ok) {
+        setModalConflit({ demande: d, conflits: res.conflits, dateDebut, dateFin, referenceCmd });
+      }
+    }
+  };
+
+  // Forcer la création planning malgré le conflit (fondatrice uniquement)
+  const forcerCreationPlanning = async () => {
+    if (!modalConflit) return;
+    const { demande, dateDebut, dateFin, referenceCmd } = modalConflit;
+    await creerEvenementPlanning({
+      pole: "EVENTS", titre: (demande.presta_nom||"Événement")+" — "+(demande.client_prenom||""),
+      dateDebut, dateFin, typeActivite: "evenement",
+      sourceTable: "events_commandes", sourceId: referenceCmd,
+    }, { force: true, user });
+    setModalConflit(null);
+  };
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      {/* Header */}
       <div style={{background:"linear-gradient(135deg,rgba(6,95,70,0.3),rgba(16,185,129,0.1))",border:"1px solid rgba(6,95,70,0.4)",borderRadius:16,padding:"14px 16px",textAlign:"center"}}>
         <div style={{fontSize:32,marginBottom:4}}>✨</div>
         <div style={{fontFamily:FS,fontSize:17,fontWeight:900,color:B.cream,marginBottom:2}}>Bella'Events</div>
         <div style={{fontSize:11,color:B.muted}}>Papeterie · Décoration · Location · Coordination légère</div>
       </div>
-
       {/* Onglets */}
       <div style={{display:"flex",gap:5,overflowX:"auto"}}>
-        {[["catalogue","🛍 Catalogue"],["commandes","📦 Commandes"],["documents","📄 Documents"]].map(([id,l])=>(
-          <button key={id} onClick={()=>setOng(id)} style={{padding:"6px 12px",borderRadius:99,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:ong===id?"#065f46":B.card,color:ong===id?"#fff":B.muted,fontFamily:SA,flexShrink:0}}>{l}</button>
+        {[["demandes","📋 Demandes"+(nbNouvelles>0 ? " ("+(nbNouvelles)+")" : "")],["catalogue","🛍 Catalogue"],["commandes","📦 Commandes"],["documents","📄 Documents"]].map(([id,l])=>(
+          <button key={id} onClick={()=>setOng(id)} style={{padding:"6px 12px",borderRadius:99,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:ong===id?"#065f46":B.card,color:ong===id?"#fff":B.muted,fontFamily:SA,flexShrink:0,position:"relative"}}>{l}</button>
         ))}
       </div>
 
+      {/* Onglet Demandes */}
+      {ong==="demandes" && (
+        <div style={{display:"flex",flexDirection:"column",gap:9}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <div style={{fontSize:13,fontWeight:800,color:B.cream}}>Demandes de devis & réservations ({demandesEvents.length})</div>
+            <Btn sm v="gold" onClick={()=>{setFormDevis({statut:"À traiter"});setModalDevis(true);}}>+ Créer un devis</Btn>
+          </div>
+          {lDem && <div style={{textAlign:"center",padding:"20px",color:B.muted,fontSize:12}}>Chargement…</div>}
+          {!lDem && erreurDem && (
+            <div style={{background:"rgba(180,80,80,0.12)",border:"1px solid rgba(180,80,80,0.35)",borderRadius:12,padding:"14px",textAlign:"center"}}>
+              <div style={{fontSize:12,color:B.danger,fontWeight:700,marginBottom:6}}>⚠ {erreurDem}</div>
+              <Btn sm v="ghost" onClick={rDem}>Réessayer</Btn>
+            </div>
+          )}
+          {!lDem && !erreurDem && demandesEvents.length===0 && <div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucune demande reçue pour le moment</div>}
+          {!lDem && !erreurDem && demandesEvents.map(c=>(
+            <div key={c.id} style={{background:B.card,border:"1px solid "+B.border,borderRadius:13,padding:"14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <div>
+                  <span style={{fontSize:10,color:B.gold,fontWeight:700,marginRight:6}}>{c.reference || c.id}</span>
+                  <span style={{background:COL_STATUT[c.statut]||"rgba(255,255,255,0.05)",color:TXT_STATUT[c.statut]||B.muted,fontSize:9,fontWeight:700,borderRadius:4,padding:"2px 7px"}}>{c.statut}</span>
+                </div>
+                <span style={{fontSize:11,color:B.muted}}>{c.created_at ? fmt(c.created_at.split("T")[0]) : ""}</span>
+              </div>
+              <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{c.client_prenom} {c.client_nom}</div>
+              <div style={{fontSize:11,color:B.muted,marginBottom:4}}>{c.prestation}{c.categorie?" · "+c.categorie:""}{c.prix?" · "+c.prix:""}</div>
+              {c.client_tel && <div style={{fontSize:10,color:B.muted}}>📞 {c.client_tel}</div>}
+              {c.client_email && <div style={{fontSize:10,color:B.muted}}>✉️ {c.client_email}</div>}
+              {(c.date_souhaitee || c.heure_souhaitee) && <div style={{fontSize:10,color:B.muted}}>📅 {c.date_souhaitee?fmt(c.date_souhaitee):"Date à définir"}{c.heure_souhaitee?" à "+c.heure_souhaitee:""}</div>}
+              {c.type_evenement && <div style={{fontSize:10,color:B.muted}}>{"🎉 "+c.type_evenement+(c.nb_invites?" · "+c.nb_invites+" invités":"")}</div>}
+              {c.theme && <div style={{fontSize:10,color:B.muted}}>🎨 Thème : {c.theme}</div>}
+              {c.budget && <div style={{fontSize:10,color:B.muted}}>💰 Budget : {c.budget}</div>}
+              {c.message && <div style={{fontSize:10,color:B.muted,marginTop:4,fontStyle:"italic"}}>"{c.message}"</div>}
+              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                {STATUTS_EV.map(s=>(
+                  <button key={s} onClick={()=>changerStatut(c, s)} style={{fontSize:9,padding:"3px 7px",borderRadius:4,border:"1px solid "+(s===c.statut?"#10b981":"rgba(255,255,255,0.1)"),background:s===c.statut?"rgba(16,185,129,0.15)":"transparent",color:s===c.statut?"#10b981":B.muted,cursor:"pointer",fontFamily:SA}}>{s}</button>
+                ))}
+              </div>
+              {/* Estimation devis automatique fondatrice */}
+              {(()=>{
+                const lg = analyserDemandeClient({
+                  prestation: c.prestation, message: c.message,
+                  theme: c.theme, couleurs: c.couleurs,
+                  nbInvites: c.nb_invites, typeEvt: c.type_evenement,
+                  budget: c.budget,
+                });
+                return lg.length > 0 ? <div style={{marginTop:8}}><LignesDevisAuto lignes={lg} nbInvites={parseInt(c.nb_invites)||0}/></div> : null;
+              })()}
+              {c.statut!=="Converti en commande" && (
+                <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                  {c.statut!=="devis_envoye" && c.statut!=="accepte" && (
+                    <Btn sm v="gold" onClick={()=>setModalDevisGen(c)}>📄 Générer le devis</Btn>
+                  )}
+                  {(c.statut==="devis_envoye"||c.statut==="accepte") && (
+                    <Btn sm v="ghost" onClick={()=>setModalDevisGen(c)}>✏ Modifier le devis</Btn>
+                  )}
+                  <Btn sm v="ghost" onClick={()=>convertirEnCommande(c)}>→ Convertir en commande</Btn>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+      )}
       {ong==="catalogue" && <BellaEventsCatalogue user={user}/>}
       {ong==="commandes" && <BellaEventsCommandes user={user}/>}
       {ong==="documents" && <BellaEventsDocuments user={user}/>}
+
+      {/* Modale génération / édition devis fondatrice */}
+      {modalDevisGen && (
+        <ModalGenerationDevis
+          demande={modalDevisGen}
+          user={user}
+          onClose={()=>setModalDevisGen(null)}
+          onValide={()=>{setModalDevisGen(null); rDem();}}
+        />
+      )}
+
+      {/* Modale création devis interne fondatrice */}
+      {modalDevis && (
+        <Mdl title="Créer un devis" onClose={()=>{setModalDevis(false);setFormDevis({});}}>
+          <Fld label="Client *"><Inp value={formDevis.client||""} onChange={e=>setFormDevis({...formDevis,client:e.target.value})} placeholder="Nom du client"/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Téléphone *"><Inp value={formDevis.tel||""} onChange={e=>setFormDevis({...formDevis,tel:e.target.value})} placeholder="+594..."/></Fld>
+            <Fld label="Email"><Inp type="email" value={formDevis.email||""} onChange={e=>setFormDevis({...formDevis,email:e.target.value})} placeholder="email@..."/></Fld>
+          </div>
+          <Fld label="Prestation"><Inp value={formDevis.prestation||""} onChange={e=>setFormDevis({...formDevis,prestation:e.target.value})} placeholder="Nom de la prestation"/></Fld>
+          <Fld label="Catégorie"><Sel value={formDevis.categorie||""} onChange={e=>setFormDevis({...formDevis,categorie:e.target.value})} options={["", ...EVENTS_CATEGORIES.map(c=>c.id)]}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Date"><Inp type="date" value={formDevis.date||""} onChange={e=>setFormDevis({...formDevis,date:e.target.value})}/></Fld>
+            <Fld label="Heure"><Inp value={formDevis.heure||""} onChange={e=>setFormDevis({...formDevis,heure:e.target.value})} placeholder="14h00"/></Fld>
+          </div>
+          <Fld label="Nombre d'invités"><Inp type="number" value={formDevis.invites||""} onChange={e=>setFormDevis({...formDevis,invites:e.target.value})}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Thème"><Inp value={formDevis.theme||""} onChange={e=>setFormDevis({...formDevis,theme:e.target.value})}/></Fld>
+            <Fld label="Couleurs"><Inp value={formDevis.couleurs||""} onChange={e=>setFormDevis({...formDevis,couleurs:e.target.value})}/></Fld>
+          </div>
+          <Fld label="Budget annoncé (€)"><Inp type="number" value={formDevis.budget||""} onChange={e=>setFormDevis({...formDevis,budget:e.target.value})}/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Fld label="Montant (€)"><Inp type="number" value={formDevis.montant||""} onChange={e=>setFormDevis({...formDevis,montant:e.target.value})}/></Fld>
+            <Fld label="Acompte (€)"><Inp type="number" value={formDevis.acompte||""} onChange={e=>setFormDevis({...formDevis,acompte:e.target.value})}/></Fld>
+          </div>
+          <Fld label="Statut"><Sel value={formDevis.statut||"À traiter"} onChange={e=>setFormDevis({...formDevis,statut:e.target.value})} options={STATUTS_EV}/></Fld>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={creerDevisInterne} full v="gold">Créer le devis</Btn>
+            <Btn onClick={()=>{setModalDevis(false);setFormDevis({});}} v="ghost">Annuler</Btn>
+          </div>
+        </Mdl>
+      )}
+
+      {/* Modale conflit planning */}
+      {modalConflit && (
+        <Mdl title="⚠ Conflit de planning détecté" onClose={()=>setModalConflit(null)}>
+          <div style={{background:"rgba(180,80,80,0.12)",border:"1px solid rgba(180,80,80,0.35)",borderRadius:12,padding:"12px 14px",marginBottom:14}}>
+            <div style={{fontSize:12,color:B.danger,fontWeight:700,marginBottom:6}}>Ce créneau chevauche déjà une activité prévue :</div>
+            {modalConflit.conflits.map(c=>(
+              <div key={c.id} style={{fontSize:12,color:B.cream,marginBottom:4,paddingLeft:6,borderLeft:"2px solid "+B.danger}}>
+                <strong>{c.titre}</strong> ({c.pole})<br/>
+                <span style={{fontSize:10,color:B.muted}}>{new Date(c.date_debut).toLocaleString("fr-FR")} → {new Date(c.date_fin).toLocaleString("fr-FR")}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:12,color:B.muted,marginBottom:16,lineHeight:1.6}}>
+            La commande a bien été créée, mais elle n'a pas été ajoutée au planning pour éviter un double engagement. Choisissez une autre date depuis la fiche commande, ou forcez l'ajout si vous confirmez pouvoir gérer ce chevauchement.
+          </div>
+          {user?.role !== "assistante" ? (
+            <div style={{display:"flex",gap:8}}>
+              <Btn v="danger" full onClick={forcerCreationPlanning}>Forcer malgré le conflit</Btn>
+              <Btn v="ghost" onClick={()=>setModalConflit(null)}>Choisir une autre date</Btn>
+            </div>
+          ) : (
+            <div>
+              <div style={{fontSize:11,color:B.warning,marginBottom:10}}>Seule la fondatrice peut forcer un créneau en conflit.</div>
+              <Btn v="ghost" full onClick={()=>setModalConflit(null)}>Choisir une autre date</Btn>
+            </div>
+          )}
+        </Mdl>
+      )}
     </div>
   );
 }
+
 
 function BellaEventsCatalogue({ user }) {
   const [filtre, setFiltre] = useState("Tous");
@@ -3304,7 +7407,7 @@ function BellaEventsCatalogue({ user }) {
     const d = {...form, fondatrice_id:user?.id, updated_at:new Date().toISOString()};
     delete d._edit;
     if (form._edit) await sbPatch("events_catalogue", form._edit, d);
-    else await sbPost("events_catalogue", d);
+    else { const _rec = await sbPost("events_catalogue", d); if (!_rec.ok) console.error("[events_catalogue]", _rec.error); }
     reload(); setModal(null);
   };
 
@@ -3313,16 +7416,16 @@ function BellaEventsCatalogue({ user }) {
       <div style={{display:"flex",justifyContent:"flex-end"}}>
         <Btn sm onClick={()=>{setForm({type_item:"creation",statut:"actif",visible_client:true,categorie:"Papeterie personnalisée"});setModal("item");}}>+ Prestation</Btn>
       </div>
-      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher..." style={{width:"100%",background:B.surface,border:`1px solid ${B.border}`,borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher..." style={{width:"100%",background:B.surface,border:"1px solid "+(B.border),borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
       <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:2}}>
         {BE_FILTRES.map(f=>(
-          <button key={f} onClick={()=>setFiltre(f)} style={{padding:"4px 9px",borderRadius:99,border:`1px solid ${B.border}`,cursor:"pointer",fontSize:9,fontWeight:700,background:filtre===f?B.surface:"transparent",color:filtre===f?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>{f}</button>
+          <button key={f} onClick={()=>setFiltre(f)} style={{padding:"4px 9px",borderRadius:99,border:"1px solid "+(B.border),cursor:"pointer",fontSize:9,fontWeight:700,background:filtre===f?B.surface:"transparent",color:filtre===f?B.cream:B.muted,flexShrink:0,fontFamily:SA}}>{f}</button>
         ))}
       </div>
 
       {itemsFiltres.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucun article — exécute le SQL bellaia-events-catalogue.sql</div>}
       {itemsFiltres.map(i=>(
-        <div key={i.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+        <div key={i.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
             <div style={{flex:1}}>
               <div style={{display:"flex",gap:5,alignItems:"center",marginBottom:3,flexWrap:"wrap"}}>
@@ -3332,7 +7435,7 @@ function BellaEventsCatalogue({ user }) {
               <div style={{fontSize:10,color:B.muted,marginBottom:3}}>{i.sous_categorie||i.categorie}</div>
             </div>
             <div style={{textAlign:"right",flexShrink:0}}>
-              <div style={{fontSize:13,fontWeight:700,color:B.gold,marginBottom:3}}>{i.prix_unitaire?`${i.prix_unitaire}€`:i.prix_note||"Sur devis"}</div>
+              <div style={{fontSize:13,fontWeight:700,color:B.gold,marginBottom:3}}>{i.prix_unitaire?(i.prix_unitaire+"€"):(i.prix_note||"Sur devis")}</div>
               <div style={{display:"flex",gap:3}}>
                 <Btn sm v="ghost" onClick={()=>{setForm({...i,_edit:i.id});setModal("item");}}>✏</Btn>
                 <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("events_catalogue",i.id).then(reload);}}>✕</Btn>
@@ -3384,10 +7487,22 @@ function BellaEventsCommandes({ user }) {
 
   const save = async () => {
     if (!form.client_nom?.trim()) return;
+    const ancienStatut = form._edit ? cmds.find(x=>x.id===form._edit)?.statut : null;
     const d = {...form, fondatrice_id:user?.id};
     delete d._edit;
-    if (form._edit) await sbPatch("events_commandes", form._edit, d);
-    else await sbPost("events_commandes", d);
+    if (form._edit) {
+      const rEC7030 = await sbPatch("events_commandes", form._edit, d);
+      if (!rEC7030.ok) { alert("Erreur mise à jour commande.\\n"+(rEC7030.error||"")); return; }
+      if (ancienStatut && ancienStatut !== d.statut) {
+        await ecrireAudit({ module:"events_commandes", entiteId:form._edit, entiteRef:d.reference, action:"changement_statut", ancienStatut, nouveauStatut:d.statut, user });
+      }
+    } else {
+      const reference = await genererReference("BEC");
+      d.reference = reference;
+      const rEc3 = await sbPost("events_commandes", d);
+    if (!rEc3.ok) { alert("Erreur création commande.\n"+(rEc3.error||"")); return; }
+      await ecrireAudit({ module:"events_commandes", entiteId:reference, entiteRef:reference, action:"creation", nouveauStatut:d.statut, user });
+    }
     reload(); setModal(null);
   };
 
@@ -3399,9 +7514,10 @@ function BellaEventsCommandes({ user }) {
       </div>
       {cmds.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucune commande</div>}
       {cmds.map(c=>(
-        <div key={c.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"12px 14px"}}>
+        <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"12px 14px"}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
             <div>
+              {c.reference && <div style={{fontSize:10,color:B.gold,fontWeight:700,marginBottom:2}}>{c.reference}</div>}
               <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{c.client_nom}</div>
               <div style={{fontSize:10,color:B.muted}}>{c.type_evenement} · {c.date_evenement?fmt(c.date_evenement):"Date à définir"}</div>
               {c.nb_invites&&<div style={{fontSize:10,color:B.muted}}>👥 {c.nb_invites} invités</div>}
@@ -3414,7 +7530,7 @@ function BellaEventsCommandes({ user }) {
           {c.detail_besoin&&<div style={{fontSize:11,color:B.muted,marginBottom:6,lineHeight:1.5}}>{c.detail_besoin.slice(0,80)}{c.detail_besoin.length>80?"…":""}</div>}
           <div style={{display:"flex",gap:5}}>
             <Btn sm v="ghost" onClick={()=>{setForm({...c,_edit:c.id});setModal("cmd");}}>✏</Btn>
-            <Btn sm v="gold" onClick={()=>window.open(WA(`Bonjour ${c.client_nom}, suite à votre commande Events...`),"_blank")}>💬</Btn>
+            <Btn sm v="gold" onClick={()=>window.open(WA("Bonjour "+(c.client_nom)+", suite à votre commande Events..."),"_blank")}>💬</Btn>
             <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("events_commandes",c.id).then(reload);}}>✕</Btn>
           </div>
         </div>
@@ -3456,7 +7572,7 @@ function BellaEventsDocuments({ user }) {
     const d = {...form, fondatrice_id:user?.id, pole:"EVENTS", updated_at:new Date().toISOString()};
     delete d._edit;
     if (form._edit) await sbPatch("documents", form._edit, d);
-    else await sbPost("documents", d);
+    else (await sbPost("documents", d)).ok || console.error("[documents] post échec");
     reload(); setModal(null);
   };
 
@@ -3468,7 +7584,7 @@ function BellaEventsDocuments({ user }) {
       </div>
       {docs.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucun document</div>}
       {docs.map(d=>(
-        <div key={d.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:12,padding:"11px 13px"}}>
+        <div key={d.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"11px 13px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
@@ -3508,96 +7624,1766 @@ function BellaEventsDocuments({ user }) {
 // ═══════════════════════════════════════════════════════════
 // PORTAIL CLIENT BELLA'EVENTS — Catalogue commercial
 // ═══════════════════════════════════════════════════════════
-function ClientEventsPortail({ onBack }) {
-  const [filtre, setFiltre] = useState("Tous");
-  const [search, setSearch] = useState("");
-  const [modal, setModal] = useState(null);
-  const { data: items } = useP1Data("events_catalogue", { select:"*", filters:{statut:"actif",visible_client:true}, order:"ordre.asc", limit:200 }, []);
+// Couleurs Events (vert émeraude)
+const EV = {or:"#10b981",creme:"#e8f5ee",cremeD:"#a8d5be",line:"rgba(16,185,129,0.25)",verre:"rgba(16,185,129,0.06)",acc:"#34d399",night:"#0a1410"};
 
-  const itemsFiltres = items.filter(i => {
-    const matchF = filtre==="Tous" || i.sous_categorie===filtre || i.categorie===filtre;
-    const matchS = !search || i.nom.toLowerCase().includes(search.toLowerCase());
-    return matchF && matchS;
-  });
+// ═══════════════════════════════════════════════════════════
+// MOTEUR DEVIS INTELLIGENT — Analyse du message client
+// Utilise uniquement les prix validés dans les catalogues.
+// Aucun prix inventé : "À compléter" si non trouvé.
+// ═══════════════════════════════════════════════════════════
 
-  const TYPE_COL = {prestation:"#065f46",location:"#0d9488",creation:"#92400e",pack:"#1d4ed8"};
-  const TYPE_ICO = {prestation:"⚡",location:"🔑",creation:"✨",pack:"📦"};
+// Mini-catalogue Bella'Food — prix validés uniquement
+// (à enrichir quand le module Food sera intégré)
+const FOOD_CATALOGUE_LIGHT = [
+  {id:"food_gateau_ps", nom:"Gâteau pâte à sucre", pole:"FOOD", categorie:"pâtisserie", prix:45, unite:"prestation", note:"Prix de base, supplément selon décor et taille."},
+  {id:"food_gateau_mou", nom:"Gâteau mousse", pole:"FOOD", categorie:"pâtisserie", prix:35, unite:"prestation"},
+  {id:"food_cupcakes_d", nom:"Cupcakes décorés (12 pcs)", pole:"FOOD", categorie:"pâtisserie", prix:28, unite:"douzaine"},
+  {id:"food_option_saveur", nom:"Option saveur spéciale (caramel, pralinée...)", pole:"FOOD", categorie:"option", prix:5, unite:"option"},
+  {id:"food_buffet_s", nom:"Buffet sucré", pole:"FOOD", categorie:"traiteur", prix:8, unite:"par personne"},
+  {id:"food_buffet_c", nom:"Buffet cocktail", pole:"FOOD", categorie:"traiteur", prix:15, unite:"par personne"},
+  {id:"food_repas", nom:"Repas servi (plat + dessert)", pole:"FOOD", categorie:"traiteur", prix:22, unite:"par personne"},
+];
+
+// Mots-clés de détection → id dans les catalogues Events ou Food
+const DETECTION_MAP = [
+  // ── Gâteaux ──
+  {mots:["pâte à sucre","pate a sucre","fondant"],      id:"food_gateau_ps",    catalogue:"food"},
+  {mots:["gâteau","gateau","cake"],                       id:"ga_classique",      catalogue:"events"},
+  {mots:["cupcake"],                                      id:"food_cupcakes_d",   catalogue:"food"},
+  {mots:["cake design","cake art"],                       id:"ga_cakedesign",     catalogue:"events"},
+  {mots:["cake topper","topper"],                         id:"u_cake_topper",     catalogue:"events"},
+  // ── Options saveur ──
+  {mots:["caramel","beurre salé","praliné","praline","chocolat caramel"],
+                                                          id:"food_option_saveur",catalogue:"food"},
+  // ── Traiteur / buffet ──
+  {mots:["buffet","cocktail","apéritif","aperitif"],      id:"food_buffet_c",     catalogue:"food"},
+  {mots:["traiteur","repas","déjeuner","dîner","diner"],  id:"food_repas",        catalogue:"food"},
+  // ── Papeterie ──
+  {mots:["invitation","invitations"],                     id:"pa_invit_num",      catalogue:"events"},
+  {mots:["faire-part","faire part","fairpart"],           id:"pa_fp_digital",     catalogue:"events"},
+  {mots:["menu"],                                         id:"pa_menus",          catalogue:"events"},
+  {mots:["fanion"],                                       id:"pa_fanions",        catalogue:"events"},
+  {mots:["marque-place","marque place"],                  id:"pa_marqueplace",    catalogue:"events"},
+  // ── Décoration ──
+  {mots:["décoration","decoration","décor"],              id:"ev_deco_std",       catalogue:"events"},
+  {mots:["backdrop","toile de fond"],                     id:"de_backdrop",       catalogue:"events"},
+  {mots:["arche","ballon","ballons","arche ballon"],       id:"ev_ballons",        catalogue:"events"},
+  {mots:["sweet table","table sucrée"],                   id:"de_sweettable",     catalogue:"events"},
+  // ── Packs anniversaire ──
+  {mots:["pack rempli","pack personnalisé rempli","personnalisé rempli"],
+                                                          id:"an_r_1",            catalogue:"events"},
+  {mots:["pack non rempli","pack vide","non rempli"],     id:"an_nr_1",           catalogue:"events"},
+  {mots:["kit invité","kit anniversaire","kit invites"],  id:"an_kit",            catalogue:"events"},
+  // ── Tubes à bulles / options unité ──
+  {mots:["tube","bulles","tube à bulles"],                id:"u_tube_bulles",     catalogue:"events"},
+  {mots:["assiette personnalisée"],                       id:"u_assiette",        catalogue:"events"},
+  {mots:["pop-corn","popcorn","pop corn"],                id:"u_popcorn_unite",   catalogue:"events"},
+];
+
+// Trouve une prestation dans EVENTS_PRESTATIONS par id
+function trouverPrestaEvents(id) {
+  return EVENTS_PRESTATIONS.find(p => p.id === id) || null;
+}
+
+// Trouve une prestation dans FOOD_CATALOGUE_LIGHT par id
+function trouverPrestaFood(id) {
+  return FOOD_CATALOGUE_LIGHT.find(p => p.id === id) || null;
+}
+
+// Construit une ligne de devis depuis une prestation et un contexte
+function construireLigne(presta, source, qte, notesSup) {
+  const prixBase = presta.prix || null;
+  const prixUnitaire = prixBase;
+  const total = (prixUnitaire && qte) ? prixUnitaire * qte : null;
+  return {
+    id: presta.id,
+    libelle: presta.nom,
+    pole: presta.pole || "EVENTS",
+    categorie: presta.categorie || presta.sous || "",
+    qte: qte || 1,
+    prixUnitaire,
+    total,
+    statut: prixUnitaire ? "automatique" : "a_completer",
+    source,
+    note: notesSup || presta.note || null,
+  };
+}
+
+// Moteur principal : analyse le contexte client et retourne des lignes de devis
+function analyserDemandeClient({ prestation, message, theme, couleurs, nbInvites, typeEvt, budget }) {
+  const lignes = [];
+  const dejaAjoutes = new Set();
+
+  const texteComplet = [
+    prestation || "", message || "", theme || "", typeEvt || ""
+  ].join(" ").toLowerCase();
+
+  const qteInvites = parseInt(nbInvites) || 0;
+
+  // Parcourir la carte de détection
+  for (const regle of DETECTION_MAP) {
+    const detecte = regle.mots.some(m => texteComplet.includes(m));
+    if (!detecte || dejaAjoutes.has(regle.id)) continue;
+
+    let p = null;
+    if (regle.catalogue === "food") p = trouverPrestaFood(regle.id);
+    else p = trouverPrestaEvents(regle.id);
+
+    if (!p) continue;
+
+    // Calcul de quantité contextuelle
+    let qte = 1;
+    if (p.unite === "par personne" && qteInvites > 0) qte = qteInvites;
+    if (p.unite === "douzaine" && qteInvites > 0) qte = Math.ceil(qteInvites / 12);
+
+    // Cas spécial pack rempli : choisir le palier selon nb_invités
+    if (regle.id === "an_r_1" && qteInvites > 0) {
+      const paliers = [
+        {min:1, max:9,  id:"an_r_1"},  {min:10,max:19, id:"an_r_2"},
+        {min:20,max:29, id:"an_r_3"},  {min:30,max:39, id:"an_r_4"},
+        {min:40,max:49, id:"an_r_5"},  {min:50,max:59, id:"an_r_6"},
+        {min:60,max:69, id:"an_r_7"},  {min:70,max:79, id:"an_r_8"},
+        {min:80,max:89, id:"an_r_9"},  {min:90,max:999,id:"an_r_10"},
+      ];
+      const palier = paliers.find(p => qteInvites >= p.min && qteInvites <= p.max);
+      if (palier) {
+        const pp = trouverPrestaEvents(palier.id);
+        if (pp) { p = pp; dejaAjoutes.add(palier.id); }
+      }
+    }
+
+    dejaAjoutes.add(regle.id);
+    lignes.push(construireLigne(p, "Détecté dans message client", qte, null));
+  }
+
+  // Si budget annoncé et aucune ligne → note suggestion
+  const budgetNum = parseFloat(budget) || 0;
+  if (lignes.length === 0 && budgetNum > 0) {
+    lignes.push({
+      id:"suggestion_budget", libelle:"Budget client annoncé : "+budgetNum+"€",
+      pole:"EVENTS", categorie:"", qte:1, prixUnitaire:null, total:null,
+      statut:"suggestion", source:"Budget annoncé", note:"À décomposer par la fondatrice."
+    });
+  }
+
+  return lignes;
+}
+
+// ─── Composant d'affichage de l'estimation automatique ───
+function LignesDevisAuto({ lignes, nbInvites }) {
+  if (!lignes || lignes.length === 0) return null;
+
+  const totalAuto = lignes
+    .filter(l => l.statut === "automatique" && l.total)
+    .reduce((s, l) => s + l.total, 0);
+
+  const COL_POLE = {EVENTS:"#065f46", FOOD:"#15803d", BSH:"#6B1A2B", ODYSSEE:"#3730a3"};
+  const COL_STATUT = {automatique:"rgba(16,185,129,0.12)", a_completer:"rgba(201,168,76,0.12)", suggestion:"rgba(124,58,237,0.12)"};
+  const TXT_STATUT = {automatique:EV.or, a_completer:B.warning, suggestion:B.violetL};
+  const LBL_STATUT = {automatique:"Auto", a_completer:"À compléter", suggestion:"Suggestion"};
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 20% 0%,#0d1a14,${B.night} 65%)`,fontFamily:SA,color:B.cream}}>
-      {/* Header */}
-      <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(6,95,70,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
-        <div>
-          <div style={{fontFamily:FS,fontSize:14,color:"#10b981",letterSpacing:2}}>✨ Bella'Events</div>
-          <div style={{fontSize:9,color:"rgba(16,185,129,0.7)",letterSpacing:3}}>PAPETERIE · DÉCORATION · COORDINATION</div>
-        </div>
-        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+    <div style={{background:"rgba(16,185,129,0.05)",border:"1px solid "+EV.line,borderRadius:13,padding:"14px",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:11,fontWeight:700,color:EV.or,letterSpacing:1}}>✦ ESTIMATION AUTOMATIQUE</div>
+        <div style={{fontSize:9,color:EV.cremeD}}>Prix de référence catalogue Bellaïa</div>
       </div>
-
-      {/* Hero */}
-      <div style={{padding:"16px 14px 10px",background:"linear-gradient(180deg,rgba(6,95,70,0.2) 0%,transparent 100%)"}}>
-        <div style={{fontFamily:FS,fontSize:20,fontWeight:900,color:B.cream,marginBottom:4}}>Nos prestations ✨</div>
-        <div style={{fontSize:12,color:B.muted,marginBottom:12}}>Papeterie · Créations · Décoration · Location · Packs</div>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher une prestation..." style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(6,95,70,0.3)",borderRadius:10,padding:"8px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
-      </div>
-
-      {/* Filtres */}
-      <div style={{display:"flex",gap:5,overflowX:"auto",padding:"6px 14px",borderBottom:"1px solid rgba(6,95,70,0.2)",flexShrink:0}}>
-        {BE_FILTRES.map(f=>(
-          <button key={f} onClick={()=>setFiltre(f)} style={{padding:"4px 10px",borderRadius:99,border:`1px solid ${filtre===f?"#065f46":"rgba(255,255,255,0.1)"}`,background:filtre===f?"#065f46":"transparent",color:filtre===f?"#fff":"rgba(255,255,255,0.5)",cursor:"pointer",fontSize:10,fontWeight:700,flexShrink:0,fontFamily:SA}}>{f}</button>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {lignes.map((l, i) => (
+          <div key={l.id+"_"+i} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",background:COL_STATUT[l.statut]||"rgba(255,255,255,0.04)",borderRadius:8,padding:"8px 10px"}}>
+            <div style={{flex:1,marginRight:8}}>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
+                <span style={{fontSize:8,background:(COL_POLE[l.pole]||"rgba(255,255,255,0.1)")+"33",color:COL_POLE[l.pole]||EV.cremeD,borderRadius:3,padding:"1px 5px",fontWeight:700}}>{l.pole}</span>
+                <span style={{fontSize:8,background:COL_STATUT[l.statut],color:TXT_STATUT[l.statut],borderRadius:3,padding:"1px 5px",fontWeight:700}}>{LBL_STATUT[l.statut]}</span>
+              </div>
+              <div style={{fontSize:12,color:EV.creme,fontWeight:500}}>{l.libelle}</div>
+              {l.qte > 1 && <div style={{fontSize:10,color:EV.cremeD}}>× {l.qte}{l.pole==="FOOD"&&l.unite?" "+l.unite:""}</div>}
+              {l.note && <div style={{fontSize:10,color:EV.cremeD,fontStyle:"italic",marginTop:2}}>{l.note}</div>}
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              {l.total ? (
+                <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{l.total}€</div>
+              ) : l.prixUnitaire ? (
+                <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{l.prixUnitaire}€</div>
+              ) : (
+                <div style={{fontSize:11,color:B.warning}}>À compléter</div>
+              )}
+            </div>
+          </div>
         ))}
       </div>
+      {totalAuto > 0 && (
+        <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:11,color:EV.cremeD}}>Total estimé (prix catalogue)</div>
+          <div style={{fontSize:16,fontWeight:700,color:EV.or,fontFamily:FS}}>{totalAuto}€</div>
+        </div>
+      )}
+      <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:8,lineHeight:1.5}}>
+        Estimation indicative basée sur le catalogue Bellaïa. La fondatrice confirmera le devis final.
+      </div>
+    </div>
+  );
+}
 
-      {/* Catalogue */}
-      <div style={{flex:1,overflowY:"auto",padding:"12px 14px 24px"}}>
-        {itemsFiltres.length===0&&(
-          <div style={{textAlign:"center",padding:"40px 20px",color:B.muted}}>
-            <div style={{fontSize:40,marginBottom:12}}>✨</div>
-            <div style={{fontSize:14,color:B.mutedL,marginBottom:8}}>Prestations bientôt disponibles</div>
-            <button onClick={()=>window.open(WA("Bonjour, je souhaite en savoir plus sur les prestations Bella'Events"),"_blank")} style={{background:"#065f46",border:"none",borderRadius:10,padding:"10px 20px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:SA}}>💬 Nous contacter</button>
+// ─── Mapping statuts events_demandes → étapes de la timeline ───
+const ETAPES_SUIVI = [
+  {statut:"nouvelle_demande",    ico:"✅", label:"Demande reçue"},
+  {statut:"a_traiter",           ico:"⏳", label:"Étude de votre demande"},
+  {statut:"devis_en_preparation",ico:"📄", label:"Devis en préparation"},
+  {statut:"devis_envoye",        ico:"📩", label:"Devis envoyé"},
+  {statut:"accepte",             ico:"🎉", label:"Réservation confirmée"},
+];
+
+// Normalise un statut brut (espaces, accents, casse) vers une des clés ci-dessus
+function normaliserStatut(s) {
+  if (!s) return "nouvelle_demande";
+  const map = {
+    "nouvelle demande":     "nouvelle_demande",
+    "nouvelle_demande":     "nouvelle_demande",
+    "à traiter":            "a_traiter",
+    "a_traiter":            "a_traiter",
+    "devis en preparation": "devis_en_preparation",
+    "devis en préparation": "devis_en_preparation",
+    "devis_en_preparation": "devis_en_preparation",
+    "devis envoyé":         "devis_envoye",
+    "devis envoye":         "devis_envoye",
+    "devis_envoye":         "devis_envoye",
+    "accepté":              "accepte",
+    "accepte":              "accepte",
+    "réservation confirmée":"accepte",
+    "converti en commande": "accepte",
+  };
+  return map[s.toLowerCase().trim()] || "nouvelle_demande";
+}
+
+// ─── Timeline de suivi partagée (utilisée dans la confirmation et le portail) ─
+function TimelineSuivi({ statutBrut, style }) {
+  const statutNorm = normaliserStatut(statutBrut || "nouvelle_demande");
+  const idxActuel  = ETAPES_SUIVI.findIndex(e => e.statut === statutNorm);
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:0,...style}}>
+      {ETAPES_SUIVI.map((e, i) => {
+        const passe   = i <= idxActuel;
+        const actuel  = i === idxActuel;
+        const dernier = i === ETAPES_SUIVI.length - 1;
+        return (
+          <div key={e.statut} style={{display:"flex",alignItems:"stretch",gap:12}}>
+            {/* Colonne icône + fil */}
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:28,flexShrink:0}}>
+              <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,
+                background:passe?"rgba(16,185,129,0.2)":"rgba(255,255,255,0.05)",
+                border:"2px solid "+(actuel?"#10b981":passe?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.1)"),
+                boxShadow:actuel?"0 0 8px rgba(16,185,129,0.5)":"none",
+              }}>{passe?e.ico:"⚪"}</div>
+              {!dernier && <div style={{flex:1,width:2,background:passe?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.07)",margin:"3px 0"}}/>}
+            </div>
+            {/* Texte */}
+            <div style={{paddingBottom: dernier?0:16,paddingTop:4}}>
+              <div style={{fontSize:12,fontWeight:actuel?700:500,color:passe?"#10b981":actuel?"#34d399":"rgba(255,255,255,0.3)",lineHeight:1.4}}>{e.label}</div>
+              {actuel && <div style={{fontSize:9,color:"rgba(16,185,129,0.6)",marginTop:2,letterSpacing:1}}>EN COURS</div>}
+            </div>
           </div>
-        )}
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {itemsFiltres.map(i=>(
-            <div key={i.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid rgba(6,95,70,0.25)`,borderRadius:13,padding:"13px 14px",cursor:"pointer"}} onClick={()=>setModal(i)}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",gap:5,alignItems:"center",marginBottom:4}}>
-                    <span style={{background:`${TYPE_COL[i.type_item]}33`,color:TYPE_COL[i.type_item],borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{TYPE_ICO[i.type_item]} {i.type_item}</span>
-                  </div>
-                  <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>{i.nom}</div>
-                  {i.description&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)",lineHeight:1.5}}>{i.description.slice(0,90)}{i.description.length>90?"…":""}</div>}
-                </div>
-                <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
-                  <div style={{fontSize:14,fontWeight:700,color:"#10b981"}}>{i.prix_unitaire?`${i.prix_unitaire}€`:i.prix_note||"Sur devis"}</div>
-                </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Portail "Suivre ma demande" (accessible depuis l'accueil Events) ───
+// ─── Vue devis côté client ──────────────────────────────────
+function DevisClientView({ dossier, onAccepte, onRefuse }) {
+  const lignes = React.useMemo(() => {
+    if (!dossier.lignes_devis) return [];
+    try {
+      const parsed = typeof dossier.lignes_devis === "string"
+        ? JSON.parse(dossier.lignes_devis) : dossier.lignes_devis;
+      return Array.isArray(parsed) ? parsed.filter(l => l.statut !== "suggestion") : [];
+    } catch { return []; }
+  }, [dossier.lignes_devis]);
+
+  const total     = dossier.montant_estime   || 0;
+  const acompte   = dossier.montant_acompte  || Math.round(total * 0.3);
+  const solde     = dossier.montant_solde    || (total - acompte);
+  const accepte   = dossier.client_reponse === "accepte" || dossier.statut === "accepte";
+  const refuse    = dossier.client_reponse === "refuse"  || dossier.statut === "refuse";
+  const [confirmer, setConfirmer] = React.useState(null); // "accepte"|"refuse"
+
+  return (
+    <div style={{background:"rgba(16,185,129,0.06)",border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:11,color:EV.cremeD,fontWeight:700,letterSpacing:1}}>VOTRE DEVIS</div>
+        <div style={{fontSize:10,color:EV.cremeD}}>{dossier.numero_devis || ""}</div>
+      </div>
+
+      {/* Lignes */}
+      {lignes.length > 0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:12}}>
+          {lignes.map((l, i) => (
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid rgba(16,185,129,0.1)"}}>
+              <div>
+                <div style={{fontSize:12,color:EV.creme}}>{l.libelle}</div>
+                {l.qte > 1 && <div style={{fontSize:10,color:EV.cremeD}}>× {l.qte}</div>}
               </div>
+              <div style={{fontSize:12,fontWeight:600,color:l.total?EV.or:B.muted}}>{l.total ? l.total+"€" : "À confirmer"}</div>
             </div>
           ))}
         </div>
+      )}
 
-        {/* CTA WhatsApp */}
-        <div style={{marginTop:20,background:"rgba(6,95,70,0.15)",border:"1px solid rgba(6,95,70,0.3)",borderRadius:14,padding:"16px",textAlign:"center"}}>
-          <div style={{fontFamily:FS,fontSize:14,color:"#10b981",marginBottom:6}}>Une question ? Un projet ? ✨</div>
-          <div style={{fontSize:12,color:B.muted,marginBottom:12}}>Contactez-nous pour un devis personnalisé.</div>
-          <button onClick={()=>window.open(WA("Bonjour, je souhaite un devis pour Bella'Events"),"_blank")} style={{background:"linear-gradient(135deg,#065f46,#0d9488)",border:"none",borderRadius:10,padding:"12px 24px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:SA}}>💬 Demander un devis</button>
+      {/* Totaux */}
+      {total > 0 && (
+        <div style={{background:"rgba(16,185,129,0.1)",borderRadius:10,padding:"10px 12px",marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <span style={{fontSize:12,color:EV.cremeD}}>Total</span>
+            <span style={{fontSize:16,fontWeight:700,color:EV.or}}>{total}€</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+            <span style={{fontSize:11,color:EV.cremeD}}>Acompte (30%)</span>
+            <span style={{fontSize:12,color:B.warning}}>{acompte}€</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontSize:11,color:EV.cremeD}}>Solde restant</span>
+            <span style={{fontSize:12,color:EV.cremeD}}>{solde}€</span>
+          </div>
         </div>
+      )}
+
+      {/* Conditions */}
+      <div style={{fontSize:10,color:EV.cremeD,lineHeight:1.6,marginBottom:12}}>
+        Devis valable 30 jours · Acompte de 30% requis à la confirmation · Prestation garantie après réception de l'acompte.
       </div>
 
-      {/* Modal détail prestation */}
-      {modal&&(
-        <Mdl title={modal.nom} onClose={()=>setModal(null)}>
-          <div style={{textAlign:"center",marginBottom:14}}>
-            <span style={{background:`${TYPE_COL[modal.type_item]}33`,color:TYPE_COL[modal.type_item],borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700}}>{TYPE_ICO[modal.type_item]} {modal.type_item}</span>
-          </div>
-          {modal.description&&<p style={{color:B.muted,fontSize:13,lineHeight:1.7,marginBottom:16}}>{modal.description}</p>}
-          <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px",marginBottom:16,textAlign:"center"}}>
-            <div style={{fontSize:22,fontWeight:900,color:"#10b981",fontFamily:FS}}>{modal.prix_unitaire?`${modal.prix_unitaire}€`:modal.prix_note||"Sur devis"}</div>
-            {modal.unite&&modal.prix_unitaire&&<div style={{fontSize:11,color:B.muted}}>par {modal.unite}</div>}
-          </div>
-          <button onClick={()=>{setModal(null);window.open(WA(`Bonjour, je suis intéressée par : ${modal.nom}. Pouvez-vous me faire un devis ?`),"_blank");}} style={{width:"100%",background:"linear-gradient(135deg,#065f46,#0d9488)",border:"none",borderRadius:10,padding:"12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:SA}}>💬 Demander ce service →</button>
-        </Mdl>
+      {/* Bouton PDF devis — génération HTML + impression */}
+      <button onClick={() => {
+        const lignesHtml = lignes.map(l =>
+          `<tr><td>${l.libelle}${l.qte>1?" ×"+l.qte:""}</td><td style="text-align:right;font-weight:600">${l.total?l.total+"€":"À confirmer"}</td></tr>`
+        ).join("");
+        const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Devis ${dossier.numero_devis||""}</title>
+<style>body{font-family:Arial,sans-serif;padding:30px;max-width:680px;margin:0 auto;color:#111;font-size:13px}
+h1{color:#0d6e3f;font-size:20px;border-bottom:2px solid #0d6e3f;padding-bottom:6px}
+table{width:100%;border-collapse:collapse;margin:16px 0}
+td{padding:7px 4px;border-bottom:1px solid #e5e7eb}
+.total{font-size:16px;font-weight:700;color:#0d6e3f}.muted{color:#6b7280;font-size:11px}
+.acompte{background:#fef9ec;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin:12px 0}
+@media print{button{display:none}}</style></head><body>
+<h1>🌿 Bella'Events — Devis</h1>
+<p><strong>Référence :</strong> ${dossier.numero_devis||"—"}</p>
+<p><strong>Client :</strong> ${[dossier.client_prenom,dossier.client_nom].filter(Boolean).join(" ")||"—"}</p>
+<p><strong>Prestation :</strong> ${dossier.prestation||dossier.type_evenement||"—"}</p>
+<p><strong>Date événement :</strong> ${dossier.date_evenement||"—"}</p>
+<table><thead><tr><th style="text-align:left">Prestation</th><th style="text-align:right">Montant</th></tr></thead>
+<tbody>${lignesHtml||"<tr><td>Prestation événementielle</td><td style='text-align:right'>${total}€</td></tr>"}</tbody></table>
+<div style="text-align:right"><span class="total">Total : ${total}€</span></div>
+<div class="acompte"><strong>Acompte (30%) :</strong> ${acompte}€ — <strong>Solde :</strong> ${solde}€</div>
+<p class="muted">Devis valable 30 jours · Bella'Studio · Sinnamary, Guyane</p>
+</body></html>`;
+        const w = window.open("","_blank");
+        if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);}
+      }} style={{width:"100%",background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.35)",borderRadius:10,padding:"10px",color:"#10b981",fontWeight:700,fontSize:12,fontFamily:SA,cursor:"pointer",marginBottom:8,textAlign:"center"}}>
+        📄 Télécharger / Imprimer le devis
+      </button>
+
+      {/* Réponse client */}
+      {!accepte && !refuse && !confirmer && (
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setConfirmer("accepte")} style={{flex:1,background:"rgba(16,185,129,0.15)",border:"1px solid #10b981",borderRadius:10,padding:"11px",color:"#10b981",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>
+            ✅ Accepter le devis
+          </button>
+          <button onClick={()=>setConfirmer("refuse")} style={{flex:1,background:"rgba(180,80,80,0.1)",border:"1px solid rgba(180,80,80,0.4)",borderRadius:10,padding:"11px",color:B.danger,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>
+            ✕ Refuser
+          </button>
+        </div>
       )}
+
+      {confirmer === "accepte" && (
+        <div style={{background:"rgba(16,185,129,0.1)",border:"1px solid #10b981",borderRadius:10,padding:12}}>
+          <div style={{fontSize:12,color:EV.creme,marginBottom:8}}>Confirmez-vous l'acceptation de ce devis ?</div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={onAccepte} style={{flex:1,background:"#10b981",border:"none",borderRadius:8,padding:"9px",color:"#062b1d",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>✅ Oui, j'accepte</button>
+            <button onClick={()=>setConfirmer(null)} style={{flex:1,background:"transparent",border:"1px solid rgba(255,255,255,0.2)",borderRadius:8,padding:"9px",color:B.muted,fontSize:12,cursor:"pointer",fontFamily:SA}}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {confirmer === "refuse" && (
+        <div style={{background:"rgba(180,80,80,0.1)",border:"1px solid rgba(180,80,80,0.4)",borderRadius:10,padding:12}}>
+          <div style={{fontSize:12,color:EV.creme,marginBottom:8}}>Êtes-vous sûr(e) de refuser ce devis ?</div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={onRefuse} style={{flex:1,background:B.danger,border:"none",borderRadius:8,padding:"9px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>✕ Oui, refuser</button>
+            <button onClick={()=>setConfirmer(null)} style={{flex:1,background:"transparent",border:"1px solid rgba(255,255,255,0.2)",borderRadius:8,padding:"9px",color:B.muted,fontSize:12,cursor:"pointer",fontFamily:SA}}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {accepte && <div style={{textAlign:"center",padding:10,fontSize:13,color:"#10b981",fontWeight:700}}>✅ Devis accepté — merci !</div>}
+      {refuse  && <div style={{textAlign:"center",padding:10,fontSize:13,color:B.danger}}>Devis refusé. N'hésitez pas à nous contacter pour ajuster votre projet.</div>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Composants sous-portail client — Paiements + Documents
+// ═══════════════════════════════════════════════════════════
+
+function PaiementsClient({ dossiersIds, fmtPx, fmtDos }) {
+  const [paiements, setPaiements] = React.useState([]);
+  const [loading,   setLoading]   = React.useState(false);
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!dossiersIds?.length || !SB_URL) return;
+      setLoading(true);
+      try {
+        const token = await getTokenAsync();
+        const ids   = dossiersIds.slice(0,20).map(id => "source_id.eq."+id).join(",");
+        const r = await fetch(
+          SB_URL+"/rest/v1/bellaia_paiements?or=("+ids+")&order=date_paiement.desc&limit=50",
+          { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+        );
+        const data = r.ok ? await r.json() : [];
+        if (actif) setPaiements(Array.isArray(data) ? data : []);
+      } catch(e) {
+        console.error("[PaiementsClient]", e);
+        if (actif) setPaiements([]);
+      } finally {
+        if (actif) setLoading(false);
+      }
+    };
+    charger();
+    return () => { actif = false; };
+  }, [dossiersIds]);
+
+  const STATUT_COL = { confirme:"#22c55e", en_attente:"#fb923c", echoue:"#f87171", annule:"#f87171" };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+      <div style={{fontFamily:"Georgia,'Times New Roman',serif",fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes paiements</div>
+      {loading && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)"}}>Chargement…</div>}
+      {!loading && paiements.length===0 && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>Aucun paiement enregistré.</div>}
+      {paiements.map(p=>(
+        <div key={p.id} style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:12,padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{p.reference}</div>
+            <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{p.notes?.slice(0,40)||p.mode_paiement||"Paiement"}</div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2}}>{fmtDos(p.date_paiement)}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#22c55e"}}>{fmtPx(p.montant)}</div>
+            <span style={{fontSize:9,color:STATUT_COL[p.statut]||"rgba(245,240,232,0.6)",fontWeight:700}}>{p.statut}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DocumentsClient({ dossiersRefs, fmtDos }) {
+  const [docs,    setDocs]    = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL) return;
+      setLoading(true);
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(SB_URL+"/rest/v1/bellaia_documents?module=eq.EVENTS&order=created_at.desc&limit=30", {
+          headers:{ apikey:SB_KEY, Authorization:"Bearer "+token }
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setDocs(Array.isArray(d) ? d : []);
+      } catch(e) { console.warn("[Bellaïa][chargement]", e.message); }
+      finally { if (actif) setLoading(false); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, []);
+
+  const imprimerDoc = (doc) => {
+    if (doc.contenu_html) {
+      const w = window.open("","_blank");
+      if(w){w.document.write(doc.contenu_html);w.document.close();setTimeout(()=>w.print(),400);}
+    } else {
+      window.open(WA("Bonjour, je souhaite télécharger le document : "+doc.titre+" ("+doc.reference+")"), "_blank");
+    }
+  };
+
+  const TYPE_ICO = { devis:"📄", facture:"🧾", contrat:"📝", bon_commande:"📦", recu:"💳", autre:"📁" };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+      <div style={{fontFamily:"Georgia,'Times New Roman',serif",fontSize:16,color:"#c9a96e",marginBottom:6}}>Mes documents</div>
+      {loading && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)"}}>Chargement…</div>}
+      {!loading && docs.length===0 && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)",fontStyle:"italic"}}>Aucun document disponible.<br/>Les documents apparaîtront ici après validation de votre devis.</div>}
+      {docs.map(doc=>(
+        <div key={doc.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",display:"flex",gap:12,alignItems:"center"}}>
+          <span style={{fontSize:22,flexShrink:0}}>{TYPE_ICO[doc.categorie]||"📁"}</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{doc.titre}</div>
+            <div style={{fontSize:10,color:"rgba(245,240,232,0.6)"}}>{doc.reference} · {fmtDos(doc.created_at)}</div>
+            <span style={{fontSize:9,color:"rgba(245,240,232,0.5)"}}>{doc.statut}</span>
+          </div>
+          <button onClick={()=>imprimerDoc(doc)} style={{background:"rgba(201,168,76,0.12)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:7,padding:"5px 10px",color:"#c9a96e",fontSize:10,cursor:"pointer",fontFamily:"system-ui,sans-serif",flexShrink:0}}>
+            📄 Voir
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Fonction GED auto-save — appelée après tout document créé
+// ═══════════════════════════════════════════════════════════
+async function gedAutoSave({ titre, module, categorie, reference, clientNom, contenuHtml, entiteId, entiteTable }) {
+  if (!SB_URL) return null;
+  try {
+    const docRef = await genererReference("DOC");
+    const r = await fetch(SB_URL+"/rest/v1/bellaia_documents", {
+      method:"POST",
+      headers:{ apikey:SB_KEY, Authorization:"Bearer "+(await getTokenAsync()),
+        "Content-Type":"application/json", Prefer:"return=representation" },
+      body: JSON.stringify({
+        reference:    docRef,
+        titre:        titre,
+        module:       module||"EVENTS",
+        categorie:    categorie||"autre",
+        type_fichier: contenuHtml?"html":"texte",
+        contenu_html: contenuHtml||null,
+        client_nom:   clientNom||null,
+        entite_table: entiteTable||null,
+        entite_id:    entiteId||null,
+        statut:       "final",
+        version:      1,
+      }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return Array.isArray(d)?d[0]?.id:d?.id;
+  } catch { return null; }
+}
+
+function PortailSuiviClient({ onBack, user }) {
+  const [ref,        setRef]        = useState("");
+  const [dossier,    setDossier]    = useState(null);
+  const [dossiers,   setDossiers]   = useState([]);
+  const [chargement, setChargement] = useState(false);
+  const [erreur,     setErreur]     = useState("");
+  const [onglet,     setOnglet]     = useState("demandes");
+  const [paiement,   setPaiement]   = useState(null); // {dossier, option:"acompte"|"total"}
+  const [payMode,    setPayMode]    = useState(null); // "sumup"|"paypal"|"virement"|"especes"|"cheque"
+  const [payLoading, setPayLoading] = useState(false);
+  const [paySucces,  setPaySucces]  = useState(null); // ref PAY-
+
+  // ── Chargement automatique des dossiers du client ────────
+  React.useEffect(() => {
+    const chargerAuto = async () => {
+      if (!SB_URL) return;
+      setChargement(true);
+      try {
+        const token = await getTokenAsync();
+        const h = { apikey:SB_KEY, Authorization:"Bearer "+token };
+        // Chercher par email, tel, ou nom/prénom
+        const tel   = (user?.telephone || user?.tel || "").replace(/\D/g,"");
+        const email = user?.email || "";
+        // Identification par email puis téléphone uniquement (pas par nom — trop peu fiable)
+        let url = SB_URL+"/rest/v1/events_demandes?order=created_at.desc&limit=50&select=*";
+        if (email && tel) {
+          url += "&or=(client_email.eq."+encodeURIComponent(email)+",client_tel.eq."+encodeURIComponent(tel)+")";
+        } else if (email) {
+          url += "&client_email=eq."+encodeURIComponent(email);
+        } else if (tel) {
+          url += "&client_tel=eq."+encodeURIComponent(tel);
+        }
+        // Si ni email ni tel : ne pas charger — attendre la recherche manuelle
+        const r = await fetch(url, { headers:h });
+        if (r.ok) {
+          const rows = await r.json();
+          if (Array.isArray(rows) && rows.length > 0) setDossiers(rows);
+        }
+      } catch {}
+      setChargement(false);
+    };
+    if (user) chargerAuto();
+  }, [user]);
+
+  const rechercher = async () => {
+    if (!ref.trim()) return;
+    setChargement(true); setErreur(""); setDossier(null);
+    try {
+      const token = await getTokenAsync();
+      const r = await fetch(
+        SB_URL+"/rest/v1/events_demandes?reference=eq."+encodeURIComponent(ref.trim())+"&select=*&limit=1",
+        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+      );
+      const rows = await r.json();
+      if (!r.ok || !rows?.length) {
+        setErreur("Aucune demande trouvée pour « "+ref.trim()+" ».");
+      } else {
+        setDossier(rows[0]);
+        setDossiers(prev => {
+          const exists = prev.find(d=>d.id===rows[0].id);
+          return exists ? prev : [rows[0], ...prev];
+        });
+      }
+    } catch { setErreur("Connexion impossible."); }
+    setChargement(false);
+  };
+
+  // ── Acceptation devis → déclenchement paiement ──────────
+  const onAccepterDevis = async (dos) => {
+    const now = new Date().toISOString();
+
+    // ── Anti-doublon : si déjà accepté, aller au paiement directement ──
+    if (dos.liaison_comptable) {
+      setPaiement({dossier:dos, facRef:dos.liaison_comptable, cmdRef:""});
+      return;
+    }
+
+    // ── Étape 1 : Enregistrer l'acceptation — INTERROMPRE si échec ────────
+    const patchResult = await sbPatch("events_demandes", dos.id, {
+      statut:"accepte", client_reponse:"accepte", client_reponse_at:now,
+    });
+    if (!patchResult.ok) {
+      alert("Erreur lors de l'enregistrement de votre acceptation.\n"+
+            (patchResult.error || "Statut HTTP "+patchResult.status));
+      return; // Arrêt immédiat — aucune commande ni facture créée
+    }
+
+    const clientNom = [dos.client_prenom,dos.client_nom].filter(Boolean).join(" ");
+    const total     = dos.montant_estime || 0;
+    const acompte   = Math.round(total * 0.3);
+    const solde     = total - acompte;
+    let   cmdRef    = "";
+    let   cmdId     = "";
+    let   facRef    = "";
+    let   facId     = "";
+
+    // ── Étape 2 : Commande (anti-doublon source_id) — INTERROMPRE si création échoue ──
+    try {
+      const token     = await getTokenAsync();
+      const rExistCmd = await fetch(
+        SB_URL+"/rest/v1/bellaia_commandes?source_id=eq."+dos.id+"&limit=1&select=id,reference",
+        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+      );
+      const existCmdRows = rExistCmd.ok ? await rExistCmd.json() : [];
+
+      if (existCmdRows.length > 0) {
+        // Commande déjà créée — récupérer les IDs
+        cmdRef = existCmdRows[0].reference;
+        cmdId  = existCmdRows[0].id;
+      } else {
+        // Créer la commande avec genererReference()
+        try { cmdRef = await genererReference("CMD"); }
+        catch(e) { alert(e.message); return; }
+        const resCMD = await sbPost("bellaia_commandes", {
+          bu:           "EVENTS",
+          reference:    cmdRef,
+          source_table: "events_demandes",
+          source_id:    dos.id,
+          client_nom:   clientNom,
+          client_tel:   dos.client_tel || null,
+          statut:       "COMMANDE",
+          total,
+          acompte,
+          solde,
+          date_commande:now.split("T")[0],
+          devis_ref:    dos.numero_devis || null,
+        });
+        if (!resCMD?.ok) {
+          alert("La commande n'a pas pu être créée.\n"+
+                (resCMD?.error || "Veuillez réessayer ou contacter Bella'Events."));
+          return; // Arrêt — pas de facture sans commande
+        }
+        // Récupérer l'UUID réel Supabase
+        const cmdData = Array.isArray(resCMD.data) ? resCMD.data[0] : resCMD.data;
+        cmdId  = cmdData?.id  || "";
+        cmdRef = cmdData?.reference || cmdRef;
+        if (!cmdId) {
+          alert("Commande créée mais UUID non reçu. Contactez Bella'Events.");
+          return;
+        }
+      }
+    } catch(e) {
+      alert("Erreur réseau lors de la création de la commande.\n"+e.message);
+      return;
+    }
+
+    // ── Étape 3 : Facture (anti-doublon source_id + commande_id réel) ──────
+    // Seulement si Étape 2 réussie (cmdId non vide)
+    try {
+      const token     = await getTokenAsync();
+      const rExistFac = await fetch(
+        SB_URL+"/rest/v1/bellaia_factures?source_id=eq."+dos.id+"&limit=1&select=id,reference,commande_id,statut",
+        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
+      );
+      const existFacRows = rExistFac.ok ? await rExistFac.json() : [];
+
+      if (existFacRows.length > 0) {
+        const existFac = existFacRows[0];
+        facRef       = existFac.reference;
+        // Vérifier cohérence : la facture existante doit être liée à notre commande
+        if (existFac.commande_id && cmdId && existFac.commande_id !== cmdId) {
+          alert("Incohérence détectée : la facture "+facRef+" est liée à une autre commande ("+existFac.commande_id+").\nContactez Bella'Events.");
+          return;
+        }
+        facId = existFac.id || "";
+      } else {
+        try { facRef = await genererReference("FAC"); }
+        catch(e) { alert(e.message); return; }
+        const resFAC = await sbPost("bellaia_factures", {
+          business_unit:"EVENTS",
+          reference:    facRef,
+          client_nom:   clientNom,
+          client_tel:   dos.client_tel || null,
+          source_table: "events_demandes",
+          source_id:    dos.id,
+          commande_id:  cmdId,              // UUID Supabase réel — jamais null ici
+          devis_ref:    dos.numero_devis || null,
+          sous_total:   total,
+          total_ttc:    total,
+          acompte,
+          solde,
+          statut:       "emise",
+          date_emission:now.split("T")[0],
+          lignes:       dos.lignes_devis ? JSON.stringify(dos.lignes_devis) : null,
+        });
+        if (!resFAC?.ok) {
+          alert("La facture n'a pas pu être créée.\n"+
+                (resFAC?.error || "La commande "+cmdRef+" a été créée. Contactez Bella'Events pour la facture."));
+          return; // Arrêt — ne pas ouvrir le paiement sans facture
+        }
+        const facData = Array.isArray(resFAC.data) ? resFAC.data[0] : resFAC.data;
+        facRef = facData?.reference || facRef;
+        facId  = facData?.id        || "";
+      }
+    } catch(e) {
+      alert("Erreur réseau lors de la création de la facture.\n"+e.message);
+      return;
+    }
+
+    // ── Étape 3b : Patcher events_demandes avec les références réelles ────────
+    // Empêche la recréation de CMD/FAC au prochain clic
+    const patchLiaison = await sbPatch("events_demandes", dos.id, {
+      statut:           "converti_en_commande",
+      liaison_comptable:facRef,
+      numero_commande:  cmdRef,
+      numero_facture:   facRef,
+    });
+    if (!patchLiaison.ok) {
+      // Bloquant : sans ce patch, le portail recréerait CMD/FAC au prochain clic
+      alert(
+        "La commande "+cmdRef+" et la facture "+facRef+" ont été créées, "+
+        "mais le dossier n'a pas pu être mis à jour.\n"+
+        (patchLiaison.error || "Erreur: "+patchLiaison.status)+
+        "\nContactez Bella'Events avec ces références."
+      );
+      return; // Ne pas ouvrir le paiement — état incohérent
+    }
+
+    // ── Étape 4 : GED + notification (non bloquants) ──────────────────────
+    gedAutoSave({
+      titre:       "Facture "+facRef+" — "+clientNom,
+      module:      "EVENTS", categorie:"facture",
+      reference:   facRef,   clientNom,
+      entiteId:    dos.id,   entiteTable:"events_demandes",
+    }).catch(e=>console.warn("[Bellaïa][GED]",e.message));
+
+    if (dos.numero_devis) {
+      gedAutoSave({
+        titre:       "Devis "+dos.numero_devis+" — "+clientNom,
+        module:      "EVENTS", categorie:"devis",
+        reference:   dos.numero_devis, clientNom,
+        entiteId:    dos.id, entiteTable:"events_demandes",
+      }).catch(e=>console.warn("[Bellaïa][GED]",e.message));
+    }
+
+    creerNotification({
+      pole:"EVENTS", type:"devis_accepte",
+      titre:"Devis accepté — "+dos.reference,
+      message:"Le client a accepté le devis "+dos.numero_devis+". CMD "+cmdRef+" · FAC "+facRef+" créés.",
+      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id,
+    }).catch(e=>console.warn("[Bellaïa][notif]",e.message));
+
+    // ── Étape 5 : Mettre à jour l'état local + ouvrir le paiement ─────────
+    const updated = {...dos, statut:"accepte", client_reponse:"accepte", liaison_comptable:facRef};
+    setDossiers(prev => prev.map(d=>d.id===dos.id ? updated : d));
+    if (dossier?.id===dos.id) setDossier(updated);
+    setPaiement({dossier:updated, facRef, cmdRef, facId, cmdId, demandId:dos.id});
+  };
+
+  // ── Enregistrer le paiement ──────────────────────────────
+  const confirmerPaiement = async (option, mode) => {
+    if (!paiement) return;
+    setPayLoading(true);
+    const dos     = paiement.dossier;
+    const total   = dos.montant_estime || 0;
+    const acompte = Math.round(total * 0.3);
+    const montant = option==="total" ? total : acompte;
+
+    // ── Générer la référence PAY — arrêt si échec ─────────
+    let payRef = "";
+    try { payRef = await genererReference("PAY"); }
+    catch(e: any) {
+      setPayLoading(false);
+      alert(e.message);
+      return;
+    }
+
+    // ── Enregistrer dans bellaia_paiements — arrêt si échec ─
+    const resPAY = await sbPost("bellaia_paiements", {
+      business_unit: "EVENTS",
+      reference:     payRef,
+      montant,
+      mode_paiement: mode,
+      statut:        "en_attente",
+      source_table:  "events_demandes",
+      source_id:     dos.id,
+      facture_id:    paiement.facId  || null,
+      commande_id:   paiement.cmdId  || null,
+      notes:         (option==="total" ? "Paiement intégral" : "Acompte 30%")+" — "+dos.reference,
+      date_paiement: new Date().toISOString(),
+    });
+
+    if (!resPAY.ok) {
+      setPayLoading(false);
+      alert(
+        "La demande de paiement n'a pas pu être enregistrée.\n"+
+        (resPAY.error || "Erreur Supabase "+resPAY.status)
+      );
+      return; // ← Ne pas afficher de succès si Supabase a refusé
+    }
+
+    // ── Seulement après succès : WhatsApp + notification + succès ─
+    if (mode==="virement"||mode==="especes"||mode==="cheque") {
+      const instruc = mode==="virement"
+        ? `Virement bancaire — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nVeuillez contacter Bella'Events pour les coordonnées bancaires.`
+        : mode==="especes"
+        ? `Paiement en espèces — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nVeuillez vous présenter en boutique sur rendez-vous.`
+        : `Paiement par chèque — Réf : ${payRef}\nMontant : ${montant.toFixed(2)} €\nÀ l'ordre de Bella'Studio.`;
+      window.open("https://wa.me/?text="+encodeURIComponent(instruc), "_blank");
+    }
+
+    creerNotification({
+      pole:"EVENTS", type:"paiement_recu",
+      titre:"Paiement "+payRef+" — "+dos.reference,
+      message:"Mode: "+mode+" · Montant: "+montant.toFixed(2)+"€ · Statut: en_attente de confirmation.",
+      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id,
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+
+    setPayLoading(false);
+    setPaySucces(payRef);
+  };
+
+  const fmtDos = (s) => { try { return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s||""; } };
+  const fmtPx  = (n) => n ? (Number(n).toFixed(2).replace(".",",")+" €") : "Sur devis";
+
+  // ── ÉCRAN PAIEMENT ───────────────────────────────────────
+  if (paiement && !paySucces) {
+    const dos = paiement.dossier;
+    const total   = dos.montant_estime || 0;
+    const acompte = Math.round(total * 0.3);
+    const MODES = [
+      {id:"virement",ico:"🏦",label:"Virement bancaire",desc:"Sous 48–72h · Coordonnées par WhatsApp"},
+      {id:"especes", ico:"💵",label:"Espèces",           desc:"En boutique sur rendez-vous"},
+      {id:"cheque",  ico:"📋",label:"Chèque",            desc:"À l'ordre de Bella'Studio"},
+      {id:"sumup",   ico:"💳",label:"SumUp (carte)",     desc:"Paiement en ligne — lien à configurer"},
+      {id:"paypal",  ico:"🅿",label:"PayPal",            desc:"Paiement en ligne — lien à configurer"},
+    ];
+    return (
+      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)"}}>
+          <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>💳 Finaliser votre réservation</div>
+          <button onClick={()=>setPaiement(null)} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"18px 14px 28px"}}>
+          {/* Récap dossier */}
+          <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:12,padding:"13px 14px",marginBottom:18}}>
+            <div style={{fontSize:11,color:EV.cremeD,marginBottom:4}}>Dossier confirmé</div>
+            <div style={{fontSize:14,fontWeight:700,color:"#fff"}}>{dos.reference}</div>
+            <div style={{fontSize:11,color:EV.cremeD,marginTop:2}}>{dos.prestation||dos.type_evenement||"Prestation Events"}</div>
+          </div>
+          {/* Choix acompte / total */}
+          {!payMode ? (
+            <>
+              <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:12}}>Choisissez votre option :</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+                <div onClick={()=>setPayMode("__acompte")} style={{background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.35)",borderRadius:13,padding:"15px",cursor:"pointer"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:EV.or,marginBottom:4}}>Option A — Payer l'acompte (30%)</div>
+                  <div style={{fontSize:22,fontWeight:800,color:"#fff",marginBottom:2}}>{fmtPx(acompte)}</div>
+                  <div style={{fontSize:11,color:EV.cremeD}}>Solde restant : {fmtPx(total-acompte)} · à régler avant l'événement</div>
+                </div>
+                <div onClick={()=>setPayMode("__total")} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:13,padding:"15px",cursor:"pointer"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#10b981",marginBottom:4}}>Option B — Payer la totalité</div>
+                  <div style={{fontSize:22,fontWeight:800,color:"#fff",marginBottom:2}}>{fmtPx(total)}</div>
+                  <div style={{fontSize:11,color:EV.cremeD}}>Règlement complet · Solde : 0 €</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+EV.line,borderRadius:10,padding:"10px 12px",marginBottom:14,display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:12,color:EV.cremeD}}>Montant à régler</span>
+                <span style={{fontSize:14,fontWeight:700,color:EV.or}}>{fmtPx(payMode==="__total"?total:acompte)}</span>
+              </div>
+              <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:10}}>Mode de paiement :</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:18}}>
+                {MODES.map(m=>{
+                  const nonConfig = m.id==="sumup"||m.id==="paypal";
+                  return (
+                    <div key={m.id} onClick={()=>{if(!nonConfig) confirmerPaiement(payMode==="__total"?"total":"acompte",m.id);}}
+                      style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+EV.line,borderRadius:11,padding:"12px 14px",cursor:nonConfig?"not-allowed":"pointer",opacity:nonConfig?0.5:1,display:"flex",gap:12,alignItems:"center"}}>
+                      <span style={{fontSize:22}}>{m.ico}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.label}</div>
+                        <div style={{fontSize:10,color:EV.cremeD}}>{nonConfig?"Paiement en ligne non configuré — choisissez virement ou contactez Bella'Events":m.desc}</div>
+                      </div>
+                      {!nonConfig && <span style={{color:"rgba(255,255,255,0.3)",fontSize:16}}>›</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={()=>setPayMode(null)} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",borderRadius:9,padding:"9px",color:EV.cremeD,fontSize:11,cursor:"pointer",fontFamily:SA,width:"100%"}}>‹ Changer d'option</button>
+              {payLoading && <div style={{textAlign:"center",padding:16,color:EV.cremeD,fontSize:12}}>Enregistrement…</div>}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── ÉCRAN SUCCÈS PAIEMENT ────────────────────────────────
+  if (paySucces) {
+    return (
+      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:SA,color:EV.creme}}>
+        <div style={{textAlign:"center",maxWidth:340}}>
+          <div style={{fontSize:56,marginBottom:16}}>🎉</div>
+          <div style={{fontFamily:FS,fontSize:20,color:"#fff",marginBottom:8}}>Paiement enregistré !</div>
+          <div style={{fontSize:12,color:EV.cremeD,marginBottom:4}}>Référence : <strong style={{color:EV.or}}>{paySucces}</strong></div>
+          <div style={{fontSize:11,color:EV.cremeD,lineHeight:1.7,marginBottom:24}}>
+            Demande de paiement enregistrée — en attente de confirmation par Bella'Studio.<br/>
+           Vous serez notifié(e) par WhatsApp une fois le paiement validé.</div>
+          <button onClick={()=>{setPaiement(null);setPaySucces(null);setOnglet("commandes");}}
+            style={{background:"rgba(16,185,129,0.2)",border:"1px solid rgba(16,185,129,0.4)",borderRadius:12,padding:"12px 24px",color:"#10b981",fontWeight:700,cursor:"pointer",fontFamily:SA}}>
+            Voir ma commande
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const fmt24 = (s) => {
+    if (!s) return "";
+    const d = new Date(s);
+    return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"})+" à "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  };
+
+  const ONGLETS_CLIENT = [
+    {id:"demandes",      ico:"📋", l:"Demandes"},
+    {id:"devis",         ico:"📄", l:"Devis"},
+    {id:"commandes",     ico:"📦", l:"Commandes"},
+    {id:"factures",      ico:"🧾", l:"Factures"},
+    {id:"paiements",     ico:"💳", l:"Paiements"},
+    {id:"documents",     ico:"📁", l:"Documents"},
+    {id:"notifications", ico:"🔔", l:"Notifs"},
+    {id:"suivi",         ico:"🔍", l:"Recherche"},
+  ];
+
+  const demandesStatut = (s) => {
+    const m = {nouvelle_demande:"Nouvelle",en_attente:"En attente",devis_envoye:"Devis envoyé",accepte:"Accepté",refuse:"Refusé",converti_en_commande:"Commandé","Converti en commande":"Commandé"};
+    return m[s]||s;
+  };
+  const colStatut = (s) => {
+    if (["accepte","payee","confirme"].includes(s))   return "#22c55e";
+    if (["devis_envoye","en_attente"].includes(s))    return "#fb923c";
+    if (["refuse","annule"].includes(s))              return "#f87171";
+    return EV.cremeD;
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
+      {/* Header */}
+      <div style={{padding:"12px 16px",borderBottom:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)"}}>
+        <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>✨ Mon espace Events</div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+      </div>
+
+      {/* Onglets nav */}
+      <div style={{display:"flex",overflowX:"auto",padding:"6px 12px",borderBottom:"1px solid "+EV.line,background:"rgba(0,0,0,0.15)",flexShrink:0,gap:2}}>
+        {ONGLETS_CLIENT.map(o=>(
+          <button key={o.id} onClick={()=>setOnglet(o.id)} style={{padding:"5px 11px",borderRadius:99,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,whiteSpace:"nowrap",fontFamily:SA,background:onglet===o.id?EV.or:"transparent",color:onglet===o.id?"#062b1d":"rgba(255,255,255,0.45)",marginRight:2}}>
+            {o.ico} {o.l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 28px"}}>
+
+        {/* ── MES DEMANDES ── */}
+        {onglet==="demandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes demandes</div>
+            {chargement && <div style={{textAlign:"center",padding:24,color:EV.cremeD}}>Chargement…</div>}
+            {!chargement && dossiers.length===0 && <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucune demande. Créez votre première demande depuis l'espace Events.</div>}
+            {dossiers.map(d=>(
+              <div key={d.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+EV.line,borderRadius:12,padding:"12px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{d.reference}</div>
+                    <div style={{fontSize:11,color:EV.cremeD}}>{d.prestation||d.type_evenement||"Prestation Events"}</div>
+                    <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2}}>{fmtDos(d.created_at)}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <span style={{fontSize:9,color:colStatut(d.statut),fontWeight:700,display:"block",marginBottom:3}}>{demandesStatut(d.statut)}</span>
+                    {d.montant_estime && <span style={{fontSize:11,color:EV.or,fontWeight:700}}>{fmtPx(d.montant_estime)}</span>}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  {(d.statut==="devis_envoye"||d.statut==="accepte") && (
+                    <button onClick={()=>{setOnglet("devis");setDossier(d);}} style={{fontSize:9,padding:"3px 9px",borderRadius:6,cursor:"pointer",border:"1px solid "+EV.or+"44",background:"transparent",color:EV.or,fontFamily:SA}}>
+                      📄 Voir le devis
+                    </button>
+                  )}
+                  {d.statut==="accepte" && !d.liaison_comptable && (
+                    <button onClick={()=>onAccepterDevis(d)} style={{fontSize:9,padding:"3px 9px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(16,185,129,0.4)",background:"transparent",color:"#10b981",fontFamily:SA}}>
+                      💳 Payer
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MES DEVIS ── */}
+        {onglet==="devis" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes devis</div>
+            {dossiers.filter(d=>d.numero_devis||d.statut==="devis_envoye"||d.statut==="accepte"||d.statut==="refuse").length===0 && (
+              <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucun devis disponible pour l'instant.</div>
+            )}
+            {dossiers.filter(d=>d.numero_devis||d.statut==="devis_envoye"||d.statut==="accepte"||d.statut==="refuse").map(d=>(
+              <div key={d.id}>
+                <DevisClientView dossier={dossier||d}
+                  onAccepte={async()=>await onAccepterDevis(d)}
+                  onRefuse={async()=>{
+                    const rRefus = await sbPatch("events_demandes",d.id,{statut:"refuse",client_reponse:"refuse",client_reponse_at:new Date().toISOString()});
+                    if(!rRefus.ok) console.error("[refusDevis] sbPatch échoué:", rRefus.error);
+                    setDossiers(prev=>prev.map(x=>x.id===d.id?{...x,statut:"refuse",client_reponse:"refuse"}:x));
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MES COMMANDES ── */}
+        {onglet==="commandes" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes commandes</div>
+            {dossiers.filter(d=>d.liaison_comptable||d.statut==="Converti en commande"||d.statut==="converti_en_commande").length===0 && (
+              <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucune commande confirmée.</div>
+            )}
+            {dossiers.filter(d=>d.liaison_comptable||["Converti en commande","converti_en_commande"].includes(d.statut)).map(d=>(
+              <div key={d.id} style={{background:"rgba(21,128,61,0.08)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:3}}>{d.reference}</div>
+                <div style={{fontSize:11,color:EV.cremeD}}>{d.prestation||d.type_evenement}</div>
+                {d.liaison_comptable && <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>Facture : {d.liaison_comptable}</div>}
+                <div style={{fontSize:10,color:EV.cremeD,marginTop:2}}>{fmtPx(d.montant_estime)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MES FACTURES ── */}
+        {onglet==="factures" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes factures</div>
+            {dossiers.filter(d=>d.liaison_comptable).length===0 && (
+              <div style={{textAlign:"center",padding:24,color:EV.cremeD,fontStyle:"italic"}}>Aucune facture disponible.</div>
+            )}
+            {dossiers.filter(d=>d.liaison_comptable).map(d=>{
+              const total   = d.montant_estime||0;
+              const acompte = Math.round(total*0.3);
+              return (
+                <div key={d.id} style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:12,padding:"13px 14px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <div>
+                      <div style={{fontSize:11,color:EV.cremeD,marginBottom:1}}>Facture liée</div>
+                      <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{d.liaison_comptable}</div>
+                      <div style={{fontSize:10,color:EV.cremeD}}>{d.reference}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:16,fontWeight:700,color:"#fff"}}>{fmtPx(total)}</div>
+                    </div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                    {[
+                      {l:"Acompte (30%)",v:fmtPx(acompte),c:d.acompte_paye?"#22c55e":EV.cremeD},
+                      {l:"Solde",         v:fmtPx(total-acompte),c:d.statut_paiement==="solde_paye"?"#22c55e":EV.cremeD},
+                    ].map(k=>(
+                      <div key={k.l} style={{background:"rgba(0,0,0,0.2)",borderRadius:7,padding:"6px 8px"}}>
+                        <div style={{fontSize:9,color:EV.cremeD}}>{k.l}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:k.c}}>{k.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {!d.acompte_paye && (
+                    <button onClick={()=>setPaiement({dossier:d,facRef:d.liaison_comptable,cmdRef:""})}
+                      style={{marginTop:10,width:"100%",background:"linear-gradient(135deg,#065f46,#047857)",border:"none",borderRadius:9,padding:"10px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                      💳 Régler maintenant
+                    </button>
+                  )}
+                  <button onClick={()=>{
+                    const h=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${d.liaison_comptable}</title><style>body{font-family:Arial,sans-serif;padding:28px;max-width:680px;margin:0 auto;color:#111;font-size:13px}h1{color:#0d6e3f}@media print{button{display:none}}</style></head><body><h1>🌿 Bella'Events — Facture</h1><p><strong>Réf :</strong> ${d.liaison_comptable}</p><p><strong>Dossier :</strong> ${d.reference}</p><p><strong>Client :</strong> ${[d.client_prenom,d.client_nom].filter(Boolean).join(" ")}</p><p><strong>Prestation :</strong> ${d.prestation||d.type_evenement||"—"}</p><p><strong>Total :</strong> ${fmtPx(total)}</p><p><strong>Acompte :</strong> ${fmtPx(acompte)}</p><p><strong>Solde :</strong> ${fmtPx(total-acompte)}</p><p style="color:#6b7280;font-size:11px;margin-top:20px">Bella'Studio · Sinnamary, Guyane</p></body></html>`;
+                    const w=window.open("","_blank");
+                    if(w){w.document.write(h);w.document.close();setTimeout(()=>w.print(),400);}
+                  }} style={{marginTop:6,width:"100%",background:"transparent",border:"1px solid rgba(201,168,76,0.3)",borderRadius:9,padding:"8px",color:EV.or,fontSize:11,cursor:"pointer",fontFamily:SA}}>
+                    📄 Télécharger la facture
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── MES PAIEMENTS ── */}
+        {onglet==="paiements" && (
+          <PaiementsClient dossiersIds={dossiers.map(d=>d.id)} fmtPx={fmtPx} fmtDos={fmtDos}/>
+        )}
+
+        {/* ── MES DOCUMENTS ── */}
+        {onglet==="documents" && (
+          <DocumentsClient dossiersRefs={dossiers.map(d=>d.reference)} fmtDos={fmtDos}/>
+        )}
+
+        {/* ── MES PAIEMENTS ── */}
+        {onglet==="paiements" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes paiements</div>
+            {dossiers.filter(d=>d.acompte_paye||d.statut_paiement==="solde_paye").length===0&&(
+              <div style={{textAlign:"center",padding:"24px",color:EV.cremeD,fontStyle:"italic"}}>Aucun paiement enregistré.</div>
+            )}
+            {dossiers.filter(d=>d.liaison_comptable||(d.montant_estime>0)).map(d=>{
+              const total   = d.montant_estime||0;
+              const acompte = Math.round(total*0.3);
+              return (
+                <div key={d.id} style={{background:"rgba(16,185,129,0.07)",border:"1px solid rgba(16,185,129,0.18)",borderRadius:12,padding:"12px 14px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{d.reference}</div>
+                      <div style={{fontSize:10,color:EV.cremeD}}>{d.prestation||d.type_evenement||"Prestation Events"}</div>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:700,color:EV.or}}>{total>0?total.toFixed(2).replace(".",",")+" €":"Sur devis"}</div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}}>
+                    <div style={{background:"rgba(0,0,0,0.2)",borderRadius:7,padding:"6px 8px"}}>
+                      <div style={{fontSize:9,color:EV.cremeD}}>Acompte (30%)</div>
+                      <div style={{fontSize:12,fontWeight:700,color:d.acompte_paye?"#22c55e":EV.cremeD}}>{d.acompte_paye?"✅ Reçu":total>0?acompte.toFixed(2).replace(".",",")+" €":"—"}</div>
+                    </div>
+                    <div style={{background:"rgba(0,0,0,0.2)",borderRadius:7,padding:"6px 8px"}}>
+                      <div style={{fontSize:9,color:EV.cremeD}}>Solde</div>
+                      <div style={{fontSize:12,fontWeight:700,color:d.statut_paiement==="solde_paye"?"#22c55e":EV.cremeD}}>{d.statut_paiement==="solde_paye"?"✅ Reçu":total>0?(total-acompte).toFixed(2).replace(".",",")+" €":"—"}</div>
+                    </div>
+                  </div>
+                  {!d.acompte_paye && d.liaison_comptable && (
+                    <button onClick={()=>setPaiement({dossier:d,facRef:d.liaison_comptable,cmdRef:"",acompte})}
+                      style={{width:"100%",background:"linear-gradient(135deg,#065f46,#047857)",border:"none",borderRadius:9,padding:"9px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+                      💳 Régler l'acompte
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── NOTIFICATIONS ── */}
+        {onglet==="notifications" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:6}}>Mes notifications</div>
+            {dossiers.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:EV.cremeD,fontStyle:"italic"}}>
+                Aucune notification. Vos dossiers apparaîtront ici.
+              </div>
+            )}
+            {dossiers.map(d => {
+              const notifs = [];
+              if (d.statut==="nouvelle_demande"||d.statut==="en_attente")
+                notifs.push({ico:"⏳",txt:"Demande reçue — en cours d'examen",date:d.created_at,lu:true});
+              if (d.numero_devis||d.statut==="devis_envoye")
+                notifs.push({ico:"📄",txt:"Devis disponible : "+(d.numero_devis||d.reference),date:d.updated_at,lu:false});
+              if (d.client_reponse==="accepte")
+                notifs.push({ico:"✅",txt:"Devis accepté — commande en cours",date:d.client_reponse_at,lu:true});
+              if (d.acompte_paye)
+                notifs.push({ico:"💰",txt:"Acompte reçu — réservation confirmée",date:d.updated_at,lu:true});
+              if (d.liaison_comptable)
+                notifs.push({ico:"🧾",txt:"Facture disponible : "+d.liaison_comptable,date:d.updated_at,lu:false});
+              return notifs.map((n,i) => (
+                <div key={d.id+"-"+i} style={{
+                  background:n.lu?"rgba(255,255,255,0.03)":"rgba(16,185,129,0.1)",
+                  border:"1px solid "+(n.lu?EV.line:"rgba(16,185,129,0.3)"),
+                  borderRadius:11, padding:"11px 13px",
+                  display:"flex", gap:10, alignItems:"flex-start",
+                }}>
+                  <span style={{fontSize:20,flexShrink:0}}>{n.ico}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,color:"#fff",fontWeight:n.lu?400:700}}>{n.txt}</div>
+                    <div style={{fontSize:10,color:EV.cremeD,marginTop:3}}>{d.reference}</div>
+                    {n.date && <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2}}>{fmtDos(n.date)}</div>}
+                  </div>
+                  {!n.lu && <span style={{width:8,height:8,borderRadius:"50%",background:"#10b981",flexShrink:0,marginTop:4}}/>}
+                </div>
+              ));
+            })}
+          </div>
+        )}
+
+        {/* ── RECHERCHE PAR RÉFÉRENCE ── */}
+        {onglet==="suivi" && (
+          <div>
+            <div style={{fontFamily:FS,fontSize:16,color:EV.or,marginBottom:10}}>Rechercher un dossier</div>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              <input value={ref} onChange={e=>setRef(e.target.value.toUpperCase())}
+                onKeyDown={e=>e.key==="Enter"&&rechercher()}
+                placeholder="BE-2026-XXXXXX"
+                style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid "+EV.line,borderRadius:10,padding:"11px 14px",color:EV.creme,fontSize:14,fontFamily:SA,outline:"none",letterSpacing:1}}/>
+              <button onClick={rechercher} disabled={chargement} style={{background:EV.or,border:"none",borderRadius:10,padding:"11px 18px",color:"#062b1d",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA,opacity:chargement?0.6:1}}>
+                {chargement?"…":"›"}
+              </button>
+            </div>
+            {erreur && <div style={{fontSize:12,color:"#f87171",marginBottom:10}}>{erreur}</div>}
+            {dossier && (
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            {/* Carte identité du dossier */}
+            <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:10,color:EV.cremeD,marginBottom:2}}>Référence</div>
+                  <div style={{fontSize:16,fontWeight:700,color:EV.or,fontFamily:FS}}>{dossier.reference}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:10,color:EV.cremeD,marginBottom:2}}>Créée le</div>
+                  <div style={{fontSize:11,color:EV.cremeD}}>{fmt24(dossier.created_at)}</div>
+                </div>
+              </div>
+              <div style={{borderTop:"1px solid "+EV.line,paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
+                {dossier.client_prenom && <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Client · </span>{dossier.client_prenom} {dossier.client_nom||""}</div>}
+                {dossier.prestation    && <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Projet · </span>{dossier.prestation}</div>}
+                {dossier.type_evenement&& <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Type · </span>{dossier.type_evenement}</div>}
+                {dossier.date_souhaitee&& <div style={{fontSize:12,color:EV.creme}}><span style={{color:EV.cremeD}}>Date souhaitée · </span>{new Date(dossier.date_souhaitee).toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"})}</div>}
+              </div>
+            </div>
+
+            {/* Statut actuel */}
+            <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{fontSize:11,color:EV.cremeD,marginBottom:10,fontWeight:700,letterSpacing:1}}>SUIVI DE VOTRE DEMANDE</div>
+              <TimelineSuivi statutBrut={dossier.statut}/>
+            </div>
+
+            {/* Devis disponible */}
+            {dossier.statut === "devis_envoye" || dossier.statut === "accepte" || dossier.statut === "refuse" ? (
+              <DevisClientView dossier={dossier} onAccepte={async()=>{
+                const rAcc = await sbPatch("events_demandes", dossier.id, {statut:"accepte", client_reponse:"accepte", client_reponse_at:new Date().toISOString()});
+                if(!rAcc.ok) { alert("Erreur acceptation.\n"+(rAcc.error||"")); return; }
+                await creerNotification({pole:"EVENTS",type:"confirmation_commande",titre:"Devis accepté — "+dossier.reference,message:"Le client a accepté le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
+                setDossier({...dossier, statut:"accepte", client_reponse:"accepte"});
+              }} onRefuse={async()=>{
+                const rRef2 = await sbPatch("events_demandes", dossier.id, {statut:"refuse", client_reponse:"refuse", client_reponse_at:new Date().toISOString()});
+                if(!rRef2.ok) { alert("Erreur refus.\n"+(rRef2.error||"")); return; }
+                await creerNotification({pole:"EVENTS",type:"refus_devis",titre:"Devis refusé — "+dossier.reference,message:"Le client a refusé le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
+                setDossier({...dossier, statut:"refuse", client_reponse:"refuse"});
+              }}/>
+            ) : null}
+
+            {/* Historique — prêt pour les futures données d'audit_log */}
+            <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{fontSize:11,color:EV.cremeD,marginBottom:10,fontWeight:700,letterSpacing:1}}>HISTORIQUE</div>
+              <div style={{display:"flex",gap:10,paddingLeft:4}}>
+                <div style={{width:2,background:"rgba(16,185,129,0.2)",borderRadius:2}}/>
+                <div style={{flex:1,display:"flex",flexDirection:"column",gap:10}}>
+                  <div>
+                    <div style={{fontSize:10,color:EV.cremeD}}>{fmt24(dossier.created_at)}</div>
+                    <div style={{fontSize:12,color:EV.creme,marginTop:1}}>Demande créée</div>
+                  </div>
+                  {dossier.updated_at && dossier.updated_at !== dossier.created_at && (
+                    <div>
+                      <div style={{fontSize:10,color:EV.cremeD}}>{fmt24(dossier.updated_at)}</div>
+                      <div style={{fontSize:12,color:EV.creme,marginTop:1}}>Dossier mis à jour</div>
+                    </div>
+                  )}
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {[
+                      {ico:"📋",label:"Demande reçue",date:dossier.created_at},
+                      dossier.numero_devis && {ico:"📄",label:"Devis généré : "+dossier.numero_devis,date:dossier.updated_at},
+                      dossier.client_reponse==="accepte" && {ico:"✅",label:"Devis accepté par le client",date:dossier.updated_at},
+                      dossier.acompte_paye && {ico:"💰",label:"Acompte reçu",date:dossier.updated_at},
+                      dossier.liaison_comptable && {ico:"🧾",label:"Facture : "+dossier.liaison_comptable,date:dossier.updated_at},
+                    ].filter(Boolean).map((e,i)=>(
+                      <div key={i} style={{display:"flex",gap:8,alignItems:"center",padding:"6px 8px",background:"rgba(16,185,129,0.07)",borderRadius:7}}>
+                        <span style={{fontSize:14}}>{e.ico}</span>
+                        <div>
+                          <div style={{fontSize:11,color:"#fff"}}>{e.label}</div>
+                          {e.date && <div style={{fontSize:9,color:"rgba(255,255,255,0.35)"}}>{new Date(e.date).toLocaleDateString("fr-FR")}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Notifications à venir */}
+            <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px"}}>
+              <div style={{fontSize:11,color:EV.cremeD,marginBottom:10,fontWeight:700,letterSpacing:1}}>NOTIFICATIONS</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.25)",fontStyle:"italic"}}>🔔 Les notifications apparaîtront ici : nouveau message, devis disponible, confirmation de réservation…</div>
+            </div>
+
+            {/* Bouton téléchargement document — ouvre WhatsApp si pas de fichier */}
+            <button onClick={() => {
+              const msg = `Bonjour, je souhaite télécharger les documents liés à ma demande ${dossier?.numero_devis||dossier?.reference||""}. Pourriez-vous me les envoyer ? Merci.`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+            }} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:10,padding:"10px",color:"#10b981",fontWeight:700,fontSize:12,fontFamily:SA,cursor:"pointer",width:"100%",textAlign:"center"}}>
+              📄 Demander mes documents par WhatsApp
+            </button>
+
+            {/* Contact WhatsApp */}
+            <button onClick={()=>window.open(WA("Bonjour, ma référence est "+dossier.reference+". Je souhaite des informations sur mon dossier."),"_blank")} style={{width:"100%",background:"rgba(37,211,102,0.12)",border:"1px solid rgba(37,211,102,0.3)",borderRadius:10,padding:"12px",color:"#25d366",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>
+              💬 Contacter Bella'Events
+            </button>
+          </div>
+        )}
+      </div>
+    )}
+    </div>
+  </div>
+  );
+}
+
+function ClientEvents({ onBack, onNewCommande }) {
+  const [cat, setCat] = useState(null);
+  const [suivi, setSuivi] = useState(false);
+  const [modal, setModal] = useState(null);   // {prestation, type} → ouvre le formulaire
+  const [succes, setSucces] = useState(null); // référence après soumission
+  const FORM_INIT = {prenom:"",nom:"",tel:"",email:"",date:"",heure:"",typeEvt:"",invites:"",theme:"",couleurs:"",budget:"",message:""};
+  const [form, setForm] = useState(FORM_INIT);
+  const [envoi, setEnvoi] = useState(false);
+
+  // Prix d'affichage
+  const prixAff = (p) => {
+    if (p.sur_devis || p.prix == null) return "Sur devis";
+    if (p.prix_max) return p.prix+"€ à "+p.prix_max+"€";
+    if (p.prix_des) return "À partir de "+p.prix+"€";
+    if (p.prix_jusqua) return "Jusqu'à "+p.prix+"€";
+    return p.prix+"€"+(p.unite ? " / "+p.unite : "");
+  };
+
+  // Soumettre le formulaire devis/réservation — écrit en base (events_demandes)
+  const soumettre = async () => {
+    if (!form.prenom.trim() || !form.tel.trim()) { alert("Prénom et téléphone requis."); return; }
+    setEnvoi(true);
+    const p = modal.prestation;
+    const type = modal.type;
+    const ref = await genererReference("BE");
+    const reference = await genererReference("BE");
+    const montantNum = p.prix || 0;
+    const lignesEstimees = analyserDemandeClient({
+      prestation: p.nom, message: form.message, theme: form.theme,
+      couleurs: form.couleurs, nbInvites: form.invites,
+      typeEvt: form.typeEvt, budget: form.budget,
+    });
+    const totalEstime = lignesEstimees
+      .filter(l => l.statut === "automatique" && l.total)
+      .reduce((s, l) => s + l.total, 0);
+    const montantEstimeFinal = totalEstime > 0 ? totalEstime : (montantNum || null);
+    const acompteNum = Math.round(montantNum * (p.acompte_pct||30) / 100);
+    const soldeNum   = montantNum - acompteNum;
+    const demande = sanitizeEventsDemandePayload({
+      reference,
+      statut:           "nouvelle_demande",
+      client_prenom:    form.prenom.trim(),
+      client_nom:       form.nom.trim(),
+      client_tel:       form.tel.trim(),
+      client_email:     form.email.trim(),
+      date_souhaitee:   form.date || null,
+      heure_souhaitee:  form.heure || null,
+      type_evenement:   form.typeEvt || null,
+      nb_invites:       form.invites || null,
+      theme:            form.theme || null,
+      couleurs:         form.couleurs || null,
+      budget:           form.budget || null,
+      message:          form.message || null,
+      pole:             "Bella'Events",
+      categorie:        p.categorie || null,
+      prestation:       p.nom,
+      prix:             prixAff(p),
+      acompte:          acompteNum > 0 ? acompteNum+"€" : null,
+      delai:            p.delai_minimum || null,
+      type_prestation:  p.type || "prestation",
+      montant_estime:   montantEstimeFinal || null,
+      montant_acompte:  acompteNum || null,
+      montant_solde:    soldeNum   || null,
+    });
+    let echecEnregistrement = false;
+    let erreurSb = null;
+    try {
+      const res = await sbPost("events_demandes", demande);
+      console.warn("[Bellaïa][soumission] Payload:", demande?.reference, "→", res?.ok);
+      if (!res.ok) {
+        echecEnregistrement = true;
+        erreurSb = res;
+        console.error("Erreur Supabase :", res.error);
+      } else {
+        await ecrireAudit({
+          module: "events_demandes", entiteId: ref, entiteRef: reference,
+          action: "creation", nouveauStatut: "Nouvelle demande",
+          commentaire: "Demande créée via formulaire client — "+p.nom,
+        });
+      }
+    } catch (e) {
+      echecEnregistrement = true;
+      console.error("Erreur Supabase :", e);
+    }
+    if (echecEnregistrement) {
+      const sb = erreurSb?.error;
+      const lignes = [
+        "Erreur HTTP "+erreurSb?.status,
+        sb?.message    ? "Message : "+sb.message    : null,
+        sb?.details    ? "Détails : "+sb.details    : null,
+        sb?.hint       ? "Hint : "+sb.hint           : null,
+        sb?.code       ? "Code : "+sb.code           : null,
+        !sb            ? "Réponse : "+JSON.stringify(erreurSb?.data) : null,
+      ].filter(Boolean).join("\n");
+      alert("Échec enregistrement Supabase :\n\n"+lignes+"\n\nConsultez la console pour le diagnostic complet.");
+      setEnvoi(false);
+      return;
+    }
+    // Compat state local — alimente l'affichage immédiat côté fondatrice (en mémoire)
+    const cmd = {
+      id: ref,
+      client: form.prenom+" "+form.nom.trim(),
+      tel: form.tel, email: form.email,
+      produit: p.nom,
+      categorie: p.categorie, type: p.type||"prestation",
+      prix: prixAff(p), montant: montantNum, acompte: acompteNum,
+      statut: "Nouvelle demande",
+      date: form.date || today(),
+      heure: form.heure,
+      typeEvt: form.typeEvt,
+      invites: form.invites,
+      theme: form.theme,
+      couleurs: form.couleurs,
+      budget: form.budget,
+      message: form.message,
+      pmt: "À confirmer",
+      pole: "Events",
+    };
+    if (onNewCommande) onNewCommande(cmd);
+    // Notification interne → fondatrice alertée d'une nouvelle demande
+    creerNotification({
+      pole: "EVENTS",
+      type: "validation_devis",
+      titre: "Nouvelle demande Events — "+p.nom,
+      message: "Client : "+(form.prenom||"")+" "+(form.nom||"").trim()+"\nTél : "+(form.tel||"")+"\nPrestation : "+p.nom+"\nRéférence : "+reference,
+      canal: "interne",
+      clientEmail: form.email || null,
+      clientTel: form.tel || null,
+      sourceTable: "events_demandes",
+      sourceId: ref,
+    });
+    // setSucces en premier — garantit que le re-render affiche l'écran de confirmation
+    // avant que modal soit remis à null (évite le flash vers la vue catégorie)
+    setSucces(reference);
+    setEnvoi(false);
+    setModal(null);
+    setForm(FORM_INIT);
+  };
+
+  // Ouvrir le formulaire
+  const ouvrir = (p, type) => {
+    // Résoudre le nom lisible de la catégorie courante pour pré-remplir typeEvt
+    const catObj = cat ? EVENTS_CATEGORIES.find(c => c.id === cat) : null;
+    const typeEvtInit = catObj ? catObj.nom : "";
+    setModal({prestation:p, type});
+    setForm({...FORM_INIT, typeEvt: typeEvtInit});
+    setSucces(null);
+  };
+
+  // Portail suivi de demande
+  if (suivi) return <PortailSuiviClient onBack={()=>setSuivi(false)}/>;
+
+  // Vue détail catégorie — seulement si aucune modale ni écran de succès actif
+  if (cat && !modal && !succes) {
+    const catObj = EVENTS_CATEGORIES.find(c => c.id === cat);
+    const prestas = EVENTS_PRESTATIONS.filter(p => p.categorie === cat || p.sous === cat || (p.categories && p.categories.includes(cat)));
+    return (
+      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:22}}>{catObj?.ico}</span>
+            <div><div style={{fontFamily:FS,fontSize:14,color:EV.or}}>{catObj?.nom}</div></div>
+          </div>
+          <button onClick={()=>setCat(null)} style={{background:"none",border:"1px solid "+(EV.line),borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Catégories</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:12}}>
+          {/* Bannière catégorie */}
+          <div style={{background:"linear-gradient(135deg,"+EV.or+"22,transparent)",border:"1px solid "+(EV.line),borderRadius:14,padding:"16px 18px"}}>
+            <div style={{fontSize:13,color:EV.cremeD,lineHeight:1.6}}>{catObj?.desc}</div>
+          </div>
+          {prestas.length === 0 && <div style={{display:"flex",flexDirection:"column",gap:8,padding:16}}>
+            {[
+              {ico:"🎉",nom:"Anniversaire",desc:"Décoration, gâteau, papeterie — sur devis"},
+              {ico:"💍",nom:"Mariage",desc:"Décoration complète, coordination — sur devis"},
+              {ico:"🍼",nom:"Baby Shower",desc:"Mise en scène, papeterie — sur devis"},
+              {ico:"🕊",nom:"Baptême / Communion",desc:"Décoration et papeterie — sur devis"},
+              {ico:"🎈",nom:"Gender Reveal",desc:"Révélation de genre festive — sur devis"},
+              {ico:"🏢",nom:"Corporate / Entreprise",desc:"Événements professionnels — sur devis"},
+            ].map(p => (
+              <div key={p.nom} style={{background:"rgba(16,185,129,0.07)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:10,padding:"10px 13px"}}>
+                <div style={{fontSize:13,fontWeight:700,color:EV.creme}}>{p.ico} {p.nom}</div>
+                <div style={{fontSize:11,color:EV.cremeD,marginTop:2}}>{p.desc}</div>
+              </div>
+            ))}
+          </div>}
+          {prestas.map((p, idx) => {
+            const familles = cat === "unite" ? EVENTS_UNITE_FAMILLES : cat === "anniv" ? EVENTS_ANNIV_FAMILLES : null;
+            const fam = familles && p.sous !== prestas[idx-1]?.sous
+              ? familles.find(f => f.id === p.sous)
+              : null;
+            return (
+            <React.Fragment key={p.id}>
+              {fam && <div style={{fontSize:12,fontWeight:700,color:EV.or,marginTop:idx>0?8:0,paddingLeft:2}}>{fam.ico} {fam.nom}</div>}
+            <div style={{background:EV.verre,border:"1px solid "+(EV.line),borderRadius:14,padding:"14px 16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                <div style={{fontFamily:FS,fontSize:14,fontWeight:700,color:EV.creme,flex:1}}>{p.nom}</div>
+                <span style={{background:EV.or+"22",border:"1px solid "+(EV.or)+("55"),color:EV.or,borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,whiteSpace:"nowrap",marginLeft:8}}>{prixAff(p)}</span>
+              </div>
+              <div style={{fontSize:12,color:EV.cremeD,marginBottom:8,lineHeight:1.5}}>{p.desc}</div>
+              {p.note && <div style={{fontSize:10,color:EV.acc,marginBottom:10,fontStyle:"italic"}}>ℹ️ {p.note}</div>}
+              {p.acompte_pct && <div style={{fontSize:10,color:EV.cremeD,marginBottom:10}}>Acompte {p.acompte_pct}%</div>}
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>ouvrir(p,"Demande de devis")} style={{flex:1,background:"transparent",border:"1px solid "+(EV.or),borderRadius:9,padding:"9px",color:EV.or,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:SA}}>📋 Demander un devis</button>
+                {!p.sur_devis && <button onClick={()=>ouvrir(p,"Réservation")} style={{flex:1,background:EV.or,border:"none",borderRadius:9,padding:"9px",color:"#062b1d",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:SA}}>✓ Réserver</button>}
+              </div>
+            </div>
+            </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Modale formulaire devis / réservation
+  if (modal) {
+    const p = modal.prestation;
+    const type = modal.type;
+    const inp = (label, key, opts={}) => (
+      <div style={{marginBottom:12}}>
+        <label style={{fontSize:10,fontWeight:700,color:EV.cremeD,textTransform:"uppercase",letterSpacing:"0.06em",display:"block",marginBottom:4}}>{label}{opts.req?" *":""}</label>
+        {opts.textarea
+          ? <textarea value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} rows={3} placeholder={opts.ph||""} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid "+(EV.line),borderRadius:10,padding:"10px 12px",color:EV.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box",resize:"vertical"}}/>
+          : <input type={opts.type||"text"} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} placeholder={opts.ph||""} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid "+(EV.line),borderRadius:10,padding:"10px 12px",color:EV.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
+        }
+      </div>
+    );
+    return (
+      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+          <div style={{fontFamily:FS,fontSize:13,color:EV.or}}>✨ {type}</div>
+          <button onClick={()=>setModal(null)} style={{background:"none",border:"1px solid "+(EV.line),borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>✕ Annuler</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:16}}>
+          {/* Récap prestation */}
+          <div style={{background:EV.or+"15",border:"1px solid "+(EV.line),borderRadius:12,padding:"12px 14px",marginBottom:16}}>
+            <div style={{fontSize:11,color:EV.cremeD,marginBottom:3}}>Prestation sélectionnée</div>
+            <div style={{fontSize:14,fontWeight:700,color:EV.creme}}>{p.nom}</div>
+            <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
+              <span style={{fontSize:10,color:EV.or,background:EV.or+"20",borderRadius:4,padding:"2px 7px"}}>{prixAff(p)}</span>
+              <span style={{fontSize:10,color:EV.cremeD,background:"rgba(255,255,255,0.06)",borderRadius:4,padding:"2px 7px"}}>Acompte {p.acompte_pct||30}%</span>
+              <span style={{fontSize:10,color:EV.cremeD,background:"rgba(255,255,255,0.06)",borderRadius:4,padding:"2px 7px"}}>Pôle Events</span>
+            </div>
+          </div>
+          {/* Coordonnées */}
+          <div style={{fontSize:11,fontWeight:700,color:EV.or,marginBottom:10}}>VOS COORDONNÉES</div>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{flex:1}}>{inp("Prénom","prenom",{req:true})}</div>
+            <div style={{flex:1}}>{inp("Nom","nom")}</div>
+          </div>
+          {inp("Téléphone","tel",{req:true,type:"tel",ph:"+594..."})}
+          {inp("Email","email",{type:"email",ph:"votre@email.com"})}
+          {/* Détails événement */}
+          <div style={{fontSize:11,fontWeight:700,color:EV.or,marginBottom:10,marginTop:4}}>VOTRE ÉVÉNEMENT</div>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{flex:1}}>{inp("Date souhaitée","date",{type:"date"})}</div>
+            <div style={{flex:1}}>{inp("Heure","heure",{ph:"14h00"})}</div>
+          </div>
+          {inp("Type d'événement","typeEvt",{ph:"Anniversaire, baptême..."})}
+          {inp("Nombre d'invités","invites",{type:"number",ph:"20"})}
+          {inp("Thème","theme",{ph:"Jungle, princesse, tropical..."})}
+          {inp("Couleurs","couleurs",{ph:"Rose, or, blanc..."})}
+          {inp("Budget estimé (€)","budget",{type:"number",ph:"Optionnel"})}
+          {inp("Message / précisions","message",{textarea:true,ph:"Décrivez votre projet, vos envies..."})}
+          {/* Estimation automatique — se met à jour en temps réel */}
+          {(()=>{
+            const lignesAuto = analyserDemandeClient({
+              prestation: p.nom, message: form.message,
+              theme: form.theme, couleurs: form.couleurs,
+              nbInvites: form.invites, typeEvt: form.typeEvt,
+              budget: form.budget,
+            });
+            return lignesAuto.length > 0 ? <LignesDevisAuto lignes={lignesAuto} nbInvites={parseInt(form.invites)||0}/> : null;
+          })()}
+          {/* Boutons */}
+          <button onClick={soumettre} disabled={envoi} style={{width:"100%",background:EV.or,border:"none",borderRadius:10,padding:"13px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:envoi?"not-allowed":"pointer",fontFamily:SA,marginBottom:10,opacity:envoi?0.7:1}}>
+            {envoi?"Envoi en cours…":"✓ Envoyer ma "+type.toLowerCase()}
+          </button>
+          <button onClick={()=>{
+            const msg = [
+              "✨ *" + type.toUpperCase() + " BELLA'EVENTS*",
+              "",
+              "Prestation : " + p.nom,
+              "Tarif : " + prixAff(p),
+              "Prénom : " + form.prenom,
+              "Tél : " + form.tel,
+              "Date : " + (form.date || "À définir"),
+              "Thème : " + (form.theme || "À définir")
+            ].join("\n");
+            window.open(WA(msg),"_blank");
+          }} style={{width:"100%",background:"transparent",border:"1px solid "+(EV.line),borderRadius:10,padding:"11px",color:EV.cremeD,fontSize:12,cursor:"pointer",fontFamily:SA}}>
+            💬 Contacter sur WhatsApp (optionnel)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Écran de succès
+  if (succes) {
+    const maintenant = new Date();
+    const dateEnvoi  = maintenant.toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
+    const heureEnvoi = maintenant.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    return (
+      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
+        {/* Header */}
+        <div style={{padding:"12px 16px",borderBottom:"1px solid "+EV.line,display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)"}}>
+          <div style={{fontFamily:FS,fontSize:14,color:EV.or}}>✨ Bella'Events</div>
+          <div style={{fontSize:9,color:EV.cremeD,letterSpacing:2}}>CONFIRMATION</div>
+        </div>
+
+        <div style={{flex:1,overflowY:"auto",padding:"24px 20px"}}>
+          {/* Icône + titre */}
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:52,marginBottom:12}}>✨</div>
+            <div style={{fontFamily:FS,fontSize:22,color:EV.or,marginBottom:8}}>Demande envoyée !</div>
+            <div style={{fontSize:14,color:EV.cremeD,lineHeight:1.7,maxWidth:320,margin:"0 auto"}}>Votre demande a bien été enregistrée.</div>
+          </div>
+
+          {/* Carte référence + date */}
+          <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid "+EV.or+"44",borderRadius:14,padding:"16px",marginBottom:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+              <div>
+                <div style={{fontSize:10,color:EV.cremeD,marginBottom:3,letterSpacing:1}}>RÉFÉRENCE</div>
+                <div style={{fontSize:18,fontWeight:700,color:EV.or,fontFamily:FS}}>{succes}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:10,color:EV.cremeD,marginBottom:3,letterSpacing:1}}>ENVOYÉE LE</div>
+                <div style={{fontSize:12,color:EV.creme}}>{dateEnvoi}</div>
+                <div style={{fontSize:11,color:EV.cremeD}}>à {heureEnvoi}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Message délai */}
+          <div style={{fontSize:13,color:EV.cremeD,lineHeight:1.7,marginBottom:24,textAlign:"center",padding:"0 8px"}}>
+            Nous reviendrons vers vous sous 24 à 48 heures ouvrées afin de confirmer les détails de votre projet.
+          </div>
+
+          {/* Timeline des prochaines étapes */}
+          <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px",marginBottom:20}}>
+            <div style={{fontSize:10,color:EV.cremeD,fontWeight:700,letterSpacing:1,marginBottom:14}}>PROCHAINES ÉTAPES</div>
+            <TimelineSuivi statutBrut="nouvelle_demande"/>
+          </div>
+
+          {/* Boutons */}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <button onClick={()=>{setCat(null);setSucces(null);}} style={{background:EV.or,border:"none",borderRadius:10,padding:"13px 24px",color:"#062b1d",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:SA}}>← Retour aux catégories</button>
+            <button onClick={()=>{setSucces(null);setModal(null);}} style={{background:"transparent",border:"1px solid "+EV.or+"66",borderRadius:10,padding:"12px 24px",color:EV.or,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:SA}}>+ Faire une autre demande</button>
+            <button onClick={()=>window.open(WA("Bonjour, ma référence est "+succes+". Je souhaite des informations sur mon dossier."),"_blank")} style={{background:"rgba(37,211,102,0.1)",border:"1px solid rgba(37,211,102,0.3)",borderRadius:10,padding:"12px 24px",color:"#25d366",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>💬 Contacter Bella'Events</button>
+            <button onClick={() => {
+              const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Devis Bella'Events</title>
+<style>body{font-family:Arial,sans-serif;padding:30px;max-width:680px;margin:0 auto;color:#111}h1{color:#0d6e3f;border-bottom:2px solid #0d6e3f;padding-bottom:6px}p{font-size:13px}.muted{color:#6b7280;font-size:11px}@media print{button{display:none}}</style></head><body>
+<h1>🌿 Bella'Events — Devis</h1>
+<p><strong>Référence :</strong> ${succes||"—"}</p>
+<p>Votre demande a bien été enregistrée. Bella'Events vous contactera sous 48h pour finaliser votre devis.</p>
+<p class="muted">Bella'Studio · Sinnamary, Guyane</p></body></html>`;
+              const w = window.open("","_blank");
+              if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);}
+            }} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:10,padding:"12px",color:"#10b981",fontWeight:700,fontSize:13,fontFamily:SA,cursor:"pointer",width:"100%",textAlign:"center"}}>
+              📄 Imprimer la confirmation de demande
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Vue liste des catégories
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div>
+          <div style={{fontFamily:FS,fontSize:14,color:EV.or,letterSpacing:2}}>✨ Bella'Events</div>
+          <div style={{fontSize:9,color:EV.cremeD,letterSpacing:2}}>ÉVÉNEMENTS · DÉCORATION · PAPETERIE</div>
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <button onClick={()=>setSuivi(true)} style={{background:"rgba(16,185,129,0.1)",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.or,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>🔍 Suivi</button>
+          <button onClick={onBack} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:16}}>
+        {/* Bannière principale */}
+        <div style={{background:"linear-gradient(135deg,"+EV.or+"33,transparent)",border:"1px solid "+(EV.line),borderRadius:16,padding:"20px",marginBottom:16,textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:8}}>✨</div>
+          <div style={{fontFamily:FS,fontSize:18,color:EV.or,marginBottom:6}}>Vos événements sur mesure</div>
+          <div style={{fontSize:12,color:EV.cremeD,lineHeight:1.6}}>Décoration, papeterie, gâteaux et coordination. Demandez votre devis personnalisé.</div>
+        </div>
+
+        {/* Accès rapide Suivi — bien visible */}
+        <button onClick={()=>setSuivi(true)} style={{width:"100%",background:"rgba(16,185,129,0.08)",border:"1px solid "+EV.line,borderRadius:12,padding:"13px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",marginBottom:16,textAlign:"left",fontFamily:SA}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:EV.or}}>🔎 Suivre ma demande</div>
+            <div style={{fontSize:11,color:EV.cremeD,marginTop:2}}>Saisissez votre référence BE-2026-xxxxxx</div>
+          </div>
+          <span style={{color:EV.or,fontSize:16}}>›</span>
+        </button>
+
+        {/* Conditions clés */}
+        <div style={{background:EV.verre,border:"1px solid "+(EV.line),borderRadius:12,padding:"12px 14px",marginBottom:16}}>
+          <div style={{fontSize:10,color:EV.or,fontWeight:700,marginBottom:6}}>📋 CONDITIONS</div>
+          <div style={{fontSize:11,color:EV.cremeD,lineHeight:1.7}}>
+            Acompte {EVENTS_CONDITIONS.acompte_evenement}% (événementiel) · {EVENTS_CONDITIONS.acompte_gateau}% (gâteaux)<br/>
+            Kit anniversaire : minimum {EVENTS_CONDITIONS.kit_min} exemplaires<br/>
+            Livraison {EVENTS_CONDITIONS.livraison_km}€/km · forfait {EVENTS_CONDITIONS.livraison_forfait}€ au-delà de {EVENTS_CONDITIONS.livraison_seuil}km<br/>
+            Délais : {EVENTS_CONDITIONS.delai_sucre} (pâte à sucre) · {EVENTS_CONDITIONS.delai_autre} (autres)
+          </div>
+        </div>
+        {/* Grille catégories */}
+        <div style={{fontSize:11,color:EV.cremeD,fontWeight:700,letterSpacing:"0.08em",marginBottom:10}}>NOS CATÉGORIES</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {EVENTS_CATEGORIES.map(c => {
+            return (
+              <div key={c.id} onClick={()=>setCat(c.id)} style={{background:EV.verre,border:"1px solid "+(EV.line),borderRadius:14,padding:"16px 12px",cursor:"pointer",textAlign:"center"}}>
+                <div style={{fontSize:28,marginBottom:8}}>{c.ico}</div>
+                <div style={{fontSize:12,fontWeight:700,color:EV.creme}}>{c.nom}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3612,7 +9398,7 @@ function ClientStructurePortail({ onBack }) {
   const CATS = [...new Set(modeles.map(m=>m.categorie))];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:`radial-gradient(ellipse at 20% 0%,#12100d,${B.night} 65%)`,fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#12100d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(146,64,14,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:"#d97706",letterSpacing:2}}>🏗 Bella'Structure</div>
@@ -3628,7 +9414,7 @@ function ClientStructurePortail({ onBack }) {
         {modeles.length===0&&(
           <div style={{textAlign:"center",padding:"40px 20px",color:B.muted}}>
             <div style={{fontSize:40,marginBottom:12}}>📄</div>
-            <div style={{fontSize:13,marginBottom:12}}>Catalogue de modèles bientôt disponible</div>
+            <div style={{fontSize:13,marginBottom:12,color:"rgba(245,240,232,0.8)"}}>Aucun modèle personnalisé — utilisez le bouton ci-dessous pour en demander un.</div>
             <button onClick={()=>window.open(WA("Bonjour, je voudrais des informations sur les modèles Bella'Structure"),"_blank")} style={{background:"linear-gradient(135deg,#92400e,#b45309)",border:"none",borderRadius:10,padding:"10px 20px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:SA}}>💬 Nous contacter</button>
           </div>
         )}
@@ -3645,7 +9431,7 @@ function ClientStructurePortail({ onBack }) {
                       <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:2}}>📄 {m.nom}</div>
                       {m.description&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>{m.description.slice(0,70)}{m.description.length>70?"…":""}</div>}
                     </div>
-                    <div style={{fontSize:14,fontWeight:700,color:"#d97706",flexShrink:0,marginLeft:8}}>{m.prix_vente?`${m.prix_vente}€`:m.prix_note||"Gratuit"}</div>
+                    <div style={{fontSize:14,fontWeight:700,color:"#d97706",flexShrink:0,marginLeft:8}}>{m.prix_vente ? (m.prix_vente)+"€" : m.prix_note||"Gratuit"}</div>
                   </div>
                 </div>
               ))}
@@ -3663,10 +9449,10 @@ function ClientStructurePortail({ onBack }) {
       {modal&&(
         <Mdl title={modal.nom} onClose={()=>setModal(null)}>
           {modal.description&&<p style={{color:B.muted,fontSize:13,lineHeight:1.7,marginBottom:16}}>{modal.description}</p>}
-          <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px",marginBottom:16,textAlign:"center"}}>
-            <div style={{fontSize:22,fontWeight:900,color:"#d97706",fontFamily:FS}}>{modal.prix_vente?`${modal.prix_vente}€`:modal.prix_note||"Gratuit"}</div>
+          <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px",marginBottom:16,textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:900,color:"#d97706",fontFamily:FS}}>{modal.prix_vente ? (modal.prix_vente)+"€" : modal.prix_note||"Gratuit"}</div>
           </div>
-          <button onClick={()=>{setModal(null);window.open(WA(`Bonjour, je souhaite obtenir le modèle : ${modal.nom}`),"_blank");}} style={{width:"100%",background:"linear-gradient(135deg,#92400e,#b45309)",border:"none",borderRadius:10,padding:"12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:SA}}>💬 Obtenir ce modèle →</button>
+          <button onClick={()=>{setModal(null);window.open(WA("Bonjour, je souhaite obtenir le modèle : "+(modal.nom)),"_blank");}} style={{width:"100%",background:"linear-gradient(135deg,#92400e,#b45309)",border:"none",borderRadius:10,padding:"12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:SA}}>💬 Obtenir ce modèle →</button>
         </Mdl>
       )}
     </div>
@@ -3719,9 +9505,7 @@ function CatalogueIAF({ user, gotoEvents }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          system: `Tu es Bellaïa, assistante commerciale de Bella'Studio en Guyane française.
-Analyse la photo et retourne UNIQUEMENT un JSON valide (pas de markdown, pas de backticks) :
-{"nom_commercial":"...","categorie":"...","type_item":"prestation|location|creation|pack|vente|stock_interne","description_client":"2-3 phrases vendeuses","usages":["..."],"mots_cles":["...","..."],"prix_suggestion":"À définir","visible_client":false,"statut":"brouillon","notes_fondatrice":"..."}`,
+          system: "Tu es Bellaïa, assistante commerciale de Bella'Studio en Guyane française.\nAnalyse la photo et retourne UNIQUEMENT un JSON valide (pas de markdown, pas de backticks) :\n{\"nom_commercial\":\"...\",\"categorie\":\"...\",\"type_item\":\"prestation|location|creation|pack|vente|stock_interne\",\"description_client\":\"2-3 phrases vendeuses\",\"usages\":[\"...\"],\"mots_cles\":[\"...\",\"...\"],\"prix_suggestion\":\"À définir\",\"visible_client\":false,\"statut\":\"brouillon\",\"notes_fondatrice\":\"...\"}",
           messages: [{
             role: "user",
             content: [
@@ -3758,7 +9542,7 @@ Analyse la photo et retourne UNIQUEMENT un JSON valide (pas de markdown, pas de 
   const sauvegarder = async () => {
     if (!form.nom?.trim()) return;
     setLoading(true);
-    await sbPost("events_catalogue", {
+    const _rec9081 = await sbPost("events_catalogue", {
       fondatrice_id: user?.id,
       nom: form.nom,
       categorie: form.categorie || "Autre",
@@ -3779,74 +9563,45 @@ Analyse la photo et retourne UNIQUEMENT un JSON valide (pas de markdown, pas de 
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
-      {/* Header */}
-      <div style={{background:`linear-gradient(135deg,${B.violet}22,${B.gold}10)`,border:`1px solid ${B.border}`,borderRadius:16,padding:"14px",textAlign:"center"}}>
+      <div style={{background:"linear-gradient(135deg,"+B.violet+"22,"+B.gold+"10)",border:"1px solid "+B.border,borderRadius:16,padding:"14px",textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:5}}>📸</div>
         <div style={{fontFamily:FS,fontSize:17,fontWeight:900,color:B.cream,marginBottom:2}}>Catalogue IA</div>
         <div style={{fontSize:11,color:B.muted}}>Photo → Fiche produit · Validation obligatoire avant publication</div>
       </div>
-
-      {/* ACCUEIL */}
       {etape==="accueil"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <label style={{display:"block",background:`linear-gradient(135deg,${B.violet},#5b21b6)`,borderRadius:13,padding:"16px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15,fontFamily:SA,textAlign:"center"}}>
+          <label style={{display:"block",background:"linear-gradient(135deg,"+B.violet+",#5b21b6)",borderRadius:13,padding:"16px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15,fontFamily:SA,textAlign:"center"}}>
             📷 Prendre une photo
             <input type="file" accept="image/*" capture="environment" onChange={handleImage} style={{display:"none"}}/>
           </label>
-          <label style={{display:"block",background:"transparent",border:`1px solid ${B.border}`,borderRadius:13,padding:"14px",color:B.mutedL,cursor:"pointer",fontSize:13,fontFamily:SA,textAlign:"center"}}>
+          <label style={{display:"block",background:"transparent",border:"1px solid "+B.border,borderRadius:13,padding:"14px",color:B.mutedL,cursor:"pointer",fontSize:13,fontFamily:SA,textAlign:"center"}}>
             🖼 Choisir depuis la galerie
             <input type="file" accept="image/*" onChange={handleImage} style={{display:"none"}}/>
           </label>
-
-          {/* Fonctions Phase 3 — interface prévue */}
-          <div style={{background:B.surface,border:`1px solid ${B.border}`,borderRadius:13,padding:"13px 14px",marginTop:4}}>
-            <div style={{fontSize:10,fontWeight:700,color:B.mutedL,marginBottom:10,letterSpacing:"0.06em",textTransform:"uppercase"}}>Fonctions prévues — Phase 3</div>
-            {[
-              {ico:"🧹",l:"Nettoyer le fond",d:"Suppression fond automatique via API image"},
-              {ico:"📐",l:"Format carré catalogue",d:"Recadrage auto pour catalogue et boutique"},
-              {ico:"📱",l:"Format Story / WhatsApp",d:"Export vertical pour réseaux sociaux"},
-              {ico:"✨",l:"Valorisation photo",d:"Rendu catalogue professionnel"},
-            ].map(f=>(
-              <div key={f.l} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.border}`,alignItems:"center",opacity:0.55}}>
-                <span style={{fontSize:20,flexShrink:0}}>{f.ico}</span>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:600,color:B.cream}}>{f.l}</div>
-                  <div style={{fontSize:10,color:B.muted}}>{f.d}</div>
-                </div>
-                <span style={{fontSize:8,background:`${B.violet}22`,color:B.violetL,borderRadius:4,padding:"2px 6px",fontWeight:700,flexShrink:0}}>Phase 3</span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
-
-      {/* ANALYSE */}
       {etape==="analyse"&&(
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {imgPreview&&<img src={imgPreview} alt="Article" style={{width:"100%",maxHeight:260,objectFit:"cover",borderRadius:13,border:`1px solid ${B.border}`}}/>}
-          <div style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"16px",textAlign:"center"}}>
+          {imgPreview&&<img src={imgPreview} alt="Article" style={{width:"100%",maxHeight:260,objectFit:"cover",borderRadius:13,border:"1px solid "+B.border}}/>}
+          <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:13,padding:"16px",textAlign:"center"}}>
             {!loading ? (
               <>
-                <div style={{fontSize:13,color:B.cream,marginBottom:14,lineHeight:1.6}}>Photo chargée.<br/>Bellaïa va identifier l'article et créer la fiche produit.</div>
+                <div style={{fontSize:13,color:B.cream,marginBottom:14,lineHeight:1.6}}>Photo chargée. Bellaïa va identifier l'article.</div>
                 <Btn v="primary" full onClick={analyser}>◎ Analyser avec Bellaïa</Btn>
                 <button onClick={reset} style={{marginTop:10,background:"none",border:"none",color:B.muted,cursor:"pointer",fontSize:12,fontFamily:SA}}>← Changer de photo</button>
               </>
             ) : (
               <div>
                 <div style={{fontSize:28,marginBottom:8,color:B.gold}}>◎</div>
-                <div style={{fontSize:13,color:B.gold,marginBottom:4}}>Bellaïa analyse…</div>
-                <div style={{fontSize:11,color:B.muted}}>Identification · Catégorisation · Description</div>
+                <div style={{fontSize:13,color:B.gold}}>Bellaïa analyse…</div>
               </div>
             )}
           </div>
         </div>
       )}
-
-      {/* VALIDATION */}
       {etape==="validation"&&(
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {imgPreview&&<img src={imgPreview} alt="Article" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:12,border:`1px solid ${B.border}`}}/>}
-
+          {imgPreview&&<img src={imgPreview} alt="Article" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:12,border:"1px solid "+B.border}}/>}
           {analyse?.erreur ? (
             <div style={{background:"rgba(180,80,80,0.1)",border:"1px solid rgba(180,80,80,0.3)",borderRadius:12,padding:"14px",textAlign:"center"}}>
               <div style={{fontSize:13,color:B.danger,marginBottom:10}}>{analyse.erreur}</div>
@@ -3854,27 +9609,12 @@ Analyse la photo et retourne UNIQUEMENT un JSON valide (pas de markdown, pas de 
             </div>
           ) : (
             <>
-              <div style={{background:`${B.gold}10`,border:`1px solid ${B.borderG}`,borderRadius:11,padding:"10px 13px"}}>
-                <div style={{fontSize:11,fontWeight:700,color:B.gold,marginBottom:3}}>✦ Suggestion Bellaïa — à valider</div>
-                <div style={{fontSize:10,color:B.muted}}>Statut <strong style={{color:B.warning}}>brouillon</strong> par défaut. Coche "Visible client" uniquement après validation.</div>
-              </div>
               <Fld label="Nom commercial *"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Nom du produit"/></Fld>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 <Fld label="Catégorie"><Sel value={form.categorie||"Autre"} onChange={e=>setForm({...form,categorie:e.target.value})} options={CATS}/></Fld>
                 <Fld label="Type"><Sel value={form.type_item||"vente"} onChange={e=>setForm({...form,type_item:e.target.value})} options={TYPES}/></Fld>
               </div>
               <Fld label="Description client"><Inp value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Description vendeuse" rows={3}/></Fld>
-              <Fld label="Prix / note tarif"><Inp value={form.prix_note||""} onChange={e=>setForm({...form,prix_note:e.target.value})} placeholder="ex: À partir de 5€"/></Fld>
-              <Fld label="Notes internes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Remarques" rows={2}/></Fld>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:6}}>
-                <Fld label="Statut"><Sel value={form.statut||"brouillon"} onChange={e=>setForm({...form,statut:e.target.value})} options={["brouillon","actif"]}/></Fld>
-                <div style={{display:"flex",alignItems:"flex-end",paddingBottom:14}}>
-                  <label style={{display:"flex",gap:6,alignItems:"center",cursor:"pointer"}}>
-                    <input type="checkbox" checked={!!form.visible_client} onChange={e=>setForm({...form,visible_client:e.target.checked})} style={{accentColor:B.violet,width:16,height:16}}/>
-                    <span style={{fontSize:12,color:B.cream}}>Visible client</span>
-                  </label>
-                </div>
-              </div>
               <div style={{display:"flex",gap:8}}>
                 <Btn v="gold" full onClick={sauvegarder} disabled={loading}>{loading?"Sauvegarde…":"✅ Valider et sauvegarder"}</Btn>
                 <Btn v="ghost" onClick={reset}>Annuler</Btn>
@@ -3883,16 +9623,10 @@ Analyse la photo et retourne UNIQUEMENT un JSON valide (pas de markdown, pas de 
           )}
         </div>
       )}
-
-      {/* DONE */}
       {etape==="done"&&(
         <div style={{textAlign:"center",padding:"28px 16px"}}>
           <div style={{fontSize:52,marginBottom:10}}>✅</div>
           <div style={{fontFamily:FS,fontSize:18,fontWeight:800,color:B.success,marginBottom:6}}>Fiche sauvegardée</div>
-          <div style={{fontSize:12,color:B.muted,marginBottom:20,lineHeight:1.7}}>
-            La fiche est en <strong style={{color:B.warning}}>brouillon</strong>.<br/>
-            Publie-la depuis le catalogue Events quand tu es prête.
-          </div>
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <Btn v="primary" full onClick={reset}>📸 Analyser un autre article</Btn>
             {gotoEvents&&<Btn v="ghost" full onClick={gotoEvents}>→ Voir le catalogue Events</Btn>}
@@ -3943,7 +9677,7 @@ function BoutonSumup({ montant, description, commande_id, client_id, univers, di
           display:"flex",alignItems:"center",justifyContent:"center",gap:8,
           opacity:disabled?0.5:1,
         }}>
-        {loading ? "⏳ Redirection…" : `💳 Payer avec SumUp — ${montant}€`}
+        {loading ? "⏳ Redirection…" : "💳 Payer avec SumUp — "+montant+"€"}
       </button>
       {erreur&&<div style={{fontSize:11,color:"#ef4444",textAlign:"center"}}>{erreur}</div>}
       <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
@@ -3954,7 +9688,7 @@ function BoutonSumup({ montant, description, commande_id, client_id, univers, di
 // Bouton WhatsApp paiement (fallback toujours disponible)
 function BoutonPaymentWhatsApp({ montant, description }) {
   return (
-    <button onClick={()=>window.open(WA(`Bonjour, je souhaite régler ${montant}€ pour : ${description}. Merci de me communiquer les modalités de paiement.`),"_blank")}
+    <button onClick={()=>window.open(WA("Bonjour, je souhaite régler "+(montant)+"€ pour : "+(description)+". Merci de me communiquer les modalités de paiement."),"_blank")}
       style={{width:"100%",background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:10,padding:"12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"Inter,system-ui,sans-serif"}}>
       💬 Régler via WhatsApp
     </button>
@@ -3987,7 +9721,7 @@ function ErpProjetsF({ user }) {
   });
 
   const prioriteColor = p => ({ urgente:"#ef4444",haute:B.warning,normale:B.violetL,basse:B.muted })[p]||B.muted;
-  const statutColor   = s => ({ en_cours:`${B.violet}25`,validé:"rgba(80,180,120,0.2)",backlog:"rgba(80,80,80,0.2)",en_attente:"rgba(201,168,76,0.2)",en_validation:"rgba(59,130,246,0.2)",archivé:"rgba(80,80,80,0.15)" })[s]||"transparent";
+  const statutColor   = s => ({ en_cours:B.violet+"25",validé:"rgba(80,180,120,0.2)",backlog:"rgba(80,80,80,0.2)",en_attente:"rgba(201,168,76,0.2)",en_validation:"rgba(59,130,246,0.2)",archivé:"rgba(80,80,80,0.15)" })[s]||"transparent";
   const statutTxt     = s => ({ en_cours:B.violetL,validé:B.success,backlog:B.muted,en_attente:B.warning,en_validation:"#60a5fa",archivé:B.muted })[s]||B.muted;
 
   const save = async () => {
@@ -3995,7 +9729,7 @@ function ErpProjetsF({ user }) {
     const d = { ...form, fondatrice_id: getFondId(), updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("erp_projets", form._edit, d);
-    else await sbPost("erp_projets", d);
+    else (await sbPost("erp_projets", d)).ok || console.error("[erp_projets] post échec");
     reload(); setModal(null);
   };
 
@@ -4013,8 +9747,8 @@ function ErpProjetsF({ user }) {
 
       {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
-        {[{l:"En cours",v:k.en_cours||0,c:B.violetL},{l:"Urgents",v:k.urgents||0,c:"#ef4444"},{l:"En retard",v:k.en_retard||0,c:B.warning},{l:"Backlog",v:k.backlog||0},{l:"ChatGPT",v:k.depuis_chatgpt||0},{l:"Avancement",v:`${k.avancement_moyen||0}%`,c:B.gold}].map(s=>(
-          <div key={s.l} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 10px",textAlign:"center"}}>
+        {[{l:"En cours",v:k.en_cours||0,c:B.violetL},{l:"Urgents",v:k.urgents||0,c:"#ef4444"},{l:"En retard",v:k.en_retard||0,c:B.warning},{l:"Backlog",v:k.backlog||0},{l:"ChatGPT",v:k.depuis_chatgpt||0},{l:"Avancement",v:k.avancement_moyen||0+"%",c:B.gold}].map(s=>(
+          <div key={s.l} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:10,padding:"9px 10px",textAlign:"center"}}>
             <div style={{fontSize:17,fontWeight:900,color:s.c||B.cream,fontFamily:"'Cormorant Garamond',serif"}}>{s.v}</div>
             <div style={{fontSize:9,color:B.muted}}>{s.l}</div>
           </div>
@@ -4024,7 +9758,7 @@ function ErpProjetsF({ user }) {
       {/* Filtres */}
       <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:2}}>
         {STATUTS.map(s=>(
-          <button key={s} onClick={()=>setFiltreStatut(s)} style={{padding:"4px 9px",borderRadius:99,border:`1px solid ${B.border}`,cursor:"pointer",fontSize:9,fontWeight:700,background:filtreStatut===s?B.surface:"transparent",color:filtreStatut===s?B.cream:B.muted,flexShrink:0,fontFamily:"Inter,system-ui,sans-serif"}}>{s}</button>
+          <button key={s} onClick={()=>setFiltreStatut(s)} style={{padding:"4px 9px",borderRadius:99,border:"1px solid "+(B.border),cursor:"pointer",fontSize:9,fontWeight:700,background:filtreStatut===s?B.surface:"transparent",color:filtreStatut===s?B.cream:B.muted,flexShrink:0,fontFamily:"Inter,system-ui,sans-serif"}}>{s}</button>
         ))}
       </div>
 
@@ -4032,13 +9766,13 @@ function ErpProjetsF({ user }) {
       {!loading&&projetsFiltres.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>Aucun projet</div>}
 
       {projetsFiltres.map(p=>(
-        <div key={p.id} style={{background:B.card,border:`1px solid ${B.border}`,borderRadius:13,padding:"12px 14px",borderLeft:`3px solid ${prioriteColor(p.priorite)}`}}>
+        <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"12px 14px",borderLeft:"3px solid "+prioriteColor(p.priorite)}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:700,color:B.cream,marginBottom:3}}>{p.titre}</div>
               <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:4}}>
                 <span style={{background:statutColor(p.statut),color:statutTxt(p.statut),borderRadius:99,padding:"2px 7px",fontSize:9,fontWeight:700}}>{p.statut}</span>
-                {p.univers&&<span style={{background:`${B.violet}18`,color:B.violetL,borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{p.univers}</span>}
+                {p.univers&&<span style={{background:B.violet+"18",color:B.violetL,borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>{p.univers}</span>}
                 {p.source&&p.source!=="Interne"&&<span style={{background:"rgba(201,168,76,0.15)",color:B.gold,borderRadius:4,padding:"2px 6px",fontSize:9,fontWeight:700}}>📎 {p.source}</span>}
               </div>
               {p.echeance&&<div style={{fontSize:10,color:new Date(p.echeance)<new Date()?B.danger:B.muted}}>📅 {fmt(p.echeance)}</div>}
@@ -4053,7 +9787,7 @@ function ErpProjetsF({ user }) {
           </div>
           {/* Barre d'avancement */}
           <div style={{background:"rgba(255,255,255,0.08)",borderRadius:4,height:5,overflow:"hidden"}}>
-            <div style={{background:`linear-gradient(90deg,${B.violet},${B.gold})`,height:"100%",width:`${p.avancement||0}%`,borderRadius:4,transition:"width 0.3s"}}/>
+            <div style={{background:"linear-gradient(90deg,"+B.violet+","+B.gold+")",height:"100%",width:p.avancement||0+"%",borderRadius:4,transition:"width 0.3s"}}/>
           </div>
           <div style={{fontSize:9,color:B.muted,marginTop:3}}>{p.avancement||0}% complété</div>
         </div>
@@ -4073,7 +9807,7 @@ function ErpProjetsF({ user }) {
             <Fld label="Priorité"><Sel value={form.priorite||"normale"} onChange={e=>setForm({...form,priorite:e.target.value})} options={PRIORITES}/></Fld>
           </div>
           <Fld label="Échéance"><Inp type="date" value={form.echeance||""} onChange={e=>setForm({...form,echeance:e.target.value})}/></Fld>
-          <Fld label={`Avancement : ${form.avancement||0}%`}>
+          <Fld label={"Avancement : "+form.avancement||0+"%"}>
             <input type="range" min={0} max={100} value={form.avancement||0} onChange={e=>setForm({...form,avancement:parseInt(e.target.value)})} style={{width:"100%",accentColor:B.violet}}/>
           </Fld>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
@@ -4105,7 +9839,7 @@ function ErpTachesF({ user }) {
     const d = { ...form, fondatrice_id: user?.id, updated_at: new Date().toISOString() };
     delete d._edit;
     if (form._edit) await sbPatch("erp_taches", form._edit, d);
-    else await sbPost("erp_taches", d);
+    else (await sbPost("erp_taches", d)).ok || console.error("[erp_taches] post échec");
     reload(); setModal(null);
   };
 
@@ -4126,7 +9860,7 @@ function ErpTachesF({ user }) {
 
       <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:2}}>
         {["tous","en_retard","aujourd_hui","urgent","normal"].map(f=>(
-          <button key={f} onClick={()=>setFiltre(f)} style={{padding:"4px 9px",borderRadius:99,border:`1px solid ${B.border}`,cursor:"pointer",fontSize:9,fontWeight:700,background:filtre===f?B.surface:"transparent",color:filtre===f?B.cream:B.muted,flexShrink:0,fontFamily:"Inter,system-ui,sans-serif"}}>{f}</button>
+          <button key={f} onClick={()=>setFiltre(f)} style={{padding:"4px 9px",borderRadius:99,border:"1px solid "+(B.border),cursor:"pointer",fontSize:9,fontWeight:700,background:filtre===f?B.surface:"transparent",color:filtre===f?B.cream:B.muted,flexShrink:0,fontFamily:"Inter,system-ui,sans-serif"}}>{f}</button>
         ))}
       </div>
 
@@ -4134,7 +9868,7 @@ function ErpTachesF({ user }) {
       {!loading&&tachesFiltres.length===0&&<div style={{textAlign:"center",padding:"24px",color:B.muted,fontSize:13}}>✅ Aucune tâche en attente</div>}
 
       {tachesFiltres.map(t=>(
-        <div key={t.id} style={{background:B.card,border:`1px solid ${urgenceColor(t.niveau_urgence)}33`,borderRadius:12,padding:"11px 13px",borderLeft:`3px solid ${urgenceColor(t.niveau_urgence)}`}}>
+        <div key={t.id} style={{background:B.card,border:"1px solid "+(urgenceColor(t.niveau_urgence))+("33"),borderRadius:12,padding:"11px 13px",borderLeft:"3px solid "+urgenceColor(t.niveau_urgence)}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{flex:1}}>
               <div style={{fontSize:12,fontWeight:700,color:B.cream,marginBottom:2}}>{prioriteIco(t.priorite)} {t.titre}</div>
@@ -4158,7 +9892,7 @@ function ErpTachesF({ user }) {
           </div>
           <Fld label="Univers"><Sel value={form.univers||"GENERAL"} onChange={e=>setForm({...form,univers:e.target.value})} options={["BSH","EVENTS","ODYSSEE","FOOD","VILO","STRUCTURE","GENERAL"]}/></Fld>
           <Fld label="Échéance"><Inp type="date" value={form.echeance||""} onChange={e=>setForm({...form,echeance:e.target.value})}/></Fld>
-          <Fld label="Projet lié"><select value={form.projet_id||""} onChange={e=>setForm({...form,projet_id:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:"Inter,system-ui,sans-serif"}}>
+          <Fld label="Projet lié"><select value={form.projet_id||""} onChange={e=>setForm({...form,projet_id:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid "+(B.border),borderRadius:10,padding:"9px 12px",color:B.cream,fontSize:13,outline:"none",fontFamily:"Inter,system-ui,sans-serif"}}>
             <option value="">— Aucun —</option>
             {projets.map(p=><option key={p.id} value={p.id}>{p.titre}</option>)}
           </select></Fld>
@@ -4217,19 +9951,19 @@ function StocksF({ user }) {
         unite: form.unite || "unité",
         statut: "actif", notes: form.notes || "",
       };
-      const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const token = getToken();
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const token = await getTokenAsync();
       if (form._edit) {
-        await fetch(`${SB_URL}/rest/v1/stocks?id=eq.${form._edit}`, {
+        await fetch(SB_URL_local+"/rest/v1/stocks?id=eq."+form._edit, {
           method: "PATCH",
-          headers: { apikey: token, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=minimal" },
           body: JSON.stringify({...payload, updated_at: new Date().toISOString()}),
         });
         setStocks(s => s.map(x => x.id === form._edit ? {...x,...payload,id:form._edit} : x));
       } else {
-        const r = await fetch(`${SB_URL}/rest/v1/stocks`, {
+        const r = await fetch(SB_URL_local+"/rest/v1/stocks", {
           method: "POST",
-          headers: { apikey: token, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "return=representation" },
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
           body: JSON.stringify(payload),
         });
         const [created] = await r.json();
@@ -4248,7 +9982,7 @@ function StocksF({ user }) {
           <div style={{fontSize:10,color:B.muted}}>{stocks.length} articles · {critiques.length} critiques · {Math.round(valeurTotale)}€ valeur</div>
         </div>
         <button onClick={()=>{setForm({univers:"BSH",unite:"unité",quantite:0,quantite_min:1,statut:"actif"});setModal("edit");}}
-          style={{background:`linear-gradient(135deg,${B.violet},#9333ea)`,border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:SA}}>
+          style={{background:"linear-gradient(135deg,"+B.violet+",#9333ea)",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:SA}}>
           + Stock
         </button>
       </div>
@@ -4271,10 +10005,10 @@ function StocksF({ user }) {
         {[
           {l:"Total articles",v:stocks.length,c:B.violetL},
           {l:"Critiques",v:critiques.length,c:"#ef4444"},
-          {l:"Valeur stock",v:`${Math.round(valeurTotale)}€`,c:B.gold},
+          {l:"Valeur stock",v:Math.round(valeurTotale)+"€",c:B.gold},
           {l:"Pôles",v:new Set(stocks.map(s=>s.univers)).size,c:"#0d9488"},
         ].map(k=>(
-          <div key={k.l} style={{flex:1,minWidth:70,background:`${k.c}12`,border:`1px solid ${k.c}30`,borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
+          <div key={k.l} style={{flex:1,minWidth:70,background:k.c+"12",border:"1px solid "+(k.c)+("30"),borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
             <div style={{fontSize:17,fontWeight:700,color:k.c,fontFamily:FS}}>{k.v}</div>
             <div style={{fontSize:9,color:B.muted,marginTop:2}}>{k.l}</div>
           </div>
@@ -4285,7 +10019,7 @@ function StocksF({ user }) {
       <div style={{display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:2}}>
         {UNIVERS_STOCK.map(u=>(
           <button key={u} onClick={()=>setFiltreUnivers(u)}
-            style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${filtreUnivers===u?B.gold:B.border}`,background:filtreUnivers===u?`${B.gold}18`:"transparent",color:filtreUnivers===u?B.gold:B.muted,cursor:"pointer",fontSize:10,fontWeight:filtreUnivers===u?700:400,whiteSpace:"nowrap",fontFamily:SA}}>
+            style={{padding:"5px 12px",borderRadius:20,border:"1px solid "+(filtreUnivers===u?B.gold:B.border),background:filtreUnivers===u?(B.gold+"18"):"transparent",color:filtreUnivers===u?B.gold:B.muted,cursor:"pointer",fontSize:10,fontWeight:filtreUnivers===u?700:400,whiteSpace:"nowrap",fontFamily:SA}}>
             {u}
           </button>
         ))}
@@ -4296,20 +10030,20 @@ function StocksF({ user }) {
         <div style={{textAlign:"center",color:B.muted,padding:20}}>Chargement…</div>
       ) : stocksFiltres.length === 0 ? (
         <div style={{textAlign:"center",color:B.muted,padding:20,fontSize:13}}>
-          Aucun article{filtreUnivers!=="tous"?` pour ${filtreUnivers}`:""}.
+          Aucun article{filtreUnivers!=="tous" ? " pour "+(filtreUnivers) : ""}.
         </div>
       ) : (
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {stocksFiltres.map(s => {
             const critique = parseFloat(s.quantite) <= parseFloat(s.quantite_min);
             return (
-              <div key={s.id} style={{background:`rgba(255,255,255,0.04)`,border:`1px solid ${critique?"rgba(239,68,68,0.4)":B.border}`,borderRadius:12,padding:"11px 13px",borderLeft:`3px solid ${critique?"#ef4444":B.violetL}`}}>
+              <div key={s.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(critique?"rgba(239,68,68,0.4)":B.border),borderRadius:12,padding:"11px 13px",borderLeft:"3px solid "+critique?"#ef4444":B.violetL}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:600,color:B.cream}}>{s.nom}</div>
                     <div style={{fontSize:10,color:B.muted,marginTop:2}}>{s.univers} · {s.categorie||"—"}</div>
                     <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
-                      {s.prix_vente>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:`${B.gold}15`,color:B.gold,fontWeight:700}}>Vente {s.prix_vente}€</span>}
+                      {s.prix_vente>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:B.gold+"15",color:B.gold,fontWeight:700}}>Vente {s.prix_vente}€</span>}
                       {s.prix_achat>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(255,255,255,0.07)",color:B.muted}}>Achat {s.prix_achat}€</span>}
                     </div>
                   </div>
@@ -4318,7 +10052,7 @@ function StocksF({ user }) {
                     <div style={{fontSize:9,color:B.muted}}>{s.unite} · min {s.quantite_min}</div>
                     <div style={{display:"flex",gap:4,marginTop:6,justifyContent:"flex-end"}}>
                       <button onClick={()=>{setForm({...s,_edit:s.id});setModal("edit");}}
-                        style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${B.border}`,borderRadius:7,padding:"3px 8px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>✏</button>
+                        style={{background:"rgba(255,255,255,0.07)",border:"1px solid "+(B.border),borderRadius:7,padding:"3px 8px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>✏</button>
                     </div>
                   </div>
                 </div>
@@ -4361,14 +10095,33 @@ const NAV_F = [
   {id:"dashboard",   ico:"◈",  l:"Accueil"},
   {id:"crm",         ico:"👥", l:"CRM"},
   {id:"finances",    ico:"€",  l:"Finances"},
+  {id:"compta",      ico:"📒", l:"Compta"},
   {id:"events",      ico:"✨", l:"Events"},
   {id:"bsh",         ico:"✦",  l:"BSH"},
   {id:"struct",      ico:"🗂",  l:"Structure"},
   {id:"erp_projets", ico:"🎯", l:"Projets"},
   {id:"erp_taches",  ico:"✔",  l:"Tâches"},
+  {id:"planning",    ico:"📅", l:"Planning"},
+  {id:"notifications",  ico:"🔔", l:"Notifications"},
   {id:"stocks",      ico:"📦", l:"Stocks"},
   {id:"biblio",      ico:"📚", l:"Éditions"},
+  {id:"odyssee",     ico:"💅", l:"Odyssée"},
+  {id:"apercu_ux",   ico:"👁",  l:"Aperçu"},
+  {id:"studio",      ico:"✦",  l:"Studio IA"},
+  {id:"editorial",   ico:"📖", l:"Éditorial"},
+  {id:"food",        ico:"🍃", l:"Food"},
   {id:"ia",          ico:"◎",  l:"IA"},
+  // ── ERP Central (LOT VI)
+  {id:"catalogue_admin", ico:"🗂",  l:"Catalogue"},
+  {id:"stock_central",   ico:"🏪",  l:"Stock ERP"},
+  {id:"workflow_erp",    ico:"📑",  l:"Factures"},
+  {id:"crm_central",     ico:"👥",  l:"CRM"},
+  {id:"recherche",       ico:"🔍",  l:"Recherche"},
+  {id:"messagerie",      ico:"💬",  l:"Messages"},
+  {id:"documents",       ico:"📁",  l:"Documents"},
+  {id:"vilo",            ico:"🤝",  l:"Vilo"},
+  {id:"editions",        ico:"📚",  l:"Éditions"},
+  {id:"motipy",          ico:"🌿",  l:"Mo Ti-Péyi"},
 ];
 
 // Placeholder pôle fondatrice
@@ -4378,11 +10131,385 @@ function PlaceholderModule({ ico, nom, desc }) {
       <div style={{fontSize:52}}>{ico}</div>
       <div style={{fontFamily:FS,fontSize:18,fontWeight:800,color:B.cream,textAlign:"center"}}>{nom}</div>
       <div style={{fontSize:13,color:B.muted,textAlign:"center",lineHeight:1.6}}>{desc}</div>
-      <div style={{background:`${B.violet}18`,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 16px",textAlign:"center"}}>
+      <div style={{background:B.violet+"18",border:"1px solid "+(B.border),borderRadius:12,padding:"12px 16px",textAlign:"center"}}>
         <div style={{fontSize:11,color:B.mutedL}}>Module en préparation</div>
       </div>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODE APERÇU UTILISATEUR — Dashboard fondatrice
+// Visualiser Bellaïa comme si on était un utilisateur final
+// Sans modifier les vraies données
+// ═══════════════════════════════════════════════════════════
+function ApercuUXF({ user, setPreview, setActiveUnivers }) {
+  const [deviceMode, setDeviceMode] = useState("iphone");   // iphone | android | desktop
+  const [contextActif, setContextActif] = useState(null);   // null = liste, sinon config aperçu
+
+  // Contextes disponibles
+  const CONTEXTES = [
+    {
+      id: "cliente_portail",
+      ico: "👤", label: "Portail client",
+      desc: "Vue générale espace client — commandes, factures, réservations",
+      couleur: B.violetL,
+      preview: "client", univers: null,
+    },
+    {
+      id: "cliente_bsh",
+      ico: "✦", label: "Cliente BSH",
+      desc: "Boutique Bella'Secret Home avec contrôle +18",
+      couleur: "#be185d",
+      preview: "client", univers: "bsh",
+      note: "⚠️ Le contrôle +18 s'affiche côté client uniquement",
+    },
+    {
+      id: "cliente_odyssee",
+      ico: "💅", label: "Cliente Odyssée",
+      desc: "Réservations prestations beauté et catalogue produits",
+      couleur: "#7c3aed",
+      preview: "client", univers: "bo",
+    },
+    {
+      id: "cliente_events",
+      ico: "✨", label: "Cliente Bella'Even's",
+      desc: "Catalogue événementiel, demande de devis, commandes",
+      couleur: "#0d9488",
+      preview: "client", univers: "events",
+    },
+    {
+      id: "cliente_structure",
+      ico: "🗂", label: "Cliente Bella'Structure",
+      desc: "Modèles numériques, téléchargements, commandes graphiques",
+      couleur: "#d97706",
+      preview: "client", univers: "struct",
+    },
+    {
+      id: "cliente_mtp",
+      ico: "🌺", label: "Cliente Mo Ti-Péyi",
+      desc: "Livres et produits pédagogiques jeunesse",
+      couleur: "#b45309",
+      preview: "client", univers: "mtp",
+    },
+    {
+      id: "cliente_vilo",
+      ico: "📋", label: "Cliente Vilo'Assistance",
+      desc: "Services administratifs, devis, dossiers",
+      couleur: "#0369a1",
+      preview: "client", univers: "vilo",
+    },
+    {
+      id: "prospect",
+      ico: "🎯", label: "Prospect",
+      desc: "Vue publique sans compte — formulaire de contact",
+      couleur: B.gold,
+      preview: "client", univers: null,
+      note: "Navigation sans login actif",
+    },
+    {
+      id: "hote",
+      ico: "🏠", label: "Espace hôte",
+      desc: "Vue partenaire hébergeur ou prestataire",
+      couleur: "#059669",
+      preview: "hote", univers: null,
+    },
+    {
+      id: "partenaire",
+      ico: "🤝", label: "Espace partenaire",
+      desc: "Vue partenaire / fournisseur",
+      couleur: "#6b7280",
+      preview: "partenaire", univers: null,
+    },
+  ];
+
+  // Devices
+  const DEVICES = [
+    { id:"iphone",  ico:"📱", label:"iPhone",  w:390,  h:844 },
+    { id:"android", ico:"📱", label:"Android", w:412,  h:917 },
+    { id:"desktop", ico:"🖥", label:"Desktop", w:"100%", h:600 },
+  ];
+
+  const device = DEVICES.find(d=>d.id===deviceMode) || DEVICES[0];
+
+  // Lancer l'aperçu — ne modifie aucune donnée réelle
+  const lancerApercu = (ctx) => {
+    setPreview(ctx.preview);
+    if (ctx.univers !== undefined) setActiveUnivers(ctx.univers);
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:800,color:B.cream,fontFamily:FS}}>👁 Mode aperçu utilisateur</div>
+          <div style={{fontSize:10,color:B.muted}}>Visualisez Bellaïa depuis la perspective de chaque utilisateur · Aucune donnée modifiée</div>
+        </div>
+      </div>
+
+      {/* Avertissement */}
+      <div style={{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:"10px 13px",display:"flex",gap:10,alignItems:"flex-start"}}>
+        <span style={{fontSize:16,flexShrink:0}}>ℹ️</span>
+        <div style={{fontSize:11,color:B.muted,lineHeight:1.6}}>
+          Le mode aperçu vous permet de visualiser exactement ce que voient vos utilisateurs. Vos données réelles ne sont pas modifiées. Vous retournez au Dashboard en appuyant sur <strong style={{color:B.gold}}>← Retour fondatrice</strong> dans l'aperçu.
+        </div>
+      </div>
+
+      {/* Sélecteur device */}
+      <div>
+        <div style={{fontSize:10,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Appareil simulé</div>
+        <div style={{display:"flex",gap:6}}>
+          {DEVICES.map(d=>(
+            <button key={d.id} onClick={()=>setDeviceMode(d.id)}
+              style={{flex:1,padding:"8px 6px",borderRadius:10,border:"2px solid "+(deviceMode===d.id?B.gold:B.border),background:deviceMode===d.id?(B.gold+"15"):"transparent",color:deviceMode===d.id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:deviceMode===d.id?700:400,fontFamily:SA,textAlign:"center"}}>
+              <div style={{fontSize:18,marginBottom:3}}>{d.ico}</div>
+              <div>{d.label}</div>
+              {d.id!=="desktop"&&<div style={{fontSize:9,color:B.muted,marginTop:1}}>{d.w}×{d.h}</div>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grille des contextes */}
+      <div>
+        <div style={{fontSize:10,fontWeight:700,color:B.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Choisir un contexte utilisateur</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {CONTEXTES.map(ctx=>(
+            <div key={ctx.id}
+              style={{background:B.card,border:"1px solid "+(ctx.couleur)+("25"),borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+ctx.couleur,cursor:"pointer",transition:"all 0.15s"}}
+              onClick={()=>setContextActif(ctx)}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                    <span style={{fontSize:18}}>{ctx.ico}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:B.cream}}>{ctx.label}</span>
+                  </div>
+                  <div style={{fontSize:11,color:B.muted,lineHeight:1.5}}>{ctx.desc}</div>
+                  {ctx.note&&(
+                    <div style={{fontSize:10,color:"#f59e0b",marginTop:4,fontWeight:600}}>{ctx.note}</div>
+                  )}
+                </div>
+                <div style={{flexShrink:0,marginLeft:12}}>
+                  <div style={{background:ctx.couleur+"20",border:"1px solid "+(ctx.couleur)+("40"),borderRadius:8,padding:"5px 12px",color:ctx.couleur,fontSize:11,fontWeight:700,fontFamily:SA,textAlign:"center"}}>
+                    Aperçu →
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Modal confirmation aperçu */}
+      {contextActif && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div style={{background:"#13111a",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"20px 16px 32px"}}>
+            <div style={{textAlign:"center",marginBottom:16}}>
+              <div style={{fontSize:36,marginBottom:8}}>{contextActif.ico}</div>
+              <div style={{fontSize:16,fontWeight:800,color:B.cream,fontFamily:FS}}>{contextActif.label}</div>
+              <div style={{fontSize:11,color:B.muted,marginTop:4}}>{contextActif.desc}</div>
+            </div>
+
+            {/* Info device */}
+            <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(B.border),borderRadius:12,padding:"10px 14px",marginBottom:14}}>
+              <div style={{fontSize:11,color:B.muted}}>
+                {device.ico} Aperçu en mode <strong style={{color:B.cream}}>{device.label}</strong>
+                {device.id!=="desktop"&&<span> ({device.w}×{device.h}px)</span>}
+              </div>
+            </div>
+
+            {/* Rappels */}
+            <div style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:10,padding:"10px 13px",marginBottom:16}}>
+              <div style={{fontSize:10,color:B.gold,fontWeight:700,marginBottom:4}}>Rappels mode aperçu</div>
+              <div style={{fontSize:10,color:B.muted,lineHeight:1.7}}>
+                ✅ Aucune donnée réelle ne sera modifiée<br/>
+                ✅ Les commandes passées en aperçu sont simulées<br/>
+                ✅ Retour Dashboard via ← Retour fondatrice<br/>
+                {contextActif.id==="cliente_bsh"&&"✅ Le contrôle +18 s'affichera comme pour une vraie cliente"}
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>lancerApercu(contextActif)}
+                style={{flex:2,padding:"13px",borderRadius:12,border:"none",background:"linear-gradient(135deg,"+contextActif.couleur+","+B.violet+")",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:SA}}>
+                🚀 Lancer l'aperçu
+              </button>
+              <button onClick={()=>setContextActif(null)}
+                style={{flex:1,padding:"13px",borderRadius:12,border:"1px solid "+(B.border),background:"transparent",color:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Wrapper Pré-comptabilité
+function ComptaWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/compta/ComptaF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Pré-comptabilité…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Studio IA (chargement dynamique)
+function StudioIAWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/assistant/BellaiaAssistant")
+      .then(m => setComp(()=>m.default))
+      .catch(() => {
+        import("../modules/core/StudioIAF").then(m => setComp(()=>m.default)).catch(e=>console.warn("[Bellaïa] StudioIAF fallback non disponible:",e.message));
+      });
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bellaïa IA…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Calculateur
+function CalculateurWrapper({ pole, onPrixRetenu }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/CalculateurUI").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement calculateur…</div>;
+  return <Comp pole={pole} onPrixRetenu={onPrixRetenu}/>;
+}
+
+// ── Wrapper Bella'Food
+function FoodWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/food/FoodF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella\'Food…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Catalogue Admin (core)
+function CatalogueAdminWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/CatalogueAdmin").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Catalogue…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Stock Central (core)
+function StockCentralWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/BellaiaStocks").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Stock central…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Workflow ERP (core)
+function WorkflowERPWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/core/BellaWorkflowF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Workflow…</div>;
+  return <Comp user={user}/>;
+}
+
+
+// ── Wrapper CRM Central (crm module)
+function CRMWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/crm/ClientCenter").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement CRM…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Recherche Globale (search module)
+function RechercheWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/search/GlobalSearch").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Recherche…</div>;
+  return <Comp profil="fondatrice"/>;
+}
+
+// ── Wrapper Messagerie (messaging module)
+function MessagerieWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement messagerie…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Documents / GED (docs module)
+function DocumentsWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Générateur éditorial
+function EditorialWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/editorial/GenerateurEditorial").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Éditorial…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Odyssée (chargement dynamique du module)
+function OdysseeWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/odyssee/OdysseeF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Odyssée…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Vilo'Assistance
+function ViloWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/vilo/ViloF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Vilo'Assistance…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Bella'Studio Éditions
+function EditionsWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/editions/EditionsF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Studio Éditions…</div>;
+  return <Comp user={user}/>;
+}
+
+// ── Wrapper Mo Ti-Péyi
+function MoTiPeyiWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    import("../modules/motipy").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Mo Ti-Péyi…</div>;
+  return <Comp user={user}/>;
 }
 
 export default function BellaiaApp() {
@@ -4416,7 +10543,7 @@ export default function BellaiaApp() {
   );
   const [bshCli, setBshCli] = useBSHSupabase("clients", "b5:bsh:cli", CLIENTES_BSH_INIT,
     r => ({
-      id: r.id, nom: r.prenom ? `${r.prenom} ${r.nom || ""}`.trim() : r.nom || "Client",
+      id: r.id, nom: r.prenom ? (r.prenom)+" "+(r.nom || "").trim() : r.nom || "Client",
       ville: r.ville || "", canal: r.canal_acquisition || "WhatsApp",
       vip: r.vip_level || "Bronze",
       total: parseFloat(r.total_achats) || 0,
@@ -4442,10 +10569,7 @@ export default function BellaiaApp() {
 
   const deconnexion = async () => {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("bellaia_user");
-      localStorage.removeItem("bellaia_token");
-    }
+    clearSession();
     setUser(null); setPreview(null); setActiveUnivers(null);
   };
 
@@ -4466,25 +10590,48 @@ export default function BellaiaApp() {
     : role; // "fondatrice" → passe directement
 
   // ── Prévisualisations fondatrice
+  // ── Bandeau retour fondatrice en mode aperçu
+  const BandeauApercu = () => (
+    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:"linear-gradient(90deg,#7c3aed,#c9a84c)",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>👁 Mode aperçu utilisateur</div>
+      <button onClick={()=>{setPreview(null);setActiveUnivers(null);}}
+        style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,padding:"4px 12px",color:"#fff",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"Inter,system-ui,sans-serif"}}>
+        ← Retour fondatrice
+      </button>
+    </div>
+  );
+
   if (preview === "client") {
-    if (!activeUnivers) return <PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
+    if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:36}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
-      onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
-    if (activeUnivers==="bsh")    return <ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
+      onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
+    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
-    if (activeUnivers==="events") return <ClientEventsPortail onBack={()=>setActiveUnivers(null)}/>;
+    if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:36}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
   }
-  if (preview === "hote")       return <EspaceHote user={user} onLogout={()=>setPreview(null)}/>;
-  if (preview === "partenaire") return <EspacePartenaire user={user} onLogout={()=>setPreview(null)}/>;
+  if (preview === "hote") {
+    // Si l'utilisateur est un talent Odyssée, afficher HoteOdyssee
+    const univHote = user?.univers || user?.module || "";
+    if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
+      return <><BandeauApercu/><div style={{paddingTop:36}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
+    }
+    return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
+  }
+  if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
 
   // ── Routage par rôle
   if (espaceEffectif === "client")
     return <PortailClient user={user} produits={bshProd} evenements={bshEvts}
       onLogout={deconnexion} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
-  if (espaceEffectif === "hote")
+  if (espaceEffectif === "hote") {
+    const univHote = user?.univers || user?.module || "";
+    if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
+      return <HoteOdyssee user={user} onBack={deconnexion}/>;
+    }
     return <EspaceHote user={user} onLogout={deconnexion}/>;
+  }
   if (espaceEffectif === "partenaire")
     return <EspacePartenaire user={user} onLogout={deconnexion}/>;
 
@@ -4493,6 +10640,7 @@ export default function BellaiaApp() {
     dashboard:   <DashF user={user} goto={setActiveF}/>,
     crm:         <CrmF user={user}/>,
     finances:    <FinancesP1 user={user}/>,
+    compta:      <ComptaWrapper user={user}/>,
     calendrier:  <CalendrierP1 user={user}/>,
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
@@ -4504,22 +10652,41 @@ export default function BellaiaApp() {
     catalogue_ia:<CatalogueIAF user={user} gotoEvents={()=>setActiveF("events")}/>,
     erp_projets:<ErpProjetsF user={user}/>,
     erp_taches: <ErpTachesF user={user}/>,
+    planning:       <PlanningCentralF user={user}/>,
+    notifications:  <NotificationsF user={user}/>,
     // Stocks (vue Supabase v_stocks_critiques)
     stocks:      <StocksF user={user}/>,
+    // Bella'Odyssée — module complet
+    odyssee:     <OdysseeWrapper user={user}/>,
+    // Mode aperçu utilisateur
+    apercu_ux:   <ApercuUXF user={user} setPreview={setPreview} setActiveUnivers={setActiveUnivers}/>,
+    // Studio IA — module central
+    studio:      <StudioIAWrapper user={user}/>,
     // Pôles Phase 2
-    odyssee:     <PlaceholderModule ico="💅" nom="Bella'Odyssée" desc="Gestion RDV, prestations beauté — Phase 2"/>,
-    food:        <PlaceholderModule ico="🍃" nom="Bella'Food" desc="Traiteur et menus — Phase 2"/>,
+    food:        <FoodWrapper user={user}/>,
+    editorial:   <EditorialWrapper user={user}/>,
     vilo:        <PlaceholderModule ico="📋" nom="Vilo'Assistance" desc="Assistance administrative — Phase 2"/>,
     mtp:         <PlaceholderModule ico="🌺" nom="Mo Ti-Péyi" desc="Livres jeunesse — Bibliothèque Éditoriale"/>,
+    // ── ERP Central (LOT VI)
+    catalogue_admin: <CatalogueAdminWrapper user={user}/>,
+    stock_central:   <StockCentralWrapper user={user}/>,
+    workflow_erp:    <WorkflowERPWrapper user={user}/>,
+    crm_central:     <CRMWrapper user={user}/>,
+    recherche:       <RechercheWrapper user={user}/>,
+    messagerie:      <MessagerieWrapper user={user}/>,
+    documents:       <DocumentsWrapper user={user}/>,
+    vilo:            <ViloWrapper user={user}/>,
+    editions:        <EditionsWrapper user={user}/>,
+    motipy:          <MoTiPeyiWrapper user={user}/>,
   };
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream,maxWidth:430,margin:"0 auto",overflowX:"hidden"}}>
 
       {/* Header Fondatrice */}
-      <div style={{padding:"10px 14px 8px",borderBottom:`1px solid ${B.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
+      <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <div style={{width:30,height:30,borderRadius:9,background:`linear-gradient(135deg,${B.violet},${B.gold})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
+          <div style={{width:30,height:30,borderRadius:9,background:"linear-gradient(135deg,"+B.violet+","+B.gold+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
           <div>
             <div style={{fontSize:13,fontWeight:900,color:B.cream,fontFamily:FS}}>Bellaïa</div>
             <div style={{fontSize:7,color:B.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
@@ -4533,7 +10700,7 @@ export default function BellaiaApp() {
           <button onClick={()=>setPreview("hote")} title="Prévisualiser espace hôte"
             style={{background:"rgba(13,148,136,0.15)",border:"1px solid rgba(13,148,136,0.35)",borderRadius:6,padding:"4px 7px",color:"#0d9488",cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>Hôte</button>
           <button onClick={deconnexion} title="Déconnexion"
-            style={{background:"none",border:`1px solid ${B.border}`,borderRadius:6,padding:"4px 7px",color:B.muted,cursor:"pointer",fontSize:9,fontFamily:SA}}>✕</button>
+            style={{background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:B.muted,cursor:"pointer",fontSize:9,fontFamily:SA}}>✕</button>
         </div>
       </div>
 
@@ -4543,11 +10710,11 @@ export default function BellaiaApp() {
       </div>
 
       {/* Bottom nav fixe — scrollable horizontalement pour 10 modules */}
-      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,borderTop:`1px solid ${B.border}`,background:B.deep,padding:"5px 0 calc(5px + env(safe-area-inset-bottom))",zIndex:100,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,borderTop:"1px solid "+(B.border),background:B.deep,padding:"5px 0 calc(5px + env(safe-area-inset-bottom))",zIndex:100,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         <div style={{display:"flex",minWidth:"max-content",padding:"0 4px"}}>
           {NAV_F.map(m=>(
             <button key={m.id} onClick={()=>setActiveF(m.id)}
-              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"3px 10px",minWidth:52,WebkitTapHighlightColor:"transparent",borderBottom:activeF===m.id?`2px solid ${B.gold}`:"2px solid transparent"}}>
+              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"3px 10px",minWidth:52,WebkitTapHighlightColor:"transparent",borderBottom:activeF===m.id?"2px solid "+(B.gold):"2px solid transparent"}}>
               <span style={{fontSize:16,color:activeF===m.id?B.gold:B.muted,transition:"color 0.15s"}}>{m.ico}</span>
               <span style={{fontSize:8,color:activeF===m.id?B.gold:B.muted,fontWeight:700,letterSpacing:"0.02em",whiteSpace:"nowrap"}}>{m.l}</span>
             </button>
