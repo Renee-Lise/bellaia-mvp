@@ -7625,7 +7625,7 @@ function BellaEventsDocuments({ user }) {
 // PORTAIL CLIENT BELLA'EVENTS — Catalogue commercial
 // ═══════════════════════════════════════════════════════════
 // Couleurs Events (vert émeraude)
-const EV = {or:"#10b981",creme:"#e8f5ee",cremeD:"#a8d5be",line:"rgba(16,185,129,0.25)",verre:"rgba(16,185,129,0.06)",acc:"#34d399",night:"#0a1410"};
+// EV défini dans le Design System V2 (L99)
 
 // ═══════════════════════════════════════════════════════════
 // MOTEUR DEVIS INTELLIGENT — Analyse du message client
