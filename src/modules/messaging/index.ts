@@ -1,4 +1,9 @@
+// ═══════════════════════════════════════════════════════════
+// BELLAÏA MESSAGING — Export principal
 // src/modules/messaging/index.ts
-export { default as MessagingCenter } from "./MessagingCenter";
-export { default } from "./MessagingCenter";
-export type { CanalMessage, StatutMessage, Destinataire, PieceJointe } from "./messagingTypes";
+// ═══════════════════════════════════════════════════════════
+
+export { default } from './MessagingCenter';
+export { default as MessagingCenter } from './MessagingCenter';
+export * from './messagingTypes';
+export * from './messagingApi';
