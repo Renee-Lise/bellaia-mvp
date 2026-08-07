@@ -509,18 +509,20 @@ export default function MessagingCenter({ user, onClose, initialConvId }: Props)
             {activeConv?.module && ` · ${activeConv.module}`}
           </div>
         </div>
-        {/* Appels */}
+        {/* Appels — infrastructure préparée, pas encore opérationnelle */}
         <div style={{display:'flex',gap:6}}>
-          <button title="Appel audio"
-            style={{background:'rgba(124,58,237,0.12)',border:'1px solid rgba(124,58,237,0.25)',
-              borderRadius:R.md,padding:'6px 9px',fontSize:15,cursor:'pointer',color:C.violetL}}>
+          <span title="Appels — prochainement"
+            style={{background:'rgba(124,58,237,0.06)',border:'1px solid rgba(124,58,237,0.15)',
+              borderRadius:R.md,padding:'6px 9px',fontSize:15,color:'rgba(124,58,237,0.35)',
+              cursor:'default',userSelect:'none'}}>
             📞
-          </button>
-          <button title="Appel vidéo"
-            style={{background:'rgba(124,58,237,0.12)',border:'1px solid rgba(124,58,237,0.25)',
-              borderRadius:R.md,padding:'6px 9px',fontSize:15,cursor:'pointer',color:C.violetL}}>
+          </span>
+          <span title="Vidéo — prochainement"
+            style={{background:'rgba(124,58,237,0.06)',border:'1px solid rgba(124,58,237,0.15)',
+              borderRadius:R.md,padding:'6px 9px',fontSize:15,color:'rgba(124,58,237,0.35)',
+              cursor:'default',userSelect:'none'}}>
             📹
-          </button>
+          </span>
         </div>
       </div>
 
