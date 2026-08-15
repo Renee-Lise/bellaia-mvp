@@ -985,7 +985,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
             <BCard accent style={{textAlign:"center",padding:"18px 16px"}}>
               <div style={{fontFamily:FS,fontSize:16,color:BSH.or,marginBottom:6}}>Commander facilement ✦</div>
               <div style={{fontSize:12,color:BSH.cremeD,marginBottom:14,lineHeight:1.7}}>Boutique en ligne · Livraison Guyane & DOM-TOM<br/>Emballage discret garanti</div>
-              <BBtn v="bord" sz="md" full onClick={() => window.open(WA(),"_blank")}>💬 Commander via WhatsApp</BBtn>
+              <BBtn v="bord" sz="md" full onClick={() => setPage("faq")}>💬 Nous contacter</BBtn>
             </BCard>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
               {[{ico:"✨",t:"Événements",sub:evenements.length+" à venir",p:"evenements"},{ico:"💎",t:"Club VIP",sub:"4 niveaux exclusifs",p:"vip"}].map(c => (
@@ -1258,7 +1258,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <Btn v="gold" full onClick={() => {addCart(modal.p); setModal(null);}}>🛒 Ajouter au panier</Btn>
-            <Btn v="ghost" full onClick={() => window.open(WA("Bonjour, je voudrais commander : "+(modal.p.name)),"_blank")}>💬 Commander via WhatsApp</Btn>
+            <Btn v="ghost" full onClick={() => { addCart(modal.p); setModal(null); }}>✉️ Envoyer la commande</Btn>
           </div>
         </Mdl>
       )}
@@ -5710,7 +5710,23 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
         {/* Contact */}
         <div style={{marginTop:16,background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px",textAlign:"center"}}>
           <div style={{fontSize:11,color:B.muted,marginBottom:8}}>Une question ? Contactez-nous</div>
-          <button onClick={()=>window.open(WA(),"_blank")} style={{background:"transparent",border:"1px solid rgba(201,168,76,0.4)",borderRadius:9,padding:"8px 16px",color:B.gold,fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>💬 WhatsApp</button>
+          <div style={{display:"flex",flexDirection:"column",gap:7}}>
+            <button
+              onClick={()=>{
+                // Ouvre la messagerie interne via l'événement global
+                window.dispatchEvent(new CustomEvent('bellaiaOpenMessaging', { detail:{ userId: user?.id } }));
+              }}
+              style={{background:"transparent",border:"1px solid rgba(124,58,237,0.4)",
+                borderRadius:9,padding:"8px 16px",color:"#9d6ef5",fontWeight:700,
+                fontSize:11,cursor:"pointer",fontFamily:SA}}>
+              💬 Envoyer un message
+            </button>
+            <button onClick={()=>window.open(WA(),"_blank")}
+              style={{background:"none",border:"none",color:"rgba(201,168,76,0.4)",
+                fontSize:10,cursor:"pointer",fontFamily:SA,textDecoration:"underline"}}>
+              Ou via WhatsApp ↗
+            </button>
+          </div>
         </div>
       </div>
     </div>
