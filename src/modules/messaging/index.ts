@@ -1,9 +1,4 @@
-// ═══════════════════════════════════════════════════════════
-// BELLAÏA MESSAGING — Export principal
-// src/modules/messaging/index.ts
-// ═══════════════════════════════════════════════════════════
-
-export { default } from './MessagingCenter';
-export { default as MessagingCenter } from './MessagingCenter';
-export * from './messagingTypes';
-export * from './messagingApi';
+export { default } from "./MessagingCenter";
+export { default as MessagingCenter } from "./MessagingCenter";
+export * from "./messagingTypes";
+export * from "./messagingApi";
