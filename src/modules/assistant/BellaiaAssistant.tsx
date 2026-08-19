@@ -173,9 +173,10 @@ Tu réponds toujours en français. Tu es précise, professionnelle, bienveillant
 Si tu génères un document (devis, contrat, email, analyse), indique-le clairement en commençant par "📄 DOCUMENT :" pour que la fondatrice puisse le valider.`;
 
       // Appel à l'API Claude
+      const tok = typeof window !== "undefined" ? localStorage.getItem("bellaia_token") || "" : "";
       const response = await fetch('/api/ia/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
         body: JSON.stringify({
           systemPrompt,
           messages: [...historique, { role:'user', content:question }],
