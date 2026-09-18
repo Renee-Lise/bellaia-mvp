@@ -836,13 +836,427 @@ function FAQItem({q, r}) {
 // ═══════════════════════════════════════════════════════════
 // ── ESPACE CLIENT BSH
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// BSH MEMBERS — Composants client + admin
+// Statuts : customer | member_pending | member | founding_member | vip(réservé)
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Page publique + espace privé membre (côté client) ──────────────
+function BSHMembersPage({ user, onBack }: { user: any; onBack?: () => void }) {
+  const [statut, setStatut]     = React.useState<string>("loading");
+  const [erreur, setErreur]     = React.useState("");
+  const [loading, setLoading]   = React.useState(false);
+  const [benefits, setBenefits] = React.useState<any[]>([]);
+  const [charteSigned, setCharteSigned] = React.useState(false);
+  const [confirme18, setConfirme18]     = React.useState(false);
+
+  // Charger le statut depuis profiles.membership_status
+  React.useEffect(() => {
+    const charger = async () => {
+      try {
+        const tok    = localStorage.getItem("bellaia_token");
+        const sbUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const sbKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        if (!tok || !user?.id) { setStatut("customer"); return; }
+        const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey };
+        // Lire le statut membre
+        const r = await fetch(`${sbUrl}/rest/v1/profiles?id=eq.${user.id}&select=membership_status`, { headers: h });
+        if (r.ok) {
+          const d = await r.json();
+          setStatut(d[0]?.membership_status || "customer");
+        }
+        // Charger les avantages actifs (si membre)
+        if (["member","founding_member","vip"].includes(statut)) {
+          const r2 = await fetch(`${sbUrl}/rest/v1/member_benefits?is_active=eq.true&order=created_at.desc`, { headers: h });
+          if (r2.ok) setBenefits(await r2.json());
+        }
+      } catch { setStatut("customer"); }
+    };
+    charger();
+  }, [user?.id, statut]);
+
+  const demanderAdhesion = async () => {
+    if (!confirme18 || !charteSigned) return;
+    setLoading(true); setErreur("");
+    try {
+      const tok   = localStorage.getItem("bellaia_token")!;
+      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey, "Content-Type": "application/json", "Prefer": "return=minimal" };
+      // Passer membership_status à member_pending
+      const r = await fetch(`${sbUrl}/rest/v1/profiles?id=eq.${user.id}`, {
+        method: "PATCH", headers: h,
+        body: JSON.stringify({ membership_status: "member_pending" }),
+      });
+      if (r.ok) {
+        setStatut("member_pending");
+        // Notifier la fondatrice
+        await fetch(`${sbUrl}/rest/v1/bellaia_notifications`, {
+          method: "POST", headers: h,
+          body: JSON.stringify({
+            user_id: user.id, type: "bsh_members",
+            titre: "Nouvelle demande BSH Members",
+            contenu: `${user.prenom || ""} ${user.nom || ""} (${user.email}) a demandé à rejoindre BSH Members.`,
+            lu: false,
+          }),
+        });
+      } else {
+        setErreur("Impossible d'enregistrer votre demande. Réessayez.");
+      }
+    } catch(e: any) { setErreur(e.message); }
+    finally { setLoading(false); }
+  };
+
+  // ── Page publique ──────────────────────────────────────────────
+  const renderPublique = () => (
+    <div style={{display:"flex",flexDirection:"column",gap:0,color:"#f1e7e2",fontFamily:"'Jost',system-ui,sans-serif"}}>
+      {/* Hero Members */}
+      <div style={{background:"linear-gradient(160deg,#2e1a2e 0%,#17101a 50%,#0b0709 100%)",padding:"32px 20px 28px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-40,right:-40,width:160,height:160,borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(198,161,91,0.15),transparent 70%)",pointerEvents:"none"}}/>
+        <span style={{fontSize:8,letterSpacing:"0.2em",color:"#c6a15b",textTransform:"uppercase",display:"block",marginBottom:10}}>
+          Programme exclusif
+        </span>
+        <h2 style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontSize:26,fontWeight:500,
+          color:"#f1e7e2",margin:"0 0 8px",letterSpacing:"0.01em",lineHeight:1.2}}>
+          BSH Members
+        </h2>
+        <p style={{fontSize:12,letterSpacing:"0.12em",color:"#c6a15b",margin:"0 0 14px",textTransform:"uppercase",fontWeight:400}}>
+          Exclusivité · Privilèges · Accès réservé
+        </p>
+        <p style={{fontSize:13,color:"#cbb9b9",lineHeight:1.75,margin:"0 0 22px",maxWidth:320}}>
+          BSH Members est le club privé de Bella'Secret Home. Rejoindre la communauté, c'est accéder à des découvertes en avant-première, participer à la vie de BSH et bénéficier d'avantages qui évoluent avec le programme.
+        </p>
+        <div style={{background:"rgba(198,161,91,0.06)",border:"1px solid rgba(198,161,91,0.2)",borderRadius:4,padding:"12px 14px",marginBottom:20}}>
+          <div style={{fontSize:11,color:"#c6a15b",fontWeight:700,marginBottom:6,letterSpacing:"0.06em",textTransform:"uppercase"}}>Avantages au lancement</div>
+          {[
+            "Accès au programme BSH Members",
+            "Informations et découvertes en avant-première",
+            "Participation à certains votes, tests et sélections BSH",
+            "Priorité d'information sur certaines nouveautés",
+            "Contenus et opérations ponctuellement réservés aux membres",
+          ].map(a => (
+            <div key={a} style={{fontSize:12,color:"#cbb9b9",marginBottom:5,display:"flex",gap:8,alignItems:"flex-start"}}>
+              <span style={{color:"#c6a15b",flexShrink:0,marginTop:1}}>✦</span>{a}
+            </div>
+          ))}
+        </div>
+        <p style={{fontSize:10,color:"rgba(203,185,185,0.45)",fontStyle:"italic",margin:"0 0 16px"}}>
+          Le programme et ses avantages évolueront progressivement.
+        </p>
+      </div>
+
+      {/* Formulaire adhésion */}
+      <div style={{background:"#17101a",padding:"24px 20px",borderTop:"1px solid rgba(198,161,91,0.12)"}}>
+        <div style={{fontSize:13,fontWeight:700,color:"#f1e7e2",marginBottom:16,fontFamily:"'Cormorant Garamond','Georgia',serif",fontSize:18}}>
+          Rejoindre BSH Members
+        </div>
+
+        {statut === "member_pending" ? (
+          <div style={{background:"rgba(198,161,91,0.08)",border:"1px solid rgba(198,161,91,0.25)",borderRadius:6,padding:"16px 14px",textAlign:"center"}}>
+            <div style={{fontSize:20,marginBottom:8}}>⏳</div>
+            <div style={{fontSize:13,fontWeight:700,color:"#c6a15b",marginBottom:4}}>Demande en cours d'examen</div>
+            <div style={{fontSize:12,color:"#cbb9b9",lineHeight:1.6}}>Votre demande a été transmise à la fondatrice. Vous serez notifiée dès qu'elle sera traitée.</div>
+          </div>
+        ) : (
+          <>
+            {/* Confirmation 18 ans */}
+            <label style={{display:"flex",gap:10,alignItems:"flex-start",cursor:"pointer",marginBottom:12}}>
+              <input type="checkbox" checked={confirme18} onChange={e=>setConfirme18(e.target.checked)}
+                style={{width:18,height:18,accentColor:"#c6a15b",flexShrink:0,marginTop:1,cursor:"pointer"}}/>
+              <span style={{fontSize:12,color:"#cbb9b9",lineHeight:1.6}}>
+                Je confirme avoir <strong style={{color:"#f1e7e2"}}>18 ans ou plus</strong> et souhaiter rejoindre BSH Members.
+              </span>
+            </label>
+            {/* Charte */}
+            <label style={{display:"flex",gap:10,alignItems:"flex-start",cursor:"pointer",marginBottom:20}}>
+              <input type="checkbox" checked={charteSigned} onChange={e=>setCharteSigned(e.target.checked)}
+                style={{width:18,height:18,accentColor:"#c6a15b",flexShrink:0,marginTop:1,cursor:"pointer"}}/>
+              <span style={{fontSize:12,color:"#cbb9b9",lineHeight:1.6}}>
+                J'accepte la <strong style={{color:"#f1e7e2"}}>charte BSH Members</strong> : confidentialité, respect, discrétion. Je comprends que l'adhésion est validée par la fondatrice.
+              </span>
+            </label>
+
+            {erreur && (
+              <div style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:6,padding:"8px 12px",fontSize:11,color:"#f87171",marginBottom:12}}>
+                ⚠️ {erreur}
+              </div>
+            )}
+
+            <button onClick={demanderAdhesion}
+              disabled={!confirme18 || !charteSigned || loading}
+              style={{width:"100%",background:confirme18&&charteSigned&&!loading?"#c6a15b":"rgba(198,161,91,0.2)",
+                border:"none",borderRadius:2,padding:"12px",color:confirme18&&charteSigned?"#0b0709":"rgba(198,161,91,0.5)",
+                fontSize:12,fontWeight:500,letterSpacing:"0.06em",cursor:confirme18&&charteSigned&&!loading?"pointer":"not-allowed",
+                fontFamily:"'Jost',system-ui,sans-serif",textTransform:"uppercase"}}>
+              {loading ? "⏳ Envoi en cours..." : "Demander à rejoindre BSH Members"}
+            </button>
+            <p style={{fontSize:10,color:"rgba(203,185,185,0.4)",textAlign:"center",marginTop:12,fontStyle:"italic"}}>
+              Aucun abonnement. Aucun paiement. Adhésion validée par la fondatrice.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Espace privé membre ────────────────────────────────────────
+  const renderEspaceMembre = () => (
+    <div style={{display:"flex",flexDirection:"column",gap:0,color:"#f1e7e2",fontFamily:"'Jost',system-ui,sans-serif"}}>
+      <div style={{background:"linear-gradient(160deg,#2e1a2e,#17101a 60%,#0b0709 100%)",padding:"28px 20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <div style={{width:42,height:42,borderRadius:"50%",background:"linear-gradient(135deg,#c6a15b,#e0c17e)",
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>✦</div>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:"#f1e7e2",fontFamily:"'Cormorant Garamond','Georgia',serif"}}>
+              Espace BSH Members
+            </div>
+            <div style={{fontSize:10,color:"#c6a15b",letterSpacing:"0.1em",textTransform:"uppercase"}}>
+              {statut === "founding_member" ? "💎 Membre Fondateur" : "✦ Membre"}
+            </div>
+          </div>
+        </div>
+        <p style={{fontSize:12,color:"#cbb9b9",lineHeight:1.7,margin:0}}>
+          Bienvenue dans votre espace privé BSH Members. Les avantages et contenus exclusifs apparaissent ici au fur et à mesure qu'ils sont activés.
+        </p>
+      </div>
+
+      {/* Badge Membre Fondateur */}
+      {statut === "founding_member" && (
+        <div style={{background:"rgba(198,161,91,0.08)",border:"1px solid rgba(198,161,91,0.3)",margin:"0",padding:"14px 20px",display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{fontSize:24}}>💎</span>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:"#c6a15b"}}>Membre Fondateur</div>
+            <div style={{fontSize:11,color:"#cbb9b9"}}>Vous faites partie des premiers membres à avoir rejoint BSH Members.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Avantages actifs */}
+      <div style={{padding:"20px"}}>
+        {benefits.length > 0 ? (
+          <div>
+            <div style={{fontSize:10,letterSpacing:"0.12em",color:"#c6a15b",textTransform:"uppercase",marginBottom:12}}>Vos avantages actifs</div>
+            {benefits.map((b: any) => (
+              <div key={b.id} style={{background:"rgba(46,26,46,0.5)",border:"1px solid rgba(198,161,91,0.18)",
+                borderRadius:4,padding:"14px",marginBottom:8}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#f1e7e2",marginBottom:4}}>{b.title}</div>
+                {b.description && <div style={{fontSize:12,color:"#cbb9b9",lineHeight:1.6}}>{b.description}</div>}
+                {b.valid_until && (
+                  <div style={{fontSize:10,color:"rgba(198,161,91,0.6)",marginTop:6}}>
+                    Jusqu'au {new Date(b.valid_until).toLocaleDateString("fr-FR")}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:30,marginBottom:10}}>✦</div>
+            <div style={{fontSize:13,color:"#f1e7e2",fontWeight:600,marginBottom:6}}>Des avantages arrivent bientôt</div>
+            <div style={{fontSize:12,color:"#cbb9b9",lineHeight:1.6}}>La fondatrice activera les avantages membres progressivement.</div>
+          </div>
+        )}
+
+        {/* Communauté WhatsApp — JAMAIS affiché aux non-membres */}
+        <div style={{marginTop:20,background:"rgba(37,211,102,0.05)",border:"1px solid rgba(37,211,102,0.15)",borderRadius:4,padding:"14px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#f1e7e2",marginBottom:6}}>💬 Communauté BSH Members</div>
+          <div style={{fontSize:11,color:"#cbb9b9",lineHeight:1.6,marginBottom:10}}>
+            Rejoignez le groupe privé des membres BSH pour les échanges, les avant-premières et les discussions.
+          </div>
+          <button onClick={() => {
+            const lien = process.env.NEXT_PUBLIC_BSH_MEMBERS_WA_LINK;
+            if (lien) window.open(lien, "_blank");
+            else alert("Le lien de la communauté sera communiqué par la fondatrice.");
+          }} style={{background:"rgba(37,211,102,0.1)",border:"1px solid rgba(37,211,102,0.25)",borderRadius:2,
+            padding:"9px 16px",color:"#25d366",fontSize:12,fontWeight:500,cursor:"pointer",
+            fontFamily:"'Jost',system-ui,sans-serif",width:"100%"}}>
+            Accéder à la communauté BSH Members
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (statut === "loading") return (
+    <div style={{textAlign:"center",padding:"48px 20px"}}>
+      <div style={{width:24,height:24,borderRadius:"50%",border:"2px solid rgba(198,161,91,0.2)",
+        borderTopColor:"#c6a15b",animation:"spin 0.7s linear infinite",margin:"0 auto"}}/>
+    </div>
+  );
+
+  const isMember = ["member","founding_member","vip"].includes(statut);
+  return isMember ? renderEspaceMembre() : renderPublique();
+}
+
+// ── Administration BSH Members (côté fondatrice) ───────────────────
+function BSHMembersAdmin({ user }: { user: any }) {
+  const [membres, setMembres]     = React.useState<any[]>([]);
+  const [pendings, setPendings]   = React.useState<any[]>([]);
+  const [loading, setLoading]     = React.useState(true);
+  const [action, setAction]       = React.useState<{id:string;type:"accept"|"refuse"|"founding"|"revoke"}|null>(null);
+  const [erreur, setErreur]       = React.useState("");
+  const [succes, setSucces]       = React.useState("");
+  const [onglet, setOnglet]       = React.useState<"pending"|"membres">("pending");
+
+  const charger = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const tok    = localStorage.getItem("bellaia_token")!;
+      const sbUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const sbKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey };
+      const r1 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=eq.member_pending&select=id,prenom,nom,email,telephone,created_at,membership_status&order=created_at.asc`, { headers: h });
+      if (r1.ok) setPendings(await r1.json());
+      const r2 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=in.(member,founding_member)&select=id,prenom,nom,email,telephone,created_at,membership_status&order=created_at.desc`, { headers: h });
+      if (r2.ok) setMembres(await r2.json());
+    } catch(e: any) { setErreur(e.message); }
+    finally { setLoading(false); }
+  }, []);
+
+  React.useEffect(() => { charger(); }, [charger]);
+
+  const changerStatut = async (userId: string, nouveau: string) => {
+    setErreur(""); setSucces("");
+    try {
+      const tok   = localStorage.getItem("bellaia_token")!;
+      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey, "Content-Type": "application/json", "Prefer": "return=minimal" };
+      const r = await fetch(`${sbUrl}/rest/v1/profiles?id=eq.${userId}`, {
+        method: "PATCH", headers: h,
+        body: JSON.stringify({ membership_status: nouveau }),
+      });
+      if (!r.ok) throw new Error("Mise à jour échouée");
+      // Notifier le membre
+      const msg = nouveau === "member"
+        ? "Votre demande BSH Members a été acceptée. Bienvenue ! 🎉"
+        : nouveau === "customer"
+        ? "Votre demande BSH Members n'a pas été retenue pour le moment."
+        : nouveau === "founding_member"
+        ? "Vous avez été désigné(e) Membre Fondateur BSH Members. ✦"
+        : "Votre accès BSH Members a été modifié.";
+      await fetch(`${sbUrl}/rest/v1/bellaia_notifications`, {
+        method: "POST", headers: h,
+        body: JSON.stringify({ user_id: userId, type: "bsh_members", titre: "BSH Members", contenu: msg, lu: false }),
+      });
+      setSucces(`Statut mis à jour : ${nouveau}`);
+      setAction(null);
+      charger();
+    } catch(e: any) { setErreur(e.message); }
+  };
+
+  const renderCard = (p: any, isPending = false) => (
+    <div key={p.id} style={{background:"rgba(46,26,46,0.4)",border:"1px solid rgba(198,161,91,0.18)",
+      borderRadius:6,padding:"12px 14px",marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"#f1e7e2"}}>{[p.prenom,p.nom].filter(Boolean).join(" ")||"—"}</div>
+          <div style={{fontSize:10,color:"rgba(203,185,185,0.6)",marginTop:1}}>{p.email||"—"}</div>
+          <div style={{fontSize:9,color:"rgba(198,161,91,0.5)",marginTop:1}}>
+            {isPending ? "Demande le " : "Membre depuis le "}
+            {p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR") : "—"}
+          </div>
+        </div>
+        <span style={{background: p.membership_status==="founding_member"?"rgba(198,161,91,0.2)":"rgba(110,231,160,0.15)",
+          color: p.membership_status==="founding_member"?"#c6a15b":"#6ee7a0",
+          borderRadius:20,padding:"2px 8px",fontSize:9,fontWeight:700,whiteSpace:"nowrap"}}>
+          {p.membership_status === "founding_member" ? "💎 Fondateur" : isPending ? "⏳ En attente" : "✦ Membre"}
+        </span>
+      </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        {isPending && (
+          <>
+            <button onClick={() => changerStatut(p.id,"member")}
+              style={{background:"rgba(110,231,160,0.12)",border:"1px solid rgba(110,231,160,0.3)",borderRadius:4,
+                padding:"5px 10px",color:"#6ee7a0",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif"}}>
+              ✅ Accepter
+            </button>
+            <button onClick={() => changerStatut(p.id,"customer")}
+              style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.25)",borderRadius:4,
+                padding:"5px 10px",color:"#f87171",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif"}}>
+              ✕ Refuser
+            </button>
+          </>
+        )}
+        {!isPending && p.membership_status !== "founding_member" && (
+          <button onClick={() => changerStatut(p.id,"founding_member")}
+            style={{background:"rgba(198,161,91,0.1)",border:"1px solid rgba(198,161,91,0.25)",borderRadius:4,
+              padding:"5px 10px",color:"#c6a15b",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif"}}>
+            💎 Désigner Fondateur
+          </button>
+        )}
+        {!isPending && (
+          <button onClick={() => changerStatut(p.id,"customer")}
+            style={{background:"rgba(139,127,168,0.1)",border:"1px solid rgba(139,127,168,0.25)",borderRadius:4,
+              padding:"5px 10px",color:"#8b7fa8",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif"}}>
+            Désactiver l'accès
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{color:"#f1e7e2",fontFamily:"'Jost',system-ui,sans-serif",minHeight:"100%",background:"linear-gradient(180deg,#17101a,#0b0709 60%)"}}>
+      {/* Header admin */}
+      <div style={{padding:"16px 16px 12px",borderBottom:"1px solid rgba(198,161,91,0.15)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+          <span style={{fontSize:18}}>💎</span>
+          <div style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontSize:18,fontWeight:500,color:"#f1e7e2"}}>BSH Members — Admin</div>
+        </div>
+        <div style={{fontSize:11,color:"rgba(198,161,91,0.7)"}}>
+          {pendings.length} demande{pendings.length!==1?"s":""} en attente · {membres.length} membre{membres.length!==1?"s":""}
+        </div>
+      </div>
+
+      {/* Messages */}
+      {erreur && <div style={{margin:"8px 16px",background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:6,padding:"8px 12px",fontSize:11,color:"#f87171"}}>{erreur}</div>}
+      {succes && <div style={{margin:"8px 16px",background:"rgba(110,231,160,0.1)",border:"1px solid rgba(110,231,160,0.25)",borderRadius:6,padding:"8px 12px",fontSize:11,color:"#6ee7a0"}}>{succes}</div>}
+
+      {/* Onglets */}
+      <div style={{display:"flex",borderBottom:"1px solid rgba(198,161,91,0.12)"}}>
+        {[{k:"pending",l:`⏳ En attente (${pendings.length})`},{k:"membres",l:`✦ Membres (${membres.length})`}].map(o => (
+          <button key={o.k} onClick={() => setOnglet(o.k as any)}
+            style={{flex:1,padding:"10px 0",border:"none",background:"transparent",
+              color:onglet===o.k?"#c6a15b":"rgba(203,185,185,0.5)",
+              fontSize:11,fontWeight:700,cursor:"pointer",letterSpacing:"0.04em",
+              borderBottom:`2px solid ${onglet===o.k?"#c6a15b":"transparent"}`}}>
+            {o.l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{padding:"14px 16px"}}>
+        {loading && (
+          <div style={{textAlign:"center",padding:24}}>
+            <div style={{width:24,height:24,borderRadius:"50%",border:"2px solid rgba(198,161,91,0.2)",
+              borderTopColor:"#c6a15b",animation:"spin 0.7s linear infinite",margin:"0 auto"}}/>
+          </div>
+        )}
+        {!loading && onglet === "pending" && (
+          pendings.length === 0
+            ? <div style={{textAlign:"center",padding:"32px 0",color:"rgba(203,185,185,0.5)",fontSize:12}}>Aucune demande en attente</div>
+            : pendings.map(p => renderCard(p, true))
+        )}
+        {!loading && onglet === "membres" && (
+          membres.length === 0
+            ? <div style={{textAlign:"center",padding:"32px 0",color:"rgba(203,185,185,0.5)",fontSize:12}}>Aucun membre pour l'instant</div>
+            : membres.map(p => renderCard(p, false))
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function ClientBSH({produits, evenements, onBack, onNewCommande}) {
   const [gate, setGate] = useState(false);
   const [page, setPage] = useState("accueil");
   const [cart, setCart] = useState([]);
   const [fav, setFav] = useState([]);
   const [modal, setModal] = useState(null);
-  const [pmtChoisi, setPmtChoisi] = useState("SumUp");
+  const [pmtChoisi, setPmtChoisi] = useState("Stripe");
   const [nomClient, setNomClient] = useState("");
   const cartN = cart.reduce((s,i) => s+i.qty, 0);
   const cartT = cart.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
@@ -851,8 +1265,8 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
 
   const genId = async () => { try { return await genererReference("BSH"); } catch(e) { alert(e.message); return null; } };
 
-  const [sumupLoading, setSumupLoading] = useState(false);
-  const [sumupErreur, setSumupErreur] = useState(null);
+  const [paiementLoading, setPaiementLoading] = useState(false);
+  const [paiementErreur, setPaiementErreur] = useState<string|null>(null);
   const [cmdConfirmee, setCmdConfirmee] = useState(null);
 
   const confirmerCommande = async () => {
@@ -861,57 +1275,88 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
     if (selectionnes.length === 0) return;
 
     const id = await genId();
-    if (!id) return; // genererReference a échoué
+    if (!id) return;
     const produitStr = selectionnes.map(i=>(i.name)+" ×"+(i.qty)).join(", ");
     const totalSel   = selectionnes.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
+    const totalCts   = Math.round(totalSel * 100); // centimes pour Stripe
 
     const cmd = {
-      id,
-      client:  nomClient || "Client web",
-      produit: produitStr,
-      montant: totalSel,
-      acompte: 0,
-      statut:  "Demande reçue",
-      date:    today(),
-      pmt:     pmtChoisi,
-      notes:   "Commande web — "+(new Date().toLocaleString("fr-FR")),
+      id, client: nomClient || "Client web",
+      produit: produitStr, montant: totalSel, acompte: 0,
+      statut: "Demande reçue", date: today(), pmt: pmtChoisi,
+      notes: "Commande web — "+(new Date().toLocaleString("fr-FR")),
     };
     if (onNewCommande) await onNewCommande(cmd);
 
-    // ── SumUp : paiement direct
+    // ── STRIPE — paiement sécurisé principal (mode test)
+    if (pmtChoisi === "Stripe") {
+      setPaiementLoading(true);
+      setPaiementErreur(null);
+      try {
+        const tok   = localStorage.getItem("bellaia_token") || "";
+        const base  = typeof window !== "undefined" ? window.location.origin : "";
+        const r = await fetch("/api/payments/stripe", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
+          body: JSON.stringify({
+            action:        "create-checkout",
+            montant_cts:   totalCts,
+            description:   `Commande BSH ${id} — ${produitStr}`,
+            commande_id:   id,
+            module:        "BSH",
+            type_paiement: "integral",
+            items:         selectionnes.map(i=>({nom:i.name,qty:i.qty,prix:(i.promo||i.prix)})),
+            client_nom:    nomClient || undefined,
+            success_url:   `${base}/paiement-succes`,
+            cancel_url:    `${base}/paiement-annule`,
+          }),
+        });
+        const d = await r.json();
+        if (d.url) {
+          setCart(c => c.filter(i => i.selected === false));
+          setNomClient(""); setModal(null);
+          window.location.href = d.url;  // Redirection vers page Stripe sécurisée
+        } else {
+          setPaiementErreur(d.error || "Erreur Stripe — réessayez ou choisissez un autre mode.");
+          setPaiementLoading(false);
+        }
+      } catch(e: any) {
+        setPaiementErreur("Impossible de contacter Stripe. Vérifiez votre connexion.");
+        setPaiementLoading(false);
+      }
+      return;
+    }
+
+    // ── SUMUP — conservé en fallback (nécessite SUMUP_API_KEY dans Vercel)
     if (pmtChoisi === "SumUp") {
-      setSumupLoading(true);
-      setSumupErreur(null);
+      setPaiementLoading(true);
+      setPaiementErreur(null);
       try {
         const r = await fetch("/api/payments/sumup/create-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            montant:     totalSel,
-            description: "Commande BSH "+(id)+" — "+(produitStr),
-            univers:     "BSH",
-            items:       selectionnes.map(i=>({nom:i.name,qty:i.qty,prix:(i.promo||i.prix)})),
+            montant: totalSel, description: `Commande BSH ${id}`,
+            univers: "BSH", items: selectionnes.map(i=>({nom:i.name,qty:i.qty,prix:(i.promo||i.prix)})),
           }),
         });
         const d = await r.json();
         if (d.url) {
-          // Conserver les articles non sélectionnés dans le panier
           setCart(c => c.filter(i => i.selected === false));
           setNomClient(""); setModal(null);
           window.location.href = d.url;
         } else {
-          setSumupErreur(d.error || "Erreur SumUp — réessayez ou choisissez un autre mode.");
-          setSumupLoading(false);
+          setPaiementErreur(d.error || "SumUp non configuré — utilisez Stripe ou un autre mode.");
+          setPaiementLoading(false);
         }
       } catch {
-        setSumupErreur("Impossible de contacter SumUp. Vérifiez votre connexion.");
-        setSumupLoading(false);
+        setPaiementErreur("SumUp indisponible.");
+        setPaiementLoading(false);
       }
       return;
     }
 
-    // ── PayPal : afficher les instructions de paiement (PAS de WhatsApp auto)
-    // Conserver les articles non sélectionnés
+    // ── Modes manuels (PayPal, virement, espèces) — validation fondatrice requise
     setCart(c => c.filter(i => i.selected === false));
     setNomClient("");
     setCmdConfirmee({ id, produitStr, totalSel, pmt: pmtChoisi });
@@ -1156,34 +1601,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
 
         {/* ── CLUB VIP ── */}
         {page === "vip" && (
-          <div style={{display:"flex",flexDirection:"column",gap:11}}>
-            <h2 style={{fontFamily:FS,fontSize:18,color:BSH.or,margin:0,textAlign:"center"}}>Club VIP ✦</h2>
-            <p style={{color:BSH.cremeD,textAlign:"center",fontSize:12,margin:0,lineHeight:1.7}}>Un cercle exclusif d'expériences et de privilèges.</p>
-
-            {/* ── Historique commandes ── */}
-            {cmdConfirmee && (
-              <div style={{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:"12px 14px"}}>
-                <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginBottom:8}}>📦 Dernière commande</div>
-                <div style={{fontSize:12,color:"#fff",fontWeight:700}}>{cmdConfirmee.id}</div>
-                <div style={{fontSize:11,color:BSH.cremeD,marginTop:3}}>{cmdConfirmee.produitStr}</div>
-                <div style={{fontSize:11,color:BSH.or,fontWeight:700,marginTop:3}}>{cmdConfirmee.totalSel}€</div>
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:4}}>Statut : en attente de confirmation</div>
-              </div>
-            )}
-
-            {VIP_LEVELS.map(v => (
-              <BCard key={v.level} style={{borderTop:"4px solid "+(v.color),padding:"16px 14px"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                  <div style={{fontFamily:FS,fontSize:16,fontWeight:700,color:v.color}}>{v.level}</div>
-                  <div style={{fontSize:14,color:BSH.or,fontWeight:700}}>{v.prix}</div>
-                </div>
-                {v.avs.map(a => <div key={a} style={{fontSize:11,color:BSH.cremeD,marginBottom:5,display:"flex",gap:7}}><span style={{color:v.color,flexShrink:0}}>✓</span>{a}</div>)}
-                <div style={{marginTop:12}}>
-                  <BBtn v="bord" sz="sm" full onClick={() => window.open(WA("Bonjour, je souhaite rejoindre le Club VIP "+(v.level)+" Bella'Secret Home"),"_blank")}>Rejoindre le Club {v.level} →</BBtn>
-                </div>
-              </BCard>
-            ))}
-          </div>
+          <BSHMembersPage user={user} onBack={()=>setPage("accueil")}/>
         )}
 
         {/* ── FAQ ── */}
@@ -1284,8 +1702,11 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
                 <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:7}}>Mode de paiement</label>
                 <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
                   {[
-                    {id:"SumUp",ico:"💳",label:"SumUp"},
-                    {id:"PayPal",ico:"🅿",label:"PayPal"},
+                    {id:"Stripe",  ico:"💳", label:"Paiement sécurisé"},
+                    {id:"Virement",ico:"🏦", label:"Virement"},
+                    {id:"SumUp",   ico:"📱", label:"SumUp"},
+                    {id:"PayPal",  ico:"🅿",  label:"PayPal"},
+                    {id:"Espèces", ico:"💵", label:"Espèces"},
                   ].map(p => (
                     <button key={p.id} onClick={() => setPmtChoisi(p.id)}
                       style={{padding:"7px 12px",borderRadius:9,border:"1px solid "+(pmtChoisi===p.id?BSH.or:BSH.line),background:pmtChoisi===p.id?(BSH.or+"22"):"transparent",color:pmtChoisi===p.id?BSH.or:BSH.cremeD,cursor:"pointer",fontSize:12,fontFamily:SA,fontWeight:pmtChoisi===p.id?700:400}}>
@@ -1293,7 +1714,26 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
                     </button>
                   ))}
                 </div>
+                {/* Messages contextuels selon le mode */}
+                {pmtChoisi === "Stripe" && (
+                  <div style={{fontSize:11,color:BSH.or,marginTop:8,display:"flex",alignItems:"center",gap:6}}>
+                    🔒 Paiement sécurisé par Stripe — vous serez redirigé vers la page de paiement
+                  </div>
+                )}
+                {pmtChoisi === "SumUp" && (
+                  <div style={{fontSize:11,color:B.warning,marginTop:8}}>
+                    ⚠ SumUp nécessite une configuration spécifique — contactez la fondatrice si indisponible
+                  </div>
+                )}
                 {pmtChoisi === "PayPal" && <div style={{fontSize:11,color:B.gold,marginTop:8}}>📧 {ENV.PAYPAL}</div>}
+                {pmtChoisi === "Virement" && <div style={{fontSize:11,color:B.muted,marginTop:8}}>📋 Coordonnées bancaires communiquées après confirmation de commande</div>}
+                {pmtChoisi === "Espèces" && <div style={{fontSize:11,color:B.muted,marginTop:8}}>💵 Règlement en main propre — à confirmer avec la fondatrice</div>}
+                {/* Erreur paiement */}
+                {paiementErreur && (
+                  <div style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:8,padding:"8px 12px",marginTop:8,fontSize:11,color:B.danger}}>
+                    ⚠️ {paiementErreur}
+                  </div>
+                )}
               </div>
 
               {/* ── Bouton payer */}
@@ -1303,12 +1743,12 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
                 const disabled = selectionnes.length === 0 || totalSel <= 0;
                 if (pmtChoisi === "SumUp") return (
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    <Btn v="gold" full onClick={confirmerCommande} disabled={sumupLoading||disabled}>
-                      {sumupLoading ? "⏳ Redirection SumUp…" : "💳 Payer par SumUp — "+(totalSel)+"€"}
+                    <Btn v="gold" full onClick={confirmerCommande} disabled={paiementLoading||disabled}>
+                      {paiementLoading ? "⏳ Redirection SumUp…" : "💳 Payer par SumUp — "+(totalSel)+"€"}
                     </Btn>
-                    {sumupErreur && (
+                    {paiementErreur && (
                       <div style={{fontSize:11,color:"#ef4444",textAlign:"center",padding:"6px 8px",background:"rgba(239,68,68,0.1)",borderRadius:8}}>
-                        {sumupErreur}
+                        {paiementErreur}
                       </div>
                     )}
                     <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
@@ -10351,6 +10791,7 @@ const NAV_F = [
   {id:"compta",      ico:"📒", l:"Compta"},
   {id:"events",      ico:"✨", l:"Events"},
   {id:"bsh",         ico:"✦",  l:"BSH"},
+  {id:"bsh_members", ico:"💎", l:"Members"},
   {id:"struct",      ico:"🗂",  l:"Structure"},
   {id:"erp_projets", ico:"🎯", l:"Projets"},
   {id:"erp_taches",  ico:"✔",  l:"Tâches"},
@@ -10898,6 +11339,7 @@ export default function BellaiaApp() {
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
     bsh:         <BSHF produits={bshProd} setProduits={setBshProd} commandes={bshCmds} setCommandes={setBshCmds} clientes={bshCli} setClientes={setBshCli} evenements={bshEvts} setEvenements={setBshEvts}/>,
+    bsh_members: <BSHMembersAdmin user={user}/>,
     ia:          <IAF user={user} bshCmds={bshCmds} bshProduits={bshProd}/>,
     // Pôles opérationnels
     events:      <BellaEventsF user={user}/>,
