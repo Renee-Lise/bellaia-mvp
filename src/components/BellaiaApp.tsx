@@ -966,35 +966,139 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
       {/* Contenu */}
       <div style={{flex:1,overflowY:"auto",padding:"14px",color:BSH.creme}}>
 
-        {/* ── ACCUEIL ── */}
+        {/* ── ACCUEIL — Maquette Bella'Secret Home ── */}
         {page === "accueil" && (
-          <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div style={{textAlign:"center",padding:"16px 0 8px"}}>
-              <div style={{fontFamily:FS,fontSize:24,color:BSH.or,letterSpacing:2,marginBottom:6}}>Bienvenue ✦</div>
-              <div style={{fontSize:13,color:BSH.cremeD,lineHeight:1.8}}>L'intimité élevée au rang d'art.<br/>Lingerie premium · Coffrets sensuels · Soirées privées</div>
+          <div style={{display:"flex",flexDirection:"column",gap:0,margin:"-14px",color:"#f1e7e2",fontFamily:"'Jost',system-ui,sans-serif",fontWeight:300}}>
+
+            {/* ── Hero ── */}
+            <div style={{
+              background:"linear-gradient(160deg,#2e1a2e 0%,#17101a 45%,#0b0709 100%)",
+              padding:"36px 22px 40px",
+              position:"relative",overflow:"hidden",
+            }}>
+              {/* Halo décoratif */}
+              <div style={{position:"absolute",top:"-60px",right:"-60px",width:200,height:200,
+                borderRadius:"50%",background:"radial-gradient(circle,rgba(92,21,34,0.35),transparent 70%)",
+                pointerEvents:"none"}}/>
+              <span style={{fontSize:9,letterSpacing:"0.18em",color:"#c6a15b",textTransform:"uppercase",
+                display:"block",marginBottom:16}}>
+                L'intimité élevée au rang d'art
+              </span>
+              <h1 style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontWeight:500,
+                fontSize:26,lineHeight:1.25,margin:"0 0 14px",color:"#f1e7e2",letterSpacing:"0.01em"}}>
+                Il y a ce que l'on montre.<br/>
+                Et ce que l'on <em style={{color:"#e0c17e",fontStyle:"italic"}}>réserve</em> à BSH.
+              </h1>
+              <p style={{fontSize:13,lineHeight:1.75,color:"#cbb9b9",margin:"0 0 24px",maxWidth:320}}>
+                Un univers pensé pour la découverte, le désir et la complicité — lingerie, jeux de couple, coffrets et expériences, loin des codes habituels du genre.
+              </p>
+              <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                <button onClick={()=>setPage("boutique")}
+                  style={{background:"#c6a15b",border:"none",borderRadius:2,padding:"11px 22px",
+                    color:"#0b0709",fontSize:12,fontWeight:500,letterSpacing:"0.06em",cursor:"pointer",
+                    fontFamily:"'Jost',system-ui,sans-serif"}}>
+                  Découvrir BSH
+                </button>
+                <button onClick={()=>setPage("vip")}
+                  style={{background:"transparent",border:"1px solid rgba(198,161,91,0.5)",borderRadius:2,
+                    padding:"11px 22px",color:"#e0c17e",fontSize:12,fontWeight:400,
+                    letterSpacing:"0.06em",cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif"}}>
+                  Rejoindre Le Cercle
+                </button>
+              </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {produits.slice(0,4).map(p => (
-                <BCard key={p.id} accent style={{padding:"12px",cursor:"pointer"}} onClick={() => setPage("boutique")}>
-                  <div style={{fontSize:30,textAlign:"center",padding:"8px 0",background:(BSH.bord)+"18",borderRadius:9,marginBottom:7}}>{p.ico||"🌹"}</div>
-                  <div style={{fontFamily:FS,fontSize:11,fontWeight:600,color:BSH.creme,marginBottom:3,lineHeight:1.3}}>{p.name}</div>
-                  <div style={{fontSize:14,fontWeight:700,color:BSH.or,fontFamily:FS}}>{p.promo||p.prix}€</div>
-                </BCard>
-              ))}
+
+            {/* ── Manifeste ── */}
+            <div style={{
+              background:"#0b0709",padding:"28px 22px",
+              borderTop:"1px solid rgba(198,161,91,0.15)",
+              borderBottom:"1px solid rgba(198,161,91,0.15)",
+              textAlign:"center",
+            }}>
+              <p style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontSize:18,
+                fontStyle:"italic",color:"#e0c17e",margin:0,lineHeight:1.6,letterSpacing:"0.02em"}}>
+                "Certains secrets méritent d'être découverts."
+              </p>
             </div>
-            <BCard accent style={{textAlign:"center",padding:"18px 16px"}}>
-              <div style={{fontFamily:FS,fontSize:16,color:BSH.or,marginBottom:6}}>Commander facilement ✦</div>
-              <div style={{fontSize:12,color:BSH.cremeD,marginBottom:14,lineHeight:1.7}}>Boutique en ligne · Livraison Guyane & DOM-TOM<br/>Emballage discret garanti</div>
-              <BBtn v="bord" sz="md" full onClick={() => setPage("faq")}>💬 Nous contacter</BBtn>
-            </BCard>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-              {[{ico:"✨",t:"Événements",sub:evenements.length+" à venir",p:"evenements"},{ico:"💎",t:"Club VIP",sub:"4 niveaux exclusifs",p:"vip"}].map(c => (
-                <BCard key={c.t} style={{textAlign:"center",padding:"14px 10px",cursor:"pointer"}} onClick={() => setPage(c.p)}>
-                  <div style={{fontSize:24,marginBottom:5}}>{c.ico}</div>
-                  <div style={{fontFamily:FS,fontSize:12,fontWeight:700,color:BSH.creme}}>{c.t}</div>
-                  <div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{c.sub}</div>
-                </BCard>
-              ))}
+
+            {/* ── Quatre univers ── */}
+            <div style={{background:"#17101a",padding:"32px 22px"}}>
+              <span style={{fontSize:9,letterSpacing:"0.15em",color:"#c6a15b",textTransform:"uppercase",
+                display:"block",marginBottom:8}}>La boutique</span>
+              <h2 style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontWeight:500,
+                fontSize:22,margin:"0 0 24px",color:"#f1e7e2",letterSpacing:"0.01em"}}>
+                Quatre univers à explorer
+              </h2>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {[
+                  {ico:"🌸",titre:"Lingerie",desc:"Dentelle, satin et velours — des pièces pensées pour se sentir désirable, pas déguisée.",p:"boutique"},
+                  {ico:"🎲",titre:"Jeux de couple",desc:"Accessoires choisis pour la complicité, jamais pour choquer.",p:"boutique"},
+                  {ico:"🕯",titre:"Sensoriel",desc:"Huiles, produits et petites attentions pour prolonger la soirée.",p:"boutique"},
+                  {ico:"🎁",titre:"Coffrets & Exp.",desc:"Des moments à vivre plutôt que de simples produits.",p:"evenements"},
+                ].map(u => (
+                  <div key={u.titre} onClick={()=>setPage(u.p)}
+                    style={{background:"rgba(46,26,46,0.5)",border:"1px solid rgba(198,161,91,0.18)",
+                      borderRadius:4,padding:"16px 14px",cursor:"pointer",
+                      transition:"border-color 0.2s"}}>
+                    <div style={{fontSize:22,marginBottom:8}}>{u.ico}</div>
+                    <h3 style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontWeight:500,
+                      fontSize:14,margin:"0 0 6px",color:"#f1e7e2",letterSpacing:"0.01em"}}>
+                      {u.titre}
+                    </h3>
+                    <p style={{fontSize:11,color:"#cbb9b9",margin:0,lineHeight:1.6}}>{u.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Le Cercle BSH ── */}
+            <div style={{
+              background:"linear-gradient(135deg,#2e1a2e 0%,#17101a 100%)",
+              padding:"32px 22px",
+              borderTop:"1px solid rgba(198,161,91,0.15)",
+            }}>
+              <span style={{display:"inline-block",fontSize:9,letterSpacing:"0.14em",
+                color:"#0b0709",background:"#c6a15b",padding:"3px 10px",borderRadius:2,
+                textTransform:"uppercase",marginBottom:16}}>
+                Communauté privée
+              </span>
+              <h2 style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontWeight:500,
+                fontSize:22,margin:"0 0 12px",color:"#f1e7e2"}}>
+                Le Cercle BSH
+              </h2>
+              <p style={{fontSize:13,color:"#cbb9b9",lineHeight:1.75,margin:"0 0 20px"}}>
+                Hello Sweety's 🫦 — un espace confidentiel où l'on peut être curieuse, joueuse ou simplement observer, sans jamais être jugée. Sondages, questions, découvertes en avant-première.
+              </p>
+              <button onClick={()=>setPage("vip")}
+                style={{background:"#c6a15b",border:"none",borderRadius:2,padding:"11px 22px",
+                  color:"#0b0709",fontSize:12,fontWeight:500,letterSpacing:"0.06em",
+                  cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif",width:"100%"}}>
+                Rejoindre Le Cercle
+              </button>
+              <p style={{fontSize:11,fontStyle:"italic",color:"rgba(203,185,185,0.5)",
+                textAlign:"center",marginTop:16,marginBottom:0,letterSpacing:"0.02em"}}>
+                "Ce qui appartient au Cercle reste dans le Cercle."
+              </p>
+            </div>
+
+            {/* ── Footer mini ── */}
+            <div style={{background:"#0b0709",padding:"20px 22px",textAlign:"center",
+              borderTop:"1px solid rgba(198,161,91,0.1)"}}>
+              <div style={{fontFamily:"'Cormorant Garamond','Georgia',serif",fontSize:14,
+                color:"#c6a15b",letterSpacing:2,marginBottom:4}}>✦ Bella'Secret Home</div>
+              <div style={{fontSize:10,color:"rgba(203,185,185,0.4)",letterSpacing:"0.1em"}}>
+                INTIMITÉ · ÉLÉGANCE · DÉSIR
+              </div>
+              <div style={{display:"flex",justifyContent:"center",gap:14,marginTop:14,flexWrap:"wrap"}}>
+                {[{l:"Boutique",p:"boutique"},{l:"Événements",p:"evenements"},{l:"Club VIP",p:"vip"},{l:"FAQ",p:"faq"}].map(l=>(
+                  <button key={l.l} onClick={()=>setPage(l.p)}
+                    style={{background:"none",border:"none",color:"rgba(203,185,185,0.5)",
+                      fontSize:10,cursor:"pointer",letterSpacing:"0.04em",
+                      fontFamily:"'Jost',system-ui,sans-serif"}}>
+                    {l.l}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -4741,38 +4845,58 @@ function CalendrierP1({ user }) {
 // ═══════════════════════════════════════════════════════════
 function DocumentsP1({ user }) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [filtre, setFiltre] = useState("tous");
   const [search, setSearch] = useState("");
 
-  const { data: docs, loading, reload } = useP1Data("documents", { select: "*", order: "created_at.desc", limit: 200 }, []);
-  const { data: templates } = useP1Data("document_templates", { select: "*", order: "nom.asc", limit: 50 }, []);
+  // Connecté aux vraies tables Supabase
+  const { data: docs, loading, reload } = useP1Data("bellaia_documents", { select: "*", order: "created_at.desc", limit: 200 }, []);
+  const { data: categories } = useP1Data("doc_categories", { select: "*", order: "libelle.asc", limit: 50 }, []);
+  const { data: demandes, reload: reloadDemandes } = useP1Data("doc_requests", { select: "*", order: "created_at.desc", limit: 100 }, []);
 
   const TYPES = ["devis","facture","contrat","reçu","courrier","attestation","checklist","rapport","bon_commande","autre"];
   const STATUTS = ["actif","brouillon","archivé"];
   const POLES = ["BSH","ODYSSEE","EVENTS","FOOD","VILO","INVEST","STRUCTURE","GENERAL"];
-  const TYPE_ICO = { devis:"📋", facture:"💰", contrat:"📝", reçu:"🧾", courrier:"✉️", attestation:"📜", checklist:"✅", rapport:"📊", bon_commande:"📦", autre:"📄" };
+  const TYPE_ICO: Record<string,string> = { devis:"📋", facture:"💰", contrat:"📝", reçu:"🧾", courrier:"✉️", attestation:"📜", checklist:"✅", rapport:"📊", bon_commande:"📦", autre:"📄" };
 
-  const docsFiltres = docs.filter(d => {
-    const matchFiltre = filtre === "tous" || d.type_doc === filtre;
-    const matchSearch = !search || d.titre.toLowerCase().includes(search.toLowerCase());
+  const docsFiltres = docs.filter((d: any) => {
+    const matchFiltre = filtre === "tous" || d.categorie === filtre || d.type_mime?.includes(filtre);
+    const matchSearch = !search || (d.titre||"").toLowerCase().includes(search.toLowerCase());
     return matchFiltre && matchSearch;
   });
 
   const save = async () => {
-    if (!form.titre?.trim() || !form.type_doc) return;
-    const d = { ...form, fondatrice_id: user?.id, updated_at: new Date().toISOString() };
-    delete d._edit;
-    if (form._edit) await sbPatch("documents", form._edit, d);
-    else (await sbPost("documents", d)).ok || console.error("[documents] post échec");
+    if (!form.titre?.trim()) return;
+    const ref = "GED-" + Date.now().toString(36).toUpperCase();
+    const d = {
+      titre:       form.titre,
+      categorie:   form.categorie || "autre",
+      module:      form.pole || null,
+      statut:      form.statut || "actif",
+      version:     1,
+      signe:       !!form.signe,
+      cree_par:    user?.id,
+      updated_at:  new Date().toISOString(),
+    };
+    if (form._edit) {
+      await sbPatch("bellaia_documents", form._edit, d);
+    } else {
+      const res = await sbPost("bellaia_documents", { ...d, reference: ref });
+      if (!res.ok) console.error("[documents] post échec");
+    }
     reload(); setModal(null);
+  };
+
+  const validerDemande = async (demandeId: string, statut: "accepte"|"refuse") => {
+    await sbPatch("doc_requests", demandeId, { statut });
+    reloadDemandes();
   };
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-        <SH t="Documents" s={(docs.length)+" document"+(docs.length!==1?"s":"")}/>
-        <Btn sm onClick={()=>{setForm({type_doc:"autre",statut:"actif",partage_client:false});setModal("doc");}}>+ Document</Btn>
+        <SH t="Documents" s={(docs.length)+" document"+(docs.length!==1?"s":"")+" · "+(demandes.filter((d:any)=>d.statut==="depose").length)+" en attente"}/>
+        <Btn sm onClick={()=>{setForm({categorie:"autre",statut:"actif"});setModal("doc");}}>+ Document</Btn>
       </div>
 
       {/* Recherche */}
@@ -4788,17 +4912,38 @@ function DocumentsP1({ user }) {
       </div>
 
       {/* Modèles disponibles */}
-      {templates.length > 0 && (
+      {categories.length > 0 && (
         <div style={{background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
-          <div style={{fontSize:11,fontWeight:700,color:B.mutedL,marginBottom:8,letterSpacing:"0.06em",textTransform:"uppercase"}}>Modèles disponibles</div>
-          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-            {templates.map(t=>(
-              <button key={t.id} onClick={()=>{setForm({titre:(t.nom)+" — "+(new Date().toLocaleDateString("fr-FR")),type_doc:t.type_doc,pole:t.pole,statut:"brouillon",contenu:t.contenu,notes:"Créé depuis le modèle : "+(t.nom)});setModal("doc");}}
-                style={{background:(B.violet)+"18",border:"1px solid "+(B.border),borderRadius:8,padding:"5px 10px",color:B.violetL,cursor:"pointer",fontSize:11,fontFamily:SA}}>
-                {TYPE_ICO[t.type_doc]||"📄"} {t.nom}
+          <div style={{fontSize:11,fontWeight:700,color:B.mutedL,marginBottom:8,letterSpacing:"0.06em",textTransform:"uppercase"}}>Filtrer par catégorie</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {categories.slice(0,8).map((c:any)=>(
+              <button key={c.code} onClick={()=>setFiltre(filtre===c.code?"tous":c.code)}
+                style={{background:filtre===c.code?(B.violet)+"30":"transparent",
+                  border:"1px solid "+(filtre===c.code?B.violet:B.border),
+                  borderRadius:8,padding:"4px 10px",color:filtre===c.code?B.violetL:B.muted,
+                  cursor:"pointer",fontSize:10,fontFamily:SA,fontWeight:700}}>
+                {c.libelle}
               </button>
             ))}
           </div>
+        </div>
+      )}
+      {/* Demandes en attente de traitement */}
+      {demandes.filter((d:any)=>d.statut==="depose"||d.statut==="a_verifier").length > 0 && (
+        <div style={{background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)",borderRadius:12,padding:"12px 14px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#fbbf24",marginBottom:8}}>⏳ Demandes à traiter</div>
+          {demandes.filter((d:any)=>d.statut==="depose"||d.statut==="a_verifier").map((d:any)=>(
+            <div key={d.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+              <div>
+                <div style={{fontSize:12,color:B.cream,fontWeight:600}}>{d.titre}</div>
+                <div style={{fontSize:10,color:B.muted}}>{d.destinataire_nom||"—"} · {d.reference}</div>
+              </div>
+              <div style={{display:"flex",gap:5}}>
+                <Btn sm v="success" onClick={()=>validerDemande(d.id,"accepte")}>✅</Btn>
+                <Btn sm v="danger" onClick={()=>validerDemande(d.id,"refuse")}>✕</Btn>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -4810,21 +4955,21 @@ function DocumentsP1({ user }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{flex:1}}>
               <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:4}}>
-                <span style={{fontSize:18}}>{TYPE_ICO[d.type_doc]||"📄"}</span>
+                <span style={{fontSize:18}}>{TYPE_ICO[d.categorie]||"📄"}</span>
                 <span style={{fontSize:13,fontWeight:700,color:B.cream}}>{d.titre}</span>
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 <Bdg s={d.statut}/>
-                {d.pole&&<span style={{fontSize:9,background:(B.violet)+"18",color:B.violetL,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{d.pole}</span>}
-                {d.partage_client&&<span style={{fontSize:9,background:"rgba(80,180,120,0.15)",color:B.success,borderRadius:4,padding:"2px 6px",fontWeight:700}}>Partagé</span>}
+                {d.module&&<span style={{fontSize:9,background:(B.violet)+"18",color:B.violetL,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{d.module}</span>}
+                {d.client_id&&<span style={{fontSize:9,background:"rgba(80,180,120,0.15)",color:B.success,borderRadius:4,padding:"2px 6px",fontWeight:700}}>Partagé</span>}
                 {d.signe&&<span style={{fontSize:9,background:"rgba(201,168,76,0.15)",color:B.gold,borderRadius:4,padding:"2px 6px",fontWeight:700}}>Signé</span>}
               </div>
               {d.notes&&<div style={{fontSize:10,color:B.muted,marginTop:4}}>{d.notes}</div>}
               <div style={{fontSize:9,color:B.muted,marginTop:3}}>Créé le {fmt(d.created_at?.split("T")[0])}</div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:4}}>
-              <Btn sm v="ghost" onClick={()=>{setForm({...d,_edit:d.id});setModal("doc");}}>✏</Btn>
-              <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("documents",d.id).then(reload);}}>✕</Btn>
+              <Btn sm v="ghost" onClick={()=>{setForm({...d,_edit:d.id,categorie:d.categorie||"autre"});setModal("doc");}}>✏</Btn>
+              <Btn sm v="danger" onClick={()=>{if(confirm("Supprimer ?"))sbDelete("bellaia_documents",d.id).then(reload);}}>✕</Btn>
             </div>
           </div>
         </div>
@@ -4841,7 +4986,7 @@ function DocumentsP1({ user }) {
           <Fld label="Statut"><Sel value={form.statut||"actif"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS}/></Fld>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes ou description" rows={3}/></Fld>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-            <input type="checkbox" checked={!!form.partage_client} onChange={e=>setForm({...form,partage_client:e.target.checked})} id="pc" style={{accentColor:B.violet,width:16,height:16}}/>
+            <input type="checkbox" checked={!!form.client_id} onChange={e=>setForm({...form,client_id:e.target.checked?user?.id:null})} id="pc" style={{accentColor:B.violet,width:16,height:16}}/>
             <label htmlFor="pc" style={{fontSize:12,color:B.cream,cursor:"pointer"}}>Visible par la cliente concernée</label>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
@@ -5592,27 +5737,50 @@ function EcranConnexion({ onConnecte }) {
 // PORTAIL CLIENT CONNECTÉ — données isolées par user_id
 // ═══════════════════════════════════════════════════════════
 function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) {
-  const [activeUnivers, setActiveUnivers] = useState(null);
-  const [mesCommandes, setMesCommandes] = useState([]);
-  const [mesReservations, setMesReservations] = useState([]);
+  const [activeUnivers, setActiveUnivers] = useState<string|null>(null);
+  const [mesCommandes, setMesCommandes]     = useState<any[]>([]);
+  const [mesNotifs, setMesNotifs]           = useState<any[]>([]);
+  const [mesDocs, setMesDocs]               = useState<any[]>([]);
+  const [loadingData, setLoadingData]       = useState(true);
 
-  // Charger les données du client connecté
+  // Univers disponibles — déclaré ICI pour éviter le bug "used before declare"
+  const UNIVERS_CLIENT = [
+    {id:"bsh",  nom:"Bella'Secret Home",    tag:"Lingerie & Boutique",     ico:"✦",  acc:"#6B1A2B"},
+    {id:"bo",   nom:"Bella'Odyssée",        tag:"Beauté & Rendez-vous",    ico:"💅", acc:"#3730a3"},
+    {id:"bev",  nom:"Bella'Events",         tag:"Événements & Soirées",    ico:"✨", acc:"#065f46"},
+    {id:"bfd",  nom:"Bella'Food",           tag:"Traiteur & Menus",        ico:"🍃", acc:"#15803d"},
+    {id:"vilo", nom:"Vilo'Assistance",      tag:"Assistance Administrative",ico:"📋", acc:"#1d4ed8"},
+    {id:"bse",  nom:"Bella'Studio Éditions",tag:"Ebooks & Formations",    ico:"📚", acc:"#92400e"},
+    {id:"mtp",  nom:"Mo Ti-Péyi",           tag:"Livres jeunesse Guyane",  ico:"🌺", acc:"#7e22ce"},
+  ];
+
+  // Charger les données réelles du client depuis Supabase
   useEffect(() => {
     const charger = async () => {
+      setLoadingData(true);
       try {
-        const token = typeof window !== "undefined" ? localStorage.getItem("bellaia_token") : null;
-        if (!token) return;
-        const headers = { "Authorization": "Bearer "+(token), "Content-Type": "application/json" };
-        // Commandes du client
-        const r1 = await fetch((process.env.NEXT_PUBLIC_SUPABASE_URL)+"/rest/v1/commandes_client?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: { ...headers, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } });
-        if (r1.ok) { const d = await r1.json(); setMesCommandes(d); }
-        // Réservations du client
-        const r2 = await fetch((process.env.NEXT_PUBLIC_SUPABASE_URL)+"/rest/v1/reservations_client?user_id=eq."+(user.id)+"&order=created_at.desc", { headers: { ...headers, "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } });
-        if (r2.ok) { const d = await r2.json(); setMesReservations(d); }
-      } catch {}
+        const token  = typeof window !== "undefined" ? localStorage.getItem("bellaia_token") : null;
+        const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const sbUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        if (!token || !user?.id) return;
+        const h = { "Authorization": `Bearer ${token}`, "apikey": apiKey, "Content-Type": "application/json" };
+
+        // Paiements du client (vraie table)
+        const r1 = await fetch(`${sbUrl}/rest/v1/bellaia_paiements?client_id=eq.${user.id}&order=created_at.desc&limit=10`, { headers: h });
+        if (r1.ok) setMesCommandes(await r1.json());
+
+        // Notifications non lues
+        const r2 = await fetch(`${sbUrl}/rest/v1/bellaia_notifications?user_id=eq.${user.id}&lu=eq.false&order=created_at.desc&limit=5`, { headers: h });
+        if (r2.ok) setMesNotifs(await r2.json());
+
+        // Demandes de documents
+        const r3 = await fetch(`${sbUrl}/rest/v1/doc_requests?destinataire_id=eq.${user.id}&order=created_at.desc&limit=5`, { headers: h });
+        if (r3.ok) setMesDocs(await r3.json());
+      } catch(e) { console.error("[PortailClient] chargement:", e); }
+      finally { setLoadingData(false); }
     };
     charger();
-  }, [user.id]);
+  }, [user?.id]);
 
   // ── Garde RBAC : bloque TOUT module non autorisé (mineur, accès direct URL inclus)
   if (activeUnivers && !moduleAutorise(activeUnivers, user)) {
@@ -5636,19 +5804,9 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
   if (activeUnivers === "mtp")   return <ClientMoTiPeyi user={user} onBack={() => setActiveUnivers(null)}/>;
   if (activeUnivers)           return <PlaceholderUnivers univers={activeUnivers} onBack={() => setActiveUnivers(null)}/>;
 
-  const UNIVERS_CLIENT = [
-    {id:"bsh",  nom:"Bella'Secret Home",   tag:"Lingerie & Boutique",    ico:"✦",  acc:"#6B1A2B"},
-    {id:"bo",   nom:"Bella'Odyssée",       tag:"Beauté & Rendez-vous",    ico:"💅", acc:"#3730a3"},
-    {id:"bev",  nom:"Bella'Events",        tag:"Événements & Soirées",    ico:"✨", acc:"#065f46"},
-    {id:"bfd",  nom:"Bella'Food",          tag:"Traiteur & Menus",        ico:"🍃", acc:"#15803d"},
-    {id:"vilo", nom:"Vilo'Assistance",     tag:"Assistance Administrative",ico:"📋", acc:"#1d4ed8"},
-    {id:"bse",  nom:"Bella'Studio Éditions",tag:"Ebooks & Formations",   ico:"📚", acc:"#92400e"},
-    {id:"mtp",  nom:"Mo Ti-Péyi",          tag:"Livres jeunesse Guyane",  ico:"🌺", acc:"#7e22ce"},
-  ];
-
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream}}>
-      {/* Header client — aucun bouton back-office */}
+      {/* Header client */}
       <div style={{padding:"12px 16px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,"+(B.violet)+","+(B.gold)+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
@@ -5657,32 +5815,75 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
             <div style={{fontSize:9,color:B.muted,letterSpacing:"0.08em"}}>{[user.prenom,user.nom].filter(Boolean).join(" ")||user.email}</div>
           </div>
         </div>
-        <button onClick={onLogout} style={{background:"none",border:"1px solid "+(B.border),borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>Déconnexion</button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {mesNotifs.length > 0 && (
+            <span style={{background:B.violet,color:"#fff",borderRadius:R.full,minWidth:18,height:18,
+              fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 5px"}}>
+              {mesNotifs.length}
+            </span>
+          )}
+          <button onClick={onLogout} style={{background:"none",border:"1px solid "+(B.border),borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>Déconnexion</button>
+        </div>
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 24px"}}>
         {/* Bonjour */}
-        <div style={{marginBottom:20}}>
-          <div style={{fontFamily:FS,fontSize:20,fontWeight:800,color:B.cream,marginBottom:4}}>Bonjour{user.prenom ? ", "+(user.prenom) : user.nom ? ", "+(user.nom.split(" ")[0]) : ""} ✦</div>
+        <div style={{marginBottom:18}}>
+          <div style={{fontFamily:FS,fontSize:20,fontWeight:800,color:B.cream,marginBottom:4}}>
+            Bonjour{user.prenom ? ", "+(user.prenom) : user.nom ? ", "+(user.nom.split(" ")[0]) : ""} ✦
+          </div>
           <div style={{fontSize:12,color:B.muted}}>Bienvenue dans votre espace Bella'Studio</div>
         </div>
 
-        {/* Mes commandes récentes */}
+        {/* Notifications non lues */}
+        {mesNotifs.length > 0 && (
+          <div style={{marginBottom:16}}>
+            {mesNotifs.slice(0,3).map((n:any) => (
+              <div key={n.id} style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.25)",
+                borderRadius:R.md,padding:"9px 13px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start"}}>
+                <span style={{fontSize:14,flexShrink:0}}>🔔</span>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{n.titre}</div>
+                  {n.contenu && <div style={{fontSize:11,color:B.muted,marginTop:2}}>{n.contenu}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Mes paiements / commandes récents */}
         {mesCommandes.length > 0 && (
-          <div style={{marginBottom:20}}>
-            <div style={{fontSize:13,fontWeight:800,color:B.cream,marginBottom:10}}>Mes commandes récentes</div>
-            {mesCommandes.slice(0,3).map(c => (
-              <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"10px 13px",marginBottom:7}}>
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:12,fontWeight:800,color:B.cream,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>Mes paiements</div>
+            {mesCommandes.slice(0,3).map((c:any) => (
+              <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:R.lg,padding:"10px 13px",marginBottom:6}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div>
-                    <div style={{fontSize:11,color:B.gold,fontWeight:700,marginBottom:2}}>{c.id}</div>
-                    <div style={{fontSize:12,color:B.cream}}>{c.produit}</div>
+                    <div style={{fontSize:11,color:B.gold,fontWeight:700,marginBottom:2}}>{c.reference}</div>
+                    <div style={{fontSize:12,color:B.cream}}>{c.motif || c.module || "Paiement"}</div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:13,fontWeight:700,color:B.gold}}>{c.montant}€</div>
+                    <div style={{fontSize:13,fontWeight:700,color:B.gold}}>{c.montant_total ? c.montant_total+"€" : "—"}</div>
                     <Bdg s={c.statut}/>
                   </div>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Documents en attente */}
+        {mesDocs.filter((d:any) => d.statut === "demande" || d.statut === "en_attente").length > 0 && (
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:12,fontWeight:800,color:B.cream,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>Documents à fournir</div>
+            {mesDocs.filter((d:any) => d.statut === "demande" || d.statut === "en_attente").map((d:any) => (
+              <div key={d.id} style={{background:"rgba(251,191,36,0.06)",border:"1px solid rgba(251,191,36,0.2)",
+                borderRadius:R.md,padding:"9px 13px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,color:B.cream,fontWeight:600}}>📄 {d.titre}</div>
+                  {d.date_echeance && <div style={{fontSize:10,color:B.warning}}>⏳ Avant le {new Date(d.date_echeance).toLocaleDateString("fr-FR")}</div>}
+                </div>
+                <Bdg s={d.statut}/>
               </div>
             ))}
           </div>
@@ -6015,7 +6216,11 @@ function EspaceHote({ user, onLogout }) {
                 <div style={{fontSize:11,color:B.muted,marginBottom:6}}>{m.date&&"📅 "+(fmt(m.date))}{m.lieu&&" · 📍 "+(m.lieu)}</div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   {m.cachet>0&&<span style={{fontSize:13,fontWeight:700,color:B.gold}}>💰 {m.cachet}€</span>}
-                  {m.statut==="Proposée"&&<Btn sm v="success" onClick={()=>window.open(WA("Bonjour, j'accepte la mission : "+(m.titre)),"_blank")}>Accepter →</Btn>}
+                  {m.statut==="Proposée"&&<Btn sm v="success" onClick={async()=>{
+                    try{const tok=localStorage.getItem("bellaia_token"),sbUrl=process.env.NEXT_PUBLIC_SUPABASE_URL,sbKey=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+                    if(tok&&sbUrl&&sbKey)await fetch(`${sbUrl}/rest/v1/bellaia_notifications`,{method:"POST",headers:{"apikey":sbKey,"Authorization":`Bearer ${tok}`,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({user_id:user?.id,type:"mission",titre:"Mission acceptée",contenu:`Acceptation : ${m.titre}`,lu:false})});
+                    alert("✅ Réponse enregistrée");}catch(e){alert("Erreur : "+e.message);}
+                  }}>Accepter</Btn>}
                 </div>
               </div>
             ))}
@@ -6030,7 +6235,17 @@ function EspaceHote({ user, onLogout }) {
               <div key={c.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:B.cream,fontWeight:600}}>{c.titre}</span><span style={{background:c.statut==="Signé"?"rgba(80,180,120,0.2)":"rgba(201,168,76,0.2)",color:c.statut==="Signé"?B.success:B.warning,borderRadius:99,padding:"3px 9px",fontSize:10,fontWeight:700}}>{c.statut}</span></div>
                 {c.date_creation&&<div style={{fontSize:11,color:B.muted,marginBottom:6}}>📅 {fmt(c.date_creation)}</div>}
-                {c.statut==="À signer"&&<Btn sm v="gold" onClick={()=>window.open(WA("Bonjour, je souhaite signer le contrat : "+(c.titre)),"_blank")}>Signer via WhatsApp →</Btn>}
+                {c.statut==="À signer"&&<Btn sm v="gold" onClick={async()=>{
+                    try {
+                      const tok=localStorage.getItem("bellaia_token");
+                      const sbUrl=process.env.NEXT_PUBLIC_SUPABASE_URL;
+                      const sbKey=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+                      if(tok&&sbUrl&&sbKey){
+                        await fetch(`${sbUrl}/rest/v1/bellaia_notifications`,{method:"POST",headers:{"apikey":sbKey,"Authorization":`Bearer ${tok}`,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({user_id:user?.id,type:"contrat",titre:"Signature de contrat demandée",contenu:`Demande de signature : ${c.titre||c.reference}`,lu:false})});
+                      }
+                      alert("✅ Demande envoyée — la fondatrice vous contactera pour la signature");
+                    } catch(e){alert("Erreur : "+e.message);}
+                  }}>Signer</Btn>}
               </div>
             ))}
           </div>
@@ -6042,7 +6257,18 @@ function EspaceHote({ user, onLogout }) {
             {["Manuel Hôtesse BSH","Charte Éthique","Guide Tenues & Style","Politique Confidentialité"].map(d=>(
               <div key={d} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,color:B.cream}}>📄 {d}</span>
-                <Btn sm v="ghost" onClick={()=>window.open(WA(),"_blank")}>Demander</Btn>
+                <Btn sm v="ghost" onClick={async()=>{
+                  try {
+                    const tok = localStorage.getItem("bellaia_token");
+                    if (!tok) { alert("Reconnectez-vous"); return; }
+                    await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+"/rest/v1/doc_requests", {
+                      method:"POST",
+                      headers:{"apikey":process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,"Authorization":"Bearer "+tok,"Content-Type":"application/json","Prefer":"return=minimal"},
+                      body:JSON.stringify({reference:"DOC-"+Date.now().toString(36).toUpperCase(),titre:d,statut:"demande",cree_par:user?.id})
+                    });
+                    alert("✅ Demande envoyée — la fondatrice en sera notifiée");
+                  } catch(e){alert("Erreur : "+e.message);}
+                }}>Demander</Btn>
               </div>
             ))}
           </div>
@@ -6053,7 +6279,7 @@ function EspaceHote({ user, onLogout }) {
             <SH t="Contact"/>
             <div style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"14px"}}>
               <div style={{fontSize:12,color:B.muted,marginBottom:12,lineHeight:1.7}}>Pour toute communication avec Bella'Studio, contactez directement la fondatrice via WhatsApp.</div>
-              <Btn v="gold" full onClick={()=>window.open(WA(),"_blank")}>💬 Contacter la fondatrice</Btn>
+              <Btn v="gold" full onClick={()=>{window.dispatchEvent(new CustomEvent("bellaiaOpenMessaging",{detail:{userId:user?.id}}));}}>💬 Messagerie interne</Btn>
             </div>
           </div>
         )}
@@ -6065,7 +6291,7 @@ function EspaceHote({ user, onLogout }) {
               <div style={{fontSize:44,marginBottom:10}}>🎭</div>
               <div style={{fontSize:15,fontWeight:700,color:B.cream,marginBottom:3}}>{[user.prenom,user.nom].filter(Boolean).join(" ")||"Hôte / Talent"}</div>
               <div style={{fontSize:12,color:B.muted,marginBottom:14}}>{user.email}</div>
-              <Btn v="ghost" full onClick={()=>window.open(WA("Bonjour, je souhaite mettre à jour mon profil."),"_blank")}>Modifier mon profil →</Btn>
+              <Btn v="ghost" full onClick={()=>alert("Pour modifier votre profil, contactez la fondatrice via la messagerie interne.")}>Modifier mon profil</Btn>
             </div>
           </div>
         )}
@@ -6167,7 +6393,18 @@ function EspacePartenaire({ user, onLogout }) {
             {["Charte Partenariat BSH","Guide Événements","Politique Image & Communication","Tarifs Collaboration 2026"].map(d=>(
               <div key={d} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,color:B.cream}}>📄 {d}</span>
-                <Btn sm v="ghost" onClick={()=>window.open(WA(),"_blank")}>Demander</Btn>
+                <Btn sm v="ghost" onClick={async()=>{
+                  try {
+                    const tok = localStorage.getItem("bellaia_token");
+                    if (!tok) { alert("Reconnectez-vous"); return; }
+                    await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+"/rest/v1/doc_requests", {
+                      method:"POST",
+                      headers:{"apikey":process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,"Authorization":"Bearer "+tok,"Content-Type":"application/json","Prefer":"return=minimal"},
+                      body:JSON.stringify({reference:"DOC-"+Date.now().toString(36).toUpperCase(),titre:d,statut:"demande",cree_par:user?.id})
+                    });
+                    alert("✅ Demande envoyée — la fondatrice en sera notifiée");
+                  } catch(e){alert("Erreur : "+e.message);}
+                }}>Demander</Btn>
               </div>
             ))}
           </div>
