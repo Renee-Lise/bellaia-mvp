@@ -2,7 +2,7 @@
 // DocumentCenter.tsx — GED Centrale Bellaïa
 // Tous les documents en un seul endroit
 // Upload · Prévisualisation · Liens modules · Versions
-// src/modules/documents/DocumentCenter.tsx
+// src/modules/docs/DocumentCenter.tsx
 // ═══════════════════════════════════════════════════════════
 import React, { useState, useEffect, useMemo } from "react";
 import type { Document, ModuleDocument, TypeDocument, FiltreDocuments } from "./documentsTypes";

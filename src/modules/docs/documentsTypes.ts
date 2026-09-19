@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 // documentsTypes.ts — Types GED Centrale Bellaïa
-// src/modules/documents/documentsTypes.ts
+// src/modules/docs/documentsTypes.ts
 // Aucune dépendance externe
 // ═══════════════════════════════════════════════════════════
 
