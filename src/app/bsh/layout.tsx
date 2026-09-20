@@ -13,6 +13,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Jost } from "next/font/google";
 import { BSH_PALETTE } from "./bshTokens";
+import AgeGate from "./AgeGate";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -44,7 +45,12 @@ export default function BshLayout({ children }: { children: React.ReactNode }) {
       className={`${cormorant.variable} ${jost.variable}`}
       style={{ background: BSH_PALETTE.night, minHeight: "100vh" }}
     >
-      {children}
+      {/*
+        Porte d'âge posée ici (une fois pour tout /bsh/*) plutôt que
+        dans chaque page : elle ne se réaffiche pas en naviguant d'une
+        page BSH à une autre, seulement à la toute première visite.
+      */}
+      <AgeGate>{children}</AgeGate>
     </div>
   );
 }

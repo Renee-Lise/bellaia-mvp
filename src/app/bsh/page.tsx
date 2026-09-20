@@ -9,14 +9,18 @@
 // Le Cercle" pointe maintenant vers la page Cercle plutôt que vers
 // BSH Members (l'un ne doit jamais se substituer à l'autre).
 //
+// La porte d'âge 18+ n'est plus posée ici : elle vit dans le layout
+// (src/app/bsh/layout.tsx) pour ne s'afficher qu'une fois par visite,
+// pas à chaque page /bsh/*.
+//
 // Les pages /bsh/boutique, /bsh/univers, /bsh/cercle, /bsh/lounge,
 // /bsh/confidentialite, /bsh/mentions n'existent pas encore : elles
 // arrivent dans cet ordre, une par une. Les liens ci-dessous pointent
 // déjà vers leur destination finale.
 // ═══════════════════════════════════════════════════════════
 import Link from "next/link";
-import AgeGate from "./AgeGate";
 import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } from "./bshTokens";
+import BshFooter from "./BshFooter";
 
 const UNIVERS = [
   { ico: "🌸", titre: "Lingerie", desc: "Dentelle, satin et velours — des pièces pensées pour se sentir désirable, pas déguisée.", href: "/bsh/boutique" },
@@ -25,16 +29,8 @@ const UNIVERS = [
   { ico: "🎁", titre: "Coffrets & Exp.", desc: "Des moments à vivre plutôt que de simples produits.", href: "/bsh/boutique" },
 ];
 
-const FOOTER_LINKS = [
-  { l: "Boutique", href: "/bsh/boutique" },
-  { l: "Univers BSH", href: "/bsh/univers" },
-  { l: "Cercle", href: "/bsh/cercle" },
-  { l: "Lounge", href: "/bsh/lounge" },
-];
-
 export default function BshAccueilPage() {
   return (
-    <AgeGate>
       <div
         style={{
           display: "flex",
@@ -321,86 +317,7 @@ export default function BshAccueilPage() {
           </p>
         </div>
 
-        {/* ── Footer ── */}
-        <div
-          style={{
-            background: C.night,
-            padding: "20px 22px",
-            textAlign: "center",
-            borderTop: `1px solid ${C.borderL}`,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: DISPLAY,
-              fontSize: 14,
-              color: C.gold,
-              letterSpacing: 2,
-              marginBottom: 4,
-            }}
-          >
-            ✦ Bella&apos;Secret Home
-          </div>
-          <div style={{ fontSize: 10, color: "rgba(203,185,185,0.4)", letterSpacing: "0.1em" }}>
-            INTIMITÉ · ÉLÉGANCE · DÉSIR
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: 14,
-              marginTop: 14,
-              flexWrap: "wrap",
-            }}
-          >
-            {FOOTER_LINKS.map((l) => (
-              <Link
-                key={l.l}
-                href={l.href}
-                style={{
-                  color: "rgba(203,185,185,0.5)",
-                  fontSize: 10,
-                  letterSpacing: "0.04em",
-                  fontFamily: BODY,
-                  textDecoration: "none",
-                }}
-              >
-                {l.l}
-              </Link>
-            ))}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: 14,
-              marginTop: 14,
-              paddingTop: 14,
-              borderTop: `1px solid ${C.borderL}`,
-              flexWrap: "wrap",
-            }}
-          >
-            {[
-              { l: "Confidentialité & Livraison", href: "/bsh/confidentialite" },
-              { l: "Mentions légales", href: "/bsh/mentions" },
-            ].map((l) => (
-              <Link
-                key={l.l}
-                href={l.href}
-                style={{
-                  color: "rgba(203,185,185,0.3)",
-                  fontSize: 9,
-                  letterSpacing: "0.03em",
-                  fontFamily: BODY,
-                  textDecoration: "none",
-                }}
-              >
-                {l.l}
-              </Link>
-            ))}
-          </div>
-        </div>
+        <BshFooter />
       </div>
-    </AgeGate>
   );
 }
