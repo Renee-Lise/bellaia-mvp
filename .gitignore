@@ -1,0 +1,17 @@
+# Next.js
+/.next/
+/out/
+
+# Dépendances
+/node_modules/
+
+# Fichiers générés par Next.js/TypeScript au démarrage
+next-env.d.ts
+*.tsbuildinfo
+
+# Environnement local (les variables réelles vivent dans Vercel)
+.env
+.env*.local
+
+# Logs
+npm-debug.log*

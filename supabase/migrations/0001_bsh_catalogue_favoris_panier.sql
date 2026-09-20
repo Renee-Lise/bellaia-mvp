@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0001_bsh_catalogue_favoris_panier.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION DE RENÉE-LISE
+-- STATUT: VALIDÉ — exécuté le 2026-09-20
 -- Auteur : Claude Code · Date de rédaction : 2026-09-19
 -- Objet : fiches produit BSH complètes (taille/composition/usage/entretien)
 --         + persistance des favoris, du panier et des réservations
