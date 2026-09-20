@@ -10643,6 +10643,10 @@ function StocksF({ user }) {
         prix_achat: parseFloat(form.prix_achat) || 0,
         unite: form.unite || "unité",
         statut: "actif", notes: form.notes || "",
+        tailles: form.tailles || null,
+        composition: form.composition || null,
+        usage_conseils: form.usage_conseils || null,
+        entretien: form.entretien || null,
       };
       const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
       const token = await getTokenAsync();
@@ -10761,7 +10765,7 @@ function StocksF({ user }) {
           <Fld label="Nom article"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Nom"/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Univers"><Sel value={form.univers||"GENERAL"} onChange={e=>setForm({...form,univers:e.target.value})} options={["BSH","EVENTS","ODYSSEE","FOOD","GENERAL"]}/></Fld>
-            <Fld label="Catégorie"><Inp value={form.categorie||""} onChange={e=>setForm({...form,categorie:e.target.value})} placeholder="Ex : Lingerie"/></Fld>
+            <Fld label="Catégorie"><Inp value={form.categorie||""} onChange={e=>setForm({...form,categorie:e.target.value})} placeholder={form.univers==="BSH" ? "Ex : Lingerie & Tenues, Sextoys & Accessoires…" : "Ex : Lingerie"}/></Fld>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
             <Fld label="Quantité"><Inp type="number" value={form.quantite||0} onChange={e=>setForm({...form,quantite:parseFloat(e.target.value)||0})}/></Fld>
@@ -10773,6 +10777,15 @@ function StocksF({ user }) {
             <Fld label="Prix achat €"><Inp type="number" value={form.prix_achat||0} onChange={e=>setForm({...form,prix_achat:parseFloat(e.target.value)||0})}/></Fld>
           </div>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
+          {form.univers === "BSH" && (
+            <>
+              <div style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",margin:"14px 0 6px"}}>Fiche produit BSH (optionnel)</div>
+              <Fld label="Tailles disponibles"><Inp value={form.tailles||""} onChange={e=>setForm({...form,tailles:e.target.value})} placeholder="Ex : XS–6XL+, Taille unique"/></Fld>
+              <Fld label="Composition"><Inp value={form.composition||""} onChange={e=>setForm({...form,composition:e.target.value})} placeholder="Ex : 95% polyamide, 5% élasthanne"/></Fld>
+              <Fld label="Conseils d'usage"><Inp value={form.usage_conseils||""} onChange={e=>setForm({...form,usage_conseils:e.target.value})} placeholder="Ex : Lavage main recommandé avant premier usage" rows={2}/></Fld>
+              <Fld label="Entretien"><Inp value={form.entretien||""} onChange={e=>setForm({...form,entretien:e.target.value})} placeholder="Ex : Lavage à la main, 30°C, ne pas essorer" rows={2}/></Fld>
+            </>
+          )}
           <div style={{display:"flex",gap:8}}>
             <Btn onClick={sauvegarder} full v="gold">Enregistrer</Btn>
             <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
