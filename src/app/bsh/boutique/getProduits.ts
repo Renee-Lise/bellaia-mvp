@@ -24,19 +24,23 @@ export interface ProduitBSH {
 
 const SELECT = "id,nom,categorie,notes,tailles,composition,usage_conseils,entretien";
 
-export async function getProduitsBSH(): Promise<ProduitBSH[]> {
+// `categorie` optionnel : par ex. "Coffrets & Expériences" pour la page
+// dédiée. Filtré côté serveur (PostgREST), pas en mémoire après coup.
+export async function getProduitsBSH(categorie?: string): Promise<ProduitBSH[]> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return [];
 
+  let query = `univers=eq.BSH&statut=eq.actif&select=${SELECT}&order=categorie.asc,nom.asc&limit=200`;
+  if (categorie) {
+    query = `univers=eq.BSH&statut=eq.actif&categorie=eq.${encodeURIComponent(categorie)}&select=${SELECT}&order=nom.asc&limit=200`;
+  }
+
   try {
-    const res = await fetch(
-      `${url}/rest/v1/stocks?univers=eq.BSH&statut=eq.actif&select=${SELECT}&order=categorie.asc,nom.asc&limit=200`,
-      {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        cache: "no-store",
-      }
-    );
+    const res = await fetch(`${url}/rest/v1/stocks?${query}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      cache: "no-store",
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];

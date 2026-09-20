@@ -10,6 +10,7 @@ import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } 
 
 const FOOTER_LINKS = [
   { l: "Boutique", href: "/bsh/boutique" },
+  { l: "Coffrets & Expériences", href: "/bsh/coffrets" },
   { l: "Univers BSH", href: "/bsh/univers" },
   { l: "Cercle", href: "/bsh/cercle" },
   { l: "Lounge", href: "/bsh/lounge" },

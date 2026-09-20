@@ -26,7 +26,7 @@ const UNIVERS = [
   { ico: "🌸", titre: "Lingerie", desc: "Dentelle, satin et velours — des pièces pensées pour se sentir désirable, pas déguisée.", href: "/bsh/boutique" },
   { ico: "🎲", titre: "Jeux de couple", desc: "Accessoires choisis pour la complicité, jamais pour choquer.", href: "/bsh/boutique" },
   { ico: "🕯", titre: "Sensoriel", desc: "Huiles, produits et petites attentions pour prolonger la soirée.", href: "/bsh/boutique" },
-  { ico: "🎁", titre: "Coffrets & Exp.", desc: "Des moments à vivre plutôt que de simples produits.", href: "/bsh/boutique" },
+  { ico: "🎁", titre: "Coffrets & Exp.", desc: "Des moments à vivre plutôt que de simples produits.", href: "/bsh/coffrets" },
 ];
 
 export default function BshAccueilPage() {
