@@ -1,15 +1,13 @@
 // ═══════════════════════════════════════════════════════════
-// Le Cercle BSH — src/app/bsh/cercle/page.tsx (route réelle /bsh/cercle)
+// BSH Lounge — src/app/bsh/lounge/page.tsx (route réelle /bsh/lounge)
 //
-// Cette page n'existait pas dans ClientBSH : le bouton "Rejoindre
-// Le Cercle" ouvrait en réalité BSH Members (bug signalé et corrigé
-// ici en construisant cette vraie page Cercle, distincte).
-//
-// Contenu construit à partir de la direction de la maquette fournie
-// (hero, "Ce qu'est Le Cercle", "Les règles du Cercle", CTA), avec
-// les mêmes jetons de palette/typographie que l'accueil — rien de
-// nouveau inventé sur le plan visuel, seulement le texte de cette
-// page qui n'avait pas encore de version live.
+// N'existait nulle part dans ClientBSH : page entièrement nouvelle.
+// Même structure et mêmes jetons de palette/typographie que Le
+// Cercle, mais un ton différent — communauté ouverte et conviviale,
+// pas complice/sensuelle. Même logique de demande manuelle que Le
+// Cercle et BSH Members : DM WhatsApp pré-rempli, message qui dit
+// explicitement que c'est une demande, validation par la fondatrice
+// ensuite. Pas de questionnaire automatisé, pas d'ajout automatique.
 // ═══════════════════════════════════════════════════════════
 import type { Metadata } from "next";
 import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } from "../bshTokens";
@@ -17,34 +15,34 @@ import { bshWaLink } from "../bshWa";
 import BshFooter from "../BshFooter";
 
 export const metadata: Metadata = {
-  title: "Le Cercle",
+  title: "BSH Lounge",
   description:
-    "Le Cercle BSH — communauté privée WhatsApp, complicité et sensualité. Distincte de BSH Members.",
+    "BSH Lounge — communauté libre WhatsApp : discussions, retours produits, partages, événements. Distincte du Cercle et de BSH Members.",
 };
 
-const REGLES = [
+const ATOUTS = [
   {
-    titre: "Respect",
-    desc: "Aucun jugement sur les préférences ou orientations de chacune.",
+    titre: "Discussions ouvertes",
+    desc: "Posez vos questions, partagez vos avis, sans filtre ni jugement.",
   },
   {
-    titre: "Consentement",
-    desc: "Aucune sollicitation insistante, aucun message privé non désiré.",
+    titre: "Retours produits",
+    desc: "Donnez votre avis sur vos achats, aidez les autres à choisir.",
   },
   {
-    titre: "Discrétion",
-    desc: "Aucune capture d'écran ni information personnelle partagée hors du groupe.",
+    titre: "Avant-premières",
+    desc: "Soyez informée des nouveautés et des événements BSH.",
   },
   {
-    titre: "Rien d'explicite",
-    desc: "Le Cercle suggère, il ne montre jamais frontalement.",
+    titre: "Bonne ambiance",
+    desc: "Un espace convivial, ouvert à toutes, sans complicité de rigueur.",
   },
 ];
 
-const MSG_REJOINDRE_CERCLE =
-  "Bonjour, je souhaite faire une demande pour rejoindre Le Cercle BSH.";
+const MSG_REJOINDRE_LOUNGE =
+  "Bonjour, je souhaite faire une demande pour rejoindre BSH Lounge.";
 
-export default function BshCerclePage() {
+export default function BshLoungePage() {
   return (
     <div
       style={{
@@ -72,7 +70,7 @@ export default function BshCerclePage() {
             width: 56,
             height: 56,
             borderRadius: "50%",
-            background: `linear-gradient(135deg, ${C.plum}, #5c1522)`,
+            background: `linear-gradient(135deg, ${C.plum}, ${C.plumD})`,
             border: `1px solid rgba(198,161,91,0.4)`,
             display: "flex",
             alignItems: "center",
@@ -81,19 +79,19 @@ export default function BshCerclePage() {
             margin: "0 auto 16px",
           }}
         >
-          💬
+          💛
         </div>
         <span
           style={{
             fontSize: 9,
             letterSpacing: "0.2em",
-            color: C.roseD,
+            color: C.goldL,
             textTransform: "uppercase",
             display: "block",
             marginBottom: 12,
           }}
         >
-          Communauté privée · Complicité · Sensualité
+          Communauté libre · Discussions & Partages
         </span>
         <h1
           style={{
@@ -104,7 +102,7 @@ export default function BshCerclePage() {
             color: C.cream,
           }}
         >
-          Hello Sweety&apos;s 🫦
+          BSH Lounge
         </h1>
         <p
           style={{
@@ -115,13 +113,13 @@ export default function BshCerclePage() {
             maxWidth: 320,
           }}
         >
-          Il y a ce que l&apos;on montre. Et il y a Le Cercle — l&apos;espace
-          où l&apos;on peut être curieuse, joueuse, un peu plus audacieuse,
-          sans jamais être jugée.
+          Ici, on parle, on teste, on partage. Un espace ouvert où chacune
+          peut donner son avis, poser ses questions et suivre la vie de BSH
+          — sans engagement, sans jugement.
         </p>
       </div>
 
-      {/* ── Ce qu'est Le Cercle ── */}
+      {/* ── Ce qu'est le Lounge ── */}
       <div
         style={{
           background: C.plumD,
@@ -138,19 +136,19 @@ export default function BshCerclePage() {
             color: C.cream,
           }}
         >
-          Ce qu&apos;est Le Cercle
+          Ce qu&apos;est BSH Lounge
         </h2>
         <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.8, margin: "0 0 14px" }}>
-          Le Cercle BSH est une communauté{" "}
-          <strong style={{ color: C.cream }}>privée sur WhatsApp</strong>,
-          pensée pour aller plus loin que la boutique. On y parle envies,
-          préférences, découvertes — à travers des jeux, des sondages, des
-          questions et des animations régulières.
+          BSH Lounge est une communauté{" "}
+          <strong style={{ color: C.cream }}>libre sur WhatsApp</strong>,
+          ouverte à toutes celles qui veulent échanger autour de l&apos;univers
+          BSH : discussions, retours d&apos;expérience, tests produits,
+          partages et annonces d&apos;événements.
         </p>
         <div
           style={{
-            background: "rgba(92,21,34,0.12)",
-            border: "1px solid rgba(92,21,34,0.25)",
+            background: "rgba(198,161,91,0.06)",
+            border: "1px solid rgba(198,161,91,0.2)",
             borderRadius: 4,
             padding: "12px 16px",
             margin: "16px 0",
@@ -161,24 +159,23 @@ export default function BshCerclePage() {
               fontFamily: DISPLAY,
               fontStyle: "italic",
               fontSize: 14,
-              color: C.roseD,
+              color: C.goldL,
               margin: 0,
               lineHeight: 1.6,
             }}
           >
-            &quot;Bon… petite question entre nous 👀 Team douceur ou team
-            audace ce soir ?&quot;
+            &quot;Vous avez testé le Coffret Nuit de Velours ? Dites-nous
+            tout 👀&quot;
           </p>
         </div>
         <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.8, margin: 0 }}>
-          Ce n&apos;est pas un fil de promotions. C&apos;est un espace de
-          conversation, de jeu et de complicité — on peut observer sans
-          intervenir, participer quand on en a envie, ou simplement profiter
-          de l&apos;ambiance.
+          Pas de complicité de rigueur, pas de statut à obtenir — juste
+          l&apos;envie d&apos;échanger. On peut observer, participer, ou
+          simplement rester informée.
         </p>
       </div>
 
-      {/* ── Les règles du Cercle ── */}
+      {/* ── Ce que vous y trouverez ── */}
       <div style={{ background: C.night, padding: "28px 22px", borderBottom: `1px solid ${C.border}` }}>
         <h2
           style={{
@@ -189,19 +186,18 @@ export default function BshCerclePage() {
             color: C.cream,
           }}
         >
-          Les règles du Cercle
+          Ce que vous y trouverez
         </h2>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: 10,
-            marginBottom: 20,
           }}
         >
-          {REGLES.map((r) => (
+          {ATOUTS.map((a) => (
             <div
-              key={r.titre}
+              key={a.titre}
               style={{
                 background: "rgba(46,26,46,0.4)",
                 border: `1px solid ${C.borderM}`,
@@ -218,33 +214,13 @@ export default function BshCerclePage() {
                   color: C.goldL,
                 }}
               >
-                {r.titre}
+                {a.titre}
               </h3>
               <p style={{ fontSize: 11, color: C.muted, margin: 0, lineHeight: 1.6 }}>
-                {r.desc}
+                {a.desc}
               </p>
             </div>
           ))}
-        </div>
-        <div
-          style={{
-            textAlign: "center",
-            padding: 16,
-            border: `1px solid rgba(198,161,91,0.25)`,
-            borderRadius: 4,
-          }}
-        >
-          <p
-            style={{
-              fontFamily: DISPLAY,
-              fontStyle: "italic",
-              fontSize: 16,
-              color: C.goldL,
-              margin: 0,
-            }}
-          >
-            &quot;Ce qui appartient au Cercle reste dans le Cercle.&quot;
-          </p>
         </div>
       </div>
 
@@ -257,7 +233,7 @@ export default function BshCerclePage() {
         }}
       >
         <a
-          href={bshWaLink(MSG_REJOINDRE_CERCLE)}
+          href={bshWaLink(MSG_REJOINDRE_LOUNGE)}
           target="_blank"
           rel="noreferrer"
           style={{
@@ -276,7 +252,7 @@ export default function BshCerclePage() {
             marginBottom: 14,
           }}
         >
-          Rejoindre Le Cercle
+          Rejoindre BSH Lounge
         </a>
         <p
           style={{
@@ -288,12 +264,14 @@ export default function BshCerclePage() {
         >
           Ce bouton ouvre un message WhatsApp — c&apos;est une demande, pas
           une inscription automatique. La fondatrice vous ajoute
-          personnellement au Cercle après l&apos;avoir lu.
+          personnellement au Lounge après l&apos;avoir lu.
         </p>
         <p style={{ fontSize: 11, color: "rgba(203,185,185,0.5)", margin: 0, lineHeight: 1.6 }}>
-          Le Cercle BSH est une communauté à part entière — distincte de{" "}
-          <strong style={{ color: "rgba(198,161,91,0.6)" }}>BSH Members</strong>,
-          le programme officiel d&apos;adhésion de la marque.
+          BSH Lounge est une communauté à part entière — distincte du{" "}
+          <strong style={{ color: "rgba(198,161,91,0.6)" }}>Cercle BSH</strong>{" "}
+          (complicité, sensualité) et de{" "}
+          <strong style={{ color: "rgba(198,161,91,0.6)" }}>BSH Members</strong>{" "}
+          (programme officiel d&apos;adhésion).
         </p>
       </div>
 
