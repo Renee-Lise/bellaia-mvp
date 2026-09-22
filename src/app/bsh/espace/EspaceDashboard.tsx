@@ -247,6 +247,13 @@ export default function EspaceDashboard() {
             }
             href="/bsh/espace/reservations"
           />
+          <Tuile
+            ico="🔔"
+            titre="Messages"
+            valeur={notifications === null ? "…" : String(notifications.length)}
+            sousTitre={notifications && notifications.length > 0 ? "non lu(s)" : "aucun pour l'instant"}
+            href="/bsh/espace/messages"
+          />
         </div>
       </div>
 
