@@ -3513,7 +3513,6 @@ function mapCommandeBsh(r) {
     client:  r.client_nom || "Client",
     produit,
     montant: (parseFloat(r.montant_total_cts) || 0) / 100,
-    acompte: 0,
     statut:  r.statut_suivi || "Demande reçue",
     paiement: r.statut || "created",
     date:    r.created_at ? r.created_at.slice(0,10) : today(),
@@ -5559,9 +5558,9 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Dernières commandes</div>{commandes.slice(0,4).map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+(BSH.line)}}><div><div style={{fontSize:11,color:BSH.creme}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div></div>)}</div>
         </div>}
         {sec==="cmds"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({statut:"Demande reçue",date:today(),montant:0,acompte:0,pmt:"WhatsApp"});setModal("cmd");}}>+ Nouvelle</BBtn></div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({statut:"Demande reçue",date:today(),montant:0,pmt:"WhatsApp"});setModal("cmd");}}>+ Nouvelle</BBtn></div>
           {commandes.map(c=><div key={c.id} onClick={()=>setDetailCmd(c)} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
-            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{display:"flex",gap:5,marginBottom:2}}><span style={{fontSize:10,color:BSH.or,fontWeight:700}}>{c.id}</span><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div><div style={{fontSize:12,fontWeight:600}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit} · {c.pmt}</div><div style={{fontSize:9,color:BSH.bord,marginTop:3}}>Toucher pour le détail →</div></div><div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:BSH.or,fontFamily:FS}}>{c.montant}€</div>{c.acompte>0&&<div style={{fontSize:9,color:BSH.cremeD}}>Acompte {c.acompte}€</div>}<div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={(e)=>{e.stopPropagation();setForm({...c,_edit:c.id});setModal("cmd");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={async(e)=>{e.stopPropagation();if(!confirm("Annuler cette commande ?"))return;setCommandes(p=>p.map(x=>x.id===c.id?{...x,statut:"Annulée"}:x));if(c._uuid){const res=await sbPatch("stripe_payment_intents",c._uuid,{statut_suivi:"Annulée"});if(!res.ok)alert("Erreur : "+(res.error||"inconnue"));}}}>✕</BBtn></div></div></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{display:"flex",gap:5,marginBottom:2}}><span style={{fontSize:10,color:BSH.or,fontWeight:700}}>{c.id}</span><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div><div style={{fontSize:12,fontWeight:600}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit} · {c.pmt}</div><div style={{fontSize:9,color:BSH.bord,marginTop:3}}>Toucher pour le détail →</div></div><div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:BSH.or,fontFamily:FS}}>{c.montant}€</div><div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={(e)=>{e.stopPropagation();setForm({...c,_edit:c.id});setModal("cmd");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={async(e)=>{e.stopPropagation();if(!confirm("Annuler cette commande ?"))return;setCommandes(p=>p.map(x=>x.id===c.id?{...x,statut:"Annulée"}:x));if(c._uuid){const res=await sbPatch("stripe_payment_intents",c._uuid,{statut_suivi:"Annulée"});if(!res.ok)alert("Erreur : "+(res.error||"inconnue"));}}}>✕</BBtn></div></div></div>
           </div>)}
         </div>}
         {sec==="crm"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -5602,8 +5601,6 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       {detailCmd&&(()=>{
         const c=detailCmd;
         const montant=parseFloat(c.montant)||0;
-        const acompte=parseFloat(c.acompte)||0;
-        const solde=Math.max(montant-acompte,0);
         const paye=c.statut==="Paiement complet reçu"||c.statut==="Terminée";
         return(
         <Mdl title={"Commande "+(c.id)} onClose={()=>setDetailCmd(null)}>
@@ -5625,8 +5622,6 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:10}}>
             <div style={{fontSize:10,color:BSH.cremeD,marginBottom:7}}>💳 PAIEMENT · {c.pmt||"—"}</div>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"3px 0"}}><span style={{color:BSH.cremeD}}>Montant total</span><span style={{color:BSH.creme,fontWeight:700}}>{montant.toFixed(2)}€</span></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"3px 0"}}><span style={{color:BSH.cremeD}}>Acompte reçu</span><span style={{color:BSH.or,fontWeight:700}}>{acompte.toFixed(2)}€</span></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:14,padding:"6px 0 0",borderTop:"1px solid "+(BSH.line),marginTop:5}}><span style={{color:BSH.cremeD}}>Solde restant</span><span style={{color:solde>0?BSH.rouge:BSH.vert,fontWeight:700}}>{solde.toFixed(2)}€</span></div>
           </div>
           <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:10}}>
             <div style={{fontSize:10,color:BSH.cremeD,marginBottom:3}}>🧾 FACTURE</div>
@@ -5636,7 +5631,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <div style={{background:(BSH.bord)+"12",border:"1px solid "+(BSH.line),borderRadius:10,padding:"11px 13px",marginBottom:14}}>
             <div style={{fontSize:10,color:BSH.or,marginBottom:6,fontWeight:700}}>📒 TRACE PRÉ-COMPTABLE</div>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0"}}><span style={{color:BSH.cremeD}}>Journal</span><span style={{color:BSH.creme}}>Ventes BSH</span></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0"}}><span style={{color:BSH.cremeD}}>Écriture</span><span style={{color:BSH.creme}}>{paye?"CA encaissé":acompte>0?"Acompte encaissé":"À encaisser"}</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0"}}><span style={{color:BSH.cremeD}}>Écriture</span><span style={{color:BSH.creme}}>{paye?"CA encaissé":"À encaisser"}</span></div>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0"}}><span style={{color:BSH.cremeD}}>Statut compta</span><span style={{color:paye?BSH.vert:BSH.or}}>{paye?"auto_validé":"brouillon"}</span></div>
             <div style={{fontSize:9,color:BSH.cremeD,marginTop:6,lineHeight:1.5}}>Cette commande alimentera le journal des ventes de la pré-comptabilité Bellaïa.</div>
           </div>
@@ -5649,10 +5644,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       {modal==="cmd"&&<Mdl title={form._edit?"Modifier":"Nouvelle commande"} onClose={()=>setModal(null)}>
         <Fld label="Cliente"><Inp value={form.client||""} onChange={e=>setForm({...form,client:e.target.value})} placeholder="Nom"/></Fld>
         <Fld label="Produit"><Inp value={form.produit||""} onChange={e=>setForm({...form,produit:e.target.value})} placeholder="Produit"/></Fld>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <Fld label="Montant €"><Inp type="number" value={form.montant||0} onChange={e=>setForm({...form,montant:parseFloat(e.target.value)||0})}/></Fld>
-          <Fld label="Acompte €"><Inp type="number" value={form.acompte||0} onChange={e=>setForm({...form,acompte:parseFloat(e.target.value)||0})}/></Fld>
-        </div>
+        <Fld label="Montant €"><Inp type="number" value={form.montant||0} onChange={e=>setForm({...form,montant:parseFloat(e.target.value)||0})}/></Fld>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <Fld label="Statut"><Sel value={form.statut||"Demande reçue"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS_CMD}/></Fld>
           <Fld label="Paiement"><Sel value={form.pmt||"WhatsApp"} onChange={e=>setForm({...form,pmt:e.target.value})} options={["WhatsApp","SumUp","Stripe","PayPal","Revolut","Espèces"]}/></Fld>
