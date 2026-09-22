@@ -14,7 +14,7 @@
 // ═══════════════════════════════════════════════════════════
 import type { Metadata } from "next";
 import { getProduitsBSH } from "../boutique/getProduits";
-import ProductCardFavori from "../ProductCardFavori";
+import ProductCardActions from "../ProductCardActions";
 import BshFooter from "../BshFooter";
 import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } from "../bshTokens";
 
@@ -96,7 +96,7 @@ export default async function BshCoffretsPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {produits.map((p) => (
-              <ProductCardFavori key={p.id} p={p} />
+              <ProductCardActions key={p.id} p={p} />
             ))}
           </div>
         )}

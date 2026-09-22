@@ -242,6 +242,7 @@ export default function EspaceDashboard() {
             titre="Panier"
             valeur={panierCount === null ? "…" : String(panierCount)}
             sousTitre={panierCount ? "article(s) — Prix à venir" : "panier vide"}
+            href="/bsh/espace/panier"
           />
           <Tuile
             ico="🎁"

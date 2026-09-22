@@ -13,7 +13,7 @@
 import { useState } from "react";
 import { BSH_PALETTE as C, BSH_FONT_BODY as BODY } from "../bshTokens";
 import type { ProduitBSH } from "./getProduits";
-import ProductCardFavori from "../ProductCardFavori";
+import ProductCardActions from "../ProductCardActions";
 
 const CATEGORIES = [
   "Tout",
@@ -91,7 +91,7 @@ export default function BoutiqueClient({ produits }: { produits: ProduitBSH[] })
             }}
           >
             {produitsFiltres.map((p) => (
-              <ProductCardFavori key={p.id} p={p} />
+              <ProductCardActions key={p.id} p={p} />
             ))}
           </div>
         )}
