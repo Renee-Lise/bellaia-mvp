@@ -235,6 +235,7 @@ export default function EspaceDashboard() {
             titre="Favoris"
             valeur={favorisCount === null ? "…" : String(favorisCount)}
             sousTitre={favorisCount ? "article(s) enregistré(s)" : "aucun pour l'instant"}
+            href="/bsh/espace/favoris"
           />
           <Tuile
             ico="🛍"
