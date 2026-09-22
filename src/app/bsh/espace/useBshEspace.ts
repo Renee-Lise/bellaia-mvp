@@ -28,6 +28,7 @@ export interface EspaceProfil {
   email: string | null;
   prenom: string | null;
   nom: string | null;
+  telephone: string | null;
   membership_status: string | null;
 }
 
@@ -62,7 +63,7 @@ export function useBshEspace(): EspaceEtat {
 
         const h = { Authorization: `Bearer ${token}`, apikey: SB_KEY };
         const r = await fetch(
-          `${SB_URL}/rest/v1/profiles?id=eq.${userData.user.id}&select=id,prenom,nom,membership_status`,
+          `${SB_URL}/rest/v1/profiles?id=eq.${userData.user.id}&select=id,prenom,nom,telephone,membership_status`,
           { headers: h, cache: "no-store" }
         );
         const rows = r.ok ? await r.json() : [];
@@ -77,6 +78,7 @@ export function useBshEspace(): EspaceEtat {
               email: userData.user.email ?? null,
               prenom: p.prenom ?? null,
               nom: p.nom ?? null,
+              telephone: p.telephone ?? null,
               membership_status: p.membership_status ?? "customer",
             },
           });

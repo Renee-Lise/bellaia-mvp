@@ -254,24 +254,13 @@ export default function EspaceDashboard() {
             sousTitre={notifications && notifications.length > 0 ? "non lu(s)" : "aucun pour l'instant"}
             href="/bsh/espace/messages"
           />
-        </div>
-      </div>
-
-      {/* ── Préférences ── */}
-      <div style={{ padding: "22px 22px 32px" }}>
-        <TitreSection>Préférences</TitreSection>
-        <div
-          style={{
-            background: "rgba(46,26,46,0.5)",
-            border: `1px solid ${C.borderM}`,
-            borderRadius: 4,
-            padding: "14px",
-            fontSize: 12,
-            color: C.muted,
-            fontStyle: "italic",
-          }}
-        >
-          Bientôt disponible.
+          <Tuile
+            ico="⚙"
+            titre="Préférences"
+            valeur="→"
+            sousTitre="mes coordonnées"
+            href="/bsh/espace/preferences"
+          />
         </div>
       </div>
     </div>
