@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } from "../bshTokens";
 import { useBshEspace, espaceFetch } from "./useBshEspace";
+import { LABEL_STATUT_RESA } from "./reservationsLabels";
 
 interface Reservation {
   id: string;
@@ -25,15 +26,6 @@ interface Notification {
   titre: string;
   contenu: string | null;
 }
-
-const LABEL_STATUT_RESA: Record<string, string> = {
-  demande_recue: "Demande reçue",
-  validee: "Validée",
-  acompte_recu: "Acompte reçu",
-  confirmee: "Confirmée",
-  realisee: "Réalisée",
-  annulee: "Annulée",
-};
 
 function deconnecter() {
   localStorage.removeItem("bellaia_token");
@@ -253,6 +245,7 @@ export default function EspaceDashboard() {
                 ? LABEL_STATUT_RESA[reservations[0].statut] || reservations[0].statut
                 : "aucune pour l'instant"
             }
+            href="/bsh/espace/reservations"
           />
         </div>
       </div>

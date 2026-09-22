@@ -13,6 +13,7 @@
 // logique que la Boutique.
 // ═══════════════════════════════════════════════════════════
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getProduitsBSH } from "../boutique/getProduits";
 import ProductCardActions from "../ProductCardActions";
 import BshFooter from "../BshFooter";
@@ -96,7 +97,25 @@ export default async function BshCoffretsPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {produits.map((p) => (
-              <ProductCardActions key={p.id} p={p} />
+              <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <ProductCardActions p={p} />
+                <Link
+                  href={`/bsh/espace/reservations?titre=${encodeURIComponent(p.nom)}`}
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    border: `1px solid rgba(198,161,91,0.4)`,
+                    borderRadius: 2,
+                    padding: "8px 10px",
+                    color: C.goldL,
+                    fontSize: 10,
+                    letterSpacing: "0.04em",
+                    textDecoration: "none",
+                  }}
+                >
+                  Réserver cette expérience
+                </Link>
+              </div>
             ))}
           </div>
         )}
