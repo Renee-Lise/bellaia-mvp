@@ -530,11 +530,6 @@ const CLIENTES_BSH_INIT = [
   {id:"CL002",nom:"Kathy R.",ville:"Kourou",canal:"TikTok",vip:"Argent",total:78,tel:"+594690000002",notes:"",preferences:""},
   {id:"CL003",nom:"Aline B.",ville:"Matoury",canal:"Instagram",vip:"Diamant",total:589,tel:"+594690000004",notes:"Meilleure cliente 2025",preferences:"Coffrets premium"},
 ];
-const CMDS_BSH_INIT = [
-  {id:"BSH-001",client:"Marie S.",produit:"Coffret Nuit de Velours",montant:79,acompte:0,statut:"Terminée",date:"2026-06-01",pmt:"Stripe"},
-  {id:"BSH-002",client:"Kathy R.",produit:"Ensemble Dentelle Noir",montant:39,acompte:0,statut:"Paiement complet reçu",date:"2026-06-02",pmt:"PayPal"},
-  {id:"BSH-003",client:"Aline B.",produit:"Coffret Secret Couple",montant:89,acompte:45,statut:"Acompte reçu",date:"2026-06-03",pmt:"SumUp",notes:"Solde à régler"},
-];
 const FAQ_BSH = [
   ["Comment commander ?","Via WhatsApp ("+ENV.TEL+"), le site ou lors d'un événement."],
   ["Les colis sont-ils discrets ?","Oui. Emballage neutre sans mention du contenu."],
@@ -3500,6 +3495,52 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r) {
   return [data, setData];
 }
 
+// Commandes BSH réelles — table stripe_payment_intents, filtrée par
+// module=BSH (seul module qui l'utilise aujourd'hui, via ClientBSH →
+// /api/payments/stripe). Remplace l'ancien useBSHSupabase("invoices",...)
+// qui lisait toute la table invoices sans filtre (mélangeait les
+// commandes de tous les pôles) et dont les modifications ne
+// persistaient jamais côté serveur — statut_suivi (migration 0002)
+// est la vraie colonne de suivi, éditable par la fondatrice/assistante.
+function mapCommandeBsh(r) {
+  const items = Array.isArray(r.items_json) ? r.items_json : [];
+  const produit = items.length > 0
+    ? items.map(i => (i.nom || "Article")+" ×"+(i.qty || 1)).join(", ")
+    : (r.description || "Commande BSH");
+  return {
+    _uuid:   r.id,
+    id:      r.commande_id || (r.id ? r.id.slice(0,8) : ""),
+    client:  r.client_nom || "Client",
+    produit,
+    montant: (parseFloat(r.montant_total_cts) || 0) / 100,
+    acompte: 0,
+    statut:  r.statut_suivi || "Demande reçue",
+    paiement: r.statut || "created",
+    date:    r.created_at ? r.created_at.slice(0,10) : today(),
+    pmt:     r.type_paiement === "integral" ? "Stripe" : (r.type_paiement || "Stripe"),
+    notes:   "",
+  };
+}
+
+function useBshCommandesReel(moduleId) {
+  const [data, setData] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const charger = useCallback(async () => {
+    const rows = await sbGet("stripe_payment_intents", {
+      filters: { module: moduleId },
+      order: "created_at.desc",
+      limit: 200,
+    });
+    setData(rows.map(mapCommandeBsh));
+    setLoaded(true);
+  }, [moduleId]);
+
+  useEffect(() => { charger(); }, [charger]);
+
+  return { commandes: data, setCommandesLocal: setData, loaded, recharger: charger };
+}
+
 function useP1Data(table, params, deps = []) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5447,9 +5488,13 @@ function DocumentsP1({ user }) {
 function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,evenements,setEvenements}) {
   const[sec,setSec]=useState("dash");const[modal,setModal]=useState(null);const[form,setForm]=useState({});
   const[detailCmd,setDetailCmd]=useState(null);
-  const majStatut=(id,nouveauStatut)=>{
-    setCommandes(p=>p.map(x=>x.id===id?{...x,statut:nouveauStatut}:x));
-    setDetailCmd(d=>d&&d.id===id?{...d,statut:nouveauStatut}:d);
+  const majStatut=async(cmd,nouveauStatut)=>{
+    setCommandes(p=>p.map(x=>x.id===cmd.id?{...x,statut:nouveauStatut}:x));
+    setDetailCmd(d=>d&&d.id===cmd.id?{...d,statut:nouveauStatut}:d);
+    if(cmd._uuid){
+      const res=await sbPatch("stripe_payment_intents",cmd._uuid,{statut_suivi:nouveauStatut});
+      if(!res.ok) alert("Le nouveau statut n'a pas pu être enregistré : "+(res.error||"erreur inconnue"));
+    }
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
@@ -5516,7 +5561,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         {sec==="cmds"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({statut:"Demande reçue",date:today(),montant:0,acompte:0,pmt:"WhatsApp"});setModal("cmd");}}>+ Nouvelle</BBtn></div>
           {commandes.map(c=><div key={c.id} onClick={()=>setDetailCmd(c)} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
-            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{display:"flex",gap:5,marginBottom:2}}><span style={{fontSize:10,color:BSH.or,fontWeight:700}}>{c.id}</span><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div><div style={{fontSize:12,fontWeight:600}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit} · {c.pmt}</div><div style={{fontSize:9,color:BSH.bord,marginTop:3}}>Toucher pour le détail →</div></div><div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:BSH.or,fontFamily:FS}}>{c.montant}€</div>{c.acompte>0&&<div style={{fontSize:9,color:BSH.cremeD}}>Acompte {c.acompte}€</div>}<div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={(e)=>{e.stopPropagation();setForm({...c,_edit:c.id});setModal("cmd");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={(e)=>{e.stopPropagation();if(confirm("Supprimer ?"))setCommandes(p=>p.filter(x=>x.id!==c.id));}}>✕</BBtn></div></div></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{display:"flex",gap:5,marginBottom:2}}><span style={{fontSize:10,color:BSH.or,fontWeight:700}}>{c.id}</span><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div><div style={{fontSize:12,fontWeight:600}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit} · {c.pmt}</div><div style={{fontSize:9,color:BSH.bord,marginTop:3}}>Toucher pour le détail →</div></div><div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:BSH.or,fontFamily:FS}}>{c.montant}€</div>{c.acompte>0&&<div style={{fontSize:9,color:BSH.cremeD}}>Acompte {c.acompte}€</div>}<div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={(e)=>{e.stopPropagation();setForm({...c,_edit:c.id});setModal("cmd");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={async(e)=>{e.stopPropagation();if(!confirm("Annuler cette commande ?"))return;setCommandes(p=>p.map(x=>x.id===c.id?{...x,statut:"Annulée"}:x));if(c._uuid){const res=await sbPatch("stripe_payment_intents",c._uuid,{statut_suivi:"Annulée"});if(!res.ok)alert("Erreur : "+(res.error||"inconnue"));}}}>✕</BBtn></div></div></div>
           </div>)}
         </div>}
         {sec==="crm"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -5564,7 +5609,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <Mdl title={"Commande "+(c.id)} onClose={()=>setDetailCmd(null)}>
           <div style={{marginBottom:14}}>
             <div style={{fontSize:11,fontWeight:700,color:BSH.cremeD,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Statut</div>
-            <select value={c.statut} onChange={e=>majStatut(c.id,e.target.value)}
+            <select value={c.statut} onChange={e=>majStatut(c,e.target.value)}
               style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid "+(BSH.line),borderRadius:10,padding:"10px 12px",color:BSH.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
               {STATUTS_CMD.map(s=><option key={s} value={s}>{s}</option>)}
             </select>
@@ -5613,7 +5658,31 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <Fld label="Paiement"><Sel value={form.pmt||"WhatsApp"} onChange={e=>setForm({...form,pmt:e.target.value})} options={["WhatsApp","SumUp","Stripe","PayPal","Revolut","Espèces"]}/></Fld>
         </div>
         <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
-        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.client?.trim())return;const id=form._edit||await genererReference("BSH");if(form._edit)await setCommandes(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setCommandes(p=>[...p,{...form,id}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{
+          if(!form.client?.trim())return;
+          const payload={
+            module:"BSH",
+            client_nom:form.client,
+            description:form.produit||"",
+            montant_total_cts:Math.round((parseFloat(form.montant)||0)*100),
+            statut:(form.statut==="Paiement complet reçu"||form.statut==="Terminée")?"succeeded":"created",
+            statut_suivi:form.statut||"Demande reçue",
+            type_paiement:form.pmt||"WhatsApp",
+          };
+          if(form._edit){
+            const res=await sbPatch("stripe_payment_intents",form._uuid,payload);
+            if(!res.ok){alert("Erreur d'enregistrement : "+(res.error||"inconnue"));return;}
+            setCommandes(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));
+          } else {
+            let ref;
+            try{ref=await genererReference("BSH");}catch(e){alert(e.message);return;}
+            const res=await sbPost("stripe_payment_intents",{...payload,commande_id:ref});
+            const row=Array.isArray(res.data)?res.data[0]:res.data;
+            if(!res.ok||!row){alert("Erreur d'enregistrement : "+(res.error||"inconnue"));return;}
+            setCommandes(p=>[mapCommandeBsh(row),...p]);
+          }
+          setModal(null);
+        }} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="cli"&&<Mdl title={form._edit?"Modifier":"Nouvelle cliente"} onClose={()=>setModal(null)}>
         <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Nom complet"/></Fld>
@@ -11237,17 +11306,7 @@ export default function BellaiaApp() {
       desc: r.notes || "",
     })
   );
-  const [bshCmds, setBshCmds] = useBSHSupabase("invoices", "b5:bsh:cmds", CMDS_BSH_INIT,
-    r => ({
-      id: r.numero || r.id?.slice(0,8), client: r.client_nom || "Client",
-      produit: r.objet || "Commande BSH",
-      montant: parseFloat(r.total_ttc) || 0,
-      acompte: parseFloat(r.acompte_recu) || 0,
-      statut: r.statut === "payée" ? "Paiement complet reçu" : r.statut || "Demande reçue",
-      date: r.date_emission || new Date().toISOString().split("T")[0],
-      pmt: "SumUp", notes: r.notes || "",
-    })
-  );
+  const { commandes: bshCmds, setCommandesLocal: setBshCmds, recharger: rechargerBshCmds } = useBshCommandesReel("BSH");
   const [bshCli, setBshCli] = useBSHSupabase("clients", "b5:bsh:cli", CLIENTES_BSH_INIT,
     r => ({
       id: r.id, nom: r.prenom ? (r.prenom)+" "+(r.nom || "").trim() : r.nom || "Client",
@@ -11311,8 +11370,8 @@ export default function BellaiaApp() {
   if (preview === "client") {
     if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:36}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
-      onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
-    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
+      onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/></div></>;
+    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/></div></>;
     if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:36}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
@@ -11331,7 +11390,7 @@ export default function BellaiaApp() {
   // ── Routage par rôle
   if (espaceEffectif === "client")
     return <PortailClient user={user} produits={bshProd} evenements={bshEvts}
-      onLogout={deconnexion} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/>;
+      onLogout={deconnexion} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/>;
   if (espaceEffectif === "hote") {
     const univHote = user?.univers || user?.module || "";
     if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {

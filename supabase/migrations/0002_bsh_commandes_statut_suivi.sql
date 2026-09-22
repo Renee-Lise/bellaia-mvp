@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0002_bsh_commandes_statut_suivi.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté le 2026-09-22
 -- Auteur : Claude Code · Date de rédaction : 2026-09-22
 -- Objet : suivi de préparation/expédition des commandes BSH (au-delà
 --         du seul statut de paiement Stripe), pour alimenter la frise

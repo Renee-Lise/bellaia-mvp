@@ -4,10 +4,9 @@
 //
 // Bandeau statut membre conditionnel (comme dans BSHMembersPage) puis
 // tuiles de résumé lisant les vraies tables de la migration 0001
-// (favoris, panier_items, reservations_experiences) et la table
-// existante bellaia_notifications. Aucune nouvelle table. "Prix à
-// venir" partout : la tuile Commandes reste un état vide tant qu'aucun
-// prix BSH n'est activé (aucune table de commandes BSH n'existe encore).
+// (favoris, panier_items, reservations_experiences), stripe_payment_intents
+// (commandes réelles, migration 0002) et la table existante
+// bellaia_notifications. Aucune nouvelle table.
 // ═══════════════════════════════════════════════════════════
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -49,6 +48,7 @@ export default function EspaceDashboard() {
   const [panierCount, setPanierCount] = useState<number | null>(null);
   const [reservations, setReservations] = useState<Reservation[] | null>(null);
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
+  const [commandesCount, setCommandesCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (etat.statut !== "connectee") return;
@@ -56,7 +56,7 @@ export default function EspaceDashboard() {
     let actif = true;
 
     (async () => {
-      const [rFav, rPanier, rResa, rNotif] = await Promise.all([
+      const [rFav, rPanier, rResa, rNotif, rCmd] = await Promise.all([
         espaceFetch(token, "favoris?select=id"),
         espaceFetch(token, "panier_items?select=id,quantite"),
         espaceFetch(
@@ -67,6 +67,7 @@ export default function EspaceDashboard() {
           token,
           "bellaia_notifications?select=id,titre,contenu&lu=eq.false&order=created_at.desc&limit=5"
         ),
+        espaceFetch(token, "stripe_payment_intents?module=eq.BSH&select=id"),
       ]);
       if (!actif) return;
       if (rFav.ok) setFavorisCount((await rFav.json()).length);
@@ -76,6 +77,7 @@ export default function EspaceDashboard() {
       }
       if (rResa.ok) setReservations(await rResa.json());
       if (rNotif.ok) setNotifications(await rNotif.json());
+      if (rCmd.ok) setCommandesCount((await rCmd.json()).length);
     })();
 
     return () => {
@@ -221,7 +223,13 @@ export default function EspaceDashboard() {
       <div style={{ padding: "22px 22px 0" }}>
         <TitreSection>Vue d&apos;ensemble</TitreSection>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <Tuile ico="📦" titre="Commandes" valeur="Aucune" sousTitre="Prix à venir" />
+          <Tuile
+            ico="📦"
+            titre="Commandes"
+            valeur={commandesCount === null ? "…" : String(commandesCount)}
+            sousTitre={commandesCount ? "voir le suivi →" : "aucune pour l'instant"}
+            href="/bsh/espace/commandes"
+          />
           <Tuile
             ico="♥"
             titre="Favoris"
@@ -389,21 +397,16 @@ function Tuile({
   titre,
   valeur,
   sousTitre,
+  href,
 }: {
   ico: string;
   titre: string;
   valeur: string;
   sousTitre: string;
+  href?: string;
 }) {
-  return (
-    <div
-      style={{
-        background: "rgba(46,26,46,0.5)",
-        border: `1px solid ${C.borderM}`,
-        borderRadius: 4,
-        padding: "14px",
-      }}
-    >
+  const contenu = (
+    <>
       <div style={{ fontSize: 18, marginBottom: 6 }}>{ico}</div>
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{titre}</div>
       <div
@@ -418,7 +421,22 @@ function Tuile({
         {valeur}
       </div>
       <div style={{ fontSize: 10, color: "rgba(203,185,185,0.5)" }}>{sousTitre}</div>
-    </div>
+    </>
+  );
+  const style: React.CSSProperties = {
+    background: "rgba(46,26,46,0.5)",
+    border: `1px solid ${C.borderM}`,
+    borderRadius: 4,
+    padding: "14px",
+    display: "block",
+    textDecoration: "none",
+  };
+  return href ? (
+    <Link href={href} style={style}>
+      {contenu}
+    </Link>
+  ) : (
+    <div style={style}>{contenu}</div>
   );
 }
 
