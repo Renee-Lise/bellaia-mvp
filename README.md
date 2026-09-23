@@ -42,7 +42,10 @@ SUMUP_REDIRECT_URI
 SUMUP_ENV
 SUMUP_API_URL
 NEXT_PUBLIC_SUMUP_ENABLED
+BSH_MEMBERS_WA_LINK
 ```
+
+`BSH_MEMBERS_WA_LINK` : lien WhatsApp du groupe BSH Members — **jamais** de préfixe `NEXT_PUBLIC_` (cahier des charges BSH Members §10.1), sinon il finit dans le bundle client. Lu uniquement côté serveur, par `src/app/api/bsh-members/whatsapp-link/route.ts`. Si `NEXT_PUBLIC_BSH_MEMBERS_WA_LINK` existe encore dans les variables Vercel, la supprimer — le code ne la lit plus, mais autant ne pas la laisser traîner.
 
 ---
 

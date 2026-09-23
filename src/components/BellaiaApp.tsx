@@ -1059,10 +1059,16 @@ function BSHMembersPage({ user, onBack }: { user: any; onBack?: () => void }) {
           <div style={{fontSize:11,color:"#cbb9b9",lineHeight:1.6,marginBottom:10}}>
             Rejoignez le groupe privé des membres BSH pour les échanges, les avant-premières et les discussions.
           </div>
-          <button onClick={() => {
-            const lien = process.env.NEXT_PUBLIC_BSH_MEMBERS_WA_LINK;
-            if (lien) window.open(lien, "_blank");
-            else alert("Le lien de la communauté sera communiqué par la fondatrice.");
+          <button onClick={async () => {
+            try {
+              const tok = localStorage.getItem("bellaia_token") || "";
+              const r = await fetch("/api/bsh-members/whatsapp-link", {
+                headers: { Authorization: `Bearer ${tok}` },
+              });
+              const d = await r.json();
+              if (d.link) window.open(d.link, "_blank");
+              else alert(d.error || "Le lien de la communauté sera communiqué par la fondatrice.");
+            } catch { alert("Impossible de récupérer le lien. Réessayez."); }
           }} style={{background:"rgba(37,211,102,0.1)",border:"1px solid rgba(37,211,102,0.25)",borderRadius:2,
             padding:"9px 16px",color:"#25d366",fontSize:12,fontWeight:500,cursor:"pointer",
             fontFamily:"'Jost',system-ui,sans-serif",width:"100%"}}>
@@ -1245,7 +1251,7 @@ function BSHMembersAdmin({ user }: { user: any }) {
 }
 
 
-function ClientBSH({produits, evenements, onBack, onNewCommande}) {
+function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
   const [gate, setGate] = useState(false);
   const [page, setPage] = useState("accueil");
   const [cart, setCart] = useState([]);
@@ -1377,7 +1383,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
     </div>
   );
 
-  const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"vip",l:"💎"},{id:"faq",l:"❓"}];
+  const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"membres",l:"💎"},{id:"faq",l:"❓"}];
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)",fontFamily:SA}}>
@@ -1439,7 +1445,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
                     fontFamily:"'Jost',system-ui,sans-serif"}}>
                   Découvrir BSH
                 </button>
-                <button onClick={()=>setPage("vip")}
+                <button onClick={()=>{window.location.href="/bsh/cercle";}}
                   style={{background:"transparent",border:"1px solid rgba(198,161,91,0.5)",borderRadius:2,
                     padding:"11px 22px",color:"#e0c17e",fontSize:12,fontWeight:400,
                     letterSpacing:"0.06em",cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif"}}>
@@ -1509,7 +1515,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
               <p style={{fontSize:13,color:"#cbb9b9",lineHeight:1.75,margin:"0 0 20px"}}>
                 Hello Sweety's 🫦 — un espace confidentiel où l'on peut être curieuse, joueuse ou simplement observer, sans jamais être jugée. Sondages, questions, découvertes en avant-première.
               </p>
-              <button onClick={()=>setPage("vip")}
+              <button onClick={()=>{window.location.href="/bsh/cercle";}}
                 style={{background:"#c6a15b",border:"none",borderRadius:2,padding:"11px 22px",
                   color:"#0b0709",fontSize:12,fontWeight:500,letterSpacing:"0.06em",
                   cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif",width:"100%"}}>
@@ -1530,7 +1536,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
                 INTIMITÉ · ÉLÉGANCE · DÉSIR
               </div>
               <div style={{display:"flex",justifyContent:"center",gap:14,marginTop:14,flexWrap:"wrap"}}>
-                {[{l:"Boutique",p:"boutique"},{l:"Événements",p:"evenements"},{l:"Club VIP",p:"vip"},{l:"FAQ",p:"faq"}].map(l=>(
+                {[{l:"Boutique",p:"boutique"},{l:"Événements",p:"evenements"},{l:"BSH Members",p:"membres"},{l:"FAQ",p:"faq"}].map(l=>(
                   <button key={l.l} onClick={()=>setPage(l.p)}
                     style={{background:"none",border:"none",color:"rgba(203,185,185,0.5)",
                       fontSize:10,cursor:"pointer",letterSpacing:"0.04em",
@@ -1595,7 +1601,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande}) {
         )}
 
         {/* ── CLUB VIP ── */}
-        {page === "vip" && (
+        {page === "membres" && (
           <BSHMembersPage user={user} onBack={()=>setPage("accueil")}/>
         )}
 
@@ -6296,7 +6302,7 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
       </div>
     );
   }
-  if (activeUnivers === "bsh") return <ClientBSH produits={produits} evenements={evenements} onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
+  if (activeUnivers === "bsh") return <ClientBSH produits={produits} evenements={evenements} onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande} user={user}/>;
   if (activeUnivers === "bo")  return <ClientOdyssee user={user} rdvs={mesReservations} onBack={() => setActiveUnivers(null)}/>;
   if (activeUnivers === "bev") return <ClientEvents onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
   if (activeUnivers === "bfd")   return <ClientFood user={user} onBack={() => setActiveUnivers(null)}/>;
@@ -11363,7 +11369,7 @@ export default function BellaiaApp() {
     if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:36}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
       onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/></div></>;
-    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/></div></>;
+    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}} user={user}/></div></>;
     if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:36}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
