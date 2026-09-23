@@ -895,6 +895,16 @@ function BSHMembersPage({ user, onBack }: { user: any; onBack?: () => void }) {
             lu: false,
           }),
         });
+        // Trace de la demande (cahier §10.3) — best-effort, ne bloque
+        // jamais l'adhésion si la migration 0006 n'est pas encore exécutée.
+        fetch(`${sbUrl}/rest/v1/bsh_members_demandes`, {
+          method: "POST", headers: h,
+          body: JSON.stringify({
+            user_id: user.id,
+            confirmation_18: confirme18,
+            charte_acceptee: charteSigned,
+          }),
+        }).catch(() => {});
       } else {
         setErreur("Impossible d'enregistrer votre demande. Réessayez.");
       }
@@ -1096,6 +1106,7 @@ function BSHMembersAdmin({ user }: { user: any }) {
   const [pendings, setPendings]   = React.useState<any[]>([]);
   const [loading, setLoading]     = React.useState(true);
   const [action, setAction]       = React.useState<{id:string;type:"accept"|"refuse"|"founding"|"revoke"}|null>(null);
+  const [noteDraft, setNoteDraft] = React.useState<Record<string,string>>({});
   const [erreur, setErreur]       = React.useState("");
   const [succes, setSucces]       = React.useState("");
   const [onglet, setOnglet]       = React.useState<"pending"|"membres">("pending");
@@ -1141,10 +1152,40 @@ function BSHMembersAdmin({ user }: { user: any }) {
         method: "POST", headers: h,
         body: JSON.stringify({ user_id: userId, type: "bsh_members", titre: "BSH Members", contenu: msg, lu: false }),
       });
+      // Trace de la décision (cahier §10.3/10.4) — résout la demande
+      // en_attente correspondante, best-effort si la migration 0006
+      // n'est pas encore exécutée.
+      if (nouveau === "member" || nouveau === "customer") {
+        fetch(`${sbUrl}/rest/v1/bsh_members_demandes?user_id=eq.${userId}&decision=eq.en_attente`, {
+          method: "PATCH", headers: h,
+          body: JSON.stringify({
+            decision: nouveau === "member" ? "acceptee" : "refusee",
+            decision_le: new Date().toISOString(),
+            decide_par: user.id,
+          }),
+        }).catch(() => {});
+      }
       setSucces(`Statut mis à jour : ${nouveau}`);
       setAction(null);
       charger();
     } catch(e: any) { setErreur(e.message); }
+  };
+
+  // Note interne (cahier §5) — jamais visible côté cliente (pas de
+  // policy SELECT client sur bsh_members_demandes.note_interne).
+  const sauvegarderNote = async (userId: string) => {
+    const note = noteDraft[userId];
+    if (note === undefined) return;
+    try {
+      const tok   = localStorage.getItem("bellaia_token")!;
+      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey, "Content-Type": "application/json", "Prefer": "return=minimal" };
+      await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?user_id=eq.${userId}`, {
+        method: "PATCH", headers: h,
+        body: JSON.stringify({ note_interne: note }),
+      });
+    } catch {}
   };
 
   const renderCard = (p: any, isPending = false) => (
@@ -1194,6 +1235,22 @@ function BSHMembersAdmin({ user }: { user: any }) {
             Désactiver l'accès
           </button>
         )}
+      </div>
+      <div style={{marginTop:8,display:"flex",gap:6}}>
+        <textarea
+          value={noteDraft[p.id] ?? ""}
+          onChange={e=>setNoteDraft(d=>({...d,[p.id]:e.target.value}))}
+          placeholder="Note interne (visible admin uniquement)"
+          rows={1}
+          style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(198,161,91,0.15)",
+            borderRadius:4,padding:"6px 8px",color:"#f1e7e2",fontSize:10,fontFamily:"'Jost',system-ui,sans-serif",
+            outline:"none",resize:"vertical"}}
+        />
+        <button onClick={()=>sauvegarderNote(p.id)}
+          style={{background:"rgba(198,161,91,0.1)",border:"1px solid rgba(198,161,91,0.25)",borderRadius:4,
+            padding:"5px 10px",color:"#c6a15b",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"'Jost',system-ui,sans-serif"}}>
+          Noter
+        </button>
       </div>
     </div>
   );
