@@ -47,3 +47,17 @@ Les tables existantes utilisent trois conventions différentes selon leur date d
 
 -- ... SQL ici ...
 ```
+
+## Journal des correctifs de sécurité
+
+Trace, pour mémoire et pour le cahier des charges (section 10, BSH Members), les failles découvertes en cours de route sur des tables préexistantes — indépendamment de BSH, mais touchant l'ensemble de l'app.
+
+### 2026-09-22/23 — `profiles` : auto-attribution de rôle/statut/membership_status
+
+**Découvert en construisant** Étape 4 (Mon espace BSH) — sous-page Préférences, en vérifiant les policies RLS de `profiles` avant d'y ajouter une écriture cliente.
+
+**Constat** : `select * from pg_policies where tablename = 'profiles'` montre deux policies `UPDATE` (`modifier_son_profil`, `profiles_self_membership`) dont la condition ne porte que sur la **ligne** (`auth.uid() = id`), jamais sur les **colonnes**. Sans `WITH CHECK` explicite, Postgres réutilise la condition `USING` — donc rien n'empêche une cliente authentifiée d'envoyer elle-même une requête `PATCH /profiles?id=eq.<son-id>` avec `{"role":"fondatrice"}` ou `{"membership_status":"founding_member"}`. Ça touche en particulier le parcours BSH Members déjà en place (`demanderAdhesion`), qui compte sur le fait que le code applicatif n'envoie que `member_pending` — rien côté base n'empêche de contourner ce code.
+
+**Statut** : PROPOSITION — correctif dans `supabase/migrations/0003_profiles_verrou_champs_sensibles.sql` (trigger `BEFORE UPDATE` qui verrouille `role`/`statut`/`membership_status`/`age_verifi` pour tout auteur de requête qui n'est pas fondatrice/assistante). Mettre à jour cette ligne en `CORRIGÉ — exécuté le AAAA-MM-JJ` une fois la migration validée.
+
+**Point ouvert séparé** : les 4 policies observées ne montrent aucun accès staff-wide (fondatrice/assistante lisant/modifiant le profil d'une autre cliente) — à vérifier empiriquement si la validation des demandes BSH Members depuis le panneau admin fonctionne réellement aujourd'hui, ou si elle échoue silencieusement (0 ligne affectée) faute de policy adaptée.
