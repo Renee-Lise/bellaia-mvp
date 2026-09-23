@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0003_profiles_verrou_champs_sensibles.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté le 2026-09-23
 -- Auteur : Claude Code · Date de rédaction : 2026-09-23
 -- Objet : corrige une faille de contrôle d'accès sur `profiles` —
 --         n'importe quelle cliente authentifiée peut aujourd'hui
