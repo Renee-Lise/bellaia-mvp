@@ -283,7 +283,7 @@ function BandeauStatut({ statut }: { statut: string | null }) {
         }}
       >
         <span style={{ fontSize: 22 }}>{fondatrice ? "💎" : "✦"}</span>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, fontFamily: BODY }}>
             {fondatrice ? "Membre Fondateur" : "Membre BSH Members"}
           </div>
@@ -293,6 +293,18 @@ function BandeauStatut({ statut }: { statut: string | null }) {
               : "Vous faites partie du programme BSH Members."}
           </div>
         </div>
+        <Link
+          href="/bsh/espace/members"
+          style={{
+            fontSize: 10,
+            color: C.goldL,
+            whiteSpace: "nowrap",
+            textDecoration: "none",
+            letterSpacing: "0.02em",
+          }}
+        >
+          Voir mon espace →
+        </Link>
       </div>
     );
   }
@@ -348,7 +360,7 @@ function BandeauStatut({ statut }: { statut: string | null }) {
         </div>
       </div>
       <Link
-        href="/"
+        href="/bsh/members"
         style={{
           background: C.gold,
           borderRadius: 2,
