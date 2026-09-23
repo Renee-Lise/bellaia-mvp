@@ -1622,7 +1622,11 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
               {produits.map(p => (
                 <BCard key={p.id} accent style={{padding:"11px",cursor:"pointer"}} onClick={() => setModal({type:"prod",p})}>
                   <div style={{position:"relative"}}>
-                    <div style={{fontSize:30,textAlign:"center",padding:"7px 0",background:(BSH.bord)+"18",borderRadius:8,marginBottom:6}}>{p.ico||"🌹"}</div>
+                    {p.image ? (
+                      <img src={p.image} alt={p.name} style={{width:"100%",aspectRatio:"1/1",objectFit:"cover",borderRadius:8,marginBottom:6,display:"block"}}/>
+                    ) : (
+                      <div style={{fontSize:30,textAlign:"center",padding:"7px 0",background:(BSH.bord)+"18",borderRadius:8,marginBottom:6}}>{p.ico||"🌹"}</div>
+                    )}
                     <button onClick={e=>{e.stopPropagation();togFav(p.id);}} style={{position:"absolute",top:2,right:2,background:"none",border:"none",cursor:"pointer",fontSize:13}}>{fav.includes(p.id)?"❤️":"🤍"}</button>
                   </div>
                   {p.isNew && <BTag c={BSH.vert} sz={8}>Nouveau</BTag>}
@@ -1861,7 +1865,11 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
       )}
       {modal?.type === "prod" && (
         <Mdl title={modal.p.name} onClose={() => setModal(null)}>
-          <div style={{textAlign:"center",fontSize:52,marginBottom:10}}>{modal.p.ico}</div>
+          {modal.p.image ? (
+            <img src={modal.p.image} alt={modal.p.name} style={{width:"100%",aspectRatio:"1/1",objectFit:"cover",borderRadius:10,marginBottom:10,display:"block"}}/>
+          ) : (
+            <div style={{textAlign:"center",fontSize:52,marginBottom:10}}>{modal.p.ico}</div>
+          )}
           <p style={{color:B.muted,fontSize:13,textAlign:"center",marginBottom:14,lineHeight:1.6}}>{modal.p.desc}</p>
           <div style={{textAlign:"center",marginBottom:18}}>
             {modal.p.promo ? <><span style={{fontSize:26,fontWeight:700,color:B.gold,fontFamily:FS}}>{modal.p.promo}€</span><span style={{fontSize:14,color:B.muted,textDecoration:"line-through",marginLeft:8}}>{modal.p.prix}€</span></> : <span style={{fontSize:26,fontWeight:700,color:B.gold,fontFamily:FS}}>{modal.p.prix}€</span>}
@@ -10737,6 +10745,30 @@ function StocksF({ user }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
+  const [uploadEnCours, setUploadEnCours] = useState(false);
+
+  // Envoie la photo dans le bucket stocks-images (migration 0007) et
+  // stocke son URL publique dans le formulaire — pas d'écriture en
+  // base tant que "Enregistrer" n'est pas cliqué.
+  const uploaderImage = async (file) => {
+    setUploadEnCours(true);
+    try {
+      const token = await getTokenAsync();
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const chemin = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_")}`;
+      const r = await fetch(`${SB_URL_local}/storage/v1/object/stocks-images/${chemin}`, {
+        method: "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (r.ok) {
+        setForm(f => ({...f, image_url: `${SB_URL_local}/storage/v1/object/public/stocks-images/${chemin}`}));
+      } else {
+        alert("Échec de l'envoi de la photo. Réessayez.");
+      }
+    } catch { alert("Erreur lors de l'envoi de la photo."); }
+    setUploadEnCours(false);
+  };
 
   const UNIVERS_STOCK = ["tous","BSH","EVENTS","ODYSSEE","FOOD","GENERAL"];
 
@@ -10779,6 +10811,7 @@ function StocksF({ user }) {
         composition: form.composition || null,
         usage_conseils: form.usage_conseils || null,
         entretien: form.entretien || null,
+        image_url: form.image_url || null,
       };
       const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
       const token = await getTokenAsync();
@@ -10909,6 +10942,18 @@ function StocksF({ user }) {
             <Fld label="Prix achat €"><Inp type="number" value={form.prix_achat||0} onChange={e=>setForm({...form,prix_achat:parseFloat(e.target.value)||0})}/></Fld>
           </div>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
+          <Fld label="Photo produit">
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              {form.image_url && (
+                <img src={form.image_url} alt="" style={{width:56,height:56,objectFit:"cover",borderRadius:8,border:"1px solid "+(B.border)}}/>
+              )}
+              <label style={{background:"rgba(255,255,255,0.06)",border:"1px solid "+(B.border),borderRadius:8,padding:"8px 12px",color:B.muted,cursor:uploadEnCours?"default":"pointer",fontSize:11,fontFamily:SA}}>
+                {uploadEnCours ? "Envoi…" : form.image_url ? "Changer la photo" : "Ajouter une photo"}
+                <input type="file" accept="image/*" style={{display:"none"}} disabled={uploadEnCours}
+                  onChange={e=>{ const f=e.target.files && e.target.files[0]; if(f) uploaderImage(f); }}/>
+              </label>
+            </div>
+          </Fld>
           {form.univers === "BSH" && (
             <>
               <div style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",margin:"14px 0 6px"}}>Fiche produit BSH (optionnel)</div>
@@ -11362,7 +11407,7 @@ export default function BellaiaApp() {
   const [bshProd, setBshProd] = useBSHSupabase("stocks", "b5:bsh:prod", PRODS_BSH_INIT,
     r => ({
       id: r.id, name: r.nom, cat: r.categorie || "Lingerie",
-      ico: "✨", prix: parseFloat(r.prix_vente) || 0,
+      ico: "✨", image: r.image_url || null, prix: parseFloat(r.prix_vente) || 0,
       achat: parseFloat(r.prix_achat) || 0,
       stock: parseFloat(r.quantite) || 0,
       min: parseFloat(r.quantite_min) || 3,

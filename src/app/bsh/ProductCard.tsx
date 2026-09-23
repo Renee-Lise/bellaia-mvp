@@ -27,6 +27,21 @@ export default function ProductCard({ p }: { p: ProduitBSH }) {
         padding: "12px 13px",
       }}
     >
+      {p.image_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={p.image_url}
+          alt={p.nom}
+          style={{
+            width: "calc(100% + 26px)",
+            margin: "-12px -13px 10px",
+            aspectRatio: "4 / 3",
+            objectFit: "cover",
+            borderRadius: "4px 4px 0 0",
+            display: "block",
+          }}
+        />
+      )}
       {p.categorie && (
         <span
           style={{

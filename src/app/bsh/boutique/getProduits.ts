@@ -20,9 +20,10 @@ export interface ProduitBSH {
   composition: string | null;
   usage_conseils: string | null;
   entretien: string | null;
+  image_url: string | null;
 }
 
-const SELECT = "id,nom,categorie,notes,tailles,composition,usage_conseils,entretien";
+const SELECT = "id,nom,categorie,notes,tailles,composition,usage_conseils,entretien,image_url";
 
 // `categorie` optionnel : par ex. "Coffrets & Expériences" pour la page
 // dédiée. Filtré côté serveur (PostgREST), pas en mémoire après coup.

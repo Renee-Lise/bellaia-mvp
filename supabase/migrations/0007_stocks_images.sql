@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0007_stocks_images.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté le 2026-09-23
 -- Auteur : Claude Code · Date de rédaction : 2026-09-23
 -- Objet : ajoute la possibilité d'attacher une photo à un article de
 --         `stocks` — colonne + bucket Storage + policies. Constaté :
