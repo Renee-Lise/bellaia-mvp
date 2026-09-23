@@ -1113,15 +1113,21 @@ function BSHMembersAdmin({ user }: { user: any }) {
 
   const charger = React.useCallback(async () => {
     setLoading(true);
+    setErreur("");
     try {
       const tok    = localStorage.getItem("bellaia_token")!;
       const sbUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const sbKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
       const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey };
-      const r1 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=eq.member_pending&select=id,prenom,nom,email,telephone,created_at,membership_status&order=created_at.asc`, { headers: h });
+      // `profiles` n'a pas de colonne email (elle vit sur auth.users) —
+      // ne jamais la demander ici, sinon PostgREST renvoie une erreur
+      // et la liste reste silencieusement vide.
+      const r1 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=eq.member_pending&select=id,prenom,nom,telephone,created_at,membership_status&order=created_at.asc`, { headers: h });
       if (r1.ok) setPendings(await r1.json());
-      const r2 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=in.(member,founding_member)&select=id,prenom,nom,email,telephone,created_at,membership_status&order=created_at.desc`, { headers: h });
+      else setErreur("Impossible de charger les demandes en attente.");
+      const r2 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=in.(member,founding_member)&select=id,prenom,nom,telephone,created_at,membership_status&order=created_at.desc`, { headers: h });
       if (r2.ok) setMembres(await r2.json());
+      else setErreur(e => e || "Impossible de charger la liste des membres.");
     } catch(e: any) { setErreur(e.message); }
     finally { setLoading(false); }
   }, []);
