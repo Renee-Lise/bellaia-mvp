@@ -1180,9 +1180,17 @@ function BSHMembersAdmin({ user }: { user: any }) {
       const tok   = localStorage.getItem("bellaia_token")!;
       const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-      const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey, "Content-Type": "application/json", "Prefer": "return=minimal" };
-      await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?user_id=eq.${userId}`, {
-        method: "PATCH", headers: h,
+      const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey, "Content-Type": "application/json" };
+      // Ne cible que la demande la plus récente — une note concerne
+      // le contexte d'une décision précise, pas tout l'historique.
+      const rDerniere = await fetch(
+        `${sbUrl}/rest/v1/bsh_members_demandes?user_id=eq.${userId}&select=id&order=demande_le.desc&limit=1`,
+        { headers: h }
+      );
+      const derniere = rDerniere.ok ? await rDerniere.json() : [];
+      if (!derniere[0]) return;
+      await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?id=eq.${derniere[0].id}`, {
+        method: "PATCH", headers: { ...h, "Prefer": "return=minimal" },
         body: JSON.stringify({ note_interne: note }),
       });
     } catch {}

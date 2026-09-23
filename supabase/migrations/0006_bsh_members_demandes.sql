@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0006_bsh_members_demandes.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté le 2026-09-23
 -- Auteur : Claude Code · Date de rédaction : 2026-09-23
 -- Objet : trace proprement les demandes d'adhésion BSH Members —
 --         cahier des charges §10.3 (date de la demande, confirmation
