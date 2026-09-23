@@ -1,6 +1,12 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0004_profiles_verrou_autorise_demande_adhesion.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: ABSORBÉE PAR LA 0005 — jamais exécutée séparément
+-- La migration 0005 (validée le 2026-09-23) remplace cette même
+-- fonction par une version équivalente qui appelle est_staff_bellaia()
+-- au lieu de dupliquer le contrôle de rôle inline — la logique
+-- corrigée ci-dessous (transition customer→member_pending autorisée)
+-- est donc déjà en place via la 0005. Fichier conservé pour la trace
+-- du diagnostic, ne pas exécuter séparément.
 -- Auteur : Claude Code · Date de rédaction : 2026-09-23
 -- Objet : corrige une régression introduite par la migration 0003 —
 --         le trigger verrouiller_champs_sensibles_profiles bloquait

@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0005_profiles_staff_access_bsh_members.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté le 2026-09-23
 -- Auteur : Claude Code · Date de rédaction : 2026-09-23
 -- Objet : donne à fondatrice/assistante un accès complet aux profils
 --         des AUTRES clientes — confirmé manquant par Renée-Lise

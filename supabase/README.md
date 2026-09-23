@@ -60,4 +60,10 @@ Trace, pour mémoire et pour le cahier des charges (section 10, BSH Members), le
 
 **Statut** : CORRIGÉ — exécuté le 2026-09-23. Correctif dans `supabase/migrations/0003_profiles_verrou_champs_sensibles.sql` (trigger `BEFORE UPDATE` qui verrouille `role`/`statut`/`membership_status`/`age_verifi` pour tout auteur de requête qui n'est pas fondatrice/assistante). Confirmé actif par Renée-Lise (`verrouiller_champs_sensibles_profiles` sur `profiles`, `BEFORE UPDATE`).
 
-**Point ouvert séparé** : les 4 policies observées ne montrent aucun accès staff-wide (fondatrice/assistante lisant/modifiant le profil d'une autre cliente) — à vérifier empiriquement si la validation des demandes BSH Members depuis le panneau admin fonctionne réellement aujourd'hui, ou si elle échoue silencieusement (0 ligne affectée) faute de policy adaptée.
+**Point ouvert séparé — RÉSOLU** : confirmé par Renée-Lise (l'écran admin BSH Members a toujours été vide, même avec de vraies demandes en base) — aucune policy staff-wide n'existait. Corrigé par la migration `0005_profiles_staff_access_bsh_members.sql` (VALIDÉE le 2026-09-23), qui ajoute `profiles_staff_all` (fondatrice/assistante lisent/modifient toutes les lignes) via un helper `est_staff_bellaia()`, réutilisé aussi par le trigger de verrouillage — une seule source de vérité pour "l'auteur de la requête est-il staff".
+
+### 2026-09-23 — `profiles` : lien WhatsApp BSH Members exposé côté client
+
+**Découvert en inspectant l'existant avant l'Étape 5** (BSHMembersPage) : le bouton "Accéder à la communauté BSH Members" lisait `process.env.NEXT_PUBLIC_BSH_MEMBERS_WA_LINK` — exactement la variable interdite par le cahier des charges BSH Members §10.1 (elle finit dans le bundle JS public, accessible indépendamment du statut membre).
+
+**Statut** : CORRIGÉ. Nouvelle route serveur authentifiée `src/app/api/bsh-members/whatsapp-link/route.ts` — vérifie `membership_status` via la clé service-role avant de renvoyer le lien, jamais embarqué dans le bundle. Variable renommée `BSH_MEMBERS_WA_LINK` (sans préfixe `NEXT_PUBLIC_`), documentée dans `README.md`.
