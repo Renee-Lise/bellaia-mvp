@@ -1658,7 +1658,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
                       <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:9}}>
                         <BTag c={BSH.or} sz={9}>📅 {fmt(e.date)}</BTag>
                         <BTag c={BSH.bord} sz={9}>📍 {e.lieu}</BTag>
-                        <BTag c={BSH.rose} sz={9}>🎟 {e.prix}€</BTag>
+                        <BTag c={BSH.rose} sz={9}>🎟 Prix à venir</BTag>
                       </div>
                       <div style={{background:"rgba(255,255,255,.05)",borderRadius:3,height:4,marginBottom:4}}><div style={{background:"linear-gradient(90deg,"+(BSH.bord)+","+(BSH.rose)+")",height:"100%",borderRadius:3,width:(pct)+"%"}}/></div>
                       <div style={{fontSize:10,color:BSH.cremeD}}>{e.dispo} place{e.dispo!==1?"s":""} restante{e.dispo!==1?"s":""}</div>
@@ -1884,7 +1884,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
           <div style={{textAlign:"center",fontSize:40,marginBottom:10}}>{modal.e.ico}</div>
           <p style={{color:B.muted,fontSize:13,textAlign:"center",marginBottom:16,lineHeight:1.6}}>{modal.e.desc}</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:18}}>
-            {[["📅 Date",fmt(modal.e.date)],["📍 Lieu",modal.e.lieu],["🎟 Prix",(modal.e.prix)+"€/pers."],["👥 Places",(modal.e.dispo)+" restante"+(modal.e.dispo!==1?"s":"")]].map(([l,v]) => (
+            {[["📅 Date",fmt(modal.e.date)],["📍 Lieu",modal.e.lieu],["🎟 Prix","Prix à venir"],["👥 Places",(modal.e.dispo)+" restante"+(modal.e.dispo!==1?"s":"")]].map(([l,v]) => (
               <div key={l} style={{background:B.surface,borderRadius:9,padding:"9px 11px",border:"1px solid "+(B.border)}}>
                 <div style={{fontSize:9,color:B.gold,marginBottom:3,fontWeight:700}}>{l}</div>
                 <div style={{fontSize:12,color:B.cream,fontWeight:600}}>{v}</div>
