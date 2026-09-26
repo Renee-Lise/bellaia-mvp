@@ -503,23 +503,14 @@ const PROJETS_INIT = [
   {id:"p12",titre:"Ti-Panier App",pole:"Ti-Panier",priorite:"Basse",statut:"Idée",avancement:5,dateCible:"2027-06-01",revenusEstimes:1000},
   {id:"p13",titre:"Mo Ti-Péyi — Collection 2",pole:"Mo Ti-Péyi",priorite:"Moyenne",statut:"En préparation",avancement:10,dateCible:"2026-12-31",revenusEstimes:2000},
 ];
-const PRODS_BSH_INIT = [
-  {id:"p1",name:"Body Résille Noir",cat:"Résille",prix:22,promo:null,isNew:true,ico:"🖤",desc:"Corps résille grande maille noir. Toutes morphologies XS–6XL+.",stock:12,min:3,achat:9},
-  {id:"p2",name:"Body Résille Rouge",cat:"Résille",prix:22,promo:null,isNew:false,ico:"❤️",desc:"Corps résille rouge passion. Grande maille extensible.",stock:10,min:3,achat:9},
-  {id:"p3",name:"Body Résille Bordeaux",cat:"Résille",prix:24,promo:null,isNew:false,ico:"🍷",desc:"Corps résille bordeaux profond. XS–6XL+.",stock:8,min:3,achat:10},
-  {id:"p4",name:"Body Résille Bleu Nuit",cat:"Résille",prix:24,promo:null,isNew:true,ico:"🌙",desc:"Corps résille bleu nuit mystérieux. XS–6XL+.",stock:8,min:3,achat:10},
-  {id:"p5",name:"Body Transparence Noir",cat:"Transparence",prix:28,promo:null,isNew:false,ico:"🖤",desc:"Body transparent noir mat, voile sensuel et raffiné.",stock:7,min:3,achat:12},
-  {id:"p6",name:"Body Transparence Nude",cat:"Transparence",prix:29,promo:22,isNew:false,ico:"🌸",desc:"Effet seconde peau exceptionnel. Toutes carnations.",stock:6,min:3,achat:12},
-  {id:"p7",name:"Body Transparence Bordeaux",cat:"Transparence",prix:29,promo:null,isNew:false,ico:"🍷",desc:"Voile bordeaux sophistiqué. Pièce signature BSH.",stock:5,min:3,achat:12},
-  {id:"p8",name:"Porte-Jarretelles Noir",cat:"Glamour",prix:25,promo:null,isNew:false,ico:"👠",desc:"Glamour classique. Fixations dorées. Toutes tailles.",stock:9,min:3,achat:10},
-  {id:"p9",name:"Porte-Jarretelles Rouge",cat:"Glamour",prix:25,promo:null,isNew:false,ico:"🔴",desc:"Rouge passion. Fixations dorées premium.",stock:7,min:3,achat:10},
-  {id:"p10",name:"Ensemble Dentelle Bleu Nuit",cat:"Premium",prix:45,promo:null,isNew:true,ico:"💎",desc:"2 pièces dentelle guipure bleu nuit. Finitions fil d'or.",stock:5,min:2,achat:20},
-  {id:"p11",name:"Oeufs de Kegel Trio",cat:"Bien-être",prix:45,promo:null,isNew:false,ico:"🌹",desc:"Set 3 tailles. Silicone médical. Rééducation périnéale.",stock:6,min:2,achat:18},
-  {id:"p12",name:"Masque Strass Boudoir",cat:"Boudoir",prix:29,promo:null,isNew:false,ico:"🎭",desc:"Strass cristal. Accessoire boudoir luxe.",stock:8,min:3,achat:11},
-  {id:"p13",name:"Coffret Nuit de Velours",cat:"Coffrets",prix:79,promo:null,isNew:false,ico:"🎁",desc:"Lingerie + bougie massage + huile + carte personnalisée.",stock:8,min:3,achat:35},
-  {id:"p14",name:"Coffret Lune de Miel",cat:"Mariage",prix:129,promo:null,isNew:false,ico:"💍",desc:"Collection mariage & nuit de noces premium.",stock:4,min:2,achat:55},
-  {id:"p15",name:"Coffret Secret Couple",cat:"Coffrets",prix:89,promo:null,isNew:false,ico:"💑",desc:"Accessoires + bougie + huile + surprise couple.",stock:6,min:2,achat:40},
-];
+// Vide volontairement : sert de secours à useBSHSupabase quand la
+// vraie table `stocks` (univers=BSH) est injoignable ou vide. Contenait
+// avant une liste de démo avec des prix inventés (22€, 45€, 79€...) —
+// affichés comme s'ils étaient réels, en violation directe de la
+// règle "Prix à venir partout". Un secours vide + l'état vide ajouté
+// dans l'onglet Boutique ("La boutique se prépare") remplace ça
+// proprement, sans jamais inventer de contenu.
+const PRODS_BSH_INIT: any[] = [];
 const EVTS_BSH_INIT = [
   {id:"e1",ico:"✨",nom:"Soirée Découverte",date:"2026-07-15",lieu:ENV.VILLE,cap:20,dispo:7,prix:25,desc:"2h30 d'univers BSH en petit comité."},
   {id:"e2",ico:"🌹",nom:"Secret Singles Femme",date:"2026-07-22",lieu:"Kourou",cap:15,dispo:3,prix:35,desc:"Soirée privée pour célibataires."},
@@ -1624,6 +1615,11 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
         {page === "boutique" && (
           <div style={{display:"flex",flexDirection:"column",gap:11}}>
             <h2 style={{fontFamily:FS,fontSize:18,color:BSH.or,margin:0}}>Boutique</h2>
+            {produits.length === 0 ? (
+              <div style={{textAlign:"center",padding:"40px 16px",color:"rgba(203,185,185,0.5)"}}>
+                <p style={{fontSize:13,lineHeight:1.7,margin:0}}>La boutique se prépare — les premiers articles arrivent bientôt.</p>
+              </div>
+            ) : (
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {produits.map(p => (
                 <BCard key={p.id} accent style={{padding:"11px",cursor:"pointer"}} onClick={() => setModal({type:"prod",p})}>
@@ -1644,6 +1640,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
                 </BCard>
               ))}
             </div>
+            )}
           </div>
         )}
 
