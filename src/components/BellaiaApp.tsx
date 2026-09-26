@@ -1633,9 +1633,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
                   </div>
                   {p.isNew && <BTag c={BSH.vert} sz={8}>Nouveau</BTag>}
                   <div style={{fontFamily:FS,fontSize:11,fontWeight:600,color:BSH.creme,margin:"4px 0 3px",lineHeight:1.3}}>{p.name}</div>
-                  <div style={{marginBottom:7}}>
-                    {p.promo ? <><span style={{fontSize:14,fontWeight:700,color:BSH.or,fontFamily:FS}}>{p.promo}€</span><span style={{fontSize:10,color:BSH.cremeD,textDecoration:"line-through",marginLeft:4}}>{p.prix}€</span></> : <span style={{fontSize:14,fontWeight:700,color:BSH.or,fontFamily:FS}}>{p.prix}€</span>}
-                  </div>
+                  <div style={{marginBottom:7,fontSize:10,color:"rgba(198,161,91,0.6)",fontStyle:"italic"}}>Prix à venir</div>
                   <BBtn v="bord" sz="sm" full onClick={e=>{e.stopPropagation();addCart(p);}}>+ Panier</BBtn>
                 </BCard>
               ))}
@@ -1874,9 +1872,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
             <div style={{textAlign:"center",fontSize:52,marginBottom:10}}>{modal.p.ico}</div>
           )}
           <p style={{color:B.muted,fontSize:13,textAlign:"center",marginBottom:14,lineHeight:1.6}}>{modal.p.desc}</p>
-          <div style={{textAlign:"center",marginBottom:18}}>
-            {modal.p.promo ? <><span style={{fontSize:26,fontWeight:700,color:B.gold,fontFamily:FS}}>{modal.p.promo}€</span><span style={{fontSize:14,color:B.muted,textDecoration:"line-through",marginLeft:8}}>{modal.p.prix}€</span></> : <span style={{fontSize:26,fontWeight:700,color:B.gold,fontFamily:FS}}>{modal.p.prix}€</span>}
-          </div>
+          <div style={{textAlign:"center",marginBottom:18,fontSize:13,color:B.gold,fontStyle:"italic"}}>Prix à venir</div>
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <Btn v="gold" full onClick={() => {addCart(modal.p); setModal(null);}}>🛒 Ajouter au panier</Btn>
             <Btn v="ghost" full onClick={() => { addCart(modal.p); setModal(null); }}>✉️ Envoyer la commande</Btn>
