@@ -1102,11 +1102,26 @@ function BSHMembersAdmin({ user }: { user: any }) {
   const [succes, setSucces]       = React.useState("");
   const [onglet, setOnglet]       = React.useState<"pending"|"membres">("pending");
 
+  // Décrit l'échec réel d'une requête Supabase (statut HTTP + message
+  // PostgREST) au lieu d'un texte générique — un 401 (token expiré),
+  // un 403 (RLS/policy) et un 400 (colonne/filtre invalide) n'ont pas
+  // la même cause ni le même correctif, et le distinguer d'un coup
+  // d'œil évite de deviner.
+  const decrireErreur = async (r: Response, contexte: string) => {
+    let detail = "";
+    try {
+      const d = await r.json();
+      detail = d?.message || d?.hint || d?.details || (typeof d === "string" ? d : JSON.stringify(d));
+    } catch {}
+    return `${contexte} : échec HTTP ${r.status}${detail ? " — " + detail : ""}`;
+  };
+
   const charger = React.useCallback(async () => {
     setLoading(true);
     setErreur("");
     try {
-      const tok    = localStorage.getItem("bellaia_token")!;
+      const tok    = localStorage.getItem("bellaia_token");
+      if (!tok) { setErreur("Session expirée — reconnectez-vous."); return; }
       const sbUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const sbKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
       const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey };
@@ -1115,11 +1130,13 @@ function BSHMembersAdmin({ user }: { user: any }) {
       // et la liste reste silencieusement vide. L'e-mail est résolu
       // séparément via la route serveur /api/bsh-members/emails.
       const r1 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=eq.member_pending&select=id,prenom,nom,telephone,created_at,membership_status&order=created_at.asc`, { headers: h });
-      const pendingsData: any[] = r1.ok ? await r1.json() : [];
-      if (!r1.ok) setErreur("Impossible de charger les demandes en attente.");
+      let pendingsData: any[] = [];
+      if (r1.ok) pendingsData = await r1.json();
+      else setErreur(await decrireErreur(r1, "Demandes en attente"));
       const r2 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=in.(member,founding_member)&select=id,prenom,nom,telephone,created_at,membership_status&order=created_at.desc`, { headers: h });
-      const membresData: any[] = r2.ok ? await r2.json() : [];
-      if (!r2.ok) setErreur(e => e || "Impossible de charger la liste des membres.");
+      let membresData: any[] = [];
+      if (r2.ok) membresData = await r2.json();
+      else { const msg = await decrireErreur(r2, "Liste des membres"); setErreur(e => e || msg); }
 
       // `created_at` (profiles) est la date de CRÉATION DU COMPTE, pas
       // celle de la demande d'adhésion — un compte ancien qui demande
@@ -1128,7 +1145,9 @@ function BSHMembersAdmin({ user }: { user: any }) {
       // bsh_members_demandes.demande_le (une ligne par demande) —
       // on prend la plus récente par personne.
       const r3 = await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?select=user_id,demande_le,decision,decision_le&order=demande_le.desc`, { headers: h });
-      const demandes: any[] = r3.ok ? await r3.json() : [];
+      let demandes: any[] = [];
+      if (r3.ok) demandes = await r3.json();
+      else { const msg = await decrireErreur(r3, "Dates des demandes"); setErreur(e => e || msg); }
       const derniereParUser = new Map<string, any>();
       for (const d of demandes) if (!derniereParUser.has(d.user_id)) derniereParUser.set(d.user_id, d);
 
@@ -1158,8 +1177,10 @@ function BSHMembersAdmin({ user }: { user: any }) {
             const { emails } = await rEmails.json();
             setPendings(ps => ps.map(p => ({ ...p, email: emails[p.id] })));
             setMembres(ms => ms.map(p => ({ ...p, email: emails[p.id] })));
+          } else {
+            console.error("[BSHMembersAdmin] /api/bsh-members/emails a échoué :", rEmails.status, await rEmails.text().catch(() => ""));
           }
-        } catch {}
+        } catch (e) { console.error("[BSHMembersAdmin] /api/bsh-members/emails inaccessible :", e); }
       }
     } catch(e: any) { setErreur(e.message); }
     finally { setLoading(false); }
