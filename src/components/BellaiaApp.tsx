@@ -3181,6 +3181,53 @@ function PlaceholderUnivers({univers, onBack}) {
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
+// ── Garde-fou mode aperçu ────────────────────────────────────
+// Le mode aperçu utilisateur (fondatrice) réutilise la vraie session
+// et le vrai profil de la fondatrice — voir ClientBSH/BSHMembersPage
+// etc. Plutôt que d'ajouter une vérification dans chaque bouton
+// d'écriture du fichier (trop de points, trop facile d'en oublier
+// un), on intercepte au seul endroit où l'aperçu démarre/s'arrête
+// (BellaiaApp, effet sur `preview`) : toute écriture (POST/PATCH/
+// PUT/DELETE) vers l'API REST/Storage Supabase, ET vers les routes
+// internes /api/... du site (paiements Stripe/PayPal/SumUp,
+// journal IA, proxy Supabase générique...), est bloquée pendant
+// l'aperçu. Deux exceptions explicites, jamais bloquées quel que
+// soit le mode HTTP : l'authentification (/api/auth/..., et
+// /auth/v1/... côté Supabase pour le refresh de session — sinon
+// l'aperçu déconnecterait la fondatrice) et le chat Bellaïa
+// (/api/chat), qui ne doit jamais casser.
+let apercuEcrituresBloquees = false;
+let fetchAvantApercu: typeof fetch | null = null;
+const APERCU_API_EXCEPTIONS = ["/api/auth/login", "/api/auth/logout", "/api/auth/signup", "/api/chat"];
+
+function setApercuActif(actif: boolean) {
+  apercuEcrituresBloquees = actif;
+  if (typeof window === "undefined") return;
+  if (actif && !fetchAvantApercu) {
+    fetchAvantApercu = window.fetch.bind(window);
+    window.fetch = (input: any, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input?.url || String(input);
+      const methode = (init?.method || input?.method || "GET").toUpperCase();
+      const estEcriture = methode !== "GET" && methode !== "HEAD";
+      let chemin = url;
+      try { chemin = new URL(url, window.location.origin).pathname; } catch {}
+      const estDonneesSupabase = !!SB_URL && url.startsWith(SB_URL) && (url.includes("/rest/v1/") || url.includes("/storage/v1/"));
+      const estApiInterne = chemin.startsWith("/api/") && !APERCU_API_EXCEPTIONS.includes(chemin);
+      if (apercuEcrituresBloquees && estEcriture && (estDonneesSupabase || estApiInterne)) {
+        alert("Action désactivée en mode aperçu.");
+        return Promise.resolve(new Response(JSON.stringify({ error: "Action désactivée en mode aperçu" }), {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return fetchAvantApercu!(input, init);
+    };
+  } else if (!actif && fetchAvantApercu) {
+    window.fetch = fetchAvantApercu;
+    fetchAvantApercu = null;
+  }
+}
+
 // ── Gestion de session Supabase ─────────────────────────────
 // Clés localStorage
 const LS_TOKEN   = "bellaia_token";
@@ -11180,7 +11227,7 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
       <div style={{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:"10px 13px",display:"flex",gap:10,alignItems:"flex-start"}}>
         <span style={{fontSize:16,flexShrink:0}}>ℹ️</span>
         <div style={{fontSize:11,color:B.muted,lineHeight:1.6}}>
-          Le mode aperçu vous permet de visualiser exactement ce que voient vos utilisateurs. Vos données réelles ne sont pas modifiées. Vous retournez au Dashboard en appuyant sur <strong style={{color:B.gold}}>← Retour fondatrice</strong> dans l'aperçu.
+          Le mode aperçu vous permet de visualiser exactement ce que voient vos utilisateurs. Les écritures (commandes, demandes, statuts…) sont désactivées pendant l'aperçu — seule la lecture est possible. Vous retournez au Dashboard en appuyant sur <strong style={{color:B.gold}}>← Retour fondatrice</strong> dans l'aperçu.
         </div>
       </div>
 
@@ -11251,8 +11298,8 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
             <div style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:10,padding:"10px 13px",marginBottom:16}}>
               <div style={{fontSize:10,color:B.gold,fontWeight:700,marginBottom:4}}>Rappels mode aperçu</div>
               <div style={{fontSize:10,color:B.muted,lineHeight:1.7}}>
-                ✅ Aucune donnée réelle ne sera modifiée<br/>
-                ✅ Les commandes passées en aperçu sont simulées<br/>
+                ✅ Aucune écriture réelle pendant l'aperçu (commandes, demandes, statuts…)<br/>
+                ✅ Toute tentative affiche "Action désactivée en mode aperçu"<br/>
                 ✅ Retour Dashboard via ← Retour fondatrice<br/>
                 {contextActif.id==="cliente_bsh"&&"✅ Le contrôle +18 s'affichera comme pour une vraie cliente"}
               </div>
@@ -11446,6 +11493,13 @@ export default function BellaiaApp() {
   const [preview, setPreview] = useState(null);
   const [activeUnivers, setActiveUnivers] = useState(null);
   const [hydrated, setHydrated] = useState(false);
+
+  // Bloque les écritures Supabase (REST + Storage) tant que l'aperçu
+  // utilisateur est actif — jamais l'auth (voir setApercuActif).
+  useEffect(() => {
+    setApercuActif(!!preview);
+    return () => setApercuActif(false);
+  }, [preview]);
 
   // BSH — Supabase avec fallback localStorage
   const [bshProd, setBshProd] = useBSHSupabase("stocks", "b5:bsh:prod", PRODS_BSH_INIT,
