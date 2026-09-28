@@ -129,15 +129,27 @@ create policy reservations_update_staff on public.reservations_experiences
 
 -- ═══════════════════════════════════════════════════════════
 -- Vérification après exécution :
+--   select to_regclass('public.favoris') as favoris,
+--          to_regclass('public.panier_items') as panier_items,
+--          to_regclass('public.reservations_experiences') as reservations_experiences;
+--   → attendu : les 3 colonnes non nulles (les tables existent).
+--   Constaté le 2026-09-28 : favoris n'existait pas du tout
+--   (`ERROR 42P01: relation "public.favoris" does not exist"), donc
+--   ni ses policies ni celles des deux autres tables n'avaient pu
+--   être créées — un simple count(*) sur pg_policies ne pouvait pas
+--   le révéler (0 ligne dans les deux cas, table sans policy ou table
+--   absente). État de panier_items/reservations_experiences à
+--   vérifier avec la même requête ; ne pas supposer qu'elles existent
+--   sous prétexte que favoris n'existe pas, ni l'inverse.
+--
 --   select tablename, count(*) from pg_policies
 --   where schemaname = 'public'
 --     and tablename in ('favoris','panier_items','reservations_experiences')
 --   group by tablename;
 --   → attendu : favoris = 3, panier_items = 4,
---     reservations_experiences = 4. Toute autre valeur (notamment 0,
---     RLS actif + aucune policy = refus total) signifie que les
---     policies n'ont pas été créées malgré un "Success" affiché —
---     voir la migration 0009, écrite précisément pour ce cas.
+--     reservations_experiences = 4.
+--   Corrigé par la migration 0009 (recrée les tables si besoin avec
+--   `create table if not exists`, sans danger si elles existent déjà).
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════

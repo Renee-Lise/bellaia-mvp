@@ -1,59 +1,54 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0009_favoris_panier_reservations_policies_manquantes.sql
 -- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
--- Auteur : Claude Code · Date de rédaction : 2026-09-28
--- Objet : même trou que bsh_members_demandes (migration 0008),
---         trouvé par l'audit demandé — RLS actif mais AUCUNE policy
---         sur favoris, panier_items, reservations_experiences,
---         alors que la migration 0001 (VALIDÉE le 2026-09-20) est
---         censée les avoir créées. Concrètement : ces trois tables
---         refusaient TOUTE requête, y compris les propres
---         lectures/écritures des clientes, depuis leur création —
---         "Mon espace BSH" (favoris, panier, réservations) n'a
---         jamais pu fonctionner contre la vraie base. Cohérent avec
---         "ces pages n'ont été testées qu'en local sans vraie base."
--- Cause probable : identique à 0006/0008 — seule la partie CREATE
---   TABLE + ENABLE ROW LEVEL SECURITY du fichier 0001 a été
---   effectivement exécutée à l'époque, pas les CREATE POLICY.
--- Deuxième trou trouvé en vérifiant pourquoi la restauration des
---   policies suffirait à rendre ces pages fonctionnelles : AUCUN des
---   trois inserts client (FavoriToggle.tsx, PanierButton.tsx,
---   ReservationsClient.tsx) n'envoie user_id dans le corps de la
---   requête — ils comptent sur un défaut auto-rempli qui n'a jamais
---   été créé. Sans lui, même une fois les policies restaurées,
---   chaque insertion échouerait avec une violation NOT NULL sur
---   user_id (aucune ligne n'existe dans ces 3 tables à ce jour, donc
---   aucune donnée existante n'est concernée par ce constat). Ajouté
---   ici : `default auth.uid()` sur user_id des 3 tables — le
---   standard Supabase pour ce cas, pas de changement côté app requis.
--- Durcissement (comme 0008 pour bsh_members_demandes) :
---   reservations_insert_own exige maintenant en plus
---   statut = 'demande_recue' — une cliente ne peut pas forger un
---   statut avancé (validee/confirmee/realisee...) à la création,
---   seule la fondatrice/assistante (reservations_update_staff) fait
---   avancer le statut. N'affecte pas ReservationsClient.tsx, qui
---   n'envoie jamais `statut` (repose déjà sur le défaut
---   'demande_recue'). Pas de champ équivalent sensible sur
---   favoris/panier_items (quantite est normalement modifiable par la
---   cliente) — rien d'ajouté là.
+-- Auteur : Claude Code · Date de rédaction : 2026-09-28 (révisée)
+-- Objet : recrée entièrement favoris, panier_items,
+--         reservations_experiences (tables + RLS + policies) —
+--         révisé après l'échec de la première version de ce fichier :
+--         `alter table public.favoris ...` a renvoyé
+--         `ERROR 42P01: relation "public.favoris" does not exist`.
+--         La première version supposait, à tort, que seules les
+--         policies manquaient (vrai pour bsh_members_demandes/0008,
+--         confirmé par un SELECT direct qui avait renvoyé "0 ligne" —
+--         preuve que la table existait). Pour ces trois tables-ci,
+--         l'audit précédent (`select count(*) from pg_policies...`)
+--         renvoyait aussi 0, mais ce chiffre ne permet PAS de
+--         distinguer "table sans policy" de "table inexistante" —
+--         pg_policies ne renvoie jamais d'erreur, juste 0 ligne dans
+--         les deux cas. Cette fois vérifié directement avec
+--         to_regclass('public.favoris') (voir vérification en bas) :
+--         la migration 0001 (VALIDÉE le 2026-09-20) n'a, semble-t-il,
+--         jamais exécuté ses CREATE TABLE pour ces trois tables — pas
+--         seulement leurs policies.
 -- Impact : additive uniquement.
---   - `alter column ... set default` ne touche aucune ligne
---     existante et n'en crée aucune (ces tables sont vides — 0 ligne
---     à ce jour, confirmé par l'audit RLS qui a motivé cette
---     migration).
---   - `drop policy if exists` avant chaque `create policy`, script
---     rejouable sans erreur si une policy existe déjà partiellement.
---   - Aucune table/colonne supprimée, aucun type modifié.
+--   - `create table if not exists` : ne touche rien si la table
+--     existe déjà (peu importe lequel des deux scénarios s'est
+--     produit table par table, ce script fonctionne dans les deux cas
+--     sans avoir à le savoir à l'avance).
+--   - `alter column ... set default` et `enable row level security` :
+--     sans effet si déjà en place, s'appliquent sinon.
+--   - `drop policy if exists` avant chaque `create policy` : rejouable
+--     sans erreur.
+--   - Aucune table/colonne/ligne existante supprimée ou modifiée.
+-- Durcissement (comme 0008 pour bsh_members_demandes) :
+--   reservations_insert_own exige statut = 'demande_recue' en plus de
+--   auth.uid() = user_id — une cliente ne peut pas forger un statut
+--   avancé à la création. N'affecte pas ReservationsClient.tsx, qui
+--   n'envoie jamais ce champ.
 -- ═══════════════════════════════════════════════════════════
 
--- ── 1. Défaut auto-rempli sur user_id — sans lui, les inserts
---       actuels du client (qui n'envoient jamais user_id) échouent
---       en NOT NULL même une fois les policies restaurées.
-alter table public.favoris                 alter column user_id set default auth.uid();
-alter table public.panier_items            alter column user_id set default auth.uid();
-alter table public.reservations_experiences alter column user_id set default auth.uid();
+-- ── 1. Favoris ───────────────────────────────────────────────
+create table if not exists public.favoris (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  stock_id    uuid not null references public.stocks(id) on delete cascade,
+  univers     text not null default 'bsh',
+  created_at  timestamptz not null default now(),
+  unique (user_id, stock_id)
+);
+alter table public.favoris alter column user_id set default auth.uid();
+alter table public.favoris enable row level security;
 
--- ── 2. Favoris ───────────────────────────────────────────────
 drop policy if exists favoris_select_own on public.favoris;
 create policy favoris_select_own on public.favoris
   for select using (auth.uid() = user_id);
@@ -64,7 +59,20 @@ drop policy if exists favoris_delete_own on public.favoris;
 create policy favoris_delete_own on public.favoris
   for delete using (auth.uid() = user_id);
 
--- ── 3. Panier ────────────────────────────────────────────────
+-- ── 2. Panier ────────────────────────────────────────────────
+create table if not exists public.panier_items (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  stock_id    uuid not null references public.stocks(id) on delete cascade,
+  quantite    integer not null default 1 check (quantite > 0),
+  univers     text not null default 'bsh',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique (user_id, stock_id)
+);
+alter table public.panier_items alter column user_id set default auth.uid();
+alter table public.panier_items enable row level security;
+
 drop policy if exists panier_select_own on public.panier_items;
 create policy panier_select_own on public.panier_items
   for select using (auth.uid() = user_id);
@@ -78,7 +86,26 @@ drop policy if exists panier_delete_own on public.panier_items;
 create policy panier_delete_own on public.panier_items
   for delete using (auth.uid() = user_id);
 
--- ── 4. Réservations & expériences ───────────────────────────
+-- ── 3. Réservations & expériences ───────────────────────────
+create table if not exists public.reservations_experiences (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  stock_id        uuid references public.stocks(id) on delete set null,
+  titre           text not null,
+  date_souhaitee  date,
+  statut          text not null default 'demande_recue'
+                    check (statut in (
+                      'demande_recue', 'validee', 'acompte_recu',
+                      'confirmee', 'realisee', 'annulee'
+                    )),
+  univers         text not null default 'bsh',
+  notes           text,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+alter table public.reservations_experiences alter column user_id set default auth.uid();
+alter table public.reservations_experiences enable row level security;
+
 drop policy if exists reservations_select_own on public.reservations_experiences;
 create policy reservations_select_own on public.reservations_experiences
   for select using (auth.uid() = user_id);
@@ -107,23 +134,28 @@ create policy reservations_update_staff on public.reservations_experiences
 
 -- ═══════════════════════════════════════════════════════════
 -- Vérification après exécution :
+--   select to_regclass('public.favoris') as favoris,
+--          to_regclass('public.panier_items') as panier_items,
+--          to_regclass('public.reservations_experiences') as reservations_experiences;
+--   → attendu : les 3 colonnes non nulles (les tables existent).
+--
 --   select tablename, count(*) from pg_policies
 --   where schemaname = 'public'
 --     and tablename in ('favoris','panier_items','reservations_experiences')
 --   group by tablename;
 --   → attendu : favoris = 3, panier_items = 4,
---     reservations_experiences = 4 (réutilise la requête d'audit déjà
---     donnée, qui doit maintenant afficher ✅ OK pour les trois).
+--     reservations_experiences = 4.
 --
---   select column_default from information_schema.columns
+--   select table_name, column_default from information_schema.columns
 --   where table_schema='public' and column_name='user_id'
 --     and table_name in ('favoris','panier_items','reservations_experiences');
---   → attendu : 'auth.uid()' sur les 3 lignes (pas null).
+--   → attendu : 'auth.uid()' sur les 3 lignes.
 --
 --   Test fonctionnel ensuite avec un compte test réel : ajouter un
 --   favori, ajouter un article au panier, envoyer une réservation —
---   chacun doit réussir sans erreur 23502 (NOT NULL) ni 42501 (RLS).
---   Voir le scénario de test détaillé donné séparément.
+--   chacun doit réussir sans erreur 23502 (NOT NULL), 42501 (RLS) ni
+--   42P01 (table introuvable). Voir le scénario de test détaillé
+--   donné séparément.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════
