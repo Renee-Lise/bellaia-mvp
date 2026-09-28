@@ -527,7 +527,7 @@ const FAQ_BSH = [
   ["Livrez-vous en Guyane ?","Oui — et aux Antilles et en France métropolitaine."],
   ["Modes de paiement ?","CB, Espèces, PayPal, Revolut, SumUp, Stripe."],
   ["Puis-je venir seule à un événement ?","Oui, absolument. La plupart viennent seules."],
-  ["Comment devenir VIP ?","Par fidélité, participation aux événements ou recommandation."],
+  ["Comment devenir BSH Members ?","Faites votre demande depuis l'espace BSH Members. La fondatrice examine chaque demande individuellement."],
 ];
 const VIP_LEVELS = [
   {level:"Bronze",prix:"Gratuit",color:"#8B6030",avs:["Accès nouveautés en avant-première","Informations privées","Précommandes"]},
@@ -1112,13 +1112,55 @@ function BSHMembersAdmin({ user }: { user: any }) {
       const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey };
       // `profiles` n'a pas de colonne email (elle vit sur auth.users) —
       // ne jamais la demander ici, sinon PostgREST renvoie une erreur
-      // et la liste reste silencieusement vide.
+      // et la liste reste silencieusement vide. L'e-mail est résolu
+      // séparément via la route serveur /api/bsh-members/emails.
       const r1 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=eq.member_pending&select=id,prenom,nom,telephone,created_at,membership_status&order=created_at.asc`, { headers: h });
-      if (r1.ok) setPendings(await r1.json());
-      else setErreur("Impossible de charger les demandes en attente.");
+      const pendingsData: any[] = r1.ok ? await r1.json() : [];
+      if (!r1.ok) setErreur("Impossible de charger les demandes en attente.");
       const r2 = await fetch(`${sbUrl}/rest/v1/profiles?membership_status=in.(member,founding_member)&select=id,prenom,nom,telephone,created_at,membership_status&order=created_at.desc`, { headers: h });
-      if (r2.ok) setMembres(await r2.json());
-      else setErreur(e => e || "Impossible de charger la liste des membres.");
+      const membresData: any[] = r2.ok ? await r2.json() : [];
+      if (!r2.ok) setErreur(e => e || "Impossible de charger la liste des membres.");
+
+      // `created_at` (profiles) est la date de CRÉATION DU COMPTE, pas
+      // celle de la demande d'adhésion — un compte ancien qui demande
+      // à rejoindre BSH Members aujourd'hui afficherait sa date de
+      // compte, pas la date de sa demande. La vraie date vient de
+      // bsh_members_demandes.demande_le (une ligne par demande) —
+      // on prend la plus récente par personne.
+      const r3 = await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?select=user_id,demande_le,decision,decision_le&order=demande_le.desc`, { headers: h });
+      const demandes: any[] = r3.ok ? await r3.json() : [];
+      const derniereParUser = new Map<string, any>();
+      for (const d of demandes) if (!derniereParUser.has(d.user_id)) derniereParUser.set(d.user_id, d);
+
+      const enrichir = (p: any, isPending: boolean) => {
+        const d = derniereParUser.get(p.id);
+        return {
+          ...p,
+          demande_le: isPending ? (d?.demande_le || p.created_at) : p.created_at,
+          decision_le: !isPending ? (d?.decision_le || null) : null,
+        };
+      };
+      const pendingsEnrichies = pendingsData.map(p => enrichir(p, true));
+      const membresEnrichis = membresData.map(p => enrichir(p, false));
+      setPendings(pendingsEnrichies);
+      setMembres(membresEnrichis);
+
+      // E-mails — best-effort, jamais bloquant si la route échoue.
+      const tousIds = [...pendingsEnrichies, ...membresEnrichis].map(p => p.id);
+      if (tousIds.length > 0) {
+        try {
+          const rEmails = await fetch(`/api/bsh-members/emails`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
+            body: JSON.stringify({ ids: tousIds }),
+          });
+          if (rEmails.ok) {
+            const { emails } = await rEmails.json();
+            setPendings(ps => ps.map(p => ({ ...p, email: emails[p.id] })));
+            setMembres(ms => ms.map(p => ({ ...p, email: emails[p.id] })));
+          }
+        } catch {}
+      }
     } catch(e: any) { setErreur(e.message); }
     finally { setLoading(false); }
   }, []);
@@ -1201,8 +1243,11 @@ function BSHMembersAdmin({ user }: { user: any }) {
           <div style={{fontSize:13,fontWeight:700,color:"#f1e7e2"}}>{[p.prenom,p.nom].filter(Boolean).join(" ")||"—"}</div>
           <div style={{fontSize:10,color:"rgba(203,185,185,0.6)",marginTop:1}}>{p.email||"—"}</div>
           <div style={{fontSize:9,color:"rgba(198,161,91,0.5)",marginTop:1}}>
-            {isPending ? "Demande le " : "Membre depuis le "}
-            {p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR") : "—"}
+            {isPending
+              ? "Demande le " + (p.demande_le ? new Date(p.demande_le).toLocaleDateString("fr-FR") : "—")
+              : p.decision_le
+                ? "Accepté(e) le " + new Date(p.decision_le).toLocaleDateString("fr-FR")
+                : "Membre depuis le " + (p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR") : "—")}
           </div>
         </div>
         <span style={{background: p.membership_status==="founding_member"?"rgba(198,161,91,0.2)":"rgba(110,231,160,0.15)",
@@ -5600,7 +5645,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {[
               {ico:"🛍",l:"Boutique",   sub:"Produits & commandes", dest:"stock"},
-              {ico:"💎",l:"Espace VIP", sub:"Clientes fidèles",     dest:"crm"},
+              {ico:"💎",l:"Clientes",   sub:"Fidélité & suivi",     dest:"crm"},
               {ico:"📅",l:"Événements", sub:"Sessions privées",      dest:"evts"},
               {ico:"❓",l:"FAQ",         sub:"Questions fréquentes",  dest:"params"},
             ].map(c=>(
