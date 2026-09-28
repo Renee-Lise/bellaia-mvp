@@ -67,6 +67,13 @@ create policy "stocks_images_suppression_staff" on storage.objects
   using (bucket_id = 'stocks-images' and public.est_staff_bellaia());
 
 -- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution :
+--   select count(*) from pg_policies
+--   where schemaname='storage' and tablename='objects'
+--     and policyname like 'stocks_images_%';
+--   → attendu : 4. Confirmé le 2026-09-28 (audit RLS complet suite à
+--   l'incident bsh_members_demandes/0006) : cette migration-ci, elle,
+--   a bien été exécutée en entier — les 4 policies existent.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════

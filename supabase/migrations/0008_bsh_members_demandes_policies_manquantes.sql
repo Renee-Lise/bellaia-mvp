@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0008_bsh_members_demandes_policies_manquantes.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-09-28
 -- Auteur : Claude Code · Date de rédaction : 2026-09-28
 -- Objet : recrée les 3 policies RLS de bsh_members_demandes, absentes
 --         en base malgré la migration 0006 marquée VALIDÉE.
@@ -63,12 +63,17 @@ create policy demandes_staff_all on public.bsh_members_demandes
   with check (public.est_staff_bellaia());
 
 -- ═══════════════════════════════════════════════════════════
--- Vérification suggérée après exécution :
+-- Vérification après exécution :
 --   select policyname, cmd, qual, with_check
 --   from pg_policies
 --   where schemaname = 'public' and tablename = 'bsh_members_demandes';
---   → doit renvoyer les 3 lignes ci-dessus (demandes_select_own,
+--   → attendu : les 3 lignes ci-dessus (demandes_select_own,
 --     demandes_insert_own, demandes_staff_all).
+--   CONFIRMÉ le 2026-09-28 : résultat exécuté par Renée-Lise conforme
+--   exactement à cet attendu (3 lignes, with_check de
+--   demandes_insert_own incluant bien decision='en_attente' et
+--   decide_par is null) — statut passé à VALIDÉ sur cette base, pas
+--   sur le seul "Success" de l'éditeur SQL.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════

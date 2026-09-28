@@ -70,17 +70,8 @@ comment on function public.profiles_verrou_champs_sensibles is
   'Empêche une cliente de modifier role/statut/age_verifi sur sa propre ligne, et limite membership_status à la seule transition customer→member_pending (demande d''adhésion). Toute autre valeur (member, founding_member, vip) ou tout autre acteur que fondatrice/assistante est bloqué. Voir cahier des charges BSH Members §10.2.';
 
 -- ═══════════════════════════════════════════════════════════
--- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
--- à copier dans le SQL Editor Supabase seulement après validation.
---
--- Vérifications suggérées après exécution (avec un compte cliente
--- de test, pas un compte réel) :
---   1. PATCH profiles set membership_status='member_pending' sur sa
---      propre ligne, en partant de 'customer' → doit réussir
---      (le parcours d'adhésion redevient fonctionnel).
---   2. PATCH profiles set membership_status='member' (ou
---      'founding_member', 'vip') sur sa propre ligne → doit être
---      silencieusement ignoré (la valeur ne change pas).
---   3. PATCH profiles set role='fondatrice' sur sa propre ligne →
---      toujours silencieusement ignoré (inchangé depuis la 0003).
+-- Fin de migration. Rien ci-dessus ne s'exécute tout seul — et de
+-- toute façon jamais séparément : voir l'en-tête, cette fonction est
+-- recréée à l'identique par la migration 0005, qui porte sa propre
+-- vérification après exécution. Rien à vérifier ici spécifiquement.
 -- ═══════════════════════════════════════════════════════════

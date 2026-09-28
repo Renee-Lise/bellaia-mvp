@@ -55,6 +55,18 @@ comment on column public.bsh_members_demandes.note_interne is
   'Note libre de la fondatrice/assistante sur cette demande — jamais visible côté cliente (aucune policy SELECT ne le permet).';
 
 -- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution :
+--   select count(*) from pg_policies
+--   where schemaname='public' and tablename='bsh_members_demandes';
+--   → attendu : 3. Constaté le 2026-09-28 (des mois après l'exécution
+--   marquée "Success") : cette vérification n'avait jamais été faite,
+--   et le compte réel était 0 — RLS actif + 0 policy = refus total,
+--   y compris pour les propres lectures/écritures des clientes.
+--   Cause probable : seule la partie CREATE TABLE + ENABLE ROW LEVEL
+--   SECURITY de ce fichier a été effectivement exécutée à l'époque,
+--   pas les 3 CREATE POLICY ci-dessus. Corrigé par la migration 0008,
+--   qui recrée ces 3 policies (avec un durcissement de
+--   demandes_insert_own) — voir sa propre vérification.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════

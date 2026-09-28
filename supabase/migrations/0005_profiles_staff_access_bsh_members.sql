@@ -94,11 +94,33 @@ end;
 $$;
 
 -- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution :
+--   select proname from pg_proc where proname = 'est_staff_bellaia';
+--   → attendu : une ligne (la fonction existe).
+--
+--   select policyname, cmd, qual from pg_policies
+--   where schemaname='public' and tablename='profiles'
+--     and policyname='profiles_staff_all';
+--   → attendu : cmd = 'ALL', qual = 'est_staff_bellaia()'.
+--
+--   select pg_get_functiondef(oid) ilike '%est_staff_bellaia%' as ok
+--   from pg_proc where proname = 'profiles_verrou_champs_sensibles' limit 1;
+--   → attendu : ok = true (le trigger réutilise bien ce helper, pas
+--     une copie inline de la vérification de rôle).
+--
+--   Fonctionnel : l'écran BSH Members Admin (cockpit fondatrice)
+--   doit afficher les vraies demandes en attente et les vrais
+--   membres — sinon profiles_staff_all n'est pas effective.
+--
+--   Fonctionnel, avec un compte cliente de test (pas un compte réel) :
+--   1. PATCH profiles set membership_status='member_pending' sur sa
+--      propre ligne, en partant de 'customer' → doit réussir.
+--   2. PATCH profiles set membership_status='member' (ou
+--      'founding_member', 'vip') sur sa propre ligne → doit être
+--      silencieusement ignoré (la valeur ne change pas).
+--   3. PATCH profiles set role='fondatrice' sur sa propre ligne →
+--      toujours silencieusement ignoré.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation,
 -- et seulement après (ou en même temps que) la migration 0004.
---
--- Vérification suggérée après exécution : l'écran BSH Members Admin
--- (cockpit fondatrice) doit maintenant afficher les vraies demandes
--- en attente et les vrais membres.
 -- ═══════════════════════════════════════════════════════════

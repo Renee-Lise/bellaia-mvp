@@ -61,6 +61,17 @@ create policy stripe_fondatrice on public.stripe_payment_intents
   );
 
 -- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution :
+--   select column_name from information_schema.columns
+--   where table_schema='public' and table_name='stripe_payment_intents'
+--     and column_name='statut_suivi';
+--   → attendu : une ligne (la colonne existe).
+--
+--   select policyname, cmd, qual from pg_policies
+--   where schemaname='public' and tablename='stripe_payment_intents'
+--     and policyname='stripe_fondatrice';
+--   → attendu : cmd = 'ALL', qual mentionne à la fois 'fondatrice' et
+--     'assistante'.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════

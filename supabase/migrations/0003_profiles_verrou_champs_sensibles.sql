@@ -67,6 +67,18 @@ create trigger verrouiller_champs_sensibles_profiles
   execute function public.profiles_verrou_champs_sensibles();
 
 -- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution :
+--   select tgname from pg_trigger
+--   where tgrelid = 'public.profiles'::regclass and not tgisinternal;
+--   → attendu : verrouiller_champs_sensibles_profiles présent.
+--
+--   select proname from pg_proc
+--   where proname = 'profiles_verrou_champs_sensibles';
+--   → attendu : une ligne (la fonction existe).
+--
+--   Test fonctionnel (compte cliente de test, pas un compte réel) :
+--   PATCH profiles set role='fondatrice' sur sa propre ligne → doit
+--   être silencieusement ignoré (role inchangé après relecture).
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════

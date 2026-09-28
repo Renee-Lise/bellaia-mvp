@@ -106,12 +106,24 @@ create policy reservations_update_staff on public.reservations_experiences
   );
 
 -- ═══════════════════════════════════════════════════════════
--- Vérification suggérée après exécution — réutiliser la requête
--- d'audit déjà donnée : favoris (3), panier_items (4),
--- reservations_experiences (4) doivent tous passer à ✅ OK.
--- Test fonctionnel ensuite avec un compte test réel : ajouter un
--- favori, ajouter un article au panier, envoyer une réservation —
--- chacun doit réussir sans erreur 23502 (NOT NULL) ni 42501 (RLS).
+-- Vérification après exécution :
+--   select tablename, count(*) from pg_policies
+--   where schemaname = 'public'
+--     and tablename in ('favoris','panier_items','reservations_experiences')
+--   group by tablename;
+--   → attendu : favoris = 3, panier_items = 4,
+--     reservations_experiences = 4 (réutilise la requête d'audit déjà
+--     donnée, qui doit maintenant afficher ✅ OK pour les trois).
+--
+--   select column_default from information_schema.columns
+--   where table_schema='public' and column_name='user_id'
+--     and table_name in ('favoris','panier_items','reservations_experiences');
+--   → attendu : 'auth.uid()' sur les 3 lignes (pas null).
+--
+--   Test fonctionnel ensuite avec un compte test réel : ajouter un
+--   favori, ajouter un article au panier, envoyer une réservation —
+--   chacun doit réussir sans erreur 23502 (NOT NULL) ni 42501 (RLS).
+--   Voir le scénario de test détaillé donné séparément.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════

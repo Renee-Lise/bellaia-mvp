@@ -128,6 +128,16 @@ create policy reservations_update_staff on public.reservations_experiences
   );
 
 -- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution :
+--   select tablename, count(*) from pg_policies
+--   where schemaname = 'public'
+--     and tablename in ('favoris','panier_items','reservations_experiences')
+--   group by tablename;
+--   → attendu : favoris = 3, panier_items = 4,
+--     reservations_experiences = 4. Toute autre valeur (notamment 0,
+--     RLS actif + aucune policy = refus total) signifie que les
+--     policies n'ont pas été créées malgré un "Success" affiché —
+--     voir la migration 0009, écrite précisément pour ce cas.
 -- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
 -- à copier dans le SQL Editor Supabase seulement après validation.
 -- ═══════════════════════════════════════════════════════════
