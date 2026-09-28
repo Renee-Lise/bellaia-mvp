@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0009_favoris_panier_reservations_policies_manquantes.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-09-28
 -- Auteur : Claude Code · Date de rédaction : 2026-09-28 (révisée)
 -- Objet : recrée entièrement favoris, panier_items,
 --         reservations_experiences (tables + RLS + policies) —
@@ -145,6 +145,8 @@ create policy reservations_update_staff on public.reservations_experiences
 --   group by tablename;
 --   → attendu : favoris = 3, panier_items = 4,
 --     reservations_experiences = 4.
+--   CONFIRMÉ le 2026-09-28 : résultat exécuté par Renée-Lise conforme
+--   exactement à cet attendu — statut passé à VALIDÉ sur cette base.
 --
 --   select table_name, column_default from information_schema.columns
 --   where table_schema='public' and column_name='user_id'
