@@ -887,7 +887,10 @@ function BSHMembersPage({ user, onBack }: { user: any; onBack?: () => void }) {
           }),
         });
         // Trace de la demande (cahier §10.3) — best-effort, ne bloque
-        // jamais l'adhésion si la migration 0006 n'est pas encore exécutée.
+        // jamais l'adhésion. L'échec est loggé (pas juste avalé) : si
+        // ça échoue, l'admin recrée la ligne au moment de la décision
+        // (voir BSHMembersAdmin.assurerLigneDemande), mais on veut
+        // pouvoir diagnostiquer la cause plutôt que deviner.
         fetch(`${sbUrl}/rest/v1/bsh_members_demandes`, {
           method: "POST", headers: h,
           body: JSON.stringify({
@@ -895,7 +898,9 @@ function BSHMembersPage({ user, onBack }: { user: any; onBack?: () => void }) {
             confirmation_18: confirme18,
             charte_acceptee: charteSigned,
           }),
-        }).catch(() => {});
+        }).then(async r => {
+          if (!r.ok) console.error("[BSHMembersPage] Trace demande BSH Members échouée :", r.status, await r.text().catch(() => ""));
+        }).catch(e => console.error("[BSHMembersPage] Trace demande BSH Members inaccessible :", e));
       } else {
         setErreur("Impossible d'enregistrer votre demande. Réessayez.");
       }
@@ -1116,6 +1121,62 @@ function BSHMembersAdmin({ user }: { user: any }) {
     return `${contexte} : échec HTTP ${r.status}${detail ? " — " + detail : ""}`;
   };
 
+  // Garantit qu'une ligne bsh_members_demandes existe pour cet
+  // utilisateur avant toute décision admin (Accepter/Refuser/Noter) —
+  // cahier §10.3 : une décision ne doit jamais rester sans trace,
+  // que la demande initiale ait ou non réussi à s'enregistrer côté
+  // cliente. Ces écritures passent par le compte fondatrice/assistante
+  // (policy demandes_staff_all, "for all"), pas par la policy
+  // demandes_insert_own côté cliente — ça fonctionne même si cette
+  // dernière est en cause dans l'échec initial.
+  // `exigerEnAttente` : si la ligne la plus récente est déjà décidée
+  // (acceptee/refusee) et qu'on doit justement prendre UNE décision,
+  // on n'y touche pas (historique) — on en crée une nouvelle plutôt
+  // que de réécrire une décision passée.
+  const assurerLigneDemande = async (userId: string, h: Record<string,string>, sbUrl: string, exigerEnAttente = false) => {
+    const rExistante = await fetch(
+      `${sbUrl}/rest/v1/bsh_members_demandes?user_id=eq.${userId}&select=id,decision&order=demande_le.desc&limit=1`,
+      { headers: h }
+    );
+    if (!rExistante.ok) throw new Error(await decrireErreur(rExistante, "Lecture de la demande"));
+    const existantes = await rExistante.json();
+    const derniere = existantes[0];
+    if (derniere && (!exigerEnAttente || derniere.decision === "en_attente")) {
+      return derniere.id as string;
+    }
+
+    // Aucune ligne réutilisable : on en crée une. La vraie date de
+    // demande est perdue (l'insertion initiale a échoué) — on
+    // récupère la date de la notification envoyée au même moment
+    // (bien plus proche de la vérité que la date de création du
+    // compte) plutôt que d'inventer ou de mal étiqueter une date.
+    let demandeLe = new Date().toISOString();
+    try {
+      const rNotif = await fetch(
+        `${sbUrl}/rest/v1/bellaia_notifications?user_id=eq.${userId}&type=eq.bsh_members&select=created_at&order=created_at.desc&limit=1`,
+        { headers: h }
+      );
+      if (rNotif.ok) {
+        const notifs = await rNotif.json();
+        if (notifs[0]?.created_at) demandeLe = notifs[0].created_at;
+      }
+    } catch {}
+
+    const rCree = await fetch(`${sbUrl}/rest/v1/bsh_members_demandes`, {
+      method: "POST",
+      headers: { ...h, "Prefer": "return=representation" },
+      body: JSON.stringify({
+        user_id: userId,
+        demande_le: demandeLe,
+        decision: "en_attente",
+        note_interne: "[Trace reconstituée par l'admin — la demande initiale n'a pas été enregistrée ; date approximative]",
+      }),
+    });
+    if (!rCree.ok) throw new Error(await decrireErreur(rCree, "Création de la trace de demande"));
+    const cree = await rCree.json();
+    return cree[0].id as string;
+  };
+
   const charger = React.useCallback(async () => {
     setLoading(true);
     setErreur("");
@@ -1199,7 +1260,7 @@ function BSHMembersAdmin({ user }: { user: any }) {
         method: "PATCH", headers: h,
         body: JSON.stringify({ membership_status: nouveau }),
       });
-      if (!r.ok) throw new Error("Mise à jour échouée");
+      if (!r.ok) throw new Error(await decrireErreur(r, "Mise à jour du statut"));
       // Notifier le membre
       const msg = nouveau === "member"
         ? "Votre demande BSH Members a été acceptée. Bienvenue ! 🎉"
@@ -1212,18 +1273,25 @@ function BSHMembersAdmin({ user }: { user: any }) {
         method: "POST", headers: h,
         body: JSON.stringify({ user_id: userId, type: "bsh_members", titre: "BSH Members", contenu: msg, lu: false }),
       });
-      // Trace de la décision (cahier §10.3/10.4) — résout la demande
-      // en_attente correspondante, best-effort si la migration 0006
-      // n'est pas encore exécutée.
+      // Trace de la décision (cahier §10.3/10.4) — la ligne en_attente
+      // est créée si elle n'existe pas (voir assurerLigneDemande) :
+      // une décision ne doit jamais rester sans trace, même si
+      // l'insertion initiale côté cliente avait échoué en silence.
       if (nouveau === "member" || nouveau === "customer") {
-        fetch(`${sbUrl}/rest/v1/bsh_members_demandes?user_id=eq.${userId}&decision=eq.en_attente`, {
-          method: "PATCH", headers: h,
-          body: JSON.stringify({
-            decision: nouveau === "member" ? "acceptee" : "refusee",
-            decision_le: new Date().toISOString(),
-            decide_par: user.id,
-          }),
-        }).catch(() => {});
+        try {
+          const idDemande = await assurerLigneDemande(userId, h, sbUrl, true);
+          const rTrace = await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?id=eq.${idDemande}`, {
+            method: "PATCH", headers: h,
+            body: JSON.stringify({
+              decision: nouveau === "member" ? "acceptee" : "refusee",
+              decision_le: new Date().toISOString(),
+              decide_par: user.id,
+            }),
+          });
+          if (!rTrace.ok) setErreur(await decrireErreur(rTrace, "Trace de la décision (statut appliqué malgré tout)"));
+        } catch (eTrace: any) {
+          setErreur(`Trace de la décision (statut appliqué malgré tout) : ${eTrace.message}`);
+        }
       }
       setSucces(`Statut mis à jour : ${nouveau}`);
       setAction(null);
@@ -1236,6 +1304,7 @@ function BSHMembersAdmin({ user }: { user: any }) {
   const sauvegarderNote = async (userId: string) => {
     const note = noteDraft[userId];
     if (note === undefined) return;
+    setErreur(""); setSucces("");
     try {
       const tok   = localStorage.getItem("bellaia_token")!;
       const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -1243,17 +1312,17 @@ function BSHMembersAdmin({ user }: { user: any }) {
       const h = { "Authorization": `Bearer ${tok}`, "apikey": sbKey, "Content-Type": "application/json" };
       // Ne cible que la demande la plus récente — une note concerne
       // le contexte d'une décision précise, pas tout l'historique.
-      const rDerniere = await fetch(
-        `${sbUrl}/rest/v1/bsh_members_demandes?user_id=eq.${userId}&select=id&order=demande_le.desc&limit=1`,
-        { headers: h }
-      );
-      const derniere = rDerniere.ok ? await rDerniere.json() : [];
-      if (!derniere[0]) return;
-      await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?id=eq.${derniere[0].id}`, {
+      // La ligne est créée si elle n'existe pas encore (voir
+      // assurerLigneDemande) : sans ça, la note se perdait en silence
+      // dès que la demande initiale n'avait pas été enregistrée.
+      const idDemande = await assurerLigneDemande(userId, h, sbUrl);
+      const r = await fetch(`${sbUrl}/rest/v1/bsh_members_demandes?id=eq.${idDemande}`, {
         method: "PATCH", headers: { ...h, "Prefer": "return=minimal" },
         body: JSON.stringify({ note_interne: note }),
       });
-    } catch {}
+      if (!r.ok) throw new Error(await decrireErreur(r, "Enregistrement de la note"));
+      setSucces("Note enregistrée.");
+    } catch (e: any) { setErreur(e.message); }
   };
 
   const renderCard = (p: any, isPending = false) => (

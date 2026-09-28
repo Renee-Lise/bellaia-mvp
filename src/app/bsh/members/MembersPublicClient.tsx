@@ -58,6 +58,10 @@ export default function MembersPublicClient() {
           lu: false,
         }),
       }).catch(() => {});
+      // Trace de la demande (cahier §10.3) — best-effort, ne bloque
+      // jamais l'adhésion. L'échec est loggé (pas juste avalé) : si
+      // ça échoue, l'admin recrée la ligne au moment de la décision
+      // (voir BSHMembersAdmin.assurerLigneDemande dans BellaiaApp.tsx).
       espaceFetch(token, "bsh_members_demandes", {
         method: "POST",
         body: JSON.stringify({
@@ -65,7 +69,9 @@ export default function MembersPublicClient() {
           confirmation_18: confirme18,
           charte_acceptee: charteSigned,
         }),
-      }).catch(() => {});
+      }).then(async (r) => {
+        if (!r.ok) console.error("[MembersPublicClient] Trace demande BSH Members échouée :", r.status, await r.text().catch(() => ""));
+      }).catch((e) => console.error("[MembersPublicClient] Trace demande BSH Members inaccessible :", e));
     } else {
       setErreur("Impossible d'enregistrer votre demande. Réessayez.");
     }
