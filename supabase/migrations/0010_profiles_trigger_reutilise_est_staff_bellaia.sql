@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0010_profiles_trigger_reutilise_est_staff_bellaia.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-09-28
 -- Auteur : Claude Code · Date de rédaction : 2026-09-28
 -- Objet : même famille de trou que 0001/0006 — la partie "3." de la
 --         migration 0005 (VALIDÉE le 2026-09-23), qui remplace la
@@ -60,6 +60,8 @@ comment on function public.profiles_verrou_champs_sensibles is
 --   select pg_get_functiondef(oid) ilike '%est_staff_bellaia%' as ok
 --   from pg_proc where proname = 'profiles_verrou_champs_sensibles' limit 1;
 --   → attendu : ok = true.
+--   CONFIRMÉ le 2026-09-28 : résultat exécuté par Renée-Lise conforme
+--   (ok = true) — statut passé à VALIDÉ sur cette base.
 --
 --   Test fonctionnel (compte cliente de test, pas un compte réel) :
 --   1. PATCH profiles set membership_status='member_pending' sur sa
