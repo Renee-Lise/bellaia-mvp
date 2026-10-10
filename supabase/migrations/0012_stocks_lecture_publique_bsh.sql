@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0012_stocks_lecture_publique_bsh.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-10
 -- Auteur : Claude Code · Date de rédaction : 2026-10-10
 -- Objet : `stocks` n'a jamais eu de policy de lecture publique —
 --         seule policy existante : "Fondatrice gère les stocks"
@@ -52,6 +52,8 @@ create policy stocks_lecture_publique_bsh_actif on public.stocks
 --   → attendu : 2 lignes — "Fondatrice gère les stocks" (inchangée)
 --     et "stocks_lecture_publique_bsh_actif" (SELECT, {anon,
 --     authenticated}, univers = 'BSH' AND statut = 'actif').
+--   CONFIRMÉ le 2026-10-10 : résultat exécuté par Renée-Lise conforme
+--   exactement à cet attendu — statut passé à VALIDÉ sur cette base.
 --
 --   Test décisif :
 --   begin;

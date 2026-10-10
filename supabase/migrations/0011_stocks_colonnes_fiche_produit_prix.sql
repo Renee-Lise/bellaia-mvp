@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0011_stocks_colonnes_fiche_produit_prix.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-10
 -- Auteur : Claude Code · Date de rédaction : 2026-10-10
 -- Objet : ajoute à `stocks` les 6 colonnes que la migration 0001
 --         était censée créer (tailles, composition, usage_conseils,
@@ -61,6 +61,8 @@ comment on column public.stocks.prix_achat is 'Prix d''achat interne — jamais 
 --   where table_schema='public' and table_name='stocks'
 --     and column_name in ('tailles','composition','usage_conseils','entretien','prix_vente','prix_achat');
 --   → attendu : les 6 lignes.
+--   CONFIRMÉ le 2026-10-10 : résultat exécuté par Renée-Lise conforme
+--   (les 6 colonnes présentes) — statut passé à VALIDÉ sur cette base.
 --
 --   Fonctionnel : dans l'admin Stocks, modifier le produit test
 --   (n'importe quel champ) puis "Enregistrer" → doit réussir
