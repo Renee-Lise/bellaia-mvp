@@ -10927,6 +10927,8 @@ function StocksF({ user }) {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
   const [uploadEnCours, setUploadEnCours] = useState(false);
+  const [erreurSauvegarde, setErreurSauvegarde] = useState("");
+  const [enregistrement, setEnregistrement] = useState(false);
 
   // Envoie la photo dans le bucket stocks-images (migration 0007) et
   // stocke son URL publique dans le formulaire — pas d'écriture en
@@ -10978,9 +10980,11 @@ function StocksF({ user }) {
 
   const sauvegarder = async () => {
     if (!form.nom?.trim()) return;
+    setErreurSauvegarde("");
+    setEnregistrement(true);
     try {
       const payload = {
-        nom: form.nom, categorie: form.categorie || "Général",
+        nom: form.nom, nom_produit: form.nom, categorie: form.categorie || "Général",
         univers: form.univers || "GENERAL",
         quantite: parseFloat(form.quantite) || 0,
         quantite_min: parseFloat(form.quantite_min) || 1,
@@ -10997,23 +11001,36 @@ function StocksF({ user }) {
       const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
       const token = await getTokenAsync();
       if (form._edit) {
-        await fetch(SB_URL_local+"/rest/v1/stocks?id=eq."+form._edit, {
+        const r = await fetch(SB_URL_local+"/rest/v1/stocks?id=eq."+form._edit, {
           method: "PATCH",
-          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=minimal" },
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
           body: JSON.stringify({...payload, updated_at: new Date().toISOString()}),
         });
-        setStocks(s => s.map(x => x.id === form._edit ? {...x,...payload,id:form._edit} : x));
+        if (!r.ok) {
+          const d = await r.json().catch(() => null);
+          throw new Error(d?.message || d?.hint || "Échec HTTP "+r.status);
+        }
+        const [modifie] = await r.json();
+        if (modifie) setStocks(s => s.map(x => x.id === form._edit ? modifie : x));
       } else {
         const r = await fetch(SB_URL_local+"/rest/v1/stocks", {
           method: "POST",
           headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
           body: JSON.stringify(payload),
         });
+        if (!r.ok) {
+          const d = await r.json().catch(() => null);
+          throw new Error(d?.message || d?.hint || "Échec HTTP "+r.status);
+        }
         const [created] = await r.json();
         if (created) setStocks(s => [created, ...s]);
       }
       setModal(null);
-    } catch (e) { console.error(e); }
+    } catch (e: any) {
+      console.error(e);
+      setErreurSauvegarde(e.message || "Erreur lors de l'enregistrement.");
+    }
+    setEnregistrement(false);
   };
 
   return (
@@ -11144,8 +11161,13 @@ function StocksF({ user }) {
               <Fld label="Entretien"><Inp value={form.entretien||""} onChange={e=>setForm({...form,entretien:e.target.value})} placeholder="Ex : Lavage à la main, 30°C, ne pas essorer" rows={2}/></Fld>
             </>
           )}
+          {erreurSauvegarde && (
+            <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#ef4444"}}>
+              ⚠ {erreurSauvegarde}
+            </div>
+          )}
           <div style={{display:"flex",gap:8}}>
-            <Btn onClick={sauvegarder} full v="gold">Enregistrer</Btn>
+            <Btn onClick={sauvegarder} full v="gold" disabled={enregistrement}>{enregistrement?"Enregistrement…":"Enregistrer"}</Btn>
             <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
           </div>
         </Mdl>
