@@ -1903,37 +1903,13 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
                 <input value={nomClient} onChange={e=>setNomClient(e.target.value)} placeholder="Prénom" style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid "+(BSH.line),borderRadius:10,padding:"9px 12px",color:BSH.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
               </div>
 
-              {/* ── Mode de paiement */}
+              {/* ── Mode de paiement — Stripe uniquement (les autres modes
+                   ne sont pas utilisés par la fondatrice) ── */}
               <div style={{marginBottom:16}}>
                 <label style={{fontSize:11,fontWeight:700,color:B.mutedL,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:7}}>Mode de paiement</label>
-                <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-                  {[
-                    {id:"Stripe",  ico:"💳", label:"Paiement sécurisé"},
-                    {id:"Virement",ico:"🏦", label:"Virement"},
-                    {id:"SumUp",   ico:"📱", label:"SumUp"},
-                    {id:"PayPal",  ico:"🅿",  label:"PayPal"},
-                    {id:"Espèces", ico:"💵", label:"Espèces"},
-                  ].map(p => (
-                    <button key={p.id} onClick={() => setPmtChoisi(p.id)}
-                      style={{padding:"7px 12px",borderRadius:9,border:"1px solid "+(pmtChoisi===p.id?BSH.or:BSH.line),background:pmtChoisi===p.id?(BSH.or+"22"):"transparent",color:pmtChoisi===p.id?BSH.or:BSH.cremeD,cursor:"pointer",fontSize:12,fontFamily:SA,fontWeight:pmtChoisi===p.id?700:400}}>
-                      {p.ico} {p.label}
-                    </button>
-                  ))}
+                <div style={{fontSize:11,color:BSH.or,display:"flex",alignItems:"center",gap:6}}>
+                  🔒 Paiement sécurisé par Stripe — vous serez redirigé vers la page de paiement
                 </div>
-                {/* Messages contextuels selon le mode */}
-                {pmtChoisi === "Stripe" && (
-                  <div style={{fontSize:11,color:BSH.or,marginTop:8,display:"flex",alignItems:"center",gap:6}}>
-                    🔒 Paiement sécurisé par Stripe — vous serez redirigé vers la page de paiement
-                  </div>
-                )}
-                {pmtChoisi === "SumUp" && (
-                  <div style={{fontSize:11,color:B.warning,marginTop:8}}>
-                    ⚠ SumUp nécessite une configuration spécifique — contactez la fondatrice si indisponible
-                  </div>
-                )}
-                {pmtChoisi === "PayPal" && <div style={{fontSize:11,color:B.gold,marginTop:8}}>📧 {ENV.PAYPAL}</div>}
-                {pmtChoisi === "Virement" && <div style={{fontSize:11,color:B.muted,marginTop:8}}>📋 Coordonnées bancaires communiquées après confirmation de commande</div>}
-                {pmtChoisi === "Espèces" && <div style={{fontSize:11,color:B.muted,marginTop:8}}>💵 Règlement en main propre — à confirmer avec la fondatrice</div>}
                 {/* Erreur paiement */}
                 {paiementErreur && (
                   <div style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:8,padding:"8px 12px",marginTop:8,fontSize:11,color:B.danger}}>
@@ -1942,29 +1918,16 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
                 )}
               </div>
 
-              {/* ── Bouton payer */}
+              {/* ── Bouton payer ── */}
               {(() => {
                 const selectionnes = cart.filter(i => i.selected !== false);
                 const totalSel = selectionnes.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
                 const disabled = selectionnes.length === 0 || totalSel <= 0;
-                if (pmtChoisi === "SumUp") return (
-                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    <Btn v="gold" full onClick={confirmerCommande} disabled={paiementLoading||disabled}>
-                      {paiementLoading ? "⏳ Redirection SumUp…" : "💳 Payer par SumUp — "+(totalSel)+"€"}
-                    </Btn>
-                    {paiementErreur && (
-                      <div style={{fontSize:11,color:"#ef4444",textAlign:"center",padding:"6px 8px",background:"rgba(239,68,68,0.1)",borderRadius:8}}>
-                        {paiementErreur}
-                      </div>
-                    )}
-                    <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",textAlign:"center"}}>🔒 Paiement sécurisé SumUp · Aucune donnée bancaire stockée</div>
-                  </div>
-                );
                 return (
-                  <Btn v="gold" full onClick={confirmerCommande} disabled={disabled}>
+                  <Btn v="gold" full onClick={confirmerCommande} disabled={paiementLoading||disabled}>
                     {disabled
                       ? "Sélectionnez au moins un article"
-                      : "🅿 Payer par PayPal — "+(totalSel)+"€"}
+                      : paiementLoading ? "⏳ Redirection…" : "💳 Payer par Stripe — "+(totalSel)+"€"}
                   </Btn>
                 );
               })()}
