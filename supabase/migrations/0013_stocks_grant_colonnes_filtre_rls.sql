@@ -1,0 +1,56 @@
+-- ═══════════════════════════════════════════════════════════
+-- 0013_stocks_grant_colonnes_filtre_rls.sql
+-- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- Auteur : Claude Code · Date de rédaction : 2026-10-10
+-- Objet : corrige la migration 0012 — le GRANT de colonnes pour
+--         anon/authenticated listait les colonnes affichées (nom,
+--         categorie, etc.) mais oubliait univers et statut, qui sont
+--         justement les deux colonnes utilisées par la condition de
+--         la policy stocks_lecture_publique_bsh_actif
+--         (univers = 'BSH' and statut = 'actif').
+-- Constat : /bsh/boutique restait vide après la 0011/0012, malgré
+--   des policies et des colonnes confirmées correctes. Vérifié en
+--   base : begin; set local role anon; select ... where univers =
+--   'BSH' and statut = 'actif'; rollback; renvoyait "Success. No
+--   rows returned" — pas d'erreur, donc pas un problème de table ou
+--   de policy manquante, mais 0 ligne quand même. Avec des privilèges
+--   au niveau colonne (comme introduits par la 0012), Postgres a
+--   besoin du droit de lire une colonne pour évaluer une condition
+--   qui la référence, même dans le USING d'une policy RLS — sans ce
+--   droit sur univers/statut, la condition ne peut jamais être
+--   évaluée comme vraie pour anon/authenticated, et la ligne est
+--   filtrée silencieusement (pas d'erreur visible).
+-- Impact : additive uniquement. GRANT supplémentaire, n'enlève
+--   aucun privilège existant, ne touche aucune donnée, aucune
+--   policy. prix_vente et prix_achat restent volontairement hors de
+--   ce GRANT (et de celui de la 0012) — ce correctif ne les ajoute
+--   pas, l'étanchéité des données internes n'est pas affectée.
+-- ═══════════════════════════════════════════════════════════
+
+grant select (univers, statut)
+  on public.stocks
+  to anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution — reprend le test qui a révélé le
+-- problème, doit maintenant renvoyer au moins 1 ligne :
+--   begin;
+--   set local role anon;
+--   select id, nom, univers, statut from public.stocks
+--   where univers = 'BSH' and statut = 'actif';
+--   rollback;
+--   → attendu : au moins 1 ligne (le produit test).
+--
+--   Contrôle d'étanchéité (doit toujours échouer) :
+--   begin;
+--   set local role anon;
+--   select prix_achat from public.stocks limit 1;
+--   rollback;
+--   → attendu : toujours une erreur 42501 (permission denied) —
+--     ce correctif n'accorde que univers et statut, rien d'autre.
+--
+--   Fonctionnel : /bsh/boutique et /bsh/coffrets doivent enfin
+--   afficher le produit test.
+-- Fin de migration. Rien ci-dessus ne s'exécute tout seul :
+-- à copier dans le SQL Editor Supabase seulement après validation.
+-- ═══════════════════════════════════════════════════════════
