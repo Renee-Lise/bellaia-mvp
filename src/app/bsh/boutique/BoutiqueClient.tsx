@@ -24,7 +24,7 @@ const CATEGORIES = [
   "Aphrodisiaques & Bien-être",
 ];
 
-export default function BoutiqueClient({ produits }: { produits: ProduitBSH[] }) {
+export default function BoutiqueClient({ produits, diagnostic }: { produits: ProduitBSH[]; diagnostic?: string | null }) {
   const [filtre, setFiltre] = useState<string>("Tout");
 
   const produitsFiltres =
@@ -75,6 +75,11 @@ export default function BoutiqueClient({ produits }: { produits: ProduitBSH[] })
               La boutique se prépare — les premiers articles arrivent
               bientôt.
             </p>
+            {diagnostic && (
+              <p style={{ fontSize: 10, lineHeight: 1.6, margin: "14px 0 0", color: "rgba(239,68,68,0.6)", fontFamily: "monospace" }}>
+                Diagnostic technique : {diagnostic}
+              </p>
+            )}
           </div>
         ) : produitsFiltres.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 16px", color: "rgba(203,185,185,0.5)" }}>

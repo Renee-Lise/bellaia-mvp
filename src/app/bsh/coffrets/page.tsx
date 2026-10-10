@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const CATEGORIE = "Coffrets & Expériences";
 
 export default async function BshCoffretsPage() {
-  const produits = await getProduitsBSH(CATEGORIE);
+  const { produits, diagnostic } = await getProduitsBSH(CATEGORIE);
 
   return (
     <div
@@ -93,6 +93,11 @@ export default async function BshCoffretsPage() {
             <p style={{ fontSize: 13, lineHeight: 1.7, margin: 0 }}>
               Les premiers coffrets arrivent bientôt.
             </p>
+            {diagnostic && (
+              <p style={{ fontSize: 10, lineHeight: 1.6, margin: "14px 0 0", color: "rgba(239,68,68,0.6)", fontFamily: "monospace" }}>
+                Diagnostic technique : {diagnostic}
+              </p>
+            )}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

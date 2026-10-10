@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BshBoutiquePage() {
-  const produits = await getProduitsBSH();
+  const { produits, diagnostic } = await getProduitsBSH();
 
   return (
     <div
@@ -79,7 +79,7 @@ export default async function BshBoutiquePage() {
         </p>
       </div>
 
-      <BoutiqueClient produits={produits} />
+      <BoutiqueClient produits={produits} diagnostic={diagnostic} />
 
       <BshFooter />
     </div>
