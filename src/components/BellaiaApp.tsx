@@ -5453,7 +5453,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
-  const SECS=[{id:"dash",l:"🏠"},{id:"cmds",l:"🧾"},{id:"crm",l:"👥"},{id:"stock",l:"📦"},{id:"evts",l:"📅"},{id:"fin",l:"€"},{id:"params",l:"⚙"}];
+  const SECS=[{id:"dash",l:"🏠",name:"Accueil"},{id:"cmds",l:"🧾",name:"Commandes"},{id:"crm",l:"👥",name:"Clients"},{id:"stock",l:"📦",name:"Boutique"},{id:"games",l:"🎴",name:"Jeux"},{id:"evts",l:"📅",name:"Événements"},{id:"hosts",l:"🎭",name:"Hôtes"},{id:"fin",l:"€",name:"Finances"},{id:"params",l:"⚙",name:"Réglages"}];
 
   return(
     <div style={{display:"flex",flexDirection:"column",minHeight:"100%",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)"}}>
@@ -5461,8 +5461,8 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <span style={{fontFamily:FS,fontSize:13,color:BSH.or,letterSpacing:2}}>✦ Bella'Secret Home</span>
         <span style={{fontSize:8,color:BSH.cremeD,letterSpacing:2}}>BACK-OFFICE</span>
       </div>
-      <div style={{display:"flex",justifyContent:"space-around",padding:"7px",borderBottom:"1px solid "+(BSH.line),background:"rgba(0,0,0,0.2)"}}>
-        {SECS.map(s=><button key={s.id} onClick={()=>setSec(s.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:sec===s.id ? "2px solid "+(BSH.or) : "2px solid transparent"}}><span style={{fontSize:17}}>{s.l}</span></button>)}
+      <div role="navigation" aria-label="Gestion Bella’Secret Home" style={{display:"flex",gap:5,padding:"9px",overflowX:"auto",borderBottom:"1px solid "+BSH.line,background:"rgba(0,0,0,0.2)",WebkitOverflowScrolling:"touch"}}>
+        {SECS.map(s=><button key={s.id} aria-current={sec===s.id?"page":undefined} onClick={()=>setSec(s.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:"0 0 auto",minWidth:66,background:sec===s.id?"rgba(107,26,43,.5)":"rgba(255,255,255,.025)",border:"1px solid "+(sec===s.id?BSH.or:BSH.line),borderRadius:10,color:sec===s.id?BSH.or:BSH.cremeF,cursor:"pointer",padding:"9px 7px"}}><span style={{fontSize:19}}>{s.l}</span><span style={{fontSize:9}}>{s.name}</span></button>)}
       </div>
       <div style={{padding:"12px",color:BSH.creme,fontFamily:SA}}>
         {sec==="dash"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -5480,7 +5480,9 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
               {ico:"🛍",l:"Boutique",   sub:"Produits & commandes", dest:"stock"},
               {ico:"💎",l:"Espace VIP", sub:"Clientes fidèles",     dest:"crm"},
               {ico:"📅",l:"Événements", sub:"Sessions privées",      dest:"evts"},
-              {ico:"❓",l:"FAQ",         sub:"Questions fréquentes",  dest:"params"},
+              {ico:"🎴",l:"Secret Games",sub:"Cartes & défis",dest:"games"},
+              {ico:"🎭",l:"Hôtes & hôtesses",sub:"Équipe & missions",dest:"hosts"},
+              {ico:"❓",l:"FAQ",sub:"Questions fréquentes",dest:"params"},
             ].map(c=>(
               <div key={c.dest} onClick={()=>setSec(c.dest)} style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:12,padding:"12px 10px",cursor:"pointer",textAlign:"center"}}>
                 <div style={{fontSize:24,marginBottom:4}}>{c.ico}</div>
@@ -5513,6 +5515,18 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
 
           <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Dernières commandes</div>{commandes.slice(0,4).map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+(BSH.line)}}><div><div style={{fontSize:11,color:BSH.creme}}>{c.client}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={8}>{c.statut}</BTag></div></div>)}</div>
         </div>}
+        {sec==="games"&&<section style={{display:"flex",flexDirection:"column",gap:12}}>
+          <h2 style={{fontFamily:FS,color:BSH.or,fontSize:22,margin:"6px 0"}}>🎴 BSH Secret Games</h2>
+          <p style={{fontSize:12,lineHeight:1.7,color:BSH.cremeF}}>Retrouvez la plateforme de jeux BSH. Les pseudonymes, les propositions de thèmes et l’historique sont pour le moment conservés sur l’appareil des joueurs : aucune statistique collective n’est encore disponible dans Bellaïa.</p>
+          <a href="https://renee-lise.github.io/bsh-secret-games/" target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",padding:"15px",borderRadius:12,background:BSH.bord,color:BSH.creme,textDecoration:"none",fontWeight:700}}>Ouvrir Secret Games ↗</a>
+          <div style={{padding:15,background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:12,fontSize:12,color:BSH.cremeF}}>À connecter : catalogue des cartes, validation des propositions, votes et statistiques de participation. Ces fonctions nécessiteront des tables sécurisées et des autorisations fondatrice.</div>
+        </section>}
+        {sec==="hosts"&&<section style={{display:"flex",flexDirection:"column",gap:12}}>
+          <h2 style={{fontFamily:FS,color:BSH.or,fontSize:22,margin:"6px 0"}}>🎭 Hôtes & hôtesses</h2>
+          <p style={{fontSize:12,lineHeight:1.7,color:BSH.cremeF}}>Espace de préparation pour le recrutement, les disponibilités, les missions et les affectations aux événements BSH.</p>
+          {[["Candidatures","À connecter"],["Planning & disponibilités","À connecter"],["Missions & événements","À connecter"],["Documents & rémunérations","À connecter"]].map(([title,status])=><div key={title} style={{display:"flex",justifyContent:"space-between",gap:8,padding:15,borderRadius:12,border:"1px solid "+BSH.line,background:BSH.verre}}><span style={{fontSize:12}}>{title}</span><span style={{fontSize:10,color:BSH.or}}>{status}</span></div>)}
+          <p style={{fontSize:11,color:BSH.cremeD}}>Aucun profil ni dossier privé n’est affiché avant la mise en place des contrôles d’accès.</p>
+        </section>}
         {sec==="cmds"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({statut:"Demande reçue",date:today(),montant:0,acompte:0,pmt:"WhatsApp"});setModal("cmd");}}>+ Nouvelle</BBtn></div>
           {commandes.map(c=><div key={c.id} onClick={()=>setDetailCmd(c)} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
