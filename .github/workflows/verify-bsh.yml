@@ -1,0 +1,22 @@
+name: Vérification Bellaïa BSH
+on:
+  push:
+    branches: [feature/bsh-founder-hub]
+  pull_request:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Build Next.js
+        run: npm run build
