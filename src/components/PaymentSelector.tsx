@@ -2,14 +2,14 @@
 
 // ═══════════════════════════════════════════════════════════
 // PAYMENT SELECTOR — Bellaïa Hub
-// Modes : SumUp (carte) · PayPal (en ligne) · Espèces · Lien de paiement
-// Revolut : RETIRÉ (aucune API disponible)
+// Modes : SumUp (carte) · Espèces · Lien de paiement · Virement
+// Revolut : RETIRÉ (aucune API disponible) · PayPal : RETIRÉ (non utilisé)
 // Secrets : jamais côté client — tout passe par les routes API
 // ═══════════════════════════════════════════════════════════
 
 import { useState } from "react";
 
-export type ModePaiement = "SumUp" | "PayPal" | "Especes" | "Lien_paiement" | "Virement";
+export type ModePaiement = "SumUp" | "Especes" | "Lien_paiement" | "Virement";
 
 export interface PaymentSelectorProps {
   montant:          number;
@@ -29,7 +29,6 @@ const MODES_CONFIG: {
   id: ModePaiement; ico: string; label: string; desc: string; couleur: string;
 }[] = [
   { id: "SumUp",         ico: "💳", label: "Carte bancaire",    desc: "Paiement sécurisé par carte — SumUp",     couleur: "#00b4d8" },
-  { id: "PayPal",        ico: "🅿",  label: "PayPal",           desc: "Redirection vers PayPal sécurisé",        couleur: "#0070ba" },
   { id: "Especes",       ico: "💵", label: "Espèces",           desc: "Paiement physique — validation requise",  couleur: "#c9a84c" },
   { id: "Lien_paiement", ico: "🔗", label: "Lien de paiement", desc: "Lien envoyé au client — suivi automatique", couleur: "#7c3aed" },
   { id: "Virement",      ico: "🏦", label: "Virement",          desc: "RIB communiqué par WhatsApp/email",       couleur: "#4ade80" },
@@ -63,26 +62,6 @@ export async function createBellaiaPayment(params: {
       return { ok: false, error: d.error || "SumUp n'a pas retourné d'URL." };
     } catch {
       return { ok: false, error: "Impossible de contacter SumUp. Vérifiez votre connexion." };
-    }
-  }
-
-  // ── PayPal : route serveur — PAYPAL_CLIENT_SECRET jamais côté client
-  if (mode === "PayPal") {
-    if (process.env.NEXT_PUBLIC_PAYPAL_ENABLED !== "true") {
-      return { ok: false, error: "PayPal non activé. Configurer NEXT_PUBLIC_PAYPAL_ENABLED=true dans Vercel." };
-    }
-    try {
-      const r = await fetch("/api/payments/paypal/create-order", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ montant, description, univers: univers || "GENERAL", commande_id, client_id, client_email }),
-      });
-      const d = await r.json();
-      if (!r.ok) return { ok: false, error: d.error || `Erreur PayPal (${r.status})` };
-      if (d.url) return { ok: true, url: d.url, reference: d.reference, paiement_id: d.paiement_id };
-      return { ok: false, error: d.error || "PayPal n'a pas retourné d'URL d'approbation." };
-    } catch {
-      return { ok: false, error: "Impossible de contacter PayPal. Vérifiez votre connexion." };
     }
   }
 
@@ -122,7 +101,7 @@ export default function PaymentSelector({
   client_email,
   onSuccess,
   onError,
-  modesDisponibles = ["SumUp", "PayPal", "Especes", "Virement"],
+  modesDisponibles = ["SumUp", "Especes", "Virement"],
   waNumber,
 }: PaymentSelectorProps) {
   const [mode, setMode]       = useState<ModePaiement>(modesDisponibles[0]);
@@ -140,8 +119,8 @@ export default function PaymentSelector({
     const result = await createBellaiaPayment({ mode, montant, description, univers, commande_id, client_id, client_email, waNumber });
 
     if (result.ok) {
-      // SumUp / PayPal → redirection directe
-      if (result.url && (mode === "SumUp" || mode === "PayPal")) {
+      // SumUp → redirection directe
+      if (result.url && mode === "SumUp") {
         window.location.href = result.url;
         return;
       }
@@ -198,7 +177,6 @@ export default function PaymentSelector({
         style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: loading ? "rgba(255,255,255,0.1)" : `linear-gradient(135deg,${couleurMode},${couleurMode}cc)`, color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontSize: 14, fontWeight: 700, fontFamily: "Inter,system-ui,sans-serif", opacity: loading ? 0.6 : 1 }}>
         {loading ? "⏳ Traitement…"
          : mode === "SumUp"         ? `💳 Payer ${montant.toFixed(2)}€ par carte`
-         : mode === "PayPal"        ? `🅿 Payer ${montant.toFixed(2)}€ via PayPal`
          : mode === "Especes"       ? "✅ Confirmer — paiement espèces"
          : mode === "Lien_paiement" ? "🔗 Générer le lien de paiement"
          : `✅ Procéder — ${mode}`}
@@ -211,7 +189,7 @@ export default function PaymentSelector({
       )}
 
       {/* Sécurité */}
-      {(mode === "SumUp" || mode === "PayPal") && (
+      {mode === "SumUp" && (
         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
           🔒 Paiement sécurisé {mode} · Aucune donnée bancaire stockée par Bella'Studio
         </div>

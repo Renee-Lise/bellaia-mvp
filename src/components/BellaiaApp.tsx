@@ -14,7 +14,6 @@ const ENV = {
   WA:      process.env.NEXT_PUBLIC_WA_NUMBER   || "",   // ex: 594694356037
   TEL:     process.env.NEXT_PUBLIC_TEL_DISPLAY || "",   // ex: ${ENV.TEL}
   EMAIL:   process.env.NEXT_PUBLIC_EMAIL       || "",   // ex: ${ENV.EMAIL}
-  PAYPAL:  process.env.NEXT_PUBLIC_PAYPAL      || "",   // ex: ${ENV.PAYPAL}
   ADRESSE: process.env.NEXT_PUBLIC_ADRESSE     || "",   // ex: ${ENV.ADRESSE}...
   VILLE:   process.env.NEXT_PUBLIC_VILLE       || "",   // ex: Sinnamary
   PAYS:    process.env.NEXT_PUBLIC_PAYS        || "Guyane française",
@@ -1554,7 +1553,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
       return;
     }
 
-    // ── Modes manuels (PayPal, virement, espèces) — validation fondatrice requise
+    // ── Modes manuels (virement, espèces) — validation fondatrice requise
     setCart(c => c.filter(i => i.selected === false));
     setNomClient("");
     setCmdConfirmee({ id, produitStr, totalSel, pmt: pmtChoisi });
@@ -2765,7 +2764,6 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
     {id:"especes",  ico:"💵", label:"Espèces",            desc:"En boutique sur rendez-vous"},
     {id:"cheque",   ico:"📋", label:"Chèque",             desc:"À l'ordre de Bella'Studio"},
     {id:"sumup",    ico:"💳", label:"SumUp (carte)",      desc:"Non configuré — utiliser virement"},
-    {id:"paypal",   ico:"🅿",  label:"PayPal",            desc:"Non configuré — utiliser virement"},
   ];
 
   const confirmerPay = async (option) => {
@@ -2865,7 +2863,7 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
             <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:10}}>Mode de paiement :</div>
             <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:16}}>
               {MODES_PAY.map(m=>{
-                const nc = m.id==="sumup"||m.id==="paypal";
+                const nc = m.id==="sumup";
                 return (
                   <div key={m.id} onClick={()=>!nc&&!payLoading&&confirmerPay(payMode)}
                     style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"11px 13px",cursor:nc?"not-allowed":"pointer",opacity:nc?0.45:1,display:"flex",gap:10,alignItems:"center"}}>
@@ -3230,7 +3228,7 @@ const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 // un), on intercepte au seul endroit où l'aperçu démarre/s'arrête
 // (BellaiaApp, effet sur `preview`) : toute écriture (POST/PATCH/
 // PUT/DELETE) vers l'API REST/Storage Supabase, ET vers les routes
-// internes /api/... du site (paiements Stripe/PayPal/SumUp,
+// internes /api/... du site (paiements Stripe/SumUp,
 // journal IA, proxy Supabase générique...), est bloquée pendant
 // l'aperçu. Deux exceptions explicites, jamais bloquées quel que
 // soit le mode HTTP : l'authentification (/api/auth/..., et
@@ -4535,7 +4533,7 @@ function FinancesP1({ user }) {
 
   const STATUTS_INV = ["brouillon","envoyée","partiellement_payée","payée","annulée","en_retard"];
   const STATUTS_DEV = ["brouillon","envoyé","accepté","refusé","expiré","converti"];
-  const MODES_PMT = ["WhatsApp","SumUp","PayPal","Virement","Revolut","Espèces","Stripe"];
+  const MODES_PMT = ["WhatsApp","SumUp","Virement","Revolut","Espèces","Stripe"];
   const CATS_DEP = ["achat_stock","prestataire","transport","marketing","logiciel","bureau","formation","autre"];
   const POLES_CODES = ["BSH","ODYSSEE","EVENTS","FOOD","VILO","INVEST","STRUCTURE","GENERAL"];
 
@@ -9556,7 +9554,7 @@ function PortailSuiviClient({ onBack, user }) {
   const [erreur,     setErreur]     = useState("");
   const [onglet,     setOnglet]     = useState("demandes");
   const [paiement,   setPaiement]   = useState(null); // {dossier, option:"acompte"|"total"}
-  const [payMode,    setPayMode]    = useState(null); // "sumup"|"paypal"|"virement"|"especes"|"cheque"
+  const [payMode,    setPayMode]    = useState(null); // "sumup"|"virement"|"especes"|"cheque"
   const [payLoading, setPayLoading] = useState(false);
   const [paySucces,  setPaySucces]  = useState(null); // ref PAY-
 
@@ -9873,7 +9871,6 @@ function PortailSuiviClient({ onBack, user }) {
       {id:"especes", ico:"💵",label:"Espèces",           desc:"En boutique sur rendez-vous"},
       {id:"cheque",  ico:"📋",label:"Chèque",            desc:"À l'ordre de Bella'Studio"},
       {id:"sumup",   ico:"💳",label:"SumUp (carte)",     desc:"Paiement en ligne — lien à configurer"},
-      {id:"paypal",  ico:"🅿",label:"PayPal",            desc:"Paiement en ligne — lien à configurer"},
     ];
     return (
       <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",display:"flex",flexDirection:"column",fontFamily:SA,color:EV.creme}}>
@@ -9914,7 +9911,7 @@ function PortailSuiviClient({ onBack, user }) {
               <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:10}}>Mode de paiement :</div>
               <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:18}}>
                 {MODES.map(m=>{
-                  const nonConfig = m.id==="sumup"||m.id==="paypal";
+                  const nonConfig = m.id==="sumup";
                   return (
                     <div key={m.id} onClick={()=>{if(!nonConfig) confirmerPaiement(payMode==="__total"?"total":"acompte",m.id);}}
                       style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+EV.line,borderRadius:11,padding:"12px 14px",cursor:nonConfig?"not-allowed":"pointer",opacity:nonConfig?0.5:1,display:"flex",gap:12,alignItems:"center"}}>

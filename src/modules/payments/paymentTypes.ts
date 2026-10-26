@@ -10,7 +10,7 @@ export type PayStatut =
 
 export type PayMode =
   | 'virement' | 'especes' | 'cheque'
-  | 'sumup' | 'paypal' | 'revolut' | 'lien' | 'manuel';
+  | 'sumup' | 'revolut' | 'lien' | 'manuel';
 
 export type PayType = 'acompte' | 'solde' | 'integral' | 'fractionne';
 
@@ -113,7 +113,6 @@ export const MODE_LABELS: Record<PayMode, string> = {
   especes:   '💵 Espèces',
   cheque:    '📝 Chèque',
   sumup:     '📱 SumUp',
-  paypal:    '🔵 PayPal',
   revolut:   '🟣 Revolut',
   lien:      '🔗 Lien de paiement',
   manuel:    '✅ Validation manuelle',

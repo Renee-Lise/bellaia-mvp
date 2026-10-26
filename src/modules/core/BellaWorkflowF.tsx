@@ -28,7 +28,6 @@ const MODES_PAY: { id: ModePaiement; label: string }[] = [
   {id:"especes",  label:"Espèces"},
   {id:"virement", label:"Virement"},
   {id:"sumup",    label:"SumUp"},
-  {id:"paypal",   label:"PayPal"},
   {id:"cheque",   label:"Chèque"},
 ];
 

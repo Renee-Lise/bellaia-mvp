@@ -23,7 +23,7 @@ export const STATUTS_PRODUIT = [
 ];
 
 export const MODES_PAIEMENT = [
-  "SumUp", "Virement", "Espèces", "PayPal", "Revolut", "WhatsApp",
+  "SumUp", "Virement", "Espèces", "Revolut", "WhatsApp",
 ];
 
 export const STATUTS_COMMANDE_EVENTS = [

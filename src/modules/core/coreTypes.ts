@@ -157,7 +157,7 @@ export type StatutPaiement =
   | "en_attente" | "confirme" | "rembourse" | "echoue";
 
 export type ModePaiement =
-  | "especes" | "virement" | "sumup" | "paypal" | "cheque" | "en_ligne";
+  | "especes" | "virement" | "sumup" | "cheque" | "en_ligne";
 
 export type ModelivraIson = "retrait" | "livraison" | "evenement";
 
@@ -203,7 +203,7 @@ export interface Paiement {
   mode?: ModePaiement;
   statut: StatutPaiement;
   datePaiement?: string;
-  referenceExt?: string;      // ref SumUp/PayPal
+  referenceExt?: string;      // ref SumUp
   notes?: string;
 }
 

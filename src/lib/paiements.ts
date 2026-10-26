@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 // LIB PAIEMENTS BELLAÏA — Helpers serveur partagés
-// Utilisé par PayPal, SumUp, Webhooks
+// Utilisé par SumUp, Webhooks
 // ═══════════════════════════════════════════════════════════
 
 import { createClient } from "@supabase/supabase-js";
@@ -13,14 +13,14 @@ export function sbServer() {
   );
 }
 
-export type ModePaiement = "PayPal" | "SumUp" | "Especes" | "Virement" | "Lien_paiement";
+export type ModePaiement = "SumUp" | "Especes" | "Virement" | "Lien_paiement";
 export type StatutPaiement = "en_attente" | "paye" | "echoue" | "rembourse" | "annule";
 export type StatutCompta = "auto_valide" | "a_verifier" | "valide" | "annule";
 
 // ── Enregistrer un paiement confirmé + alimenter toute la chaîne
 export async function confirmerPaiement(params: {
-  provider:         "PayPal" | "SumUp";
-  provider_ref:     string;       // order_id PayPal ou checkout_id SumUp
+  provider:         "SumUp";
+  provider_ref:     string;       // checkout_id SumUp
   montant:          number;
   devise:           string;
   mode_paiement:    ModePaiement;

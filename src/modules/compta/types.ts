@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 
 export type ModesPaiement =
-  | "SumUp" | "Revolut" | "PayPal" | "Virement" | "Lien_paiement"
+  | "SumUp" | "Revolut" | "Virement" | "Lien_paiement"
   | "Especes" | "Stripe" | "Autre";
 
 export type StatutEcriture =
@@ -70,7 +70,7 @@ export interface RegleCategorisation {
 
 // Modes paiement en ligne = automatiquement validés
 export const MODES_EN_LIGNE: ModesPaiement[] = [
-  "SumUp", "Revolut", "PayPal", "Virement", "Lien_paiement", "Stripe"
+  "SumUp", "Revolut", "Virement", "Lien_paiement", "Stripe"
 ];
 
 export const isEnLigne = (mode: ModesPaiement): boolean =>

@@ -175,6 +175,6 @@ export interface PaiementDemande {
   paiement_url?:    string | null;
   acompte_paye?:    boolean;
   statut_paiement?: "non_paye" | "acompte_paye" | "solde_paye" | "rembourse";
-  mode_paiement?:   "especes" | "virement" | "sumup" | "paypal" | "cheque" | null;
+  mode_paiement?:   "especes" | "virement" | "sumup" | "cheque" | null;
   date_paiement?:   string | null;
 }

@@ -446,9 +446,9 @@ export default function PaymentCenter({ user, initialPaiementId, onClose }: Prop
           borderRadius:R.md, padding:'10px 13px', fontSize:12, color:C.info, marginBottom:16,
           lineHeight:1.6 }}>
           ℹ️ <strong>Mode paiement manuel</strong> — La demande sera créée et suivie dans Bellaïa.
-          Le paiement réel (virement, SumUp, PayPal) est effectué en dehors de l'application
+          Le paiement réel (virement, SumUp) est effectué en dehors de l'application
           et confirmé manuellement par la fondatrice.
-          L'intégration PSP directe (SumUp API, PayPal SDK) sera disponible
+          L'intégration PSP directe (SumUp API) sera disponible
           dans une prochaine mise à jour.
         </div>
 
