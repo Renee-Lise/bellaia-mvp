@@ -3690,14 +3690,24 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r) {
         });
         if (r.ok) {
           const rows = await r.json();
-          if (Array.isArray(rows) && rows.length > 0) {
+          if (Array.isArray(rows)) {
+            // Une réponse réussie avec un tableau vide est une vraie
+            // donnée (aucun article, aucun client) — pas un échec.
+            // Retomber sur le cache localStorage dans ce cas-là a
+            // provoqué un mirage persistant : un produit supprimé/jamais
+            // réellement enregistré restait affiché indéfiniment, relu
+            // puis réécrit dans le cache à chaque chargement, alors que
+            // la vraie base était vide (constaté en diagnostiquant
+            // pourquoi /bsh/boutique restait vide malgré des policies et
+            // des colonnes pourtant correctes).
             setData(rows.map(mapRow));
             setLoaded(true);
             return;
           }
         }
       } catch {}
-      // Fallback localStorage
+      // Fallback localStorage — uniquement si la requête a vraiment
+      // échoué (réseau, erreur HTTP), jamais sur un succès vide.
       try {
         const s = typeof window !== "undefined" ? localStorage.getItem(localKey) : null;
         if (s) setData(JSON.parse(s));
