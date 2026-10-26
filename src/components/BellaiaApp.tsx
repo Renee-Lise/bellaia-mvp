@@ -525,7 +525,7 @@ const FAQ_BSH = [
   ["Comment commander ?","Via WhatsApp ("+ENV.TEL+"), le site ou lors d'un événement."],
   ["Les colis sont-ils discrets ?","Oui. Emballage neutre sans mention du contenu."],
   ["Livrez-vous en Guyane ?","Oui — et aux Antilles et en France métropolitaine."],
-  ["Modes de paiement ?","CB, Espèces, PayPal, Revolut, SumUp, Stripe."],
+  ["Modes de paiement ?","Stripe (carte bancaire en ligne)."],
   ["Puis-je venir seule à un événement ?","Oui, absolument. La plupart viennent seules."],
   ["Comment devenir BSH Members ?","Faites votre demande depuis l'espace BSH Members. La fondatrice examine chaque demande individuellement."],
 ];
@@ -1580,7 +1580,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
     </div>
   );
 
-  const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"games",l:"🎲",ext:"https://renee-lise.github.io/bsh-secret-games/"},{id:"membres",l:"💎"},{id:"faq",l:"❓"}];
+  const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"games",l:"🎲",ext:"/bsh/secret-games"},{id:"membres",l:"💎"},{id:"faq",l:"❓"}];
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)",fontFamily:SA}}>
@@ -1947,18 +1947,6 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
             {cmdConfirmee.produitStr}<br/>
             <span style={{fontSize:18,fontWeight:700,color:BSH.or,fontFamily:FS}}>{cmdConfirmee.totalSel}€</span>
           </p>
-          {cmdConfirmee.pmt === "PayPal" && (
-            <div style={{background:(BSH.bord)+"15",border:"1px solid "+(BSH.line),borderRadius:10,padding:"12px 14px",marginBottom:14}}>
-              <div style={{fontSize:12,fontWeight:700,color:BSH.creme,marginBottom:6}}>🅿 Régler par PayPal</div>
-              <div style={{fontSize:11,color:B.muted,lineHeight:1.7}}>
-                Envoyez <span style={{color:BSH.or,fontWeight:700}}>{cmdConfirmee.totalSel}€</span> à l'adresse PayPal :
-              </div>
-              <div style={{fontSize:13,color:B.gold,fontWeight:700,marginTop:6,wordBreak:"break-all"}}>{ENV.PAYPAL}</div>
-              <div style={{fontSize:10,color:B.muted,marginTop:8,lineHeight:1.6}}>
-                Indiquez la référence <span style={{color:BSH.creme}}>{cmdConfirmee.id}</span> dans le message PayPal. La fondatrice validera votre commande dès réception.
-              </div>
-            </div>
-          )}
           <Btn v="gold" full onClick={() => {setModal(null); setCmdConfirmee(null);}}>Terminé</Btn>
         </Mdl>
       )}
@@ -5730,7 +5718,89 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
-  const SECS=[{id:"dash",l:"🏠"},{id:"cmds",l:"🧾"},{id:"crm",l:"👥"},{id:"stock",l:"📦"},{id:"evts",l:"📅"},{id:"fin",l:"€"},{id:"params",l:"⚙"}];
+  const SECS=[{id:"dash",l:"🏠"},{id:"cmds",l:"🧾"},{id:"crm",l:"👥"},{id:"stock",l:"📦"},{id:"evts",l:"📅"},{id:"hotes",l:"👤"},{id:"jeux",l:"🎲"},{id:"docs",l:"🗂"},{id:"fin",l:"€"},{id:"params",l:"⚙"}];
+
+  // ── Hôtes & hôtesses BSH (candidatures, missions) ────────
+  const [hotes, setHotes] = useState([]);
+  const [missionsBsh, setMissionsBsh] = useState([]);
+  const [hotesChargees, setHotesChargees] = useState(false);
+  useEffect(() => {
+    if (sec !== "hotes" || hotesChargees) return;
+    setHotesChargees(true);
+    sbGet("bsh_hotes", { order: "created_at.desc" }).then(setHotes).catch(()=>{});
+    sbGet("bsh_missions", { order: "date_mission.asc" }).then(setMissionsBsh).catch(()=>{});
+  }, [sec, hotesChargees]);
+
+  const sauvegarderHote = async () => {
+    if (!form.nom?.trim()) return;
+    const payload = { nom:form.nom, prenom:form.prenom||"", telephone:form.telephone||"",
+      email:form.email||"", statut:form.statut||"candidature",
+      disponibilites:form.disponibilites||"", notes_internes:form.notes_internes||"" };
+    if (form._edit) {
+      const res = await sbPatch("bsh_hotes", form._edit, payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      setHotes(h => h.map(x => x.id===form._edit ? res.data : x));
+    } else {
+      if (!form.id?.trim()) { alert("L'identifiant du compte (profiles.id) est obligatoire."); return; }
+      const res = await sbPost("bsh_hotes", {...payload, id:form.id.trim()});
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")+"\n\nNote : la fiche doit d'abord avoir un compte (profiles) existant — l'id de bsh_hotes référence profiles(id)."); return; }
+      const row = Array.isArray(res.data)?res.data[0]:res.data;
+      if (row) setHotes(h => [row,...h]);
+    }
+    setModal(null);
+  };
+
+  const sauvegarderMission = async () => {
+    if (!form.titre?.trim() || !form.hote_id) return;
+    const payload = { hote_id:form.hote_id, titre:form.titre, description:form.description||"",
+      date_mission:form.date_mission||null, lieu:form.lieu||"",
+      remuneration:parseFloat(form.remuneration)||null, statut:form.statut||"proposee" };
+    if (form._edit) {
+      const res = await sbPatch("bsh_missions", form._edit, payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      setMissionsBsh(m => m.map(x => x.id===form._edit ? res.data : x));
+    } else {
+      const res = await sbPost("bsh_missions", payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      const row = Array.isArray(res.data)?res.data[0]:res.data;
+      if (row) setMissionsBsh(m => [row,...m]);
+    }
+    setModal(null);
+  };
+
+  // ── BSH Secret Games (cartes + modération des thèmes) ────
+  const [jeuxCartes, setJeuxCartes] = useState([]);
+  const [jeuxThemes, setJeuxThemes] = useState([]);
+  const [jeuxCharges, setJeuxCharges] = useState(false);
+  useEffect(() => {
+    if (sec !== "jeux" || jeuxCharges) return;
+    setJeuxCharges(true);
+    sbGet("bsh_jeux_cartes", { order: "ordre.asc", limit: 200 }).then(setJeuxCartes).catch(()=>{});
+    sbGet("bsh_jeux_themes", { order: "created_at.desc", limit: 200 }).then(setJeuxThemes).catch(()=>{});
+  }, [sec, jeuxCharges]);
+
+  const sauvegarderCarte = async () => {
+    if (!form.nom?.trim() || !form.question?.trim()) return;
+    const payload = { emoji:form.emoji||"🎴", nom:form.nom, question:form.question,
+      ordre:parseInt(form.ordre)||0, statut:form.statut||"active" };
+    if (form._edit) {
+      const res = await sbPatch("bsh_jeux_cartes", form._edit, payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      setJeuxCartes(c => c.map(x => x.id===form._edit ? res.data : x));
+    } else {
+      const res = await sbPost("bsh_jeux_cartes", payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      const row = Array.isArray(res.data)?res.data[0]:res.data;
+      if (row) setJeuxCartes(c => [...c,row]);
+    }
+    setModal(null);
+  };
+
+  const modererTheme = async (t, statut) => {
+    const res = await sbPatch("bsh_jeux_themes", t.id, { statut, moderee_le: new Date().toISOString() });
+    if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+    setJeuxThemes(ts => ts.map(x => x.id===t.id ? {...x,statut} : x));
+  };
 
   return(
     <div style={{display:"flex",flexDirection:"column",minHeight:"100%",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)"}}>
@@ -5817,6 +5887,97 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color:BSH.cremeD}}>{pct}% · {e.dispo} restantes</span><div style={{display:"flex",gap:4}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...e,_edit:e.id});setModal("evt");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setEvenements(p=>p.filter(x=>x.id!==e.id));}}>✕</BBtn></div></div>
           </div>);})}
         </div>}
+        {sec==="hotes"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:10,color:BSH.cremeD,lineHeight:1.6,marginBottom:4}}>
+            Candidatures, profils et missions des hôtes/hôtesses BSH — distinct des talents Bella'Odyssée. Une fiche hôtesse nécessite un compte existant (profiles) : créez d'abord son compte, puis sa fiche ici avec le même identifiant.
+          </div>
+          <div style={{display:"flex",gap:6,justifyContent:"flex-end",marginBottom:2}}>
+            <BBtn v="ghost" sz="sm" onClick={()=>{setForm({statut:"proposee"});setModal("mission_bsh");}}>+ Mission</BBtn>
+            <BBtn v="gold" sz="sm" onClick={()=>{setForm({statut:"candidature"});setModal("hote_bsh");}}>+ Hôtesse</BBtn>
+          </div>
+          <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:4}}>Hôtesses ({hotes.length})</div>
+          {hotes.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune hôtesse enregistrée pour l'instant.</div>}
+          {hotes.map(h=>(
+            <div key={h.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{[h.prenom,h.nom].filter(Boolean).join(" ")||"—"}</div>
+                <div style={{fontSize:10,color:BSH.cremeD}}>{h.email||"—"} · {h.telephone||"—"}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <BTag c={{candidature:BSH.or,active:BSH.vert,inactive:BSH.cremeD,refusee:BSH.rouge}[h.statut]||BSH.or} sz={9}>{h.statut}</BTag>
+                <div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}>
+                  <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...h,_edit:h.id});setModal("hote_bsh");}}>✏</BBtn>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:10}}>Missions ({missionsBsh.length})</div>
+          {missionsBsh.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune mission assignée pour l'instant.</div>}
+          {missionsBsh.map(m=>{
+            const h = hotes.find(x=>x.id===m.hote_id);
+            return (
+            <div key={m.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{m.titre}</div>
+                  <div style={{fontSize:10,color:BSH.cremeD}}>{h?[h.prenom,h.nom].filter(Boolean).join(" "):"—"} {m.lieu?"· "+m.lieu:""}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <BTag c={{proposee:BSH.or,confirmee:BSH.vert,terminee:BSH.cremeD,annulee:BSH.rouge}[m.statut]||BSH.or} sz={9}>{m.statut}</BTag>
+                  <div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}>
+                    <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...m,_edit:m.id});setModal("mission_bsh");}}>✏</BBtn>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );})}
+        </div>}
+        {sec==="jeux"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:10,color:BSH.cremeD,lineHeight:1.6,marginBottom:4}}>
+            Catalogue de cartes BSH Secret Games (visibles par les clientes sur /bsh/secret-games) et modération des thèmes proposés — rien n'est publié automatiquement.
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}>
+            <BBtn v="gold" sz="sm" onClick={()=>{setForm({emoji:"🎴",statut:"active",ordre:jeuxCartes.length+1});setModal("carte_bsh");}}>+ Carte</BBtn>
+          </div>
+          <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:4}}>Cartes ({jeuxCartes.length})</div>
+          {jeuxCartes.map(c=>(
+            <div key={c.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{c.emoji} {c.nom}</div>
+                <div style={{fontSize:10,color:BSH.cremeD}}>{c.question}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <BTag c={c.statut==="active"?BSH.vert:BSH.cremeD} sz={9}>{c.statut}</BTag>
+                <div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}>
+                  <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("carte_bsh");}}>✏</BBtn>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:10}}>Thèmes proposés ({jeuxThemes.filter(t=>t.statut==="en_attente").length} en attente)</div>
+          {jeuxThemes.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune proposition pour l'instant.</div>}
+          {jeuxThemes.map(t=>(
+            <div key={t.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{t.titre}</div>
+                  <div style={{fontSize:10,color:BSH.cremeD}}>{t.pseudo||"Anonyme"} · {t.espace||"—"} · {t.type_jeu||"—"}</div>
+                </div>
+                <BTag c={{en_attente:BSH.or,approuve:BSH.vert,refuse:BSH.rouge}[t.statut]} sz={9}>{t.statut}</BTag>
+              </div>
+              {t.description && <div style={{fontSize:11,color:BSH.cremeD,marginBottom:6}}>{t.description}</div>}
+              {t.statut==="en_attente" && (
+                <div style={{display:"flex",gap:6}}>
+                  <BBtn v="gold" sz="sm" onClick={()=>modererTheme(t,"approuve")}>✓ Approuver</BBtn>
+                  <BBtn v="danger" sz="sm" onClick={()=>modererTheme(t,"refuse")}>✕ Refuser</BBtn>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>}
+        {sec==="docs"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <DocumentsBSHWrapper/>
+        </div>}
         {sec==="fin"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
             {[{v:(ca)+"€",l:"CA encaissé",c:BSH.or},{v:commandes.length>0 ? (Math.round(ca/Math.max(commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").length,1)))+"€" : "—",l:"Panier moyen",c:BSH.rose}].map(s=><div key={s.l} style={{flex:1,background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px",borderTop:"3px solid "+(s.c)}}><div style={{fontSize:22,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{s.v}</div><div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{s.l}</div></div>)}
@@ -5824,7 +5985,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8}}>Toutes les commandes</div>{commandes.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+(BSH.line)}}><div><div style={{fontSize:11}}>{c.client}</div><div style={{fontSize:9,color:BSH.cremeD}}>{c.produit}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:BSH.or,fontWeight:700}}>{c.montant}€</div><BTag c={CMD_C[c.statut]||BSH.bord} sz={7}>{c.statut}</BTag></div></div>)}</div>
         </div>}
         {sec==="params"&&<div style={{display:"flex",flexDirection:"column",gap:9}}>
-          {[{t:"Coordonnées",items:[["Nom","Bella'Secret Home"],["Adresse",ENV.ADRESSE],["Ville",(ENV.VILLE)+" — "+(ENV.PAYS)],["E-mail",ENV.EMAIL],["WhatsApp",ENV.TEL]]},{t:"Paiements",items:[["SumUp","Principal — Phase 2"],["Stripe","À configurer"],["PayPal",ENV.PAYPAL]]},{t:"Données",items:[["Stockage","Artifact persistant"],["Supabase","Phase 2"],["Sécurité","Fondatrice uniquement"]]}].map(s=>(
+          {[{t:"Coordonnées",items:[["Nom","Bella'Secret Home"],["Adresse",ENV.ADRESSE],["Ville",(ENV.VILLE)+" — "+(ENV.PAYS)],["E-mail",ENV.EMAIL],["WhatsApp",ENV.TEL]]},{t:"Paiements",items:[["Stripe","Principal — paiement en ligne"],["SumUp","Phase 2"]]},{t:"Données",items:[["Stockage","Artifact persistant"],["Supabase","Phase 2"],["Sécurité","Fondatrice uniquement"]]}].map(s=>(
             <div key={s.t} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8,fontFamily:FS}}>{s.t}</div>{s.items.map(([l,v])=><div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid "+(BSH.line)+"22",gap:8}}><span style={{fontSize:10,color:BSH.cremeD,flexShrink:0}}>{l}</span><span style={{fontSize:10,color:BSH.creme,textAlign:"right",wordBreak:"break-all"}}>{v}</span></div>)}</div>
           ))}
         </div>}
@@ -5880,7 +6041,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <Fld label="Montant €"><Inp type="number" value={form.montant||0} onChange={e=>setForm({...form,montant:parseFloat(e.target.value)||0})}/></Fld>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <Fld label="Statut"><Sel value={form.statut||"Demande reçue"} onChange={e=>setForm({...form,statut:e.target.value})} options={STATUTS_CMD}/></Fld>
-          <Fld label="Paiement"><Sel value={form.pmt||"WhatsApp"} onChange={e=>setForm({...form,pmt:e.target.value})} options={["WhatsApp","SumUp","Stripe","PayPal","Revolut","Espèces"]}/></Fld>
+          <Fld label="Paiement"><Sel value={form.pmt||"WhatsApp"} onChange={e=>setForm({...form,pmt:e.target.value})} options={["WhatsApp","SumUp","Stripe","Revolut","Espèces"]}/></Fld>
         </div>
         <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
         <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{
@@ -5944,8 +6105,69 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.nom?.trim())return;if(form._edit)await setEvenements(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setEvenements(p=>[...p,{...form,id:uid(),ico:"✨"}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
+      {modal==="hote_bsh"&&<Mdl title={form._edit?"Modifier hôtesse":"Nouvelle hôtesse"} onClose={()=>setModal(null)}>
+        {form._edit ? (
+          <Fld label="Identifiant compte (profiles.id)"><div style={{fontSize:11,color:B.muted,wordBreak:"break-all"}}>{form.id}</div></Fld>
+        ) : (
+          <Fld label="Identifiant compte (profiles.id) *"><Inp value={form.id||""} onChange={e=>setForm({...form,id:e.target.value})} placeholder="UUID du compte déjà créé"/></Fld>
+        )}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Prénom"><Inp value={form.prenom||""} onChange={e=>setForm({...form,prenom:e.target.value})}/></Fld>
+          <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})}/></Fld>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Email"><Inp value={form.email||""} onChange={e=>setForm({...form,email:e.target.value})}/></Fld>
+          <Fld label="Téléphone"><Inp value={form.telephone||""} onChange={e=>setForm({...form,telephone:e.target.value})}/></Fld>
+        </div>
+        <Fld label="Statut"><Sel value={form.statut||"candidature"} onChange={e=>setForm({...form,statut:e.target.value})} options={["candidature","active","inactive","refusee"]}/></Fld>
+        <Fld label="Disponibilités"><Inp value={form.disponibilites||""} onChange={e=>setForm({...form,disponibilites:e.target.value})} placeholder="Ex : Soirs et week-ends"/></Fld>
+        <Fld label="Notes internes (jamais visibles par l'hôtesse)"><Inp value={form.notes_internes||""} onChange={e=>setForm({...form,notes_internes:e.target.value})} rows={2}/></Fld>
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderHote} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+      </Mdl>}
+      {modal==="mission_bsh"&&<Mdl title={form._edit?"Modifier mission":"Nouvelle mission"} onClose={()=>setModal(null)}>
+        <Fld label="Hôtesse">
+          <select value={form.hote_id||""} onChange={e=>setForm({...form,hote_id:e.target.value})}
+            style={{width:"100%",background:B.surface,border:"1px solid "+B.border,borderRadius:R.md,padding:"9px 12px",color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+            <option value="">— choisir —</option>
+            {hotes.map(h=><option key={h.id} value={h.id}>{[h.prenom,h.nom].filter(Boolean).join(" ")||h.email||h.id}</option>)}
+          </select>
+        </Fld>
+        <Fld label="Titre"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})} placeholder="Ex : Soirée privée du 14/11"/></Fld>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Date"><Inp type="datetime-local" value={form.date_mission||""} onChange={e=>setForm({...form,date_mission:e.target.value})}/></Fld>
+          <Fld label="Lieu"><Inp value={form.lieu||""} onChange={e=>setForm({...form,lieu:e.target.value})}/></Fld>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Rémunération €"><Inp type="number" value={form.remuneration||0} onChange={e=>setForm({...form,remuneration:parseFloat(e.target.value)||0})}/></Fld>
+          <Fld label="Statut"><Sel value={form.statut||"proposee"} onChange={e=>setForm({...form,statut:e.target.value})} options={["proposee","confirmee","terminee","annulee"]}/></Fld>
+        </div>
+        <Fld label="Description"><Inp value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})} rows={2}/></Fld>
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderMission} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+      </Mdl>}
+      {modal==="carte_bsh"&&<Mdl title={form._edit?"Modifier carte":"Nouvelle carte"} onClose={()=>setModal(null)}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:10}}>
+          <Fld label="Emoji"><Inp value={form.emoji||""} onChange={e=>setForm({...form,emoji:e.target.value})} placeholder="❤️"/></Fld>
+          <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Ex : AMOUR"/></Fld>
+        </div>
+        <Fld label="Question"><Inp value={form.question||""} onChange={e=>setForm({...form,question:e.target.value})} rows={2}/></Fld>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Ordre"><Inp type="number" value={form.ordre||0} onChange={e=>setForm({...form,ordre:parseInt(e.target.value)||0})}/></Fld>
+          <Fld label="Statut"><Sel value={form.statut||"active"} onChange={e=>setForm({...form,statut:e.target.value})} options={["active","inactive"]}/></Fld>
+        </div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderCarte} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+      </Mdl>}
     </div>
   );
+}
+
+// Wrapper Documents GED pré-filtré module BSH, dans l'espace fondatrice BSH
+function DocumentsBSHWrapper() {
+  const [Comp, setComp] = React.useState(null);
+  React.useEffect(() => {
+    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
+  return <Comp moduleInitial="BSH"/>;
 }
 
 
@@ -6878,6 +7100,179 @@ ${lignes.length>0?"<p><strong>Prestation :</strong> "+lignes.map(l=>l.libelle).j
                 <button onClick={()=>imprimerFicheMission(m)} style={{fontSize:9,padding:"4px 9px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(201,168,76,0.35)",background:"transparent",color:"#c9a96e",fontFamily:SA}}>📄 Ouvrir</button>
               </div>
             ))}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// HoteBSH — Espace Hôtes & Hôtesses Bella'Secret Home
+// Distinct de EspaceHote (générique Bella'Studio) et de HoteOdyssee :
+// BSH a ses propres candidatures, missions et documents, jamais
+// mélangés avec un autre univers (même règle que Cercle/Lounge/
+// Members, jamais fusionnés).
+// Profil · Missions · Documents
+// ═══════════════════════════════════════════════════════════
+function HoteBSH({ user, onBack }) {
+  const [onglet,   setOnglet]   = React.useState("missions");
+  const [fiche,    setFiche]    = React.useState(null);
+  const [missions, setMissions] = React.useState([]);
+  const [docs,     setDocs]     = React.useState([]);
+  const [loading,  setLoading]  = React.useState(false);
+  const [source,   setSource]   = React.useState("local");
+
+  React.useEffect(() => {
+    let actif = true;
+    const charger = async () => {
+      if (!SB_URL || !user?.id) return;
+      setLoading(true);
+      try {
+        const token = await getTokenAsync();
+        const headers = { apikey:SB_KEY, Authorization:"Bearer "+token };
+        const [rFiche, rMissions, rDocs] = await Promise.all([
+          fetch(SB_URL+"/rest/v1/bsh_hotes?id=eq."+user.id+"&limit=1", { headers }),
+          fetch(SB_URL+"/rest/v1/bsh_missions?hote_id=eq."+user.id+"&order=date_mission.asc", { headers }),
+          fetch(SB_URL+"/rest/v1/bellaia_documents?module=eq.BSH&order=created_at.desc&limit=50", { headers }),
+        ]);
+        const [dFiche, dMissions, dDocs] = await Promise.all([
+          rFiche.ok ? rFiche.json() : [],
+          rMissions.ok ? rMissions.json() : [],
+          rDocs.ok ? rDocs.json() : [],
+        ]);
+        if (actif) {
+          setFiche(Array.isArray(dFiche) ? (dFiche[0]||null) : null);
+          setMissions(Array.isArray(dMissions) ? dMissions : []);
+          setDocs(Array.isArray(dDocs) ? dDocs : []);
+          if (rFiche.ok && rMissions.ok) setSource("supabase");
+        }
+      } catch(e) { console.warn("[HoteBSH]", e.message); }
+      finally { if (actif) setLoading(false); }
+    };
+    charger();
+    return () => { actif = false; };
+  }, [user?.id]);
+
+  const fmtDt = (s) => { try { return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s||""; } };
+  const colSt = (s) => ({proposee:"#60a5fa",confirmee:"#22c55e",terminee:"#16a34a",annulee:"#f87171"})[s]||"rgba(255,255,255,0.4)";
+  const BSH_ACC = "#c6a15b";
+
+  const ONGLETS = [
+    {id:"missions",  ico:"🎯", l:"Missions"},
+    {id:"documents", ico:"📁", l:"Documents"},
+    {id:"profil",    ico:"👤", l:"Profil"},
+  ];
+
+  const missionsAVenir   = missions.filter(m => ["proposee","confirmee"].includes(m.statut));
+  const missionsPassees  = missions.filter(m => ["terminee","annulee"].includes(m.statut));
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#2e1a2e,#0b0709 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(198,161,91,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
+        <div>
+          <div style={{fontFamily:FS,fontSize:14,color:BSH_ACC}}>✦ Espace Hôtes BSH</div>
+          <div style={{fontSize:9,color:"rgba(198,161,91,0.8)"}}>
+            {source==="supabase"?"✅ Synchronisé":"📦 Local"} · {missions.length} mission{missions.length>1?"s":""}
+          </div>
+        </div>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Retour</button>
+      </div>
+
+      <div style={{display:"flex",overflowX:"auto",padding:"6px 12px",borderBottom:"1px solid rgba(198,161,91,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0,gap:2}}>
+        {ONGLETS.map(o=>(
+          <button key={o.id} onClick={()=>setOnglet(o.id)} style={{padding:"5px 10px",borderRadius:99,border:"none",cursor:"pointer",fontSize:9,fontWeight:700,whiteSpace:"nowrap",fontFamily:SA,background:onglet===o.id?BSH_ACC:"transparent",color:onglet===o.id?"#0b0709":"rgba(255,255,255,0.45)"}}>
+            {o.ico} {o.l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 28px"}}>
+
+        {/* ── MISSIONS ── */}
+        {onglet==="missions" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:BSH_ACC,marginBottom:6}}>Missions à venir</div>
+            {loading && <div style={{textAlign:"center",padding:20,color:"rgba(245,240,232,0.6)"}}>Chargement…</div>}
+            {!loading && missionsAVenir.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune mission assignée pour l'instant.</div>
+            )}
+            {missionsAVenir.map(m=>(
+              <div key={m.id} style={{background:"rgba(198,161,91,0.08)",border:"1px solid rgba(198,161,91,0.2)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{m.titre}</div>
+                  <span style={{fontSize:9,color:colSt(m.statut),fontWeight:700}}>{m.statut}</span>
+                </div>
+                {m.lieu && <div style={{fontSize:11,color:"rgba(245,240,232,0.6)"}}>📍 {m.lieu}</div>}
+                <div style={{fontSize:10,color:BSH_ACC,fontWeight:700,marginTop:4}}>
+                  {m.date_mission ? "📅 "+fmtDt(m.date_mission) : ""}
+                  {m.remuneration ? " · "+Number(m.remuneration).toFixed(2).replace(".",",")+" €" : ""}
+                </div>
+                {m.description && <div style={{fontSize:11,color:"rgba(245,240,232,0.5)",marginTop:6}}>{m.description}</div>}
+              </div>
+            ))}
+            {missionsPassees.length>0 && (
+              <>
+                <div style={{fontFamily:FS,fontSize:14,color:"rgba(198,161,91,0.6)",marginTop:14,marginBottom:4}}>Missions passées</div>
+                {missionsPassees.map(m=>(
+                  <div key={m.id} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between"}}>
+                    <div style={{fontSize:11,color:"rgba(245,240,232,0.6)"}}>{m.titre}</div>
+                    <span style={{fontSize:9,color:colSt(m.statut)}}>{m.statut}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── DOCUMENTS ── */}
+        {onglet==="documents" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:BSH_ACC,marginBottom:6}}>Mes documents</div>
+            <div style={{fontSize:11,color:"rgba(245,240,232,0.5)",lineHeight:1.7}}>
+              Contrats et fiches transmis par la fondatrice.
+            </div>
+            {docs.length===0 && !loading && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucun document pour l'instant.</div>
+            )}
+            {docs.map(d=>(
+              <div key={d.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(198,161,91,0.15)",borderRadius:11,padding:"10px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>📄 {d.titre}</div>
+                  <div style={{fontSize:9,color:"rgba(245,240,232,0.5)"}}>{fmtDt(d.created_at)}</div>
+                </div>
+                {(d.url || d.contenu_html) && (
+                  <button onClick={()=>{
+                    if (d.url) { window.open(d.url,"_blank"); return; }
+                    const w = window.open("","_blank");
+                    if (w) { w.document.write(d.contenu_html); w.document.close(); }
+                  }} style={{fontSize:9,padding:"4px 9px",borderRadius:6,cursor:"pointer",border:"1px solid rgba(198,161,91,0.35)",background:"transparent",color:BSH_ACC,fontFamily:SA}}>⬇ Ouvrir</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PROFIL ── */}
+        {onglet==="profil" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:BSH_ACC,marginBottom:6}}>Mon profil</div>
+            {!fiche && !loading && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>
+                Profil en cours de création par la fondatrice.
+              </div>
+            )}
+            {fiche && (
+              <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(198,161,91,0.15)",borderRadius:12,padding:"14px"}}>
+                {[["Nom",[fiche.prenom,fiche.nom].filter(Boolean).join(" ")],["Email",fiche.email],["Téléphone",fiche.telephone],["Statut",fiche.statut],["Disponibilités",fiche.disponibilites]].filter(([,v])=>v).map(([l,v])=>(
+                  <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                    <span style={{fontSize:11,color:"rgba(245,240,232,0.5)"}}>{l}</span>
+                    <span style={{fontSize:11,fontWeight:600,color:"#fff"}}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -11674,6 +12069,9 @@ export default function BellaiaApp() {
     if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
       return <><BandeauApercu/><div style={{paddingTop:36}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
     }
+    if (univHote === "bsh" || user?.pole === "BSH") {
+      return <><BandeauApercu/><div style={{paddingTop:36}}><HoteBSH user={user} onBack={()=>setPreview(null)}/></div></>;
+    }
     return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
   }
   if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
@@ -11686,6 +12084,9 @@ export default function BellaiaApp() {
     const univHote = user?.univers || user?.module || "";
     if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
       return <HoteOdyssee user={user} onBack={deconnexion}/>;
+    }
+    if (univHote === "bsh" || user?.pole === "BSH") {
+      return <HoteBSH user={user} onBack={deconnexion}/>;
     }
     return <EspaceHote user={user} onLogout={deconnexion}/>;
   }

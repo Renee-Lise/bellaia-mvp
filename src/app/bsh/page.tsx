@@ -275,13 +275,10 @@ export default function BshAccueilPage() {
           </h2>
           <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: "0 0 20px" }}>
             Des cartes et des défis à découvrir à deux, avec élégance et
-            discrétion. Pour l&apos;instant hébergé sur son propre site, en
-            attendant son intégration complète dans BSH.
+            discrétion.
           </p>
-          <a
-            href="https://renee-lise.github.io/bsh-secret-games/"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/bsh/secret-games"
             style={{
               background: "transparent",
               border: `1px solid rgba(198,161,91,0.5)`,
@@ -300,8 +297,8 @@ export default function BshAccueilPage() {
               boxSizing: "border-box",
             }}
           >
-            Découvrir Secret Games ↗
-          </a>
+            Découvrir Secret Games
+          </Link>
         </div>
 
         {/* ── Le Cercle BSH ── */}

@@ -110,12 +110,12 @@ const FORM0: Partial<Document> = {
   module:"GENERAL", type:"autre", statut:"brouillon", version:1,
 };
 
-export default function DocumentCenter() {
+export default function DocumentCenter({ moduleInitial }: { moduleInitial?: ModuleDocument } = {}) {
   const [docs,    setDocs]    = useState<Document[]>([]);
   const [detail,  setDetail]  = useState<Document|null>(null);
   const [modal,   setModal]   = useState<"form"|null>(null);
-  const [form,    setForm]    = useState<Partial<Document>>(FORM0);
-  const [filtre,  setFiltre]  = useState<FiltreDocuments>({ module:"tous", type:"tous", statut:"tous" });
+  const [form,    setForm]    = useState<Partial<Document>>(moduleInitial ? {...FORM0, module:moduleInitial} : FORM0);
+  const [filtre,  setFiltre]  = useState<FiltreDocuments>({ module:moduleInitial || "tous", type:"tous", statut:"tous" });
   const [source,  setSource]  = useState<"local"|"supabase">("local");
   const [saving,  setSaving]  = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
