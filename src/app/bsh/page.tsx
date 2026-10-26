@@ -241,6 +241,69 @@ export default function BshAccueilPage() {
           </div>
         </div>
 
+        {/* ── Secret Games ── */}
+        <div
+          style={{
+            background: C.night,
+            padding: "32px 22px",
+            borderTop: `1px solid ${C.border}`,
+            borderBottom: `1px solid ${C.border}`,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              fontSize: 9,
+              letterSpacing: "0.14em",
+              color: C.gold,
+              textTransform: "uppercase",
+              marginBottom: 16,
+            }}
+          >
+            Jouer
+          </span>
+          <h2
+            style={{
+              fontFamily: DISPLAY,
+              fontWeight: 500,
+              fontSize: 22,
+              margin: "0 0 12px",
+              color: C.cream,
+            }}
+          >
+            BSH Secret Games
+          </h2>
+          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: "0 0 20px" }}>
+            Des cartes et des défis à découvrir à deux, avec élégance et
+            discrétion. Pour l&apos;instant hébergé sur son propre site, en
+            attendant son intégration complète dans BSH.
+          </p>
+          <a
+            href="https://renee-lise.github.io/bsh-secret-games/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: "transparent",
+              border: `1px solid rgba(198,161,91,0.5)`,
+              borderRadius: 2,
+              padding: "11px 22px",
+              color: C.goldL,
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: "0.06em",
+              cursor: "pointer",
+              fontFamily: BODY,
+              width: "100%",
+              textDecoration: "none",
+              display: "block",
+              textAlign: "center",
+              boxSizing: "border-box",
+            }}
+          >
+            Découvrir Secret Games ↗
+          </a>
+        </div>
+
         {/* ── Le Cercle BSH ── */}
         <div
           style={{

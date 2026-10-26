@@ -16,6 +16,11 @@ const FOOTER_LINKS = [
   { l: "Lounge", href: "/bsh/lounge" },
 ];
 
+// Secret Games reste hébergé sur son propre site GitHub Pages (démo
+// autonome, sans backend) — on y renvoie en lien externe plutôt que
+// de dupliquer son contenu, en attendant une intégration complète.
+const SECRET_GAMES_URL = "https://renee-lise.github.io/bsh-secret-games/";
+
 const LEGAL_LINKS = [
   { l: "Confidentialité & Livraison", href: "/bsh/confidentialite" },
   { l: "Mentions légales", href: "/bsh/mentions" },
@@ -69,6 +74,20 @@ export default function BshFooter() {
             {l.l}
           </Link>
         ))}
+        <a
+          href={SECRET_GAMES_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "rgba(203,185,185,0.5)",
+            fontSize: 10,
+            letterSpacing: "0.04em",
+            fontFamily: BODY,
+            textDecoration: "none",
+          }}
+        >
+          Secret Games ↗
+        </a>
       </div>
       <div
         style={{

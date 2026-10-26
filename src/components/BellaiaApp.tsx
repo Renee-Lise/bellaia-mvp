@@ -1580,7 +1580,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
     </div>
   );
 
-  const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"membres",l:"💎"},{id:"faq",l:"❓"}];
+  const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"games",l:"🎲",ext:"https://renee-lise.github.io/bsh-secret-games/"},{id:"membres",l:"💎"},{id:"faq",l:"❓"}];
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)",fontFamily:SA}}>
@@ -1599,9 +1599,9 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
       {/* Nav BSH */}
       <div style={{display:"flex",justifyContent:"space-around",padding:"8px 12px",borderBottom:"1px solid "+(BSH.line),background:"rgba(0,0,0,0.2)",flexShrink:0}}>
         {PAGES.map(p => (
-          <button key={p.id} onClick={() => setPage(p.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:page===p.id ? "2px solid "+(BSH.or) : "2px solid transparent"}}>
+          <button key={p.id} onClick={() => p.ext ? window.open(p.ext,"_blank") : setPage(p.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:page===p.id ? "2px solid "+(BSH.or) : "2px solid transparent"}}>
             <span style={{fontSize:18}}>{p.l}</span>
-            <span style={{fontSize:8,color:page===p.id?BSH.or:BSH.cremeD,fontWeight:700,textTransform:"capitalize"}}>{p.id}</span>
+            <span style={{fontSize:8,color:page===p.id?BSH.or:BSH.cremeD,fontWeight:700,textTransform:"capitalize"}}>{p.id==="games"?"games ↗":p.id}</span>
           </button>
         ))}
       </div>
