@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0016_bsh_secret_games.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-26 (3 cartes
+--   présentes, 7 policies confirmées via pg_policies, correspondance
+--   exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-26
 -- Objet : fait exister BSH Secret Games EN BASE, pour remplacer la
 --   démo purement locale (renee-lise.github.io/bsh-secret-games,

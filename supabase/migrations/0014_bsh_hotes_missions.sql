@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0014_bsh_hotes_missions.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-26 (4 policies
+--   confirmées via pg_policies, correspondance exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-26
 -- Objet : crée un espace "hôtes et hôtesses" propre à Bella'Secret
 --   Home — jusqu'ici, un compte hôte quelconque atterrissait sur

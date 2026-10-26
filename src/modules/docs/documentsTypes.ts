@@ -46,6 +46,7 @@ export interface Document {
   devisRef?: string;
   commandeRef?: string;
   factureRef?: string;
+  hoteId?: string;           // lien direct vers une hôtesse BSH (profiles.id) — colonne hote_id réelle
   // Métadonnées
   statut: StatutDocument;
   version: number;

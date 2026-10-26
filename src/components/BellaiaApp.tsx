@@ -9533,7 +9533,7 @@ async function gedAutoSave({ titre, module, categorie, reference, clientNom, con
         categorie:    categorie||"autre",
         type_fichier: contenuHtml?"html":"texte",
         contenu_html: contenuHtml||null,
-        client_nom:   clientNom||null,
+        notes:        clientNom?("Client : "+clientNom):null, // pas de colonne client_nom en base (vérifié 2026-10-26)
         entite_table: entiteTable||null,
         entite_id:    entiteId||null,
         statut:       "final",

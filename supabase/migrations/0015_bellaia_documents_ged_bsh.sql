@@ -1,6 +1,15 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0015_bellaia_documents_ged_bsh.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: ÉCHEC À L'EXÉCUTION — NE PAS REJOUER
+-- Exécutée le 2026-10-26 par Renée-Lise : a échoué avec
+--   ERROR 42883 "operator does not exist: uuid = text" (la vraie
+--   table bellaia_documents existait déjà, avec entite_id/client_id
+--   déjà en uuid — ce fichier supposait text à tort, faute de trace
+--   dans les migrations versionnées). Comme le script s'exécute en
+--   une seule transaction, RIEN de ce fichier n'a été appliqué — la
+--   base est restée dans son état d'avant. Remplacée par 0017, qui
+--   repart du vrai schéma vérifié en base. Conservé ici uniquement
+--   pour l'historique du diagnostic — ne jamais ré-exécuter tel quel.
 -- Auteur : Claude Code · Date de rédaction : 2026-10-26
 -- Objet : la GED centrale (src/modules/docs/DocumentCenter.tsx,
 --   déjà câblée côté fondatrice sous la destination "documents") et

@@ -120,7 +120,13 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
   const [saving,  setSaving]  = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  // Chargement depuis Supabase
+  // Chargement depuis Supabase — noms de colonnes alignés sur le vrai
+  // schéma de bellaia_documents (vérifié en base le 2026-10-26, voir
+  // migration 0017) : pas de colonnes "type"/"url"/"taille"/
+  // "mime_type"/"client_nom"/"devis_ref"/"commande_ref"/"facture_ref",
+  // la vraie table utilise type_fichier/fichier_url/taille_bytes/
+  // type_mime/hote_id. client_nom/devis_ref/commande_ref/facture_ref
+  // n'ont pas d'équivalent : repliés dans "notes" à l'écriture.
   useEffect(() => {
     sbGet("bellaia_documents",
       "statut=neq.supprime&order=created_at.desc&limit=100"
@@ -128,10 +134,9 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
       if (rows.length) {
         setDocs(rows.map((r:any): Document => ({
           id:r.id, reference:r.reference, titre:r.titre,
-          module:r.module, type:r.type, categorie:r.categorie,
-          url:r.url, taille:r.taille, mimeType:r.mime_type,
-          clientId:r.client_id, clientNom:r.client_nom,
-          devisRef:r.devis_ref, commandeRef:r.commande_ref, factureRef:r.facture_ref,
+          module:r.module, type:r.type_fichier, categorie:r.categorie,
+          url:r.fichier_url, taille:r.taille_bytes ?? r.taille_octets, mimeType:r.type_mime,
+          clientId:r.client_id, hoteId:r.hote_id,
           statut:r.statut, version:r.version||1, tags:r.tags||[], notes:r.notes,
           createdAt:r.created_at, updatedAt:r.updated_at,
         })));
@@ -165,22 +170,27 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
       createdAt: new Date().toISOString(),
     } as Document;
     setDocs(ds => [nv, ...ds]);
+    // Colonnes réelles de bellaia_documents (migration 0017) — pas de
+    // client_nom/devis_ref/commande_ref/facture_ref en base : repliés
+    // dans "notes" pour ne rien perdre de ce que le formulaire collecte.
+    const notesCompletes = [
+      nv.notes,
+      nv.clientNom && `Client : ${nv.clientNom}`,
+      nv.devisRef && `Devis : ${nv.devisRef}`,
+    ].filter(Boolean).join(" · ") || null;
     const row = await sbPost("bellaia_documents", {
-      reference:   nv.reference,
-      titre:       nv.titre,
-      module:      nv.module,
-      type:        nv.type,
-      categorie:   nv.categorie,
-      contenu_html:nv.contenuHtml,
-      client_id:   nv.clientId,
-      client_nom:  nv.clientNom,
-      devis_ref:   nv.devisRef,
-      commande_ref:nv.commandeRef,
-      facture_ref: nv.factureRef,
-      statut:      nv.statut,
-      version:     1,
-      tags:        nv.tags || [],
-      notes:       nv.notes,
+      reference:    nv.reference,
+      titre:        nv.titre,
+      module:       nv.module,
+      type_fichier: nv.type,
+      categorie:    nv.categorie,
+      contenu_html: nv.contenuHtml,
+      client_id:    nv.clientId || null,
+      hote_id:      nv.hoteId || null,
+      statut:       nv.statut,
+      version:      1,
+      tags:         nv.tags || [],
+      notes:        notesCompletes,
     }).catch(() => null);
     if (row?.id) {
       setDocs(ds => ds.map(d => d.id === localId ? { ...d, id:row.id } : d));
@@ -402,6 +412,13 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
                     onChange={e => setForm(f => ({...f,[k]:e.target.value}))} style={inp}/>
                 </div>
               ))}
+              {form.module === "BSH" && (
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:CLR.creamD }}>Hôtesse BSH (identifiant compte, optionnel)</label>
+                  <input placeholder="UUID de la fiche bsh_hotes — pour qu'elle voie ce document" value={form.hoteId||""}
+                    onChange={e => setForm(f => ({...f,hoteId:e.target.value}))} style={inp}/>
+                </div>
+              )}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   <label style={{ fontSize:10, color:CLR.creamD }}>Module</label>
