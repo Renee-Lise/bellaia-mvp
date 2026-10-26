@@ -184,7 +184,8 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
       module:       nv.module,
       type_fichier: nv.type,
       categorie:    nv.categorie,
-      contenu_html: nv.contenuHtml,
+      contenu_html: nv.contenuHtml || null,
+      fichier_url:  nv.url || null,
       client_id:    nv.clientId || null,
       hote_id:      nv.hoteId || null,
       statut:       nv.statut,
@@ -404,7 +405,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
             <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
               {[["Titre *","titre","Nom du document"],
                 ["Client","clientNom","Nom du client"],
-                ["Devis","devisRef","DEV-2026-..."],
+                ...(form.module === "BSH" ? [] : [["Devis","devisRef","DEV-2026-..."] as [string,string,string]]),
                 ["Notes","notes","Informations complémentaires"]].map(([l,k,ph]) => (
                 <div key={k} style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   <label style={{ fontSize:10, color:CLR.creamD }}>{l}</label>
@@ -441,7 +442,27 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
                   </select>
                 </div>
               </div>
-              {/* Upload fichier */}
+              {/* Rédiger directement dans Bellaïa */}
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:CLR.creamD }}>
+                  Contenu du document (rédigé ici — imprimable/exportable en PDF ensuite)
+                </label>
+                <textarea placeholder="Écrivez le contenu du document directement ici…"
+                  value={form.contenuHtml||""} rows={5}
+                  onChange={e => setForm(f => ({...f, contenuHtml:e.target.value}))}
+                  style={{ ...inp, resize:"vertical" }}/>
+              </div>
+
+              {/* Lien externe — document déjà existant ailleurs */}
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:CLR.creamD }}>
+                  Ou lien vers un document existant (Google Doc, PDF déjà en ligne…)
+                </label>
+                <input placeholder="https://..." value={form.url||""}
+                  onChange={e => setForm(f => ({...f, url:e.target.value}))} style={inp}/>
+              </div>
+
+              {/* Upload fichier — pas encore connecté au stockage */}
               <div>
                 <label style={{ fontSize:10, color:CLR.creamD, display:"block", marginBottom:6 }}>
                   Fichier (optionnel)
@@ -455,7 +476,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
                   📎 {form.taille ? `Fichier sélectionné (${fmtTaille(form.taille)})` : "Choisir un fichier"}
                 </button>
                 <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)", marginTop:4 }}>
-                  Upload vers Supabase Storage — disponible prochainement
+                  Upload vers Supabase Storage — pas encore disponible : utilisez le contenu rédigé ou le lien externe ci-dessus en attendant.
                 </div>
               </div>
               <div style={{ display:"flex", gap:8 }}>

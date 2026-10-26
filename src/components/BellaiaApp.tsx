@@ -5716,7 +5716,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
-  const SECS=[{id:"dash",l:"🏠"},{id:"cmds",l:"🧾"},{id:"crm",l:"👥"},{id:"stock",l:"📦"},{id:"evts",l:"📅"},{id:"hotes",l:"👤"},{id:"jeux",l:"🎲"},{id:"docs",l:"🗂"},{id:"fin",l:"€"},{id:"params",l:"⚙"}];
+  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"fin",l:"€",t:"Finances"},{id:"params",l:"⚙",t:"Réglages"}];
 
   // ── Hôtes & hôtesses BSH (candidatures, missions) ────────
   const [hotes, setHotes] = useState([]);
@@ -5733,15 +5733,15 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     if (!form.nom?.trim()) return;
     const payload = { nom:form.nom, prenom:form.prenom||"", telephone:form.telephone||"",
       email:form.email||"", statut:form.statut||"candidature",
-      disponibilites:form.disponibilites||"", notes_internes:form.notes_internes||"" };
+      disponibilites:form.disponibilites||"", notes_internes:form.notes_internes||"",
+      profile_id:form.profile_id?.trim() || null };
     if (form._edit) {
       const res = await sbPatch("bsh_hotes", form._edit, payload);
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
       setHotes(h => h.map(x => x.id===form._edit ? res.data : x));
     } else {
-      if (!form.id?.trim()) { alert("L'identifiant du compte (profiles.id) est obligatoire."); return; }
-      const res = await sbPost("bsh_hotes", {...payload, id:form.id.trim()});
-      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")+"\n\nNote : la fiche doit d'abord avoir un compte (profiles) existant — l'id de bsh_hotes référence profiles(id)."); return; }
+      const res = await sbPost("bsh_hotes", payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
       const row = Array.isArray(res.data)?res.data[0]:res.data;
       if (row) setHotes(h => [row,...h]);
     }
@@ -5806,8 +5806,8 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <span style={{fontFamily:FS,fontSize:13,color:BSH.or,letterSpacing:2}}>✦ Bella'Secret Home</span>
         <span style={{fontSize:8,color:BSH.cremeD,letterSpacing:2}}>BACK-OFFICE</span>
       </div>
-      <div style={{display:"flex",justifyContent:"space-around",padding:"7px",borderBottom:"1px solid "+(BSH.line),background:"rgba(0,0,0,0.2)"}}>
-        {SECS.map(s=><button key={s.id} onClick={()=>setSec(s.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderBottom:sec===s.id ? "2px solid "+(BSH.or) : "2px solid transparent"}}><span style={{fontSize:17}}>{s.l}</span></button>)}
+      <div style={{display:"flex",gap:2,overflowX:"auto",WebkitOverflowScrolling:"touch",padding:"7px",borderBottom:"1px solid "+(BSH.line),background:"rgba(0,0,0,0.2)"}}>
+        {SECS.map(s=><button key={s.id} onClick={()=>setSec(s.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 10px",flexShrink:0,borderBottom:sec===s.id ? "2px solid "+(BSH.or) : "2px solid transparent"}}><span style={{fontSize:17}}>{s.l}</span><span style={{fontSize:8,color:sec===s.id?BSH.or:BSH.cremeD,fontWeight:sec===s.id?700:400,whiteSpace:"nowrap"}}>{s.t}</span></button>)}
       </div>
       <div style={{padding:"12px",color:BSH.creme,fontFamily:SA}}>
         {sec==="dash"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -6104,11 +6104,9 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.nom?.trim())return;if(form._edit)await setEvenements(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setEvenements(p=>[...p,{...form,id:uid(),ico:"✨"}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="hote_bsh"&&<Mdl title={form._edit?"Modifier hôtesse":"Nouvelle hôtesse"} onClose={()=>setModal(null)}>
-        {form._edit ? (
-          <Fld label="Identifiant compte (profiles.id)"><div style={{fontSize:11,color:B.muted,wordBreak:"break-all"}}>{form.id}</div></Fld>
-        ) : (
-          <Fld label="Identifiant compte (profiles.id) *"><Inp value={form.id||""} onChange={e=>setForm({...form,id:e.target.value})} placeholder="UUID du compte déjà créé"/></Fld>
-        )}
+        <div style={{fontSize:11,color:B.muted,lineHeight:1.6,marginBottom:10}}>
+          Ajoute n'importe quelle candidate, même si elle n'a pas (encore) de compte Bellaïa. Tu pourras relier sa fiche à un compte plus tard, seulement si elle a besoin de se connecter à son espace hôtesse.
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <Fld label="Prénom"><Inp value={form.prenom||""} onChange={e=>setForm({...form,prenom:e.target.value})}/></Fld>
           <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})}/></Fld>
@@ -6120,6 +6118,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <Fld label="Statut"><Sel value={form.statut||"candidature"} onChange={e=>setForm({...form,statut:e.target.value})} options={["candidature","active","inactive","refusee"]}/></Fld>
         <Fld label="Disponibilités"><Inp value={form.disponibilites||""} onChange={e=>setForm({...form,disponibilites:e.target.value})} placeholder="Ex : Soirs et week-ends"/></Fld>
         <Fld label="Notes internes (jamais visibles par l'hôtesse)"><Inp value={form.notes_internes||""} onChange={e=>setForm({...form,notes_internes:e.target.value})} rows={2}/></Fld>
+        <Fld label="Lier à un compte Bellaïa existant (optionnel)"><Inp value={form.profile_id||""} onChange={e=>setForm({...form,profile_id:e.target.value})} placeholder="UUID du compte — seulement si elle doit se connecter à son espace"/></Fld>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderHote} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="mission_bsh"&&<Mdl title={form._edit?"Modifier mission":"Nouvelle mission"} onClose={()=>setModal(null)}>
@@ -7130,21 +7129,23 @@ function HoteBSH({ user, onBack }) {
       try {
         const token = await getTokenAsync();
         const headers = { apikey:SB_KEY, Authorization:"Bearer "+token };
-        const [rFiche, rMissions, rDocs] = await Promise.all([
-          fetch(SB_URL+"/rest/v1/bsh_hotes?id=eq."+user.id+"&limit=1", { headers }),
-          fetch(SB_URL+"/rest/v1/bsh_missions?hote_id=eq."+user.id+"&order=date_mission.asc", { headers }),
+        // bsh_hotes.id n'est plus le compte lui-même (migration 0018) —
+        // on retrouve d'abord sa fiche via profile_id, puis ses missions
+        // via l'id propre de cette fiche.
+        const rFiche = await fetch(SB_URL+"/rest/v1/bsh_hotes?profile_id=eq."+user.id+"&limit=1", { headers });
+        const dFiche = rFiche.ok ? await rFiche.json() : [];
+        const fiche0 = Array.isArray(dFiche) ? (dFiche[0]||null) : null;
+        const [rMissions, rDocs] = await Promise.all([
+          fiche0 ? fetch(SB_URL+"/rest/v1/bsh_missions?hote_id=eq."+fiche0.id+"&order=date_mission.asc", { headers }) : null,
           fetch(SB_URL+"/rest/v1/bellaia_documents?module=eq.BSH&order=created_at.desc&limit=50", { headers }),
         ]);
-        const [dFiche, dMissions, dDocs] = await Promise.all([
-          rFiche.ok ? rFiche.json() : [],
-          rMissions.ok ? rMissions.json() : [],
-          rDocs.ok ? rDocs.json() : [],
-        ]);
+        const dMissions = rMissions && rMissions.ok ? await rMissions.json() : [];
+        const dDocs = rDocs.ok ? await rDocs.json() : [];
         if (actif) {
-          setFiche(Array.isArray(dFiche) ? (dFiche[0]||null) : null);
+          setFiche(fiche0);
           setMissions(Array.isArray(dMissions) ? dMissions : []);
           setDocs(Array.isArray(dDocs) ? dDocs : []);
-          if (rFiche.ok && rMissions.ok) setSource("supabase");
+          if (rFiche.ok) setSource("supabase");
         }
       } catch(e) { console.warn("[HoteBSH]", e.message); }
       finally { if (actif) setLoading(false); }
