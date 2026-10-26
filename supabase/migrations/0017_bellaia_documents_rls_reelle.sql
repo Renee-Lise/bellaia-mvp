@@ -1,6 +1,9 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0017_bellaia_documents_rls_reelle.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-26 (3 policies
+--   confirmées via pg_policies : bellaia_documents_hote_bsh,
+--   bellaia_documents_staff, ged_client_own — docs_auth a bien
+--   disparu, correspondance exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-26
 -- Objet : corrige la 0015, qui a échoué intégralement (une seule
 --   transaction annulée par une erreur de cast) parce qu'elle
