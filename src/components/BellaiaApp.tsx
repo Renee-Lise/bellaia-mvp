@@ -5716,7 +5716,44 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
-  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"fin",l:"€",t:"Finances"},{id:"params",l:"⚙",t:"Réglages"}];
+  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"params",l:"⚙",t:"Réglages"}];
+
+  // ── Communication BSH (annonces, notifications, publications) ──
+  const [coms, setComs] = useState([]);
+  const [comsChargees, setComsChargees] = useState(false);
+  useEffect(() => {
+    if (sec !== "com" || comsChargees) return;
+    setComsChargees(true);
+    sbGet("bsh_communications", { order: "created_at.desc", limit: 200 }).then(setComs).catch(()=>{});
+  }, [sec, comsChargees]);
+
+  const sauvegarderCom = async () => {
+    if (!form.titre?.trim() || !form.contenu?.trim()) return;
+    const payload = { titre:form.titre, contenu:form.contenu, type:form.type||"annonce", cible:form.cible||"tous" };
+    if (form._edit) {
+      const res = await sbPatch("bsh_communications", form._edit, payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      setComs(cs => cs.map(x => x.id===form._edit ? res.data : x));
+    } else {
+      const res = await sbPost("bsh_communications", {...payload, statut:"brouillon"});
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      const row = Array.isArray(res.data)?res.data[0]:res.data;
+      if (row) setComs(cs => [row,...cs]);
+    }
+    setModal(null);
+  };
+
+  const publierCom = async (c) => {
+    const res = await sbPatch("bsh_communications", c.id, { statut:"publie", publiee_le:new Date().toISOString() });
+    if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+    setComs(cs => cs.map(x => x.id===c.id ? {...x,statut:"publie",publiee_le:new Date().toISOString()} : x));
+  };
+
+  const archiverCom = async (c) => {
+    const res = await sbPatch("bsh_communications", c.id, { statut:"archive" });
+    if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+    setComs(cs => cs.map(x => x.id===c.id ? {...x,statut:"archive"} : x));
+  };
 
   // ── Produit (stock) BSH — sauvegarde RÉELLE dans Supabase.
   // Avant ce correctif, le bouton "Enregistrer" de "+ Produit" ne
@@ -6200,6 +6237,32 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         {sec==="docs"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <DocumentsBSHWrapper/>
         </div>}
+        {sec==="com"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:10,color:BSH.cremeD,lineHeight:1.6,marginBottom:4}}>
+            Annonces, notifications et publications BSH. Un brouillon n'est visible que par toi — "Publier" le rend visible selon sa cible (Tous / Clientes / Hôtesses).
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}>
+            <BBtn v="gold" sz="sm" onClick={()=>{setForm({type:"annonce",cible:"tous"});setModal("com_bsh");}}>+ Communication</BBtn>
+          </div>
+          {coms.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune communication pour l'instant.</div>}
+          {coms.map(c=>(
+            <div key={c.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{c.titre}</div>
+                  <div style={{fontSize:10,color:BSH.cremeD}}>{c.type} · cible : {c.cible}</div>
+                </div>
+                <BTag c={{brouillon:BSH.or,publie:BSH.vert,archive:BSH.cremeD}[c.statut]} sz={9}>{c.statut}</BTag>
+              </div>
+              <div style={{fontSize:11,color:BSH.cremeD,marginBottom:7,whiteSpace:"pre-wrap"}}>{c.contenu}</div>
+              <div style={{display:"flex",gap:6}}>
+                <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("com_bsh");}}>✏ Modifier</BBtn>
+                {c.statut!=="publie" && <BBtn v="gold" sz="sm" onClick={()=>publierCom(c)}>📢 Publier</BBtn>}
+                {c.statut==="publie" && <BBtn v="danger" sz="sm" onClick={()=>archiverCom(c)}>Archiver</BBtn>}
+              </div>
+            </div>
+          ))}
+        </div>}
         {sec==="fin"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
             {[{v:(ca)+"€",l:"CA encaissé",c:BSH.or},{v:commandes.length>0 ? (Math.round(ca/Math.max(commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").length,1)))+"€" : "—",l:"Panier moyen",c:BSH.rose}].map(s=><div key={s.l} style={{flex:1,background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:11,padding:"12px",borderTop:"3px solid "+(s.c)}}><div style={{fontSize:22,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{s.v}</div><div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{s.l}</div></div>)}
@@ -6411,6 +6474,18 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <Fld label="Statut"><Sel value={form.statut||"active"} onChange={e=>setForm({...form,statut:e.target.value})} options={["active","inactive"]}/></Fld>
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderCarte} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+      </Mdl>}
+      {modal==="com_bsh"&&<Mdl title={form._edit?"Modifier":"Nouvelle communication"} onClose={()=>setModal(null)}>
+        <Fld label="Titre"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})} placeholder="Ex : Nouvelle collection disponible"/></Fld>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Type"><Sel value={form.type||"annonce"} onChange={e=>setForm({...form,type:e.target.value})} options={["annonce","notification","publication"]}/></Fld>
+          <Fld label="Cible"><Sel value={form.cible||"tous"} onChange={e=>setForm({...form,cible:e.target.value})} options={["tous","clientes","hotesses","fondatrice"]}/></Fld>
+        </div>
+        <Fld label="Contenu"><Inp value={form.contenu||""} onChange={e=>setForm({...form,contenu:e.target.value})} rows={4}/></Fld>
+        <div style={{fontSize:10,color:B.muted,marginBottom:10,lineHeight:1.6}}>
+          Enregistrée en brouillon — utilise "📢 Publier" dans la liste pour la rendre visible.
+        </div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderCom} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
     </div>
   );
@@ -7379,6 +7454,7 @@ function HoteBSH({ user, onBack }) {
   const [docs,     setDocs]     = React.useState([]);
   const [loading,  setLoading]  = React.useState(false);
   const [source,   setSource]   = React.useState("local");
+  const [annonces, setAnnonces] = React.useState([]);
 
   React.useEffect(() => {
     let actif = true;
@@ -7394,16 +7470,19 @@ function HoteBSH({ user, onBack }) {
         const rFiche = await fetch(SB_URL+"/rest/v1/bsh_hotes?profile_id=eq."+user.id+"&limit=1", { headers });
         const dFiche = rFiche.ok ? await rFiche.json() : [];
         const fiche0 = Array.isArray(dFiche) ? (dFiche[0]||null) : null;
-        const [rMissions, rDocs] = await Promise.all([
+        const [rMissions, rDocs, rAnnonces] = await Promise.all([
           fiche0 ? fetch(SB_URL+"/rest/v1/bsh_missions?hote_id=eq."+fiche0.id+"&order=date_mission.asc", { headers }) : null,
           fetch(SB_URL+"/rest/v1/bellaia_documents?module=eq.BSH&order=created_at.desc&limit=50", { headers }),
+          fetch(SB_URL+"/rest/v1/bsh_communications?statut=eq.publie&cible=in.(tous,hotesses)&order=publiee_le.desc&limit=20", { headers }),
         ]);
         const dMissions = rMissions && rMissions.ok ? await rMissions.json() : [];
         const dDocs = rDocs.ok ? await rDocs.json() : [];
+        const dAnnonces = rAnnonces.ok ? await rAnnonces.json() : [];
         if (actif) {
           setFiche(fiche0);
           setMissions(Array.isArray(dMissions) ? dMissions : []);
           setDocs(Array.isArray(dDocs) ? dDocs : []);
+          setAnnonces(Array.isArray(dAnnonces) ? dAnnonces : []);
           if (rFiche.ok) setSource("supabase");
         }
       } catch(e) { console.warn("[HoteBSH]", e.message); }
@@ -7419,6 +7498,7 @@ function HoteBSH({ user, onBack }) {
 
   const ONGLETS = [
     {id:"missions",  ico:"🎯", l:"Missions"},
+    {id:"annonces",  ico:"📢", l:"Annonces"},
     {id:"documents", ico:"📁", l:"Documents"},
     {id:"profil",    ico:"👤", l:"Profil"},
   ];
@@ -7481,6 +7561,22 @@ function HoteBSH({ user, onBack }) {
                 ))}
               </>
             )}
+          </div>
+        )}
+
+        {/* ── ANNONCES ── */}
+        {onglet==="annonces" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:BSH_ACC,marginBottom:6}}>Annonces</div>
+            {annonces.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune annonce pour l'instant.</div>
+            )}
+            {annonces.map(a=>(
+              <div key={a.id} style={{background:"rgba(198,161,91,0.08)",border:"1px solid rgba(198,161,91,0.2)",borderRadius:12,padding:"12px 13px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:4}}>{a.titre}</div>
+                <div style={{fontSize:11,color:"rgba(245,240,232,0.6)",whiteSpace:"pre-wrap"}}>{a.contenu}</div>
+              </div>
+            ))}
           </div>
         )}
 

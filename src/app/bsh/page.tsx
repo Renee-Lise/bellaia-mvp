@@ -21,6 +21,7 @@
 import Link from "next/link";
 import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } from "./bshTokens";
 import BshFooter from "./BshFooter";
+import { getAnnoncesBSH } from "./getAnnonces";
 
 const UNIVERS = [
   { ico: "🌸", titre: "Lingerie", desc: "Dentelle, satin et velours — des pièces pensées pour se sentir désirable, pas déguisée.", href: "/bsh/boutique" },
@@ -29,7 +30,8 @@ const UNIVERS = [
   { ico: "🎁", titre: "Coffrets & Exp.", desc: "Des moments à vivre plutôt que de simples produits.", href: "/bsh/coffrets" },
 ];
 
-export default function BshAccueilPage() {
+export default async function BshAccueilPage() {
+  const annonces = await getAnnoncesBSH();
   return (
       <div
         style={{
@@ -147,6 +149,46 @@ export default function BshAccueilPage() {
             </Link>
           </div>
         </div>
+
+        {/* ── Annonces ── */}
+        {annonces.length > 0 && (
+          <div
+            style={{
+              background: C.plumD,
+              padding: "20px 22px",
+              borderBottom: `1px solid ${C.border}`,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {annonces.map((a) => (
+              <div
+                key={a.id}
+                style={{
+                  background: "rgba(198,161,91,0.06)",
+                  border: `1px solid ${C.borderM}`,
+                  borderRadius: 8,
+                  padding: "12px 14px",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: DISPLAY,
+                    fontSize: 13,
+                    color: C.goldL,
+                    marginBottom: 4,
+                  }}
+                >
+                  {a.titre}
+                </div>
+                <p style={{ fontSize: 12, color: C.muted, margin: 0, lineHeight: 1.6 }}>
+                  {a.contenu}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── Manifeste ── */}
         <div
