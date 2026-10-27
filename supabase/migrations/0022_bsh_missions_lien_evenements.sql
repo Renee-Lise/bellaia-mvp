@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0022_bsh_missions_lien_evenements.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (colonne
+--   evenement_id confirmée en uuid)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : la migration 0014 avait volontairement laissé bsh_missions
 --   découplée des événements réels ("un lien plus fin pourra venir
