@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0024_bsh_boutique_import_concorde_pro.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (count=38, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : premier import de produits dans la boutique BSH
 --   (`stocks`, univers='BSH'), à partir des captures d'écran
