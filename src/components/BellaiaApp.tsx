@@ -6020,6 +6020,68 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     setModal(null);
   };
 
+  // ── Génère le contrat de mission pré-rempli pour une mission —
+  // lit le modèle réel (DOC-2026-BSH005) plutôt que de dupliquer son
+  // texte en dur, remplace les [placeholders] par les vraies données
+  // de la mission/hôtesse, enregistre le résultat comme un nouveau
+  // document rattaché à l'hôtesse (visible dans son espace) et
+  // l'ouvre pour impression/PDF.
+  const [generationContrat, setGenerationContrat] = useState(null); // id de la mission en cours
+
+  const genererContratMission = async (m) => {
+    const h = hotes.find(x => x.id === m.hote_id);
+    if (!h) { alert("Hôtesse introuvable pour cette mission."); return; }
+    setGenerationContrat(m.id);
+    try {
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const token = await getTokenAsync();
+      const headers = { apikey: SB_KEY, Authorization: "Bearer "+token };
+
+      const rTpl = await fetch(SB_URL_local+"/rest/v1/bellaia_documents?reference=eq.DOC-2026-BSH005&limit=1", { headers });
+      const tplRows = rTpl.ok ? await rTpl.json() : [];
+      const tpl = tplRows[0];
+      if (!tpl?.contenu_html) { alert("Modèle de contrat introuvable (DOC-2026-BSH005) — vérifie qu'il existe bien dans Documents."); return; }
+
+      const nomHote = [h.prenom, h.nom].filter(Boolean).join(" ") || "—";
+      const dateStr = m.date_mission
+        ? new Date(m.date_mission).toLocaleDateString("fr-FR", { day:"2-digit", month:"long", year:"numeric" })
+        : "[date]";
+      const montantStr = m.remuneration ? Number(m.remuneration).toFixed(2)+" €" : "[montant]";
+
+      const contenu = tpl.contenu_html
+        .split("[Nom de l'hôtesse]").join(nomHote)
+        .split("[nom de l'événement]").join(m.titre || "[nom de l'événement]")
+        .split("le [date], à [lieu]").join("le "+dateStr+", à "+(m.lieu || "[lieu]"))
+        .split("[montant] €").join(montantStr)
+        .split("[ville]").join(ENV.VILLE || "[ville]")
+        .split("[date]").join(dateStr); // reste la date de signature en fin de contrat
+
+      const ref = "DOC-"+new Date().getFullYear()+"-"+Date.now().toString().slice(-6);
+      // hote_id doit être l'identifiant du COMPTE (auth.uid()), pas celui
+      // de la fiche bsh_hotes — ce sont deux id distincts depuis la
+      // migration 0018. Sans compte lié, le contrat reste enregistré et
+      // imprimable, simplement pas visible dans un espace hôtesse (elle n'en a pas).
+      const payload = {
+        reference: ref, titre: "Contrat — "+nomHote+" — "+(m.titre||""),
+        module: "BSH", categorie: "contrat_genere", type_fichier: "contrat",
+        contenu_html: contenu, hote_id: h.profile_id || null, statut: "brouillon", version: 1,
+      };
+      const rNew = await fetch(SB_URL_local+"/rest/v1/bellaia_documents", {
+        method: "POST",
+        headers: { ...headers, "Content-Type":"application/json", Prefer:"return=representation" },
+        body: JSON.stringify(payload),
+      });
+      if (!rNew.ok) { const d = await rNew.json().catch(()=>null); alert("Erreur : "+(d?.message||"échec de l'enregistrement")); return; }
+
+      const w = window.open("", "_blank");
+      if (w) { w.document.write(contenu); w.document.close(); setTimeout(()=>w.print(), 400); }
+      alert("Contrat généré et enregistré dans les documents de "+nomHote+" (brouillon — à relire avant signature).");
+    } catch (e) {
+      alert("Erreur lors de la génération : "+(e.message||"inconnue"));
+    }
+    setGenerationContrat(null);
+  };
+
   // ── BSH Secret Games (cartes + modération des thèmes) ────
   const [jeuxCartes, setJeuxCartes] = useState([]);
   const [jeuxThemes, setJeuxThemes] = useState([]);
@@ -6186,6 +6248,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
                 <div style={{textAlign:"right"}}>
                   <BTag c={{proposee:BSH.or,confirmee:BSH.vert,terminee:BSH.cremeD,annulee:BSH.rouge}[m.statut]||BSH.or} sz={9}>{m.statut}</BTag>
                   <div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}>
+                    <BBtn v="ghost" sz="sm" disabled={generationContrat===m.id} onClick={()=>genererContratMission(m)}>{generationContrat===m.id?"…":"📝"}</BBtn>
                     <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...m,_edit:m.id});setModal("mission_bsh");}}>✏</BBtn>
                   </div>
                 </div>
@@ -6519,9 +6582,12 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginBottom:6}}>Missions ({missionsH.length})</div>
           {missionsH.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",marginBottom:10}}>Aucune mission pour l'instant.</div>}
           {missionsH.map(m=>(
-            <div key={m.id} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid "+(BSH.line)+"22"}}>
+            <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+(BSH.line)+"22"}}>
               <span style={{fontSize:11,color:BSH.creme}}>{m.titre}</span>
-              <BTag c={{proposee:BSH.or,confirmee:BSH.vert,terminee:BSH.cremeD,annulee:BSH.rouge}[m.statut]} sz={8}>{m.statut}</BTag>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <BTag c={{proposee:BSH.or,confirmee:BSH.vert,terminee:BSH.cremeD,annulee:BSH.rouge}[m.statut]} sz={8}>{m.statut}</BTag>
+                <BBtn v="ghost" sz="sm" disabled={generationContrat===m.id} onClick={()=>genererContratMission(m)}>{generationContrat===m.id?"…":"📝"}</BBtn>
+              </div>
             </div>
           ))}
           <div style={{display:"flex",gap:8,marginTop:14}}>
