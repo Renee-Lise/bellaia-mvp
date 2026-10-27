@@ -5967,7 +5967,8 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     if (!form.titre?.trim() || !form.hote_id) return;
     const payload = { hote_id:form.hote_id, titre:form.titre, description:form.description||"",
       date_mission:form.date_mission||null, lieu:form.lieu||"",
-      remuneration:parseFloat(form.remuneration)||null, statut:form.statut||"proposee" };
+      remuneration:parseFloat(form.remuneration)||null, statut:form.statut||"proposee",
+      evenement_id:form.evenement_id||null };
     if (form._edit) {
       const res = await sbPatch("bsh_missions", form._edit, payload);
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
@@ -6134,12 +6135,14 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           {missionsBsh.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune mission assignée pour l'instant.</div>}
           {missionsBsh.map(m=>{
             const h = hotes.find(x=>x.id===m.hote_id);
+            const ev = m.evenement_id ? evenements.find(x=>x.id===m.evenement_id) : null;
             return (
             <div key={m.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
               <div style={{display:"flex",justifyContent:"space-between"}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{m.titre}</div>
                   <div style={{fontSize:10,color:BSH.cremeD}}>{h?[h.prenom,h.nom].filter(Boolean).join(" "):"—"} {m.lieu?"· "+m.lieu:""}</div>
+                  {ev && <div style={{fontSize:9,color:BSH.or,marginTop:2}}>🔗 {ev.nom}</div>}
                 </div>
                 <div style={{textAlign:"right"}}>
                   <BTag c={{proposee:BSH.or,confirmee:BSH.vert,terminee:BSH.cremeD,annulee:BSH.rouge}[m.statut]||BSH.or} sz={9}>{m.statut}</BTag>
@@ -6375,6 +6378,17 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           </select>
         </Fld>
         <Fld label="Titre"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})} placeholder="Ex : Soirée privée du 14/11"/></Fld>
+        <Fld label="Événement lié (optionnel — remplit lieu/date automatiquement)">
+          <select value={form.evenement_id||""} onChange={e=>{
+              const ev = evenements.find(x=>x.id===e.target.value);
+              setForm({...form, evenement_id:e.target.value||null,
+                lieu: ev ? ev.lieu : form.lieu, date_mission: ev && ev.date ? ev.date+"T19:00" : form.date_mission});
+            }}
+            style={{width:"100%",background:B.surface,border:"1px solid "+B.border,borderRadius:R.md,padding:"9px 12px",color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+            <option value="">— aucun —</option>
+            {evenements.map(ev=><option key={ev.id} value={ev.id}>{ev.nom} · {fmt(ev.date)}</option>)}
+          </select>
+        </Fld>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <Fld label="Date"><Inp type="datetime-local" value={form.date_mission||""} onChange={e=>setForm({...form,date_mission:e.target.value})}/></Fld>
           <Fld label="Lieu"><Inp value={form.lieu||""} onChange={e=>setForm({...form,lieu:e.target.value})}/></Fld>
