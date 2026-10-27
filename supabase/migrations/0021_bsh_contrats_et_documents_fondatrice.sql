@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0021_bsh_contrats_et_documents_fondatrice.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (12 documents
+--   DOC-2026-BSH001 à BSH012 confirmés, categorie correcte pour
+--   chacun — correspondance exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : à la demande de Renée-Lise, complète la GED BSH avec :
 --   - des contrats-types pour les hôtesses ET pour les clientes ;
