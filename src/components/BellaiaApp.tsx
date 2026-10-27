@@ -3656,7 +3656,7 @@ async function creerEvenementPlanning(params, { force = false, user } = {}) {
 }
 
 // ── Hook BSH Supabase avec fallback localStorage
-function useBSHSupabase(table, localKey, init, mapRow = r => r) {
+function useBSHSupabase(table, localKey, init, mapRow = r => r, filtre = "") {
   const [data, setData] = useState(init);
   const [loaded, setLoaded] = useState(false);
 
@@ -3667,7 +3667,13 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r) {
       const token = await getTokenAsync();
       if (!url) { setLoaded(true); return; }
       try {
-        const r = await fetch((url)+"/rest/v1/"+(table)+"?order=created_at.desc&limit=200", {
+        // `filtre` (ex. "univers=eq.BSH") est indispensable pour une table
+        // partagée entre pôles comme `stocks` — sans lui, "order=…&limit=200"
+        // renvoie les 200 lignes les plus récentes TOUS pôles confondus, et
+        // les articles BSH peuvent ne jamais apparaître dans cette fenêtre
+        // si d'autres pôles ont davantage de mouvements de stock récents.
+        const q = filtre ? `${filtre}&order=created_at.desc&limit=200` : `order=created_at.desc&limit=200`;
+        const r = await fetch((url)+"/rest/v1/"+(table)+"?"+q, {
           headers: {
             apikey: SB_KEY,
             Authorization: "Bearer "+(token),
@@ -5984,10 +5990,11 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
 
   const sauvegarderHote = async () => {
     if (!form.nom?.trim()) return;
+    const profileId = form.profile_id?.trim() || null;
     const payload = { nom:form.nom, prenom:form.prenom||"", telephone:form.telephone||"",
       email:form.email||"", statut:form.statut||"candidature",
       disponibilites:form.disponibilites||"", notes_internes:form.notes_internes||"",
-      profile_id:form.profile_id?.trim() || null };
+      profile_id:profileId };
     if (form._edit) {
       const res = await sbPatch("bsh_hotes", form._edit, payload);
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
@@ -5997,6 +6004,15 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
       const row = Array.isArray(res.data)?res.data[0]:res.data;
       if (row) setHotes(h => [row,...h]);
+    }
+    // Un compte lié doit être routé vers l'espace Hôtes BSH à la vraie
+    // connexion (pas seulement en Mode aperçu) — sans ça, routage par
+    // role==="hote" retombe sur l'espace générique EspaceHote (liste
+    // de documents figée en dur, jamais la vraie base). Rien dans le
+    // code n'étiquetait jusqu'ici le profil lié comme hôtesse BSH.
+    if (profileId) {
+      const resProfil = await sbPatch("profiles", profileId, { role:"hote", pole:"BSH", univers:"bsh" });
+      if (!resProfil.ok) alert("La fiche hôtesse est enregistrée, mais son compte n'a pas pu être relié à l'espace BSH ("+(resProfil.error||"erreur inconnue")+"). Réessayez de lier le compte.");
     }
     setModal(null);
   };
@@ -12517,7 +12533,8 @@ export default function BellaiaApp() {
       stock: parseFloat(r.quantite) || 0,
       min: parseFloat(r.quantite_min) || 3,
       desc: r.notes || "",
-    })
+    }),
+    "univers=eq.BSH"
   );
   const { commandes: bshCmds, setCommandesLocal: setBshCmds, recharger: rechargerBshCmds } = useBshCommandesReel("BSH");
   const [bshCli, setBshCli] = useBSHSupabase("clients", "b5:bsh:cli", CLIENTES_BSH_INIT,
