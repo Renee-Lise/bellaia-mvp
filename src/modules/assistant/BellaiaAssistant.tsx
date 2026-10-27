@@ -20,12 +20,16 @@ const R  = { sm:6, md:10, lg:14, xl:18, full:9999 };
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// sb.auth.getSession() ne trouvait jamais de session : l'app ne
+// gère pas l'authentification via le mécanisme standard de
+// supabase-js, mais via son propre jeton stocké dans localStorage
+// ("bellaia_token", voir src/lib/bellaiaSession.ts) — d'où
+// SESSION_ABSENTE systématique. Lit directement ce même jeton.
 async function getToken(): Promise<string> {
-  const { createClient } = await import('@supabase/supabase-js');
-  const sb = createClient(SB_URL, SB_KEY);
-  const { data } = await sb.auth.getSession();
-  if (!data.session) throw new Error('SESSION_ABSENTE');
-  return data.session.access_token;
+  if (typeof window === "undefined") throw new Error('SESSION_ABSENTE');
+  const token = localStorage.getItem('bellaia_token');
+  if (!token) throw new Error('SESSION_ABSENTE');
+  return token;
 }
 
 async function sbFetch(path: string, opts: RequestInit = {}) {

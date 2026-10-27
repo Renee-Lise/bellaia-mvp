@@ -6596,12 +6596,19 @@ function IAF({ user, bshCmds, bshProduits }) {
     const nouvellesMsgs = [...msgs, { role: "user", content: msg }];
     setMsgs(nouvellesMsgs);
 
+    // L'API Anthropic exige que la conversation commence par "user" —
+    // le message d'accueil ("Bonjour Renée-Lise...") est "assistant"
+    // et n'a jamais vraiment été échangé : on l'enlève seulement pour
+    // l'appel API (l'historique affiché à l'écran, lui, le garde).
+    const premierUser = nouvellesMsgs.findIndex(m => m.role === "user");
+    const msgsPourApi = premierUser >= 0 ? nouvellesMsgs.slice(premierUser) : nouvellesMsgs;
+
     try {
       const r = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: nouvellesMsgs,
+          messages: msgsPourApi,
           system: contexte,
           max_tokens: 1000,
         }),

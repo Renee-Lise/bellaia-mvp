@@ -302,6 +302,27 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
         ) : null}
       </div>
 
+      {/* Contenu rédigé (contenuHtml) — jusqu'ici jamais affiché : la
+          vue détail ne montrait que les métadonnées, jamais le corps
+          du document lui-même. */}
+      {detail.contenuHtml && (
+        <div
+          style={{
+            background: "#fff", color: "#111", borderRadius: 14,
+            padding: "22px 20px", fontSize: 13, lineHeight: 1.65,
+          }}
+          dangerouslySetInnerHTML={{ __html: detail.contenuHtml }}
+        />
+      )}
+      {detail.url && !detail.contenuHtml && (
+        <a href={detail.url} target="_blank" rel="noopener noreferrer"
+          style={{ background:CLR.card, border:`1px solid ${CLR.line}`, borderRadius:12,
+            padding:"12px 14px", color:CLR.vertL, fontSize:12, textAlign:"center",
+            textDecoration:"none", display:"block" }}>
+          🔗 Ouvrir le lien externe
+        </a>
+      )}
+
       {/* Changement de statut */}
       <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
         {(["brouillon","valide","envoye","archive"] as const).map(s => (
