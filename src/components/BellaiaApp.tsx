@@ -5806,6 +5806,121 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     setEnregistrementProd(false);
   };
 
+  // ── Cliente BSH — même correctif que les produits : setClientes
+  // seul (useBSHSupabase) ne touche jamais Supabase.
+  const [erreurCli, setErreurCli] = useState("");
+  const [enregistrementCli, setEnregistrementCli] = useState(false);
+
+  const sauvegarderClienteBsh = async () => {
+    if (!form.nom?.trim()) return;
+    setErreurCli("");
+    setEnregistrementCli(true);
+    try {
+      const payload = {
+        nom: form.nom, ville: form.ville || null,
+        canal_acquisition: form.canal || "WhatsApp",
+        vip_level: form.vip || "Bronze",
+        notes: form.preferences || null,
+        notes_internes: form.notes || null,
+      };
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const token = await getTokenAsync();
+      const url = form._edit ? SB_URL_local+"/rest/v1/clients?id=eq."+form._edit : SB_URL_local+"/rest/v1/clients";
+      const r = await fetch(url, {
+        method: form._edit ? "PATCH" : "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify(form._edit ? {...payload, updated_at:new Date().toISOString()} : payload),
+      });
+      if (!r.ok) { const d = await r.json().catch(()=>null); throw new Error(d?.message || d?.hint || "Échec HTTP "+r.status); }
+      const rAll = await fetch(SB_URL_local+"/rest/v1/clients?order=created_at.desc&limit=200", {
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token },
+      });
+      if (rAll.ok) {
+        const rows = await rAll.json();
+        setClientes(rows.map(r => ({
+          id: r.id, nom: r.prenom ? (r.prenom)+" "+(r.nom||"").trim() : r.nom||"Client",
+          ville: r.ville||"", canal: r.canal_acquisition||"WhatsApp", vip: r.vip_level||"Bronze",
+          total: parseFloat(r.total_achats)||0, preferences: r.notes||"", notes: r.notes_internes||"",
+        })));
+      }
+      setModal(null);
+    } catch (e) {
+      setErreurCli(e.message || "Erreur lors de l'enregistrement.");
+    }
+    setEnregistrementCli(false);
+  };
+
+  const supprimerClienteBsh = async (id) => {
+    if (!confirm("Supprimer cette cliente ?")) return;
+    const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+    const token = await getTokenAsync();
+    const r = await fetch(SB_URL_local+"/rest/v1/clients?id=eq."+id, {
+      method: "DELETE",
+      headers: { apikey: SB_KEY, Authorization: "Bearer "+token },
+    });
+    if (!r.ok) { alert("La suppression a échoué."); return; }
+    setClientes(cs => cs.filter(x => x.id !== id));
+  };
+
+  // ── Événement BSH — même correctif : bshEvts était 100% local
+  // (useStore = localStorage pur), jamais visible d'un appareil à
+  // l'autre ni par une vraie cliente. Table bsh_evenements (migration
+  // 0020).
+  const [erreurEvt, setErreurEvt] = useState("");
+  const [enregistrementEvt, setEnregistrementEvt] = useState(false);
+
+  const sauvegarderEvenementBsh = async () => {
+    if (!form.nom?.trim()) return;
+    setErreurEvt("");
+    setEnregistrementEvt(true);
+    try {
+      const payload = {
+        nom: form.nom, ico: form.ico || "✨",
+        date_evenement: form.date || null, lieu: form.lieu || ENV.VILLE,
+        capacite: parseInt(form.cap) || 20,
+        places_restantes: parseInt(form.dispo) || 20,
+        prix: parseFloat(form.prix) || 0,
+        statut: form.statut || "actif",
+      };
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const token = await getTokenAsync();
+      const url = form._edit ? SB_URL_local+"/rest/v1/bsh_evenements?id=eq."+form._edit : SB_URL_local+"/rest/v1/bsh_evenements";
+      const r = await fetch(url, {
+        method: form._edit ? "PATCH" : "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify(form._edit ? {...payload, updated_at:new Date().toISOString()} : payload),
+      });
+      if (!r.ok) { const d = await r.json().catch(()=>null); throw new Error(d?.message || d?.hint || "Échec HTTP "+r.status); }
+      const rAll = await fetch(SB_URL_local+"/rest/v1/bsh_evenements?order=date_evenement.asc&limit=200", {
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token },
+      });
+      if (rAll.ok) {
+        const rows = await rAll.json();
+        setEvenements(rows.map(r => ({
+          id: r.id, nom: r.nom, ico: r.ico||"✨", date: r.date_evenement||"",
+          lieu: r.lieu||"", cap: r.capacite||20, dispo: r.places_restantes??20,
+          prix: parseFloat(r.prix)||0, statut: r.statut||"actif",
+        })));
+      }
+      setModal(null);
+    } catch (e) {
+      setErreurEvt(e.message || "Erreur lors de l'enregistrement.");
+    }
+    setEnregistrementEvt(false);
+  };
+
+  const supprimerEvenementBsh = async (id) => {
+    if (!confirm("Supprimer cet événement ?")) return;
+    const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+    const token = await getTokenAsync();
+    const r = await fetch(SB_URL_local+"/rest/v1/bsh_evenements?id=eq."+id, {
+      method: "DELETE",
+      headers: { apikey: SB_KEY, Authorization: "Bearer "+token },
+    });
+    if (!r.ok) { alert("La suppression a échoué."); return; }
+    setEvenements(es => es.filter(x => x.id !== id));
+  };
+
   const supprimerProduitBsh = async (id) => {
     if (!confirm("Supprimer ce produit ?")) return;
     const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
@@ -5965,9 +6080,9 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           </div>)}
         </div>}
         {sec==="crm"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({vip:"Bronze",canal:"WhatsApp"});setModal("cli");}}>+ Cliente</BBtn></div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({vip:"Bronze",canal:"WhatsApp"});setErreurCli("");setModal("cli");}}>+ Cliente</BBtn></div>
           {clientes.map(c=><div key={c.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}>
-            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{fontSize:13,fontWeight:600}}>{c.nom}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.ville} · {c.canal}</div>{c.preferences&&<div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>💫 {c.preferences}</div>}</div><div style={{textAlign:"right"}}><BTag c={VIP_C[c.vip]||BSH.or} sz={9}>{c.vip}</BTag><div style={{fontSize:13,color:BSH.or,fontWeight:700,marginTop:4}}>{c.total||0}€</div><div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("cli");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setClientes(p=>p.filter(x=>x.id!==c.id));}}>✕</BBtn></div></div></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{fontSize:13,fontWeight:600}}>{c.nom}</div><div style={{fontSize:10,color:BSH.cremeD}}>{c.ville} · {c.canal}</div>{c.preferences&&<div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>💫 {c.preferences}</div>}</div><div style={{textAlign:"right"}}><BTag c={VIP_C[c.vip]||BSH.or} sz={9}>{c.vip}</BTag><div style={{fontSize:13,color:BSH.or,fontWeight:700,marginTop:4}}>{c.total||0}€</div><div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setErreurCli("");setModal("cli");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>supprimerClienteBsh(c.id)}>✕</BBtn></div></div></div>
           </div>)}
         </div>}
         {sec==="stock"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -5983,12 +6098,12 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           </div>)}
         </div>}
         {sec==="evts"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({ico:"✨",cap:20,dispo:20,prix:25,lieu:ENV.VILLE});setModal("evt");}}>+ Événement</BBtn></div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({ico:"✨",cap:20,dispo:20,prix:25,lieu:ENV.VILLE});setErreurEvt("");setModal("evt");}}>+ Événement</BBtn></div>
           {evenements.map(e=>{const v=e.cap-e.dispo;const pct=e.cap>0?Math.round((v/e.cap)*100):0;return(<div key={e.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}><div><div style={{fontSize:13,fontWeight:700}}>{e.ico} {e.nom}</div><div style={{fontSize:10,color:BSH.cremeD}}>{fmt(e.date)} · {e.lieu}</div></div><BTag c={BSH.or}>{e.prix}€</BTag></div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:7}}>{[["Cap.",e.cap],["Vendus",v],["CA",(v*e.prix)+"€"]].map(([l,val])=><div key={l} style={{background:"rgba(255,255,255,.04)",borderRadius:7,padding:"5px 7px",textAlign:"center"}}><div style={{fontSize:13,fontWeight:700,color:BSH.creme,fontFamily:FS}}>{val}</div><div style={{fontSize:9,color:BSH.cremeD}}>{l}</div></div>)}</div>
             <div style={{background:"rgba(255,255,255,.04)",borderRadius:3,height:4,marginBottom:5}}><div style={{background:"linear-gradient(90deg,"+(BSH.bord)+","+(BSH.rose)+")",height:"100%",borderRadius:3,width:(pct)+"%"}}/></div>
-            <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color:BSH.cremeD}}>{pct}% · {e.dispo} restantes</span><div style={{display:"flex",gap:4}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...e,_edit:e.id});setModal("evt");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setEvenements(p=>p.filter(x=>x.id!==e.id));}}>✕</BBtn></div></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color:BSH.cremeD}}>{pct}% · {e.dispo} restantes</span><div style={{display:"flex",gap:4}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...e,_edit:e.id});setErreurEvt("");setModal("evt");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>supprimerEvenementBsh(e.id)}>✕</BBtn></div></div>
           </div>);})}
         </div>}
         {sec==="hotes"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -6183,7 +6298,12 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         </div>
         <Fld label="Préférences"><Inp value={form.preferences||""} onChange={e=>setForm({...form,preferences:e.target.value})} placeholder="Style, taille..." rows={2}/></Fld>
         <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes internes" rows={2}/></Fld>
-        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.nom?.trim())return;if(form._edit)await setClientes(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setClientes(p=>[...p,{...form,id:uid(),total:0}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+        {erreurCli && (
+          <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#ef4444"}}>
+            ⚠ {erreurCli}
+          </div>
+        )}
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderClienteBsh} full v="gold" disabled={enregistrementCli}>{enregistrementCli?"Enregistrement…":"Enregistrer"}</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="prod"&&<Mdl title={form._edit?"Modifier produit":"Nouveau produit"} onClose={()=>setModal(null)}>
         <Fld label="Nom"><Inp value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nom"/></Fld>
@@ -6221,7 +6341,12 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <Fld label="Restantes"><Inp type="number" value={form.dispo||20} onChange={e=>setForm({...form,dispo:parseInt(e.target.value)||20})}/></Fld>
           <Fld label="Prix €"><Inp type="number" value={form.prix||25} onChange={e=>setForm({...form,prix:parseInt(e.target.value)||25})}/></Fld>
         </div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.nom?.trim())return;if(form._edit)await setEvenements(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setEvenements(p=>[...p,{...form,id:uid(),ico:"✨"}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+        {erreurEvt && (
+          <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#ef4444"}}>
+            ⚠ {erreurEvt}
+          </div>
+        )}
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderEvenementBsh} full v="gold" disabled={enregistrementEvt}>{enregistrementEvt?"Enregistrement…":"Enregistrer"}</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="hote_bsh"&&<Mdl title={form._edit?"Modifier hôtesse":"Nouvelle hôtesse"} onClose={()=>setModal(null)}>
         <div style={{fontSize:11,color:B.muted,lineHeight:1.6,marginBottom:10}}>
@@ -12134,7 +12259,16 @@ export default function BellaiaApp() {
       preferences: r.notes || "", notes: r.notes_internes || "",
     })
   );
-  const [bshEvts, setBshEvts] = useStore("b5:bsh:evts", EVTS_BSH_INIT);
+  // bsh_evenements (migration 0020) — avant, useStore() seul : jamais
+  // lu depuis Supabase, jamais visible par une vraie cliente ni d'un
+  // appareil à l'autre.
+  const [bshEvts, setBshEvts] = useBSHSupabase("bsh_evenements", "b5:bsh:evts", EVTS_BSH_INIT,
+    r => ({
+      id: r.id, nom: r.nom, ico: r.ico||"✨", date: r.date_evenement||"",
+      lieu: r.lieu||"", cap: r.capacite||20, dispo: r.places_restantes??20,
+      prix: parseFloat(r.prix)||0, statut: r.statut||"actif",
+    })
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined") {
