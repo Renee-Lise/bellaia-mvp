@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0026_bsh_documents_upload_reel.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (5 policies, bucket public=false, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : connecte enfin l'upload de fichier du Centre Documents
 --   (DocumentCenter.tsx) à un vrai stockage. Jusqu'ici le bouton
