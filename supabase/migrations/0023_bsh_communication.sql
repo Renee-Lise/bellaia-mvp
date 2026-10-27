@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0023_bsh_communication.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (4 policies
+--   confirmées via pg_policies, correspondance exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : démarre le module "Communication" de l'espace fondatrice
 --   BSH (publications, annonces et notifications — section 2 de la
