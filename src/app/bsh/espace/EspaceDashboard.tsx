@@ -184,6 +184,13 @@ export default function EspaceDashboard() {
       {/* ── Bandeau statut membre ── */}
       <BandeauStatut statut={profil.membership_status} />
 
+      {/* ── Bandeau Le Cercle ── toujours visible, indépendamment du
+          statut BSH Members (deux espaces distincts, jamais fusionnés —
+          voir /bsh/cercle). Discret : une ligne, pas de popup, pas de
+          redirection forcée ; l'admission reste manuelle par WhatsApp,
+          ce bandeau ne fait qu'orienter vers la page qui l'explique. */}
+      <BandeauCercle />
+
       {/* ── Notifications non lues ── */}
       {notifications && notifications.length > 0 && (
         <div style={{ padding: "18px 22px 0" }}>
@@ -376,6 +383,30 @@ function BandeauStatut({ statut }: { statut: string | null }) {
         Découvrir →
       </Link>
     </div>
+  );
+}
+
+function BandeauCercle() {
+  return (
+    <Link
+      href="/bsh/cercle"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "11px 22px",
+        background: "rgba(198,161,91,0.04)",
+        borderBottom: `1px solid ${C.borderL}`,
+        textDecoration: "none",
+      }}
+    >
+      <span style={{ fontSize: 14 }}>✦</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 11, color: C.cream }}>Découvrir Le Cercle</span>
+        <span style={{ fontSize: 10, color: C.muted }}> — communauté privée WhatsApp de BSH</span>
+      </div>
+      <span style={{ fontSize: 11, color: C.goldL }}>→</span>
+    </Link>
   );
 }
 
