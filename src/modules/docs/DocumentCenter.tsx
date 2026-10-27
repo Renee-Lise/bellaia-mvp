@@ -176,7 +176,6 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
     const notesCompletes = [
       nv.notes,
       nv.clientNom && `Client : ${nv.clientNom}`,
-      nv.devisRef && `Devis : ${nv.devisRef}`,
     ].filter(Boolean).join(" · ") || null;
     const row = await sbPost("bellaia_documents", {
       reference:    nv.reference,
@@ -405,7 +404,6 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
             <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
               {[["Titre *","titre","Nom du document"],
                 ["Client","clientNom","Nom du client"],
-                ...(form.module === "BSH" ? [] : [["Devis","devisRef","DEV-2026-..."] as [string,string,string]]),
                 ["Notes","notes","Informations complémentaires"]].map(([l,k,ph]) => (
                 <div key={k} style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   <label style={{ fontSize:10, color:CLR.creamD }}>{l}</label>

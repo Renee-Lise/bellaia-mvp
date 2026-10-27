@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0018_bsh_hotes_candidatures_libres.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-26 (id a bien
+--   gen_random_uuid() comme défaut et reste NOT NULL, profile_id
+--   existe et est nullable — correspondance exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-26
 -- Objet : la 0014 forçait bsh_hotes.id à être l'identifiant d'un
 --   compte déjà créé (profiles.id) — en usage réel, Renée-Lise doit

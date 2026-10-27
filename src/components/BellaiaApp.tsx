@@ -11661,9 +11661,23 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
       note: "Navigation sans login actif",
     },
     {
-      id: "hote",
-      ico: "🏠", label: "Espace hôte",
-      desc: "Vue partenaire hébergeur ou prestataire",
+      id: "hote_bsh",
+      ico: "💜", label: "Hôte / Hôtesse BSH",
+      desc: "Missions, documents et profil — espace propre à Bella'Secret Home",
+      couleur: "#c6a15b",
+      preview: "hote", univers: "bsh",
+    },
+    {
+      id: "hote_odyssee",
+      ico: "💅", label: "Talent Odyssée",
+      desc: "Planning, missions et documents — espace Bella'Odyssée",
+      couleur: "#9b59b6",
+      preview: "hote", univers: "odyssee",
+    },
+    {
+      id: "hote_autre",
+      ico: "🏠", label: "Autre espace hôte",
+      desc: "Vue générique — univers sans espace hôte dédié pour l'instant",
       couleur: "#059669",
       preview: "hote", univers: null,
     },
@@ -12062,8 +12076,10 @@ export default function BellaiaApp() {
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
   }
   if (preview === "hote") {
-    // Si l'utilisateur est un talent Odyssée, afficher HoteOdyssee
-    const univHote = user?.univers || user?.module || "";
+    // activeUnivers vient du choix fait dans Mode aperçu (ApercuUXF) —
+    // prioritaire ici, sinon l'aperçu hôte retombait toujours sur les
+    // champs du compte de la fondatrice elle-même (jamais "bsh").
+    const univHote = activeUnivers || user?.univers || user?.module || "";
     if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
       return <><BandeauApercu/><div style={{paddingTop:36}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
     }
