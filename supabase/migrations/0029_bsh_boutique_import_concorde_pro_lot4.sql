@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0029_bsh_boutique_import_concorde_pro_lot4.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (count=106, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : suite de 0024/0025/0027 — lot 4 de captures d'écran
 --   Concorde Pro envoyées par Renée-Lise. 26 nouveaux articles
