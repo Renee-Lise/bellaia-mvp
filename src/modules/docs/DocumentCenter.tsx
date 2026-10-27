@@ -163,20 +163,22 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
     return true;
   }), [docs, filtre]);
 
-  // Créer un document
+  // Créer OU modifier un document — form._edit (id réel) distingue les
+  // deux cas, pour ne pas dépendre de l'IA à chaque correction de texte.
   const creer = async () => {
     if (!form.titre?.trim()) return;
     setSaving(true);
-    const localId = "doc_" + Date.now().toString().slice(-8);
+    const editId = (form as any)._edit as string | undefined;
     const nv: Document = {
       ...FORM0, ...form,
-      id:        localId,
-      reference: genRef(),
-      version:   1,
+      id:        editId || ("doc_" + Date.now().toString().slice(-8)),
+      reference: form.reference || genRef(),
+      version:   editId ? (form.version || 1) : 1,
       statut:    form.statut || "brouillon",
-      createdAt: new Date().toISOString(),
+      createdAt: form.createdAt || new Date().toISOString(),
     } as Document;
-    setDocs(ds => [nv, ...ds]);
+    if (!editId) setDocs(ds => [nv, ...ds]);
+    else setDocs(ds => ds.map(d => d.id === editId ? nv : d));
     // Colonnes réelles de bellaia_documents (migration 0017) — pas de
     // client_nom/devis_ref/commande_ref/facture_ref en base : repliés
     // dans "notes" pour ne rien perdre de ce que le formulaire collecte.
@@ -184,7 +186,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
       nv.notes,
       nv.clientNom && `Client : ${nv.clientNom}`,
     ].filter(Boolean).join(" · ") || null;
-    const row = await sbPost("bellaia_documents", {
+    const payload = {
       reference:    nv.reference,
       titre:        nv.titre,
       module:       nv.module,
@@ -195,15 +197,33 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
       client_id:    nv.clientId || null,
       hote_id:      nv.hoteId || null,
       statut:       nv.statut,
-      version:      1,
       tags:         nv.tags || [],
       notes:        notesCompletes,
-    }).catch(() => null);
-    if (row?.id) {
-      setDocs(ds => ds.map(d => d.id === localId ? { ...d, id:row.id } : d));
+    };
+    if (editId) {
+      await sbPatch("bellaia_documents", editId, payload).catch(() => null);
+      if (detail?.id === editId) setDetail(nv);
+    } else {
+      const row = await sbPost("bellaia_documents", { ...payload, version: 1 }).catch(() => null);
+      if (row?.id) setDocs(ds => ds.map(d => d.id === nv.id ? { ...d, id:row.id } : d));
     }
     setSaving(false);
     setModal(null); setForm(FORM0);
+  };
+
+  // Duplique un document existant — nouvelle référence, contenu identique,
+  // repasse en brouillon (jamais une copie "déjà validée").
+  const dupliquer = async (d: Document) => {
+    const copie: Partial<Document> = {
+      ...d, _edit: undefined, id: undefined,
+      titre: d.titre + " (copie)",
+      reference: genRef(),
+      statut: "brouillon",
+    } as any;
+    delete (copie as any)._edit;
+    setForm(copie);
+    setDetail(null);
+    setModal("form");
   };
 
   // Changer statut
@@ -260,6 +280,18 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
             ⬇ Télécharger
           </button>
         )}
+        <button onClick={() => { setForm({ ...detail, _edit: detail.id } as any); setModal("form"); }}
+          style={{ background:"rgba(96,165,250,0.15)", border:"1px solid #60a5fa",
+            borderRadius:8, padding:"4px 12px", color:"#93c5fd",
+            cursor:"pointer", fontSize:11 }}>
+          ✏ Modifier
+        </button>
+        <button onClick={() => dupliquer(detail)}
+          style={{ background:"rgba(255,255,255,0.06)", border:`1px solid ${CLR.line}`,
+            borderRadius:8, padding:"4px 12px", color:CLR.creamD,
+            cursor:"pointer", fontSize:11 }}>
+          ⎘ Dupliquer
+        </button>
       </div>
 
       <div style={{ background:CLR.card, border:`1px solid ${CLR.line}`, borderRadius:14, padding:16 }}>
@@ -424,7 +456,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
           <div style={{ background:CLR.night, border:`1px solid ${CLR.line}`,
             borderRadius:16, padding:20, maxWidth:500, margin:"auto", width:"100%" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-              <div style={{ fontSize:14, fontWeight:700, color:"#fff" }}>Ajouter un document</div>
+              <div style={{ fontSize:14, fontWeight:700, color:"#fff" }}>{(form as any)._edit ? "Modifier le document" : "Ajouter un document"}</div>
               <button onClick={() => setModal(null)}
                 style={{ background:"none", border:"none", color:CLR.creamD,
                   cursor:"pointer", fontSize:20 }}>✕</button>
@@ -510,7 +542,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
                   style={{ flex:1, background:CLR.vert, border:"none", borderRadius:10,
                     padding:"11px", color:"#fff", fontWeight:700, fontSize:13,
                     cursor:"pointer", fontFamily:SA, opacity:saving||!form.titre?0.6:1 }}>
-                  {saving?"…":"✅ Enregistrer"}
+                  {saving?"…":((form as any)._edit?"✅ Enregistrer les modifications":"✅ Enregistrer")}
                 </button>
                 <button onClick={() => setModal(null)}
                   style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none",
