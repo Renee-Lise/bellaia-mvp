@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0020_bsh_evenements.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (2 policies
+--   confirmées via pg_policies, correspondance exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : l'onglet "Events" de BSH → back-office (BSHF) n'avait
 --   JAMAIS de table réelle derrière lui — const [bshEvts, setBshEvts]
