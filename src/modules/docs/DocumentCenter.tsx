@@ -125,6 +125,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
   const [filtre,  setFiltre]  = useState<FiltreDocuments>({ module:moduleInitial || "tous", type:"tous", statut:"tous" });
   const [source,  setSource]  = useState<"local"|"supabase">("local");
   const [saving,  setSaving]  = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   // Chargement depuis Supabase — noms de colonnes alignés sur le vrai
@@ -142,7 +143,8 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
         setDocs(rows.map((r:any): Document => ({
           id:r.id, reference:r.reference, titre:r.titre,
           module:r.module, type:r.type_fichier, categorie:r.categorie,
-          url:r.fichier_url, taille:r.taille_bytes ?? r.taille_octets, mimeType:r.type_mime,
+          url:r.fichier_url, storagePath:r.storage_path,
+          taille:r.taille_bytes ?? r.taille_octets, mimeType:r.type_mime,
           clientId:r.client_id, hoteId:r.hote_id,
           statut:r.statut, version:r.version||1, tags:r.tags||[], notes:r.notes,
           createdAt:r.created_at, updatedAt:r.updated_at,
@@ -194,6 +196,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
       categorie:    nv.categorie,
       contenu_html: nv.contenuHtml || null,
       fichier_url:  nv.url || null,
+      storage_path: nv.storagePath || null,
       client_id:    nv.clientId || null,
       hote_id:      nv.hoteId || null,
       statut:       nv.statut,
@@ -233,8 +236,24 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
     await sbPatch("bellaia_documents", id, { statut }).catch(() => {});
   };
 
-  // Télécharger (HTML → fenêtre d'impression)
-  const telecharger = (doc: Document) => {
+  // Télécharger — un fichier uploadé (bucket privé bsh-documents) a
+  // besoin d'une URL signée à la demande (pas d'URL permanente stockée :
+  // le bucket est privé pour respecter la même RLS que bellaia_documents
+  // — voir migration 0026). Un lien externe ou un contenu rédigé restent
+  // gérés comme avant.
+  const telecharger = async (doc: Document) => {
+    if (doc.storagePath) {
+      try {
+        const r = await fetch(`${SB_URL()}/storage/v1/object/sign/bsh-documents/${doc.storagePath}?expiresIn=300`, {
+          method: "POST",
+          headers: { apikey: SB_KEY(), Authorization: "Bearer "+await getToken(), "Content-Type":"application/json" },
+        });
+        const d = await r.json().catch(() => null);
+        if (r.ok && d?.signedURL) { window.open(`${SB_URL()}${d.signedURL}`, "_blank"); return; }
+        alert("Impossible d'ouvrir ce fichier pour le moment. Réessayez.");
+      } catch { alert("Erreur réseau lors de l'ouverture du fichier."); }
+      return;
+    }
     if (doc.url) { window.open(doc.url, "_blank"); return; }
     if (doc.contenuHtml) {
       const win = window.open("","_blank");
@@ -245,22 +264,39 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
     }
   };
 
+  // Upload réel vers le bucket privé bsh-documents (migration 0026) —
+  // dossier "hotesses/" pour les ressources hôtesses BSH (lisibles par
+  // les hôtesses actives via la policy storage dédiée), "fondatrice/"
+  // pour tout le reste (staff uniquement).
+  const uploaderFichier = async (file: File) => {
+    setUploading(true);
+    try {
+      const dossier = (form.module === "BSH" && form.categorie === "ressource_hotesse") ? "hotesses" : "fondatrice";
+      const chemin = `${dossier}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_")}`;
+      const r = await fetch(`${SB_URL()}/storage/v1/object/bsh-documents/${chemin}`, {
+        method: "POST",
+        headers: { apikey: SB_KEY(), Authorization: "Bearer "+await getToken(), "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (r.ok) {
+        setForm(f => ({
+          ...f,
+          titre:       f.titre || file.name.replace(/\.[^.]+$/, ""),
+          mimeType:    file.type,
+          taille:      file.size,
+          storagePath: chemin,
+        }));
+      } else {
+        alert("Échec de l'envoi du fichier. Réessayez.");
+      }
+    } catch { alert("Erreur réseau lors de l'envoi du fichier."); }
+    setUploading(false);
+  };
+
   // Gérer l'upload d'un fichier
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm(f => ({
-        ...f,
-        titre:    f.titre || file.name.replace(/\.[^.]+$/, ""),
-        mimeType: file.type,
-        taille:   file.size,
-        // Note: le contenu binaire sera uploadé vers Supabase Storage dans une prochaine version
-        notes:    (f.notes || "") + ` [Fichier: ${file.name}]`,
-      }));
-    };
-    reader.readAsDataURL(file);
+    if (file) uploaderFichier(file);
   };
 
   // ── Vue détail ─────────────────────────────────────────
@@ -272,7 +308,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
             padding:"4px 12px", color:CLR.creamD, cursor:"pointer", fontSize:11 }}>
           ‹ Retour
         </button>
-        {(detail.url || detail.contenuHtml) && (
+        {(detail.url || detail.storagePath || detail.contenuHtml) && (
           <button onClick={() => telecharger(detail)}
             style={{ background:"rgba(21,128,61,0.15)", border:`1px solid ${CLR.vert}`,
               borderRadius:8, padding:"4px 12px", color:CLR.vertL,
@@ -353,6 +389,14 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
             textDecoration:"none", display:"block" }}>
           🔗 Ouvrir le lien externe
         </a>
+      )}
+      {detail.storagePath && !detail.url && !detail.contenuHtml && (
+        <button onClick={() => telecharger(detail)}
+          style={{ background:CLR.card, border:`1px solid ${CLR.line}`, borderRadius:12,
+            padding:"12px 14px", color:CLR.vertL, fontSize:12, textAlign:"center",
+            cursor:"pointer", width:"100%" }}>
+          📎 Ouvrir le fichier{detail.taille ? ` (${fmtTaille(detail.taille)})` : ""}
+        </button>
       )}
 
       {/* Changement de statut */}
@@ -437,7 +481,7 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
                 {d.clientNom ? ` · ${d.clientNom}` : ""}
               </div>
             </div>
-            {(d.url || d.contenuHtml) && (
+            {(d.url || d.storagePath || d.contenuHtml) && (
               <button onClick={e => { e.stopPropagation(); telecharger(d); }}
                 style={{ background:"rgba(255,255,255,0.06)", border:"none", borderRadius:7,
                   padding:"4px 10px", color:CLR.creamD, cursor:"pointer", fontSize:10,
@@ -520,22 +564,20 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
                   onChange={e => setForm(f => ({...f, url:e.target.value}))} style={inp}/>
               </div>
 
-              {/* Upload fichier — pas encore connecté au stockage */}
+              {/* Upload fichier — envoyé vers le bucket privé bsh-documents (migration 0026) */}
               <div>
                 <label style={{ fontSize:10, color:CLR.creamD, display:"block", marginBottom:6 }}>
                   Fichier (optionnel)
                 </label>
                 <input ref={fileRef} type="file" onChange={handleFileUpload}
+                  disabled={uploading}
                   style={{ display:"none" }}/>
-                <button onClick={() => fileRef.current?.click()}
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
                   style={{ background:"rgba(255,255,255,0.06)", border:`1px dashed ${CLR.line}`,
-                    borderRadius:9, padding:"10px", color:CLR.creamD, cursor:"pointer",
+                    borderRadius:9, padding:"10px", color:CLR.creamD, cursor:uploading?"default":"pointer",
                     fontSize:12, fontFamily:SA, width:"100%" }}>
-                  📎 {form.taille ? `Fichier sélectionné (${fmtTaille(form.taille)})` : "Choisir un fichier"}
+                  📎 {uploading ? "Envoi en cours…" : form.storagePath ? `Fichier envoyé${form.taille ? ` (${fmtTaille(form.taille)})` : ""} — changer` : "Choisir un fichier"}
                 </button>
-                <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)", marginTop:4 }}>
-                  Upload vers Supabase Storage — pas encore disponible : utilisez le contenu rédigé ou le lien externe ci-dessus en attendant.
-                </div>
               </div>
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={creer} disabled={saving || !form.titre?.trim()}

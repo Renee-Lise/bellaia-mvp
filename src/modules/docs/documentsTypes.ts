@@ -36,7 +36,8 @@ export interface Document {
   categorie?: string;
   // Contenu
   contenuHtml?: string;      // HTML généré (devis, factures...)
-  url?: string;              // URL de stockage (Supabase Storage)
+  url?: string;              // lien externe (hors Bellaïa) — distinct d'un fichier uploadé
+  storagePath?: string;      // chemin dans le bucket privé bsh-documents — colonne storage_path réelle
   taille?: number;           // octets
   mimeType?: string;
   // Liens modules
