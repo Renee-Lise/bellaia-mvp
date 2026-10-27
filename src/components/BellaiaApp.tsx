@@ -6187,7 +6187,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           </div>)}
         </div>}
         {sec==="stock"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({cat:"Lingerie",min:3,ico:"✨"});setErreurProd("");setModal("prod");}}>+ Produit</BBtn></div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({cat:"Lingerie & Tenues",min:3,ico:"✨"});setErreurProd("");setModal("prod");}}>+ Produit</BBtn></div>
           {produits.map(p=><div key={p.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+(p.stock<=p.min?BSH.rouge:BSH.vert)}}>
             <div style={{display:"flex",justifyContent:"space-between"}}>
               <div style={{flex:1,display:"flex",gap:8}}>
@@ -6448,7 +6448,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       </Mdl>}
       {modal==="prod"&&<Mdl title={form._edit?"Modifier produit":"Nouveau produit"} onClose={()=>setModal(null)}>
         <Fld label="Nom"><Inp value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nom"/></Fld>
-        <Fld label="Catégorie"><Sel value={form.cat||"Lingerie"} onChange={e=>setForm({...form,cat:e.target.value})} options={["Lingerie","Coffrets","Bougies","Huiles","Parfums","Accessoires","Couples","Mariage","Solo"]}/></Fld>
+        <Fld label="Catégorie"><Sel value={form.cat||"Lingerie & Tenues"} onChange={e=>setForm({...form,cat:e.target.value})} options={["Lingerie & Tenues","Sextoys & Accessoires","BDSM & Contraintes","Coffrets & Expériences","Aphrodisiaques & Bien-être"]}/></Fld>
         <Fld label="Photo produit">
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             {form.image && (<img src={form.image} alt="" style={{width:56,height:56,objectFit:"cover",borderRadius:8,border:"1px solid "+(BSH.line)}}/>)}
