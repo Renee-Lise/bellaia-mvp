@@ -6275,6 +6275,16 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           {[{t:"Coordonnées",items:[["Nom","Bella'Secret Home"],["Adresse",ENV.ADRESSE],["Ville",(ENV.VILLE)+" — "+(ENV.PAYS)],["E-mail",ENV.EMAIL],["WhatsApp",ENV.TEL]]},{t:"Paiements",items:[["Stripe","Principal — paiement en ligne"],["SumUp","Phase 2"]]},{t:"Données",items:[["Stockage","Artifact persistant"],["Supabase","Phase 2"],["Sécurité","Fondatrice uniquement"]]}].map(s=>(
             <div key={s.t} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8,fontFamily:FS}}>{s.t}</div>{s.items.map(([l,v])=><div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid "+(BSH.line)+"22",gap:8}}><span style={{fontSize:10,color:BSH.cremeD,flexShrink:0}}>{l}</span><span style={{fontSize:10,color:BSH.creme,textAlign:"right",wordBreak:"break-all"}}>{v}</span></div>)}</div>
           ))}
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px"}}>
+            <div style={{fontSize:12,fontWeight:700,color:BSH.or,marginBottom:8,fontFamily:FS}}>Intégrations fournisseurs</div>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid "+(BSH.line)+"22",gap:8}}>
+              <span style={{fontSize:10,color:BSH.cremeD}}>Concorde Pro (dropshipping)</span>
+              <span style={{fontSize:10,color:BSH.or,textAlign:"right"}}>En discussion — contact à envoyer</span>
+            </div>
+            <div style={{fontSize:9,color:BSH.cremeD,marginTop:8,lineHeight:1.6}}>
+              Catalogue Concorde Pro consultable manuellement. Une vraie synchronisation automatique (stock/prix/commandes) dépend de ce que leur service commercial propose réellement — rien n'est branché tant que ce n'est pas confirmé.
+            </div>
+          </div>
         </div>}
       </div>
 
@@ -7065,6 +7075,7 @@ function EcranConnexion({ onConnecte }) {
 // ═══════════════════════════════════════════════════════════
 function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) {
   const [activeUnivers, setActiveUnivers] = useState<string|null>(null);
+  const [autresUniversOuvert, setAutresUniversOuvert] = useState(false);
   const [mesCommandes, setMesCommandes]     = useState<any[]>([]);
   const [mesNotifs, setMesNotifs]           = useState<any[]>([]);
   const [mesDocs, setMesDocs]               = useState<any[]>([]);
@@ -7216,24 +7227,67 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
           </div>
         )}
 
-        {/* Univers */}
-        <div style={{fontSize:13,fontWeight:800,color:B.cream,marginBottom:12}}>Nos univers</div>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {UNIVERS_CLIENT.map(u => {
-            const verrou = !moduleAutorise(u.id, user);
-            return (
-            <button key={u.id} onClick={() => verrou ? alert(MSG_MODULE_MINEUR) : setActiveUnivers(u.id)} style={{background:verrou?"rgba(255,255,255,0.03)":"linear-gradient(135deg,"+(u.acc)+"18,"+(u.acc)+"08)",border:verrou?"1px solid rgba(255,255,255,0.08)":"1px solid "+(u.acc)+"40",borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",fontFamily:SA,width:"100%",opacity:verrou?0.5:1}}>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:40,height:40,borderRadius:11,background:verrou?"rgba(255,255,255,0.06)":(u.acc)+"25",border:verrou?"1px solid rgba(255,255,255,0.1)":"1px solid "+(u.acc)+"40",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,filter:verrou?"grayscale(1)":"none"}}>{verrou?"🔒":u.ico}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:800,color:verrou?"rgba(255,255,255,0.6)":"#fff",fontFamily:FS,marginBottom:2}}>{u.nom}</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>{verrou?"Réservé aux majeurs":u.tag}</div>
+        {/* Univers — BSH mis en avant, le reste replié sous "Autres univers"
+            (demande explicite : priorité à BSH côté client, les autres
+            univers présentés comme une extension optionnelle plutôt que
+            des options à égalité). */}
+        {(() => {
+          const bsh = UNIVERS_CLIENT.find(u => u.id === "bsh")!;
+          const autres = UNIVERS_CLIENT.filter(u => u.id !== "bsh");
+          const verrouBsh = !moduleAutorise(bsh.id, user);
+          return (
+            <>
+              <button onClick={() => verrouBsh ? alert(MSG_MODULE_MINEUR) : setActiveUnivers(bsh.id)}
+                style={{
+                  background: verrouBsh ? "rgba(255,255,255,0.03)" : `linear-gradient(135deg, ${bsh.acc}, #2e1a2e)`,
+                  border: verrouBsh ? "1px solid rgba(255,255,255,0.08)" : `1px solid ${bsh.acc}80`,
+                  borderRadius: 16, padding: "20px 18px", cursor: "pointer", textAlign: "left",
+                  fontFamily: SA, width: "100%", opacity: verrouBsh ? 0.5 : 1, marginBottom: 14,
+                  display: "block",
+                }}>
+                <div style={{ fontSize: 9, letterSpacing: "0.12em", color: "rgba(255,255,255,0.6)", textTransform: "uppercase", marginBottom: 8 }}>
+                  Votre univers
                 </div>
-                <span style={{color:verrou?"rgba(255,255,255,0.3)":(u.acc)+"88",fontSize:18}}>{verrou?"🔒":"›"}</span>
-              </div>
-            </button>
-          );})}
-        </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ fontSize: 30 }}>{verrouBsh ? "🔒" : bsh.ico}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", fontFamily: FS, marginBottom: 3 }}>{bsh.nom}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{verrouBsh ? "Réservé aux majeurs" : bsh.tag}</div>
+                  </div>
+                  <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 20 }}>{verrouBsh ? "🔒" : "›"}</span>
+                </div>
+              </button>
+
+              <button onClick={() => setAutresUniversOuvert(o => !o)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: "6px 2px",
+                  display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontFamily: SA }}>
+                <span style={{ fontSize: 11, color: B.muted, fontWeight: 700 }}>
+                  {autresUniversOuvert ? "▾" : "▸"} Autres univers Bella'Studio
+                </span>
+                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>({autres.length})</span>
+              </button>
+
+              {autresUniversOuvert && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {autres.map(u => {
+                    const verrou = !moduleAutorise(u.id, user);
+                    return (
+                    <button key={u.id} onClick={() => verrou ? alert(MSG_MODULE_MINEUR) : setActiveUnivers(u.id)} style={{background:verrou?"rgba(255,255,255,0.03)":"linear-gradient(135deg,"+(u.acc)+"18,"+(u.acc)+"08)",border:verrou?"1px solid rgba(255,255,255,0.08)":"1px solid "+(u.acc)+"40",borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",fontFamily:SA,width:"100%",opacity:verrou?0.5:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:12}}>
+                        <div style={{width:40,height:40,borderRadius:11,background:verrou?"rgba(255,255,255,0.06)":(u.acc)+"25",border:verrou?"1px solid rgba(255,255,255,0.1)":"1px solid "+(u.acc)+"40",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,filter:verrou?"grayscale(1)":"none"}}>{verrou?"🔒":u.ico}</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:800,color:verrou?"rgba(255,255,255,0.6)":"#fff",fontFamily:FS,marginBottom:2}}>{u.nom}</div>
+                          <div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>{verrou?"Réservé aux majeurs":u.tag}</div>
+                        </div>
+                        <span style={{color:verrou?"rgba(255,255,255,0.3)":(u.acc)+"88",fontSize:18}}>{verrou?"🔒":"›"}</span>
+                      </div>
+                    </button>
+                  );})}
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* Contact */}
         <div style={{marginTop:16,background:B.surface,border:"1px solid "+(B.border),borderRadius:12,padding:"12px 14px",textAlign:"center"}}>
