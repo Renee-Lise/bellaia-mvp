@@ -5718,6 +5718,106 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   const crit=produits.filter(p=>p.stock<=p.min);
   const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"fin",l:"€",t:"Finances"},{id:"params",l:"⚙",t:"Réglages"}];
 
+  // ── Produit (stock) BSH — sauvegarde RÉELLE dans Supabase.
+  // Avant ce correctif, le bouton "Enregistrer" de "+ Produit" ne
+  // faisait que setProduits(...) : un setState local (useBSHSupabase
+  // renvoie le setter brut de useState, jamais un écrivain Supabase).
+  // Le produit semblait créé (visible dans cet onglet, dans l'aperçu
+  // client) mais ne survivait pas à un rechargement et n'existait pas
+  // pour la vraie page publique /bsh/boutique, qui lit directement la
+  // base. Corrigé en écrivant réellement dans "stocks", comme le fait
+  // déjà StocksF pour l'admin Stocks global.
+  const [uploadEnCoursProd, setUploadEnCoursProd] = useState(false);
+  const [erreurProd, setErreurProd] = useState("");
+  const [enregistrementProd, setEnregistrementProd] = useState(false);
+
+  const uploaderImageProd = async (file) => {
+    setUploadEnCoursProd(true);
+    try {
+      const token = await getTokenAsync();
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const chemin = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_")}`;
+      const r = await fetch(`${SB_URL_local}/storage/v1/object/stocks-images/${chemin}`, {
+        method: "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (r.ok) {
+        setForm(f => ({...f, image: `${SB_URL_local}/storage/v1/object/public/stocks-images/${chemin}`}));
+      } else {
+        alert("Échec de l'envoi de la photo. Réessayez.");
+      }
+    } catch { alert("Erreur lors de l'envoi de la photo."); }
+    setUploadEnCoursProd(false);
+  };
+
+  const sauvegarderProduitBsh = async () => {
+    if (!form.name?.trim()) return;
+    setErreurProd("");
+    setEnregistrementProd(true);
+    try {
+      const payload = {
+        nom: form.name, nom_produit: form.name,
+        categorie: form.cat || "Lingerie", univers: "BSH",
+        quantite: parseFloat(form.stock) || 0,
+        quantite_min: parseFloat(form.min) || 3,
+        prix_vente: parseFloat(form.prix) || 0,
+        prix_achat: parseFloat(form.achat) || 0,
+        unite: "unité", statut: "actif",
+        notes: form.desc || "",
+        image_url: form.image || null,
+      };
+      const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+      const token = await getTokenAsync();
+      if (form._edit) {
+        const r = await fetch(SB_URL_local+"/rest/v1/stocks?id=eq."+form._edit, {
+          method: "PATCH",
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
+          body: JSON.stringify({...payload, updated_at: new Date().toISOString()}),
+        });
+        if (!r.ok) { const d = await r.json().catch(()=>null); throw new Error(d?.message || d?.hint || "Échec HTTP "+r.status); }
+      } else {
+        const r = await fetch(SB_URL_local+"/rest/v1/stocks", {
+          method: "POST",
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) { const d = await r.json().catch(()=>null); throw new Error(d?.message || d?.hint || "Échec HTTP "+r.status); }
+      }
+      // Recharge depuis Supabase plutôt que de deviner la forme locale —
+      // garantit que ce qui s'affiche correspond à ce qui est vraiment en base.
+      const rAll = await fetch(SB_URL_local+"/rest/v1/stocks?univers=eq.BSH&order=created_at.desc&limit=200", {
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token },
+      });
+      if (rAll.ok) {
+        const rows = await rAll.json();
+        setProduits(rows.map(r => ({
+          id: r.id, name: r.nom, cat: r.categorie || "Lingerie",
+          ico: "✨", image: r.image_url || null,
+          prix: parseFloat(r.prix_vente) || 0, achat: parseFloat(r.prix_achat) || 0,
+          stock: parseFloat(r.quantite) || 0, min: parseFloat(r.quantite_min) || 3,
+          desc: r.notes || "",
+        })));
+      }
+      setModal(null);
+    } catch (e) {
+      setErreurProd(e.message || "Erreur lors de l'enregistrement.");
+    }
+    setEnregistrementProd(false);
+  };
+
+  const supprimerProduitBsh = async (id) => {
+    if (!confirm("Supprimer ce produit ?")) return;
+    const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
+    const token = await getTokenAsync();
+    const r = await fetch(SB_URL_local+"/rest/v1/stocks?id=eq."+id, {
+      method: "DELETE",
+      headers: { apikey: SB_KEY, Authorization: "Bearer "+token },
+    });
+    if (!r.ok) { alert("La suppression a échoué."); return; }
+    setProduits(ps => ps.filter(x => x.id !== id));
+  };
+
   // ── Hôtes & hôtesses BSH (candidatures, missions) ────────
   const [hotes, setHotes] = useState([]);
   const [missionsBsh, setMissionsBsh] = useState([]);
@@ -5871,9 +5971,15 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           </div>)}
         </div>}
         {sec==="stock"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({cat:"Lingerie",prix:0,achat:0,stock:0,min:3,ico:"✨"});setModal("prod");}}>+ Produit</BBtn></div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}><BBtn v="gold" sz="sm" onClick={()=>{setForm({cat:"Lingerie",min:3,ico:"✨"});setErreurProd("");setModal("prod");}}>+ Produit</BBtn></div>
           {produits.map(p=><div key={p.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+(p.stock<=p.min?BSH.rouge:BSH.vert)}}>
-            <div style={{display:"flex",justifyContent:"space-between"}}><div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{p.name}</div><div style={{fontSize:10,color:BSH.cremeD}}>{p.cat}</div><div style={{display:"flex",gap:5,marginTop:5,flexWrap:"wrap"}}><BTag c={BSH.or} sz={8}>Vente {p.prix}€</BTag><BTag c={BSH.vert} sz={8}>Marge {p.prix>0?Math.round((p.prix-p.achat)/p.prix*100):0}%</BTag></div></div><div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:22,fontWeight:700,color:p.stock<=p.min?BSH.rouge:BSH.vert,fontFamily:FS}}>{p.stock}</div><div style={{fontSize:9,color:BSH.cremeD}}>en stock</div><div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...p,_edit:p.id});setModal("prod");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>{if(confirm("Supprimer ?"))setProduits(p=>p.filter(x=>x.id!==p.id));}}>✕</BBtn></div></div></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <div style={{flex:1,display:"flex",gap:8}}>
+                {p.image && <img src={p.image} alt="" style={{width:40,height:40,objectFit:"cover",borderRadius:7,flexShrink:0}}/>}
+                <div><div style={{fontSize:12,fontWeight:600}}>{p.name}</div><div style={{fontSize:10,color:BSH.cremeD}}>{p.cat}</div><div style={{display:"flex",gap:5,marginTop:5,flexWrap:"wrap"}}><BTag c={BSH.or} sz={8}>Vente {p.prix}€</BTag><BTag c={BSH.vert} sz={8}>Marge {p.prix>0?Math.round((p.prix-p.achat)/p.prix*100):0}%</BTag></div></div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:22,fontWeight:700,color:p.stock<=p.min?BSH.rouge:BSH.vert,fontFamily:FS}}>{p.stock}</div><div style={{fontSize:9,color:BSH.cremeD}}>en stock</div><div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}><BBtn v="ghost" sz="sm" onClick={()=>{setForm({...p,_edit:p.id});setErreurProd("");setModal("prod");}}>✏</BBtn><BBtn v="danger" sz="sm" onClick={()=>supprimerProduitBsh(p.id)}>✕</BBtn></div></div>
+            </div>
           </div>)}
         </div>}
         {sec==="evts"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -6082,13 +6188,27 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       {modal==="prod"&&<Mdl title={form._edit?"Modifier produit":"Nouveau produit"} onClose={()=>setModal(null)}>
         <Fld label="Nom"><Inp value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nom"/></Fld>
         <Fld label="Catégorie"><Sel value={form.cat||"Lingerie"} onChange={e=>setForm({...form,cat:e.target.value})} options={["Lingerie","Coffrets","Bougies","Huiles","Parfums","Accessoires","Couples","Mariage","Solo"]}/></Fld>
-        <Fld label="Icône emoji"><Inp value={form.ico||"✨"} onChange={e=>setForm({...form,ico:e.target.value})} placeholder="✨"/></Fld>
+        <Fld label="Photo produit">
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            {form.image && (<img src={form.image} alt="" style={{width:56,height:56,objectFit:"cover",borderRadius:8,border:"1px solid "+(BSH.line)}}/>)}
+            <label style={{background:"rgba(255,255,255,0.06)",border:"1px solid "+(BSH.line),borderRadius:8,padding:"8px 12px",color:BSH.cremeD,cursor:uploadEnCoursProd?"default":"pointer",fontSize:11,fontFamily:SA}}>
+              {uploadEnCoursProd ? "Envoi…" : form.image ? "Changer la photo" : "Ajouter une photo"}
+              <input type="file" accept="image/*" style={{display:"none"}} disabled={uploadEnCoursProd}
+                onChange={e=>{ const f=e.target.files && e.target.files[0]; if(f) uploaderImageProd(f); }}/>
+            </label>
+          </div>
+        </Fld>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-          <Fld label="Prix vente €"><Inp type="number" value={form.prix||0} onChange={e=>setForm({...form,prix:parseFloat(e.target.value)||0})}/></Fld>
-          <Fld label="Prix achat €"><Inp type="number" value={form.achat||0} onChange={e=>setForm({...form,achat:parseFloat(e.target.value)||0})}/></Fld>
-          <Fld label="Stock"><Inp type="number" value={form.stock||0} onChange={e=>setForm({...form,stock:parseInt(e.target.value)||0})}/></Fld>
+          <Fld label="Prix vente €"><Inp type="number" value={form.prix??""} onChange={e=>setForm({...form,prix:e.target.value})}/></Fld>
+          <Fld label="Prix achat €"><Inp type="number" value={form.achat??""} onChange={e=>setForm({...form,achat:e.target.value})}/></Fld>
+          <Fld label="Stock"><Inp type="number" value={form.stock??""} onChange={e=>setForm({...form,stock:e.target.value})}/></Fld>
         </div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={async()=>{if(!form.name?.trim())return;if(form._edit)await setProduits(p=>p.map(x=>x.id===form._edit?{...form,id:form._edit}:x));else await setProduits(p=>[...p,{...form,id:uid()}]);setModal(null);}} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+        {erreurProd && (
+          <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#ef4444"}}>
+            ⚠ {erreurProd}
+          </div>
+        )}
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderProduitBsh} full v="gold" disabled={enregistrementProd}>{enregistrementProd?"Enregistrement…":"Enregistrer"}</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="evt"&&<Mdl title={form._edit?"Modifier":"Nouvel événement"} onClose={()=>setModal(null)}>
         <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Nom"/></Fld>
