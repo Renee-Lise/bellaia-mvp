@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: "claude-3-5-sonnet-20241022", max_tokens: 1024, system: system || "Tu es Bellaïa, assistante de Bella'Studio. Réponds en français.", messages }),
+      body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 1024, system: system || "Tu es Bellaïa, assistante de Bella'Studio. Réponds en français.", messages }),
     });
   } catch (e) {
     return NextResponse.json({ content: [{ type: "text", text: "⚠️ Réseau inaccessible." }] }, { status: 502 });

@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   // 5. Appel Anthropic avec le bon modèle et format
   try {
     const payload: any = {
-      model:      "claude-sonnet-4-6",
+      model:      "claude-sonnet-5-5",
       max_tokens: 2048,
       messages:   messages.map((m: any) => ({
         role:    m.role === "assistant" ? "assistant" : "user",

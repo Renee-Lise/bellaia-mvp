@@ -202,7 +202,7 @@ Si tu génères un document (devis, contrat, email, analyse), indique-le clairem
           conversation_id: currentSession!.id,
           role:    'assistant',
           contenu: reponse,
-          modele:  data.model || 'claude-sonnet-4-6',
+          modele:  data.model || 'claude-sonnet-5-5',
           tokens:  data.usage?.output_tokens,
         }),
       });
