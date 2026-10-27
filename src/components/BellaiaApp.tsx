@@ -6005,14 +6005,16 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       const row = Array.isArray(res.data)?res.data[0]:res.data;
       if (row) setHotes(h => [row,...h]);
     }
-    // Un compte lié doit être routé vers l'espace Hôtes BSH à la vraie
-    // connexion (pas seulement en Mode aperçu) — sans ça, routage par
-    // role==="hote" retombe sur l'espace générique EspaceHote (liste
-    // de documents figée en dur, jamais la vraie base). Rien dans le
-    // code n'étiquetait jusqu'ici le profil lié comme hôtesse BSH.
+    // Un compte lié doit pouvoir se connecter comme hôte — profiles.role
+    // est la seule colonne pertinente qui existe réellement (vérifié via
+    // information_schema : profiles n'a ni "pole" ni "univers" ni
+    // "module", contrairement à ce qu'une tentative précédente supposait).
+    // Le choix BSH vs Odyssée vs générique au login réel se fait
+    // désormais en interrogeant bsh_hotes directement (EcranConnexion),
+    // pas via une colonne sur profiles.
     if (profileId) {
-      const resProfil = await sbPatch("profiles", profileId, { role:"hote", pole:"BSH", univers:"bsh" });
-      if (!resProfil.ok) alert("La fiche hôtesse est enregistrée, mais son compte n'a pas pu être relié à l'espace BSH ("+(resProfil.error||"erreur inconnue")+"). Réessayez de lier le compte.");
+      const resProfil = await sbPatch("profiles", profileId, { role:"hote" });
+      if (!resProfil.ok) alert("La fiche hôtesse est enregistrée, mais son compte n'a pas pu être relié ("+(resProfil.error||"erreur inconnue")+"). Réessayez de lier le compte.");
     }
     setModal(null);
   };
@@ -6864,6 +6866,21 @@ function EcranConnexion({ onConnecte }) {
       });
       const d = await r.json();
       if (!r.ok) { setErreur(d.error || "Connexion échouée."); setLoading(false); return; }
+      // profiles n'a pas de colonne univers/pole/module (vérifié via
+      // information_schema après l'échec de la migration 0028) : pour
+      // qu'une vraie hôtesse BSH connectée tombe sur HoteBSH plutôt que
+      // sur l'espace générique EspaceHote, on interroge bsh_hotes
+      // directement avec son propre token et on marque le user
+      // côté client (univers:"bsh") — lu par le routage existant.
+      if (d.user?.role === "hote" && d.session?.access_token) {
+        try {
+          const rH = await fetch(SB_URL+"/rest/v1/bsh_hotes?profile_id=eq."+d.user.id+"&statut=eq.active&select=id&limit=1", {
+            headers: { apikey: SB_KEY, Authorization: "Bearer "+d.session.access_token },
+          });
+          const dH = rH.ok ? await rH.json() : [];
+          if (Array.isArray(dH) && dH.length > 0) d.user.univers = "bsh";
+        } catch {}
+      }
       if (typeof window !== "undefined") {
         localStorage.setItem("bellaia_user", JSON.stringify(d.user));
         saveSession(d.session);
