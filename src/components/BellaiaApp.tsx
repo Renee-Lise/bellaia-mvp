@@ -5972,6 +5972,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
 
   // ── Hôtes & hôtesses BSH (candidatures, missions) ────────
   const [hotes, setHotes] = useState([]);
+  const [detailHote, setDetailHote] = useState(null);
   const [missionsBsh, setMissionsBsh] = useState([]);
   const [hotesChargees, setHotesChargees] = useState(false);
   useEffect(() => {
@@ -6163,6 +6164,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
               <div style={{textAlign:"right"}}>
                 <BTag c={{candidature:BSH.or,active:BSH.vert,inactive:BSH.cremeD,refusee:BSH.rouge}[h.statut]||BSH.or} sz={9}>{h.statut}</BTag>
                 <div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}>
+                  <BBtn v="ghost" sz="sm" onClick={()=>setDetailHote(h)}>👁</BBtn>
                   <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...h,_edit:h.id});setModal("hote_bsh");}}>✏</BBtn>
                 </div>
               </div>
@@ -6487,6 +6489,37 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderCom} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
+      {detailHote && (()=>{
+        const h = detailHote;
+        const missionsH = missionsBsh.filter(m=>m.hote_id===h.id);
+        return (
+        <Mdl title="Fiche hôtesse" onClose={()=>setDetailHote(null)}>
+          <div style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+            <div style={{fontSize:15,fontWeight:700,color:BSH.creme,marginBottom:6}}>{[h.prenom,h.nom].filter(Boolean).join(" ")||"—"}</div>
+            {[["Email",h.email],["Téléphone",h.telephone],["Statut",h.statut],["Disponibilités",h.disponibilites],["Compte lié",h.profile_id||"Aucun — candidate sans compte"]].filter(([,v])=>v).map(([l,v])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid "+(BSH.line)+"22"}}>
+                <span style={{fontSize:10,color:BSH.cremeD}}>{l}</span>
+                <span style={{fontSize:10,color:BSH.creme,textAlign:"right",wordBreak:"break-all"}}>{v}</span>
+              </div>
+            ))}
+            {h.notes_internes && (
+              <div style={{fontSize:10,color:BSH.cremeD,marginTop:8,fontStyle:"italic"}}>📝 {h.notes_internes}</div>
+            )}
+          </div>
+          <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginBottom:6}}>Missions ({missionsH.length})</div>
+          {missionsH.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",marginBottom:10}}>Aucune mission pour l'instant.</div>}
+          {missionsH.map(m=>(
+            <div key={m.id} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid "+(BSH.line)+"22"}}>
+              <span style={{fontSize:11,color:BSH.creme}}>{m.titre}</span>
+              <BTag c={{proposee:BSH.or,confirmee:BSH.vert,terminee:BSH.cremeD,annulee:BSH.rouge}[m.statut]} sz={8}>{m.statut}</BTag>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:8,marginTop:14}}>
+            <Btn onClick={()=>{setForm({...h,_edit:h.id});setDetailHote(null);setModal("hote_bsh");}} full v="gold">✏ Modifier</Btn>
+            <Btn onClick={()=>setDetailHote(null)} v="ghost">Fermer</Btn>
+          </div>
+        </Mdl>
+      );})()}
     </div>
   );
 }
@@ -12534,7 +12567,7 @@ export default function BellaiaApp() {
         <div style={{display:"flex",gap:3}}>
           <button onClick={()=>{setPreview("client");setActiveUnivers(null);}} title="Prévisualiser espace client"
             style={{background:"rgba(107,26,43,0.2)",border:"1px solid rgba(107,26,43,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>👁 Client</button>
-          <button onClick={()=>setPreview("hote")} title="Prévisualiser espace hôte"
+          <button onClick={()=>{setPreview("hote");setActiveUnivers("bsh");}} title="Prévisualiser espace hôte BSH"
             style={{background:"rgba(13,148,136,0.15)",border:"1px solid rgba(13,148,136,0.35)",borderRadius:6,padding:"4px 7px",color:"#0d9488",cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>Hôte</button>
           <button onClick={deconnexion} title="Déconnexion"
             style={{background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:B.muted,cursor:"pointer",fontSize:9,fontFamily:SA}}>✕</button>

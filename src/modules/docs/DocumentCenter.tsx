@@ -60,8 +60,15 @@ function genRef(): string {
 const SB_URL = () => process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SB_KEY = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
+// window.getTokenAsync n'a jamais existé nulle part dans le code —
+// chaque appel retombait silencieusement sur la clé anon, donc RLS
+// ne renvoyait jamais rien (ni les documents de la fondatrice, ni
+// ceux d'une cliente ou d'une hôtesse) : "0 document" même quand la
+// base en contient réellement. Lit directement le même jeton de
+// session que le reste de l'app (localStorage "bellaia_token").
 async function getToken(): Promise<string> {
-  return (await (window as any).getTokenAsync?.()) ?? SB_KEY();
+  if (typeof window === "undefined") return SB_KEY();
+  return localStorage.getItem("bellaia_token") || SB_KEY();
 }
 
 async function sbGet(table: string, params: string): Promise<any[]> {
