@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0019_bsh_documents_partages_et_variete_jeux.sql
--- STATUT: PROPOSITION — EN ATTENTE DE VALIDATION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-27 (9 cartes
+--   actives confirmées : AMOUR 3, AUDACE 3, GLOIRE 3 — correspondance
+--   exacte à l'attendu)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-27
 -- Objet : deux demandes de Renée-Lise.
 --
