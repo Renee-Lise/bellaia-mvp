@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0041_bsh_jeux_studio_phase0.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (jeu "Amour, Gloire ou Audace" publié, 0 carte orpheline, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : Phase 0 du chantier "BSH Secret Games communautaire" —
 --   fondation du Studio d'administration côté fondatrice.
