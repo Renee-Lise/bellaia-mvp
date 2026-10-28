@@ -6179,7 +6179,8 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   const sauvegarderCarte = async () => {
     if (!form.nom?.trim() || !form.question?.trim()) return;
     const payload = { emoji:form.emoji||"🎴", nom:form.nom, question:form.question,
-      ordre:parseInt(form.ordre)||0, statut:form.statut||"active", jeu_id:form.jeu_id||jeuOuvert };
+      ordre:parseInt(form.ordre)||0, statut:form.statut||"active", jeu_id:form.jeu_id||jeuOuvert,
+      intensite:form.intensite||"audace" };
     if (form._edit) {
       const res = await sbPatch("bsh_jeux_cartes", form._edit, payload);
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
@@ -6413,7 +6414,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             return (<>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
                 <BBtn v="ghost" sz="sm" onClick={()=>setJeuOuvert(null)}>‹ Tous les jeux</BBtn>
-                <BBtn v="gold" sz="sm" onClick={()=>{setForm({emoji:"🎴",statut:"active",ordre:cartesDuJeu.length+1,jeu_id:jeuOuvert});setModal("carte_bsh");}}>+ Carte</BBtn>
+                <BBtn v="gold" sz="sm" onClick={()=>{setForm({emoji:"🎴",statut:"active",ordre:cartesDuJeu.length+1,jeu_id:jeuOuvert,intensite:jeu?.intensite||"audace"});setModal("carte_bsh");}}>+ Carte</BBtn>
               </div>
               <div style={{fontSize:13,fontWeight:700,color:BSH.or,marginTop:4}}>{jeu?.icone} {jeu?.nom} — {cartesDuJeu.length} carte{cartesDuJeu.length>1?"s":""}</div>
               {cartesDuJeu.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune carte dans ce jeu pour l'instant.</div>}
@@ -6714,6 +6715,10 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <Fld label="Ordre"><Inp type="number" value={form.ordre||0} onChange={e=>setForm({...form,ordre:parseInt(e.target.value)||0})}/></Fld>
           <Fld label="Statut"><Sel value={form.statut||"active"} onChange={e=>setForm({...form,statut:e.target.value})} options={["active","inactive"]}/></Fld>
+        </div>
+        <Fld label="Intensité"><Sel value={form.intensite||"audace"} onChange={e=>setForm({...form,intensite:e.target.value})} options={["douceur","mystere","audace","piment","surprise"]}/></Fld>
+        <div style={{fontSize:10,color:B.muted,marginBottom:10,lineHeight:1.6}}>
+          Par défaut, une carte reprend l'intensité de son jeu — change-la ici seulement si cette carte précise doit être plus douce ou plus osée que le reste du jeu.
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderCarte} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}

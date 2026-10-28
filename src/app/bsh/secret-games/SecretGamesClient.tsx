@@ -33,6 +33,13 @@ const TYPES_JEU = [
   { v: "enigme_mystere", l: "Énigme-mystère" },
   { v: "autre", l: "Autre" },
 ];
+const INTENSITES = [
+  { v: "douceur", ico: "🌹", l: "Douceur" },
+  { v: "mystere", ico: "🖤", l: "Mystère" },
+  { v: "audace", ico: "🔥", l: "Audace" },
+  { v: "piment", ico: "🌶️", l: "Piment" },
+  { v: "surprise", ico: "🎲", l: "Surprise" },
+] as const;
 
 const inp: React.CSSProperties = {
   width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)",
@@ -60,10 +67,14 @@ export default function SecretGamesClient({
   const [tirageEnregistre, setTirageEnregistre] = useState(false);
   const [form, setForm] = useState({ pseudo: "", titre: "", espace: "secret_games", type_jeu: "cartes_defis", description: "" });
   const [envoi, setEnvoi] = useState<"idle" | "envoi" | "ok" | "erreur">("idle");
+  // Phase 2 : filtre d'intensité — null = "Tous". Ne filtre que la
+  // liste des jeux proposés (un jeu = une intensité pour l'instant) ;
+  // bsh_jeux_cartes.intensite existe déjà (migration 0044) pour le
+  // jour où un même jeu mélangera plusieurs niveaux.
+  const [intensiteFiltre, setIntensiteFiltre] = useState<string | null>(null);
+  const jeuxFiltres = intensiteFiltre ? jeux.filter((j) => j.intensite === intensiteFiltre) : jeux;
 
-  const choisirJeu = async (j: JeuBSH) => {
-    if (j.id === jeuActif?.id) return;
-    setJeuActif(j);
+  const chargerCartes = async (j: JeuBSH) => {
     setCarte(null);
     setTirageEnregistre(false);
     setChargementCartes(true);
@@ -75,6 +86,22 @@ export default function SecretGamesClient({
       if (res.ok) setCartes(await res.json());
     } catch {}
     setChargementCartes(false);
+  };
+
+  const choisirJeu = async (j: JeuBSH) => {
+    if (j.id === jeuActif?.id) return;
+    setJeuActif(j);
+    await chargerCartes(j);
+  };
+
+  const choisirIntensite = async (v: string | null) => {
+    setIntensiteFiltre(v);
+    const liste = v ? jeux.filter((j) => j.intensite === v) : jeux;
+    if (jeuActif && liste.some((j) => j.id === jeuActif.id)) return;
+    const premier = liste[0] ?? null;
+    setJeuActif(premier);
+    if (premier) await chargerCartes(premier);
+    else { setCartes([]); setCarte(null); }
   };
 
   const tirer = async () => {
@@ -144,8 +171,39 @@ export default function SecretGamesClient({
         {tab === "jouer" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             {jeux.length > 1 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", width: "100%" }}>
+                <button onClick={() => choisirIntensite(null)}
+                  style={{
+                    background: intensiteFiltre === null ? C.gold : "transparent",
+                    color: intensiteFiltre === null ? C.night : C.muted,
+                    border: `1px solid ${intensiteFiltre === null ? C.gold : C.borderL}`,
+                    borderRadius: 20, padding: "5px 11px", fontSize: 11, fontFamily: BODY, cursor: "pointer",
+                  }}>
+                  Tous
+                </button>
+                {INTENSITES.filter((i) => jeux.some((j) => j.intensite === i.v)).map((i) => (
+                  <button key={i.v} onClick={() => choisirIntensite(i.v)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      background: intensiteFiltre === i.v ? C.gold : "transparent",
+                      color: intensiteFiltre === i.v ? C.night : C.muted,
+                      border: `1px solid ${intensiteFiltre === i.v ? C.gold : C.borderL}`,
+                      borderRadius: 20, padding: "5px 11px", fontSize: 11, fontFamily: BODY, cursor: "pointer",
+                    }}>
+                    <span>{i.ico}</span>
+                    <span>{i.l}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {jeux.length > 1 && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", width: "100%" }}>
-                {jeux.map((j) => (
+                {jeuxFiltres.length === 0 && (
+                  <p style={{ fontSize: 11, color: C.muted, fontStyle: "italic", margin: 0 }}>
+                    Aucun jeu à cette intensité pour l'instant.
+                  </p>
+                )}
+                {jeuxFiltres.map((j) => (
                   <button key={j.id} onClick={() => choisirJeu(j)}
                     style={{
                       display: "flex", alignItems: "center", gap: 6,
