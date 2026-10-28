@@ -112,7 +112,18 @@ export default function EspaceDashboard() {
     return <EtatVide message={`Un problème est survenu : ${etat.message}`} />;
   }
 
-  const { profil } = etat;
+  const { profil, token } = etat;
+
+  const fermerNotification = async (id: string) => {
+    setNotifications(n => (n || []).filter(x => x.id !== id));
+    try {
+      await espaceFetch(token, `bellaia_notifications?id=eq.${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ lu: true }),
+      });
+    } catch {}
+  };
+
   const prenom = profil.prenom || profil.nom || profil.email || "";
 
   return (
@@ -204,14 +215,35 @@ export default function EspaceDashboard() {
                   border: `1px solid ${C.borderM}`,
                   borderRadius: 4,
                   padding: "10px 12px",
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 500, color: C.cream }}>{n.titre}</div>
-                {n.contenu && (
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>
-                    {n.contenu}
-                  </div>
-                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: C.cream }}>{n.titre}</div>
+                  {n.contenu && (
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>
+                      {n.contenu}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => fermerNotification(n.id)}
+                  aria-label="Fermer la notification"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: C.muted,
+                    fontSize: 14,
+                    lineHeight: 1,
+                    cursor: "pointer",
+                    padding: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>

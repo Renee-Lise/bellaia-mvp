@@ -33,15 +33,22 @@ export async function POST(req: NextRequest) {
   console.log(`[api/chat] ${response.status} — ${raw.slice(0, 200)}`);
 
   if (!response.ok) {
-    const msgs: Record<number, string> = {
-      400: "⚠️ Requête invalide (modèle ou payload incorrect).",
-      401: "⚠️ Clé API invalide ou expirée.",
-      403: "⚠️ Accès refusé par Anthropic.",
-      429: "⚠️ Limite de débit atteinte. Réessaie dans quelques secondes.",
-      500: "⚠️ Erreur interne Anthropic.",
+    // Le vrai message Anthropic (ex. solde de crédit insuffisant) est bien plus
+    // utile qu'un texte générique par code HTTP — un message générique masquait
+    // la vraie cause (ex. 400 "low credit balance" affiché comme "modèle ou
+    // payload incorrect", alors que le vrai problème était la facturation
+    // Anthropic, pas le code).
+    let detail = "";
+    try { detail = JSON.parse(raw)?.error?.message || ""; } catch {}
+    const fallback: Record<number, string> = {
+      401: "Clé API invalide ou expirée.",
+      403: "Accès refusé par Anthropic.",
+      429: "Limite de débit atteinte. Réessaie dans quelques secondes.",
+      500: "Erreur interne Anthropic.",
     };
+    const texte = detail || fallback[response.status] || `Erreur HTTP ${response.status}.`;
     return NextResponse.json(
-      { content: [{ type: "text", text: msgs[response.status] || `⚠️ Erreur HTTP ${response.status}.` }] },
+      { content: [{ type: "text", text: "⚠️ " + texte }] },
       { status: response.status }
     );
   }

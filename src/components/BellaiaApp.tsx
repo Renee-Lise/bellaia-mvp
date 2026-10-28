@@ -5981,6 +5981,15 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   const [detailHote, setDetailHote] = useState(null);
   const [missionsBsh, setMissionsBsh] = useState([]);
   const [hotesChargees, setHotesChargees] = useState(false);
+  // Comptes Bellaïa existants, pour le déroulé "Lier à un compte" — avant,
+  // il fallait coller un UUID à la main, impraticable au quotidien.
+  const [comptesBellaia, setComptesBellaia] = useState([]);
+  const [comptesCharges, setComptesCharges] = useState(false);
+  useEffect(() => {
+    if (modal !== "hote_bsh" || comptesCharges) return;
+    setComptesCharges(true);
+    sbGet("profiles", { select: "id,prenom,nom,telephone", order: "nom.asc", limit: 500 }).then(setComptesBellaia).catch(()=>{});
+  }, [modal, comptesCharges]);
   useEffect(() => {
     if (sec !== "hotes" || hotesChargees) return;
     setHotesChargees(true);
@@ -6522,7 +6531,18 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         <Fld label="Statut"><Sel value={form.statut||"candidature"} onChange={e=>setForm({...form,statut:e.target.value})} options={["candidature","active","inactive","refusee"]}/></Fld>
         <Fld label="Disponibilités"><Inp value={form.disponibilites||""} onChange={e=>setForm({...form,disponibilites:e.target.value})} placeholder="Ex : Soirs et week-ends"/></Fld>
         <Fld label="Notes internes (jamais visibles par l'hôtesse)"><Inp value={form.notes_internes||""} onChange={e=>setForm({...form,notes_internes:e.target.value})} rows={2}/></Fld>
-        <Fld label="Lier à un compte Bellaïa existant (optionnel)"><Inp value={form.profile_id||""} onChange={e=>setForm({...form,profile_id:e.target.value})} placeholder="UUID du compte — seulement si elle doit se connecter à son espace"/></Fld>
+        <Fld label="Lier à un compte Bellaïa existant (optionnel)">
+          <select value={form.profile_id||""} onChange={e=>setForm({...form,profile_id:e.target.value})}
+            style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid "+(BSH.line),borderRadius:8,padding:"10px 12px",color:BSH.creme,fontSize:13,fontFamily:SA}}>
+            <option value="">— Aucun compte lié —</option>
+            {comptesBellaia.map(c=>(
+              <option key={c.id} value={c.id}>{[c.prenom,c.nom].filter(Boolean).join(" ")||"(sans nom)"}{c.telephone?" — "+c.telephone:""}</option>
+            ))}
+          </select>
+          <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:4}}>
+            Seulement si elle doit se connecter à son espace hôtesse — ne cherche que parmi les comptes déjà créés.
+          </div>
+        </Fld>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderHote} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="mission_bsh"&&<Mdl title={form._edit?"Modifier mission":"Nouvelle mission"} onClose={()=>setModal(null)}>
