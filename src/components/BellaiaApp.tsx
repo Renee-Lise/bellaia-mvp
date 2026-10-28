@@ -6109,21 +6109,77 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     setGenerationContrat(null);
   };
 
-  // ── BSH Secret Games (cartes + modération des thèmes) ────
+  // ── BSH Secret Games — Studio d'administration (Phase 0) ──
+  // bsh_jeux regroupe les cartes par jeu (migration 0041) ; avant,
+  // bsh_jeux_cartes était une liste plate, implicitement un seul jeu
+  // "Amour, Gloire ou Audace". jeuOuvert=null → liste des jeux ;
+  // sinon → cartes du jeu ouvert (filtrées côté client sur jeu_id).
+  const [jeuxListe, setJeuxListe] = useState([]);
   const [jeuxCartes, setJeuxCartes] = useState([]);
   const [jeuxThemes, setJeuxThemes] = useState([]);
   const [jeuxCharges, setJeuxCharges] = useState(false);
+  const [jeuOuvert, setJeuOuvert] = useState(null);
   useEffect(() => {
     if (sec !== "jeux" || jeuxCharges) return;
     setJeuxCharges(true);
-    sbGet("bsh_jeux_cartes", { order: "ordre.asc", limit: 200 }).then(setJeuxCartes).catch(()=>{});
+    sbGet("bsh_jeux", { order: "ordre.asc", limit: 200 }).then(setJeuxListe).catch(()=>{});
+    sbGet("bsh_jeux_cartes", { order: "ordre.asc", limit: 500 }).then(setJeuxCartes).catch(()=>{});
     sbGet("bsh_jeux_themes", { order: "created_at.desc", limit: 200 }).then(setJeuxThemes).catch(()=>{});
   }, [sec, jeuxCharges]);
+
+  const sauvegarderJeu = async () => {
+    if (!form.nom?.trim()) return;
+    const payload = { nom:form.nom, description:form.description||null, icone:form.icone||"🎴",
+      type_jeu:form.type_jeu||"cartes_defis", intensite:form.intensite||"audace",
+      statut:form.statut||"brouillon", ordre:parseInt(form.ordre)||0 };
+    if (form._edit) {
+      const res = await sbPatch("bsh_jeux", form._edit, {...payload, updated_at:new Date().toISOString()});
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      setJeuxListe(j => j.map(x => x.id===form._edit ? res.data : x));
+    } else {
+      const res = await sbPost("bsh_jeux", payload);
+      if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+      const row = Array.isArray(res.data)?res.data[0]:res.data;
+      if (row) setJeuxListe(j => [...j,row]);
+    }
+    setModal(null);
+  };
+
+  // Duplique un jeu ET ses cartes — point de départ pratique pour une
+  // "édition spéciale" sans repartir de zéro. Toujours créé en
+  // brouillon : jamais publié tant que la fondatrice ne l'a pas validé.
+  const dupliquerJeu = async (j) => {
+    const resJeu = await sbPost("bsh_jeux", {
+      nom: j.nom+" (copie)", description:j.description||null, icone:j.icone,
+      type_jeu:j.type_jeu, intensite:j.intensite, statut:"brouillon", ordre:j.ordre||0,
+    });
+    if (!resJeu.ok) { alert("Erreur : "+(resJeu.error||"inconnue")); return; }
+    const nouveauJeu = Array.isArray(resJeu.data)?resJeu.data[0]:resJeu.data;
+    if (!nouveauJeu) return;
+    setJeuxListe(l => [...l, nouveauJeu]);
+    const cartesDuJeu = jeuxCartes.filter(c => c.jeu_id === j.id);
+    for (const c of cartesDuJeu) {
+      const res = await sbPost("bsh_jeux_cartes", {
+        emoji:c.emoji, nom:c.nom, question:c.question, ordre:c.ordre, statut:c.statut, jeu_id:nouveauJeu.id,
+      });
+      if (res.ok) {
+        const row = Array.isArray(res.data)?res.data[0]:res.data;
+        if (row) setJeuxCartes(cs => [...cs, row]);
+      }
+    }
+  };
+
+  const archiverJeu = async (j) => {
+    if (!confirm("Archiver « "+j.nom+" » ? Il ne sera plus visible côté client, mais rien n'est supprimé.")) return;
+    const res = await sbPatch("bsh_jeux", j.id, { statut:"archive", updated_at:new Date().toISOString() });
+    if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+    setJeuxListe(l => l.map(x => x.id===j.id ? {...x,statut:"archive"} : x));
+  };
 
   const sauvegarderCarte = async () => {
     if (!form.nom?.trim() || !form.question?.trim()) return;
     const payload = { emoji:form.emoji||"🎴", nom:form.nom, question:form.question,
-      ordre:parseInt(form.ordre)||0, statut:form.statut||"active" };
+      ordre:parseInt(form.ordre)||0, statut:form.statut||"active", jeu_id:form.jeu_id||jeuOuvert };
     if (form._edit) {
       const res = await sbPatch("bsh_jeux_cartes", form._edit, payload);
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
@@ -6135,6 +6191,22 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       if (row) setJeuxCartes(c => [...c,row]);
     }
     setModal(null);
+  };
+
+  const dupliquerCarte = async (c) => {
+    const res = await sbPost("bsh_jeux_cartes", {
+      emoji:c.emoji, nom:c.nom+" (copie)", question:c.question, ordre:c.ordre, statut:"inactive", jeu_id:c.jeu_id,
+    });
+    if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+    const row = Array.isArray(res.data)?res.data[0]:res.data;
+    if (row) setJeuxCartes(cs => [...cs, row]);
+  };
+
+  const supprimerCarte = async (c) => {
+    if (!confirm("Supprimer définitivement la carte « "+c.nom+" » ?")) return;
+    const res = await sbDelete("bsh_jeux_cartes", c.id);
+    if (!res.ok) { alert("Erreur lors de la suppression."); return; }
+    setJeuxCartes(cs => cs.filter(x => x.id!==c.id));
   };
 
   const modererTheme = async (t, statut) => {
@@ -6284,47 +6356,85 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           );})}
         </div>}
         {sec==="jeux"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{fontSize:10,color:BSH.cremeD,lineHeight:1.6,marginBottom:4}}>
-            Catalogue de cartes BSH Secret Games (visibles par les clientes sur /bsh/secret-games) et modération des thèmes proposés — rien n'est publié automatiquement.
-          </div>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}>
-            <BBtn v="gold" sz="sm" onClick={()=>{setForm({emoji:"🎴",statut:"active",ordre:jeuxCartes.length+1});setModal("carte_bsh");}}>+ Carte</BBtn>
-          </div>
-          <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:4}}>Cartes ({jeuxCartes.length})</div>
-          {jeuxCartes.map(c=>(
-            <div key={c.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{c.emoji} {c.nom}</div>
-                <div style={{fontSize:10,color:BSH.cremeD}}>{c.question}</div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <BTag c={c.statut==="active"?BSH.vert:BSH.cremeD} sz={9}>{c.statut}</BTag>
-                <div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}>
-                  <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("carte_bsh");}}>✏</BBtn>
-                </div>
-              </div>
+          {!jeuOuvert ? (<>
+            <div style={{fontSize:10,color:BSH.cremeD,lineHeight:1.6,marginBottom:4}}>
+              Studio BSH Secret Games — chaque jeu a son propre statut éditorial. Rien n'est publié automatiquement : un jeu reste invisible côté client tant qu'il n'est pas au statut "publié".
             </div>
-          ))}
-          <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:10}}>Thèmes proposés ({jeuxThemes.filter(t=>t.statut==="en_attente").length} en attente)</div>
-          {jeuxThemes.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune proposition pour l'instant.</div>}
-          {jeuxThemes.map(t=>(
-            <div key={t.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{t.titre}</div>
-                  <div style={{fontSize:10,color:BSH.cremeD}}>{t.pseudo||"Anonyme"} · {t.espace||"—"} · {t.type_jeu||"—"}</div>
-                </div>
-                <BTag c={{en_attente:BSH.or,approuve:BSH.vert,refuse:BSH.rouge}[t.statut]} sz={9}>{t.statut}</BTag>
-              </div>
-              {t.description && <div style={{fontSize:11,color:BSH.cremeD,marginBottom:6}}>{t.description}</div>}
-              {t.statut==="en_attente" && (
-                <div style={{display:"flex",gap:6}}>
-                  <BBtn v="gold" sz="sm" onClick={()=>modererTheme(t,"approuve")}>✓ Approuver</BBtn>
-                  <BBtn v="danger" sz="sm" onClick={()=>modererTheme(t,"refuse")}>✕ Refuser</BBtn>
-                </div>
-              )}
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}>
+              <BBtn v="gold" sz="sm" onClick={()=>{setForm({icone:"🎴",type_jeu:"cartes_defis",intensite:"audace",statut:"brouillon",ordre:jeuxListe.length+1});setModal("jeu_bsh");}}>+ Jeu</BBtn>
             </div>
-          ))}
+            <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:4}}>Jeux ({jeuxListe.length})</div>
+            {jeuxListe.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucun jeu pour l'instant.</div>}
+            {jeuxListe.map(j=>{
+              const nbCartes = jeuxCartes.filter(c=>c.jeu_id===j.id).length;
+              const STATUT_JEU_C = {brouillon:BSH.cremeD,en_attente:BSH.or,programme:BSH.bord,publie:BSH.vert,suspendu:BSH.rouge,archive:BSH.cremeD};
+              return (
+                <div key={j.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div onClick={()=>setJeuOuvert(j.id)} style={{cursor:"pointer",flex:1}}>
+                      <div style={{fontSize:13,fontWeight:700,color:BSH.creme}}>{j.icone} {j.nom}</div>
+                      <div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{nbCartes} carte{nbCartes>1?"s":""} · {j.type_jeu} · intensité {j.intensite}</div>
+                      {j.description && <div style={{fontSize:10,color:BSH.cremeD,marginTop:3}}>{j.description}</div>}
+                    </div>
+                    <BTag c={STATUT_JEU_C[j.statut]||BSH.or} sz={9}>{j.statut}</BTag>
+                  </div>
+                  <div style={{display:"flex",gap:6,marginTop:8,justifyContent:"flex-end"}}>
+                    <BBtn v="ghost" sz="sm" onClick={()=>setJeuOuvert(j.id)}>👁 Cartes</BBtn>
+                    <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...j,_edit:j.id});setModal("jeu_bsh");}}>✏</BBtn>
+                    <BBtn v="ghost" sz="sm" onClick={()=>dupliquerJeu(j)}>⎘</BBtn>
+                    {j.statut!=="archive" && <BBtn v="danger" sz="sm" onClick={()=>archiverJeu(j)}>Archiver</BBtn>}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:10}}>Thèmes proposés ({jeuxThemes.filter(t=>t.statut==="en_attente").length} en attente)</div>
+            {jeuxThemes.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune proposition pour l'instant.</div>}
+            {jeuxThemes.map(t=>(
+              <div key={t.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{t.titre}</div>
+                    <div style={{fontSize:10,color:BSH.cremeD}}>{t.pseudo||"Anonyme"} · {t.espace||"—"} · {t.type_jeu||"—"}</div>
+                  </div>
+                  <BTag c={{en_attente:BSH.or,approuve:BSH.vert,refuse:BSH.rouge}[t.statut]} sz={9}>{t.statut}</BTag>
+                </div>
+                {t.description && <div style={{fontSize:11,color:BSH.cremeD,marginBottom:6}}>{t.description}</div>}
+                {t.statut==="en_attente" && (
+                  <div style={{display:"flex",gap:6}}>
+                    <BBtn v="gold" sz="sm" onClick={()=>modererTheme(t,"approuve")}>✓ Approuver</BBtn>
+                    <BBtn v="danger" sz="sm" onClick={()=>modererTheme(t,"refuse")}>✕ Refuser</BBtn>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>) : (()=>{
+            const jeu = jeuxListe.find(j=>j.id===jeuOuvert);
+            const cartesDuJeu = jeuxCartes.filter(c=>c.jeu_id===jeuOuvert).sort((a,b)=>(a.ordre||0)-(b.ordre||0));
+            return (<>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                <BBtn v="ghost" sz="sm" onClick={()=>setJeuOuvert(null)}>‹ Tous les jeux</BBtn>
+                <BBtn v="gold" sz="sm" onClick={()=>{setForm({emoji:"🎴",statut:"active",ordre:cartesDuJeu.length+1,jeu_id:jeuOuvert});setModal("carte_bsh");}}>+ Carte</BBtn>
+              </div>
+              <div style={{fontSize:13,fontWeight:700,color:BSH.or,marginTop:4}}>{jeu?.icone} {jeu?.nom} — {cartesDuJeu.length} carte{cartesDuJeu.length>1?"s":""}</div>
+              {cartesDuJeu.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune carte dans ce jeu pour l'instant.</div>}
+              {cartesDuJeu.map(c=>(
+                <div key={c.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{c.emoji} {c.nom}</div>
+                    <div style={{fontSize:10,color:BSH.cremeD}}>{c.question}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <BTag c={c.statut==="active"?BSH.vert:BSH.cremeD} sz={9}>{c.statut}</BTag>
+                    <div style={{display:"flex",gap:4,marginTop:5,justifyContent:"flex-end"}}>
+                      <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("carte_bsh");}}>✏</BBtn>
+                      <BBtn v="ghost" sz="sm" onClick={()=>dupliquerCarte(c)}>⎘</BBtn>
+                      <BBtn v="danger" sz="sm" onClick={()=>supprimerCarte(c)}>✕</BBtn>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>);
+          })()}
         </div>}
         {sec==="docs"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <DocumentsBSHWrapper/>
@@ -6575,6 +6685,25 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         </div>
         <Fld label="Description"><Inp value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})} rows={2}/></Fld>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderMission} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+      </Mdl>}
+      {modal==="jeu_bsh"&&<Mdl title={form._edit?"Modifier le jeu":"Nouveau jeu"} onClose={()=>setModal(null)}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:10}}>
+          <Fld label="Icône"><Inp value={form.icone||""} onChange={e=>setForm({...form,icone:e.target.value})} placeholder="🎴"/></Fld>
+          <Fld label="Nom"><Inp value={form.nom||""} onChange={e=>setForm({...form,nom:e.target.value})} placeholder="Ex : Les Trois Portes"/></Fld>
+        </div>
+        <Fld label="Description"><Inp value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})} rows={2} placeholder="Présentation courte, visible par les clientes"/></Fld>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Type"><Sel value={form.type_jeu||"cartes_defis"} onChange={e=>setForm({...form,type_jeu:e.target.value})} options={["cartes_defis","jeu_de_role","quiz_sondage","enigme_mystere","autre"]}/></Fld>
+          <Fld label="Intensité"><Sel value={form.intensite||"audace"} onChange={e=>setForm({...form,intensite:e.target.value})} options={["douceur","mystere","audace","piment","surprise"]}/></Fld>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Statut"><Sel value={form.statut||"brouillon"} onChange={e=>setForm({...form,statut:e.target.value})} options={["brouillon","en_attente","programme","publie","suspendu","archive"]}/></Fld>
+          <Fld label="Ordre"><Inp type="number" value={form.ordre||0} onChange={e=>setForm({...form,ordre:parseInt(e.target.value)||0})}/></Fld>
+        </div>
+        <div style={{fontSize:10,color:B.muted,marginBottom:10,lineHeight:1.6}}>
+          Seul le statut "publié" rend le jeu visible côté client — un brouillon ou une suspension restent invisibles même avec des cartes actives.
+        </div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderJeu} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
       {modal==="carte_bsh"&&<Mdl title={form._edit?"Modifier carte":"Nouvelle carte"} onClose={()=>setModal(null)}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:10}}>
