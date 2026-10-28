@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0042_bsh_jeux_action_verite_cap.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (16 cartes Action ou Vérité, 10 cartes Cap ou pas cap, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : Phase suivante du chantier BSH Secret Games (demande de
 --   Renée-Lise) — deux nouveaux jeux, construits sur la fondation
