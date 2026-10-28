@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0045_bsh_secret_duo.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (Duo Confessions 8 cartes, Les Trois Portes du Désir 9 cartes, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : Phase 3 du chantier BSH Secret Games — "BSH Secret Duo",
 --   l'univers des couples, distinct des jeux communautaires.
