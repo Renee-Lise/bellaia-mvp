@@ -13,6 +13,7 @@ const FOOTER_LINKS = [
   { l: "Coffrets & Expériences", href: "/bsh/coffrets" },
   { l: "Univers BSH", href: "/bsh/univers" },
   { l: "Secret Games", href: "/bsh/secret-games" },
+  { l: "Secret Duo", href: "/bsh/secret-duo" },
   { l: "Cercle", href: "/bsh/cercle" },
   { l: "Lounge", href: "/bsh/lounge" },
 ];

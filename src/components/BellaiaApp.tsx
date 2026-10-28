@@ -6131,7 +6131,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     if (!form.nom?.trim()) return;
     const payload = { nom:form.nom, description:form.description||null, icone:form.icone||"🎴",
       type_jeu:form.type_jeu||"cartes_defis", intensite:form.intensite||"audace",
-      statut:form.statut||"brouillon", ordre:parseInt(form.ordre)||0 };
+      statut:form.statut||"brouillon", ordre:parseInt(form.ordre)||0, mode:form.mode||"communautaire" };
     if (form._edit) {
       const res = await sbPatch("bsh_jeux", form._edit, {...payload, updated_at:new Date().toISOString()});
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
@@ -6151,7 +6151,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   const dupliquerJeu = async (j) => {
     const resJeu = await sbPost("bsh_jeux", {
       nom: j.nom+" (copie)", description:j.description||null, icone:j.icone,
-      type_jeu:j.type_jeu, intensite:j.intensite, statut:"brouillon", ordre:j.ordre||0,
+      type_jeu:j.type_jeu, intensite:j.intensite, statut:"brouillon", ordre:j.ordre||0, mode:j.mode||"communautaire",
     });
     if (!resJeu.ok) { alert("Erreur : "+(resJeu.error||"inconnue")); return; }
     const nouveauJeu = Array.isArray(resJeu.data)?resJeu.data[0]:resJeu.data;
@@ -6374,7 +6374,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                     <div onClick={()=>setJeuOuvert(j.id)} style={{cursor:"pointer",flex:1}}>
                       <div style={{fontSize:13,fontWeight:700,color:BSH.creme}}>{j.icone} {j.nom}</div>
-                      <div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{nbCartes} carte{nbCartes>1?"s":""} · {j.type_jeu} · intensité {j.intensite}</div>
+                      <div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>{nbCartes} carte{nbCartes>1?"s":""} · {j.type_jeu} · intensité {j.intensite} · {j.mode==="duo"?"💞 Secret Duo":"🎴 Communautaire"}</div>
                       {j.description && <div style={{fontSize:10,color:BSH.cremeD,marginTop:3}}>{j.description}</div>}
                     </div>
                     <BTag c={STATUT_JEU_C[j.statut]||BSH.or} sz={9}>{j.statut}</BTag>
@@ -6701,8 +6701,9 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <Fld label="Statut"><Sel value={form.statut||"brouillon"} onChange={e=>setForm({...form,statut:e.target.value})} options={["brouillon","en_attente","programme","publie","suspendu","archive"]}/></Fld>
           <Fld label="Ordre"><Inp type="number" value={form.ordre||0} onChange={e=>setForm({...form,ordre:parseInt(e.target.value)||0})}/></Fld>
         </div>
+        <Fld label="Espace"><Sel value={form.mode||"communautaire"} onChange={e=>setForm({...form,mode:e.target.value})} options={["communautaire","duo"]}/></Fld>
         <div style={{fontSize:10,color:B.muted,marginBottom:10,lineHeight:1.6}}>
-          Seul le statut "publié" rend le jeu visible côté client — un brouillon ou une suspension restent invisibles même avec des cartes actives.
+          "Communautaire" apparaît sur /bsh/secret-games (sélecteur public). "Duo" apparaît uniquement sur /bsh/secret-duo (espace couple) — les deux ne se mélangent jamais. Seul le statut "publié" rend le jeu visible côté client.
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderJeu} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}

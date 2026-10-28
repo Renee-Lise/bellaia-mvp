@@ -13,6 +13,7 @@ export interface JeuBSH {
   description: string | null;
   icone: string;
   intensite: string;
+  mode?: string;
 }
 
 export interface ResultatJeuxBSH {
@@ -20,14 +21,18 @@ export interface ResultatJeuxBSH {
   diagnostic: string | null;
 }
 
-export async function getJeuxBSH(): Promise<ResultatJeuxBSH> {
+// mode : 'communautaire' (par défaut) ou 'duo' — depuis la migration
+// 0045, BSH Secret Duo vit dans les mêmes tables mais ne doit jamais
+// apparaître dans le sélecteur communautaire de /bsh/secret-games,
+// ni l'inverse.
+export async function getJeuxBSH(mode: "communautaire" | "duo" = "communautaire"): Promise<ResultatJeuxBSH> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
     return { jeux: [], diagnostic: "Configuration manquante : NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY absente sur ce déploiement." };
   }
 
-  const query = "statut=eq.publie&select=id,nom,description,icone,intensite&order=ordre.asc&limit=50";
+  const query = `statut=eq.publie&mode=eq.${mode}&select=id,nom,description,icone,intensite,mode&order=ordre.asc&limit=50`;
 
   try {
     const res = await fetch(`${url}/rest/v1/bsh_jeux?${query}`, {
