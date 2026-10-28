@@ -14,6 +14,7 @@ const FOOTER_LINKS = [
   { l: "Univers BSH", href: "/bsh/univers" },
   { l: "Secret Games", href: "/bsh/secret-games" },
   { l: "Secret Duo", href: "/bsh/secret-duo" },
+  { l: "Secret Salons", href: "/bsh/secret-salons" },
   { l: "Cercle", href: "/bsh/cercle" },
   { l: "Lounge", href: "/bsh/lounge" },
 ];
