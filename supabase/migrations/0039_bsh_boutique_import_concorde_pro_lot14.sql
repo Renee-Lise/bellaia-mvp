@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0039_bsh_boutique_import_concorde_pro_lot14.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (count=390, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : suite des lots précédents — lot 14 (dernier de la soirée)
 --   de captures d'écran Concorde Pro envoyées par Renée-Lise.
