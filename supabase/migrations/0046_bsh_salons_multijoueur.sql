@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0046_bsh_salons_multijoueur.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (tables créées, 7 policies [4+3, pas 8 — erreur de calcul initiale], 2 tables en publication realtime, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : Phase 5 (v1) — salons multijoueur en temps réel pour BSH
 --   Secret Games. La brique la plus lourde du chantier : livrée
@@ -132,7 +132,8 @@ end $$;
 --
 --   select count(*) from pg_policies
 --   where schemaname='public' and tablename in ('bsh_salons','bsh_salon_participants');
---   → attendu : 8 (4 par table).
+--   → attendu : 7 (4 sur bsh_salons, 3 sur bsh_salon_participants —
+--     cette dernière n'a pas de policy UPDATE, rien à y modifier).
 --
 --   select tablename from pg_publication_tables
 --   where pubname='supabase_realtime' and tablename in ('bsh_salons','bsh_salon_participants')
