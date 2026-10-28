@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0040_bsh_nettoyage_catalogue_et_prix.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (0 prix_vente NULL restant, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : deux demandes explicites de Renée-Lise après revue du
 --   catalogue importé (lots 0024 à 0039) :
