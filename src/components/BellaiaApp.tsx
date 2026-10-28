@@ -6241,10 +6241,25 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     setGenIA(false);
   };
 
+  // Phase 6 : modération reliée à une vraie décision — la note interne
+  // (notes_fondatrice, colonne déjà présente depuis la 0016 mais jamais
+  // utilisée côté UI) explique le refus/l'approbation pour soi-même,
+  // jamais visible par qui que ce soit d'autre.
+  const [noteTheme, setNoteTheme] = useState({});
   const modererTheme = async (t, statut) => {
-    const res = await sbPatch("bsh_jeux_themes", t.id, { statut, moderee_le: new Date().toISOString() });
+    const notes_fondatrice = (noteTheme[t.id] ?? t.notes_fondatrice) || null;
+    const res = await sbPatch("bsh_jeux_themes", t.id, { statut, notes_fondatrice, moderee_le: new Date().toISOString() });
     if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
-    setJeuxThemes(ts => ts.map(x => x.id===t.id ? {...x,statut} : x));
+    setJeuxThemes(ts => ts.map(x => x.id===t.id ? {...x,statut,notes_fondatrice} : x));
+  };
+
+  // Ferme la boucle "une cliente propose → la fondatrice approuve → ça
+  // devient un vrai jeu" : pré-remplit le formulaire "Nouveau jeu" à
+  // partir de la proposition, plutôt que de la ressaisir à la main.
+  const transformerThemeEnJeu = (t) => {
+    setForm({ icone:"🎴", nom:t.titre, description:t.description||"", type_jeu:t.type_jeu||"cartes_defis",
+      intensite:"audace", statut:"brouillon", mode:"communautaire", ordre:jeuxListe.length+1 });
+    setModal("jeu_bsh");
   };
 
   return(
@@ -6431,11 +6446,24 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
                   <BTag c={{en_attente:BSH.or,approuve:BSH.vert,refuse:BSH.rouge}[t.statut]} sz={9}>{t.statut}</BTag>
                 </div>
                 {t.description && <div style={{fontSize:11,color:BSH.cremeD,marginBottom:6}}>{t.description}</div>}
-                {t.statut==="en_attente" && (
+                {t.statut==="en_attente" && (<>
+                  <textarea placeholder="Note interne (jamais visible par qui que ce soit d'autre) — pourquoi cette décision ?"
+                    value={noteTheme[t.id] ?? t.notes_fondatrice ?? ""} rows={2}
+                    onChange={e=>setNoteTheme(n=>({...n,[t.id]:e.target.value}))}
+                    style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid "+(BSH.line),borderRadius:8,padding:"6px 9px",color:BSH.creme,fontSize:10,fontFamily:SA,marginBottom:6,resize:"vertical",boxSizing:"border-box"}}/>
                   <div style={{display:"flex",gap:6}}>
                     <BBtn v="gold" sz="sm" onClick={()=>modererTheme(t,"approuve")}>✓ Approuver</BBtn>
                     <BBtn v="danger" sz="sm" onClick={()=>modererTheme(t,"refuse")}>✕ Refuser</BBtn>
                   </div>
+                </>)}
+                {t.statut==="approuve" && (
+                  <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                    <BBtn v="gold" sz="sm" onClick={()=>transformerThemeEnJeu(t)}>✨ Transformer en jeu</BBtn>
+                    {t.notes_fondatrice && <span style={{fontSize:9,color:BSH.cremeD,fontStyle:"italic"}}>📝 {t.notes_fondatrice}</span>}
+                  </div>
+                )}
+                {t.statut==="refuse" && t.notes_fondatrice && (
+                  <div style={{fontSize:9,color:BSH.cremeD,fontStyle:"italic"}}>📝 {t.notes_fondatrice}</div>
                 )}
               </div>
             ))}
