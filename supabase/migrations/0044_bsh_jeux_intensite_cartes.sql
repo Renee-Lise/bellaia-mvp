@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0044_bsh_jeux_intensite_cartes.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (0 carte sans intensité, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : Phase 2 du chantier BSH Secret Games — niveaux
 --   d'intensité (🌹 Douceur / 🖤 Mystère / 🔥 Audace / 🌶️ Piment /
