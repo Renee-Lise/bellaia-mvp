@@ -16,6 +16,7 @@
 // ═══════════════════════════════════════════════════════════
 import type { Metadata } from "next";
 import { getCartesBSH } from "./getCartes";
+import { getJeuxBSH } from "./getJeux";
 import SecretGamesClient from "./SecretGamesClient";
 import BshFooter from "../BshFooter";
 
@@ -25,10 +26,17 @@ export const metadata: Metadata = {
 };
 
 export default async function BshSecretGamesPage() {
-  const { cartes, diagnostic } = await getCartesBSH();
+  const { jeux, diagnostic: diagnosticJeux } = await getJeuxBSH();
+  const jeuInitial = jeux[0] ?? null;
+  const { cartes, diagnostic } = await getCartesBSH(jeuInitial?.id);
   return (
     <>
-      <SecretGamesClient cartesInitiales={cartes} diagnostic={diagnostic} />
+      <SecretGamesClient
+        jeux={jeux}
+        jeuInitial={jeuInitial}
+        cartesInitiales={cartes}
+        diagnostic={diagnostic || diagnosticJeux}
+      />
       <BshFooter />
     </>
   );

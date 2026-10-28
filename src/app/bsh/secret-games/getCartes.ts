@@ -20,14 +20,18 @@ export interface ResultatCartesBSH {
   diagnostic: string | null;
 }
 
-export async function getCartesBSH(): Promise<ResultatCartesBSH> {
+// jeuId optionnel : depuis la migration 0041, les cartes appartiennent
+// à un jeu (bsh_jeux). Sans jeuId, on lit tout (comportement d'avant,
+// gardé pour compatibilité) — la page passe désormais le jeu choisi.
+export async function getCartesBSH(jeuId?: string): Promise<ResultatCartesBSH> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
     return { cartes: [], diagnostic: "Configuration manquante : NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY absente sur ce déploiement." };
   }
 
-  const query = "statut=eq.active&select=id,emoji,nom,question&order=ordre.asc&limit=100";
+  const filtreJeu = jeuId ? `&jeu_id=eq.${encodeURIComponent(jeuId)}` : "";
+  const query = `statut=eq.active${filtreJeu}&select=id,emoji,nom,question&order=ordre.asc&limit=100`;
 
   try {
     const res = await fetch(`${url}/rest/v1/bsh_jeux_cartes?${query}`, {

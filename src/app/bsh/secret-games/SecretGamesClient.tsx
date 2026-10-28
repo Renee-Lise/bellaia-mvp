@@ -15,6 +15,7 @@ import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } 
 import { useBshEspace, espaceFetch } from "../espace/useBshEspace";
 import { bshWaLink } from "../bshWa";
 import type { CarteBSH } from "./getCartes";
+import type { JeuBSH } from "./getJeux";
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -40,22 +41,45 @@ const inp: React.CSSProperties = {
 };
 
 export default function SecretGamesClient({
+  jeux,
+  jeuInitial,
   cartesInitiales,
   diagnostic,
 }: {
+  jeux: JeuBSH[];
+  jeuInitial: JeuBSH | null;
   cartesInitiales: CarteBSH[];
   diagnostic: string | null;
 }) {
   const etat = useBshEspace();
   const [tab, setTab] = useState<"jouer" | "theme">("jouer");
+  const [jeuActif, setJeuActif] = useState<JeuBSH | null>(jeuInitial);
+  const [cartes, setCartes] = useState<CarteBSH[]>(cartesInitiales);
+  const [chargementCartes, setChargementCartes] = useState(false);
   const [carte, setCarte] = useState<CarteBSH | null>(null);
   const [tirageEnregistre, setTirageEnregistre] = useState(false);
   const [form, setForm] = useState({ pseudo: "", titre: "", espace: "secret_games", type_jeu: "cartes_defis", description: "" });
   const [envoi, setEnvoi] = useState<"idle" | "envoi" | "ok" | "erreur">("idle");
 
+  const choisirJeu = async (j: JeuBSH) => {
+    if (j.id === jeuActif?.id) return;
+    setJeuActif(j);
+    setCarte(null);
+    setTirageEnregistre(false);
+    setChargementCartes(true);
+    try {
+      const res = await fetch(
+        `${SB_URL}/rest/v1/bsh_jeux_cartes?jeu_id=eq.${j.id}&statut=eq.active&select=id,emoji,nom,question&order=ordre.asc&limit=100`,
+        { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, cache: "no-store" }
+      );
+      if (res.ok) setCartes(await res.json());
+    } catch {}
+    setChargementCartes(false);
+  };
+
   const tirer = async () => {
-    if (cartesInitiales.length === 0) return;
-    const c = cartesInitiales[Math.floor(Math.random() * cartesInitiales.length)];
+    if (cartes.length === 0) return;
+    const c = cartes[Math.floor(Math.random() * cartes.length)];
     setCarte(c);
     setTirageEnregistre(false);
     if (etat.statut === "connectee") {
@@ -119,17 +143,42 @@ export default function SecretGamesClient({
       <div style={{ background: C.plumD, padding: "28px 22px 36px", minHeight: 320 }}>
         {tab === "jouer" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-            {diagnostic && cartesInitiales.length === 0 && (
+            {jeux.length > 1 && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", width: "100%" }}>
+                {jeux.map((j) => (
+                  <button key={j.id} onClick={() => choisirJeu(j)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      background: j.id === jeuActif?.id ? C.gold : "rgba(255,255,255,0.06)",
+                      color: j.id === jeuActif?.id ? C.night : C.cream,
+                      border: `1px solid ${j.id === jeuActif?.id ? C.gold : C.borderM}`,
+                      borderRadius: 20, padding: "7px 14px", fontSize: 12, fontFamily: BODY, cursor: "pointer",
+                    }}>
+                    <span>{j.icone}</span>
+                    <span>{j.nom}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {jeuActif?.description && (
+              <p style={{ fontSize: 11, color: C.muted, textAlign: "center", margin: 0, maxWidth: 320 }}>
+                {jeuActif.description}
+              </p>
+            )}
+            {diagnostic && cartes.length === 0 && (
               <p style={{ fontSize: 10, color: "#e07070", fontFamily: "monospace", textAlign: "center", margin: 0 }}>
                 {diagnostic}
               </p>
             )}
-            {cartesInitiales.length === 0 && !diagnostic && (
+            {chargementCartes && (
+              <p style={{ fontSize: 12, color: C.muted, fontStyle: "italic", textAlign: "center" }}>Chargement du jeu…</p>
+            )}
+            {!chargementCartes && cartes.length === 0 && !diagnostic && (
               <p style={{ fontSize: 13, color: C.muted, fontStyle: "italic", textAlign: "center" }}>
                 Le jeu se prépare — les premières cartes arrivent bientôt.
               </p>
             )}
-            {cartesInitiales.length > 0 && !carte && (
+            {!chargementCartes && cartes.length > 0 && !carte && (
               <button onClick={tirer} style={{
                 width: 200, height: 260, borderRadius: 14, border: `1px solid ${C.borderM}`,
                 background: `linear-gradient(160deg, ${C.plum}, ${C.night})`, color: C.goldL,
