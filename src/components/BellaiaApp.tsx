@@ -6210,6 +6210,37 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     setJeuxCartes(cs => cs.filter(x => x.id!==c.id));
   };
 
+  // ── Phase 4 : génération de cartes par IA (brouillon, jamais publié
+  // automatiquement — voir /api/bsh/jeux/generer-cartes) ────────────
+  const [genIA, setGenIA] = useState(false);
+  const [erreurGenIA, setErreurGenIA] = useState("");
+  const genererCartesIA = async () => {
+    if (!form.jeu_id_cible) return;
+    setGenIA(true);
+    setErreurGenIA("");
+    try {
+      const token = await getTokenAsync();
+      const r = await fetch("/api/bsh/jeux/generer-cartes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer "+token },
+        body: JSON.stringify({
+          jeuId: form.jeu_id_cible,
+          nombre: parseInt(form.nombreGen)||10,
+          intensite: form.intensiteGen,
+          consigne: form.consigneGen||"",
+        }),
+      });
+      const d = await r.json().catch(()=>null);
+      if (!r.ok) { setErreurGenIA(d?.error || "Erreur "+r.status); setGenIA(false); return; }
+      if (Array.isArray(d?.cartes)) setJeuxCartes(cs => [...cs, ...d.cartes]);
+      alert((d?.generees||0)+" carte(s) générée(s) en brouillon — relis-les et active (✏) celles que tu veux garder.");
+      setModal(null);
+    } catch (e) {
+      setErreurGenIA("Erreur réseau : "+(e.message||"inconnue"));
+    }
+    setGenIA(false);
+  };
+
   const modererTheme = async (t, statut) => {
     const res = await sbPatch("bsh_jeux_themes", t.id, { statut, moderee_le: new Date().toISOString() });
     if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
@@ -6412,9 +6443,12 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             const jeu = jeuxListe.find(j=>j.id===jeuOuvert);
             const cartesDuJeu = jeuxCartes.filter(c=>c.jeu_id===jeuOuvert).sort((a,b)=>(a.ordre||0)-(b.ordre||0));
             return (<>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2,gap:6}}>
                 <BBtn v="ghost" sz="sm" onClick={()=>setJeuOuvert(null)}>‹ Tous les jeux</BBtn>
-                <BBtn v="gold" sz="sm" onClick={()=>{setForm({emoji:"🎴",statut:"active",ordre:cartesDuJeu.length+1,jeu_id:jeuOuvert,intensite:jeu?.intensite||"audace"});setModal("carte_bsh");}}>+ Carte</BBtn>
+                <div style={{display:"flex",gap:6}}>
+                  <BBtn v="ghost" sz="sm" onClick={()=>{setForm({jeu_id_cible:jeuOuvert,nombreGen:10,intensiteGen:jeu?.intensite||"audace",consigneGen:""});setErreurGenIA("");setModal("generer_ia_bsh");}}>✨ IA</BBtn>
+                  <BBtn v="gold" sz="sm" onClick={()=>{setForm({emoji:"🎴",statut:"active",ordre:cartesDuJeu.length+1,jeu_id:jeuOuvert,intensite:jeu?.intensite||"audace"});setModal("carte_bsh");}}>+ Carte</BBtn>
+                </div>
               </div>
               <div style={{fontSize:13,fontWeight:700,color:BSH.or,marginTop:4}}>{jeu?.icone} {jeu?.nom} — {cartesDuJeu.length} carte{cartesDuJeu.length>1?"s":""}</div>
               {cartesDuJeu.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune carte dans ce jeu pour l'instant.</div>}
@@ -6706,6 +6740,25 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           "Communautaire" apparaît sur /bsh/secret-games (sélecteur public). "Duo" apparaît uniquement sur /bsh/secret-duo (espace couple) — les deux ne se mélangent jamais. Seul le statut "publié" rend le jeu visible côté client.
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderJeu} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
+      </Mdl>}
+      {modal==="generer_ia_bsh"&&<Mdl title="✨ Générer des cartes par IA" onClose={()=>setModal(null)}>
+        <div style={{fontSize:11,color:B.muted,lineHeight:1.6,marginBottom:10}}>
+          Les cartes générées sont toujours créées en brouillon (inactives) — relis-les et active toi-même (✏) celles que tu veux garder. Rien n'est publié automatiquement.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Fld label="Nombre de cartes"><Inp type="number" value={form.nombreGen||10} onChange={e=>setForm({...form,nombreGen:parseInt(e.target.value)||10})}/></Fld>
+          <Fld label="Intensité"><Sel value={form.intensiteGen||"audace"} onChange={e=>setForm({...form,intensiteGen:e.target.value})} options={["douceur","mystere","audace","piment","surprise"]}/></Fld>
+        </div>
+        <Fld label="Consigne (optionnel)"><Inp value={form.consigneGen||""} onChange={e=>setForm({...form,consigneGen:e.target.value})} rows={3} placeholder="Ex : pour un salon de 8 personnes, ambiance Saint-Valentin…"/></Fld>
+        {erreurGenIA && (
+          <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#ef4444"}}>
+            ⚠ {erreurGenIA}
+          </div>
+        )}
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={genererCartesIA} full v="gold" disabled={genIA}>{genIA?"Génération…":"✨ Générer"}</Btn>
+          <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
+        </div>
       </Mdl>}
       {modal==="carte_bsh"&&<Mdl title={form._edit?"Modifier carte":"Nouvelle carte"} onClose={()=>setModal(null)}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:10}}>
