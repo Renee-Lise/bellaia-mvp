@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0043_bsh_jeux_publication_av_cap.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-28 (les deux jeux statut='publie', exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : Renée-Lise a validé le contenu d'"Action ou Vérité" et de
 --   "Cap ou pas cap" (migration 0042) — passage au statut 'publie',
