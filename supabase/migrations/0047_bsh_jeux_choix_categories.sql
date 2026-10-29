@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0047_bsh_jeux_choix_categories.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-29 (choix_categories correct pour les 2 jeux, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-28
 -- Objet : "Action ou Vérité" doit proposer un vrai choix (Action ou
 --   Vérité) avant de tirer, pas un tirage aléatoire qui tombe sur
