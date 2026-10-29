@@ -5760,21 +5760,33 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"params",l:"⚙",t:"Réglages"}];
 
   // ── Communication BSH (annonces, notifications, publications) ──
+  // Phase 1 de la mission "BSH Communications & Automatisations" :
+  // étend bsh_communications (déjà réelle, migration 0023) plutôt que
+  // de créer un nouveau système — espace Chaîne/Cercle/Lounge,
+  // programmation, workflow de statuts complet, lien Secret Games,
+  // interrupteur global d'automatisations (migration 0051).
   const [coms, setComs] = useState([]);
   const [comsChargees, setComsChargees] = useState(false);
+  const [comFiltreEspace, setComFiltreEspace] = useState("tous");
+  const [parametresCom, setParametresCom] = useState(null);
   useEffect(() => {
     if (sec !== "com" || comsChargees) return;
     setComsChargees(true);
     sbGet("bsh_communications", { order: "created_at.desc", limit: 200 }).then(setComs).catch(()=>{});
+    sbGet("bsh_communications_parametres", { limit: 1 }).then(r => setParametresCom(r?.[0]||null)).catch(()=>{});
   }, [sec, comsChargees]);
 
   const sauvegarderCom = async () => {
     if (!form.titre?.trim() || !form.contenu?.trim()) return;
-    const payload = { titre:form.titre, contenu:form.contenu, type:form.type||"annonce", cible:form.cible||"tous" };
+    const payload = {
+      titre:form.titre, contenu:form.contenu, type:form.type||"annonce", cible:form.cible||"tous",
+      espace: form.espace || null, date_programmee: form.date_programmee || null,
+      jeu_id: form.jeu_id || null, lien_externe: form.lien_externe || null, visuel_url: form.visuel_url || null,
+    };
     if (form._edit) {
       const res = await sbPatch("bsh_communications", form._edit, payload);
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
-      setComs(cs => cs.map(x => x.id===form._edit ? res.data : x));
+      setComs(cs => cs.map(x => x.id===form._edit ? {...x,...payload} : x));
     } else {
       const res = await sbPost("bsh_communications", {...payload, statut:"brouillon"});
       if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
@@ -5784,16 +5796,50 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
     setModal(null);
   };
 
-  const publierCom = async (c) => {
-    const res = await sbPatch("bsh_communications", c.id, { statut:"publie", publiee_le:new Date().toISOString() });
+  // Workflow : brouillon → en_attente → valide → programme → pret → publie → archive.
+  // Un bouton = l'étape suivante logique ; "pret" propose en plus le
+  // partage WhatsApp manuel (jamais un envoi automatique prétendu).
+  const COM_STATUT_ORDRE = ["brouillon","en_attente","valide","programme","pret","publie","archive"];
+  const COM_STATUT_LABEL = {brouillon:"Brouillon",en_attente:"En attente de validation",valide:"Validé",programme:"Programmé",pret:"Prêt à partager",publie:"Publié",archive:"Archivé"};
+  const COM_STATUT_SUIVANT = {brouillon:"en_attente",en_attente:"valide",valide:"programme",programme:"pret",pret:"publie"};
+
+  const avancerStatutCom = async (c) => {
+    const suivant = COM_STATUT_SUIVANT[c.statut];
+    if (!suivant) return;
+    const extra = suivant==="publie" ? { publiee_le:new Date().toISOString() } : {};
+    const res = await sbPatch("bsh_communications", c.id, { statut:suivant, ...extra });
     if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
-    setComs(cs => cs.map(x => x.id===c.id ? {...x,statut:"publie",publiee_le:new Date().toISOString()} : x));
+    setComs(cs => cs.map(x => x.id===c.id ? {...x,statut:suivant,...extra} : x));
   };
 
   const archiverCom = async (c) => {
     const res = await sbPatch("bsh_communications", c.id, { statut:"archive" });
     if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
     setComs(cs => cs.map(x => x.id===c.id ? {...x,statut:"archive"} : x));
+  };
+
+  const copierTexteCom = (c) => {
+    navigator.clipboard?.writeText(c.contenu + (c.lien_externe ? "\n\n"+c.lien_externe : "")).then(
+      () => alert("Texte copié — collez-le dans la Chaîne, le Cercle ou la Lounge."),
+      () => alert("Impossible de copier automatiquement — sélectionnez le texte manuellement.")
+    );
+  };
+
+  // Lien de partage WhatsApp SANS numéro fixe : ouvre le sélecteur de
+  // discussion/canal WhatsApp de la fondatrice (pas un envoi à un
+  // contact précis) — adapté à "coller dans ma Chaîne/Cercle/Lounge",
+  // contrairement à bshWaLink (côté client) qui vise un numéro fixe.
+  const partagerWaCom = (c) => {
+    const msg = c.contenu + (c.lien_externe ? "\n\n"+c.lien_externe : "");
+    window.open("https://wa.me/?text="+encodeURIComponent(msg), "_blank");
+  };
+
+  const toggleAutomatisationsSuspendues = async () => {
+    if (!parametresCom) return;
+    const nv = !parametresCom.automatisations_suspendues;
+    const res = await sbPatch("bsh_communications_parametres", parametresCom.id, { automatisations_suspendues: nv });
+    if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
+    setParametresCom(p => ({...p, automatisations_suspendues: nv}));
   };
 
   // ── Produit (stock) BSH — sauvegarde RÉELLE dans Supabase.
@@ -6539,26 +6585,57 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
         </div>}
         {sec==="com"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{fontSize:10,color:BSH.cremeD,lineHeight:1.6,marginBottom:4}}>
-            Annonces, notifications et publications BSH. Un brouillon n'est visible que par toi — "Publier" le rend visible selon sa cible (Tous / Clientes / Hôtesses).
+            Chaîne BSH, Cercle BSH, BSH Lounge — un brouillon n'est visible que par toi. Le texte est préparé ici, le partage reste manuel (copier ou ouvrir WhatsApp) tant qu'aucune API officielle n'est connectée.
+          </div>
+          {parametresCom && (
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:parametresCom.automatisations_suspendues?"rgba(248,113,113,0.12)":BSH.verre,border:"1px solid "+(parametresCom.automatisations_suspendues?"rgba(248,113,113,0.4)":BSH.line),borderRadius:10,padding:"9px 12px"}}>
+              <span style={{fontSize:10,color:parametresCom.automatisations_suspendues?"#f87171":BSH.cremeD,fontWeight:700}}>
+                {parametresCom.automatisations_suspendues ? "⛔ Automatisations suspendues" : "✅ Automatisations actives"}
+              </span>
+              <BBtn v={parametresCom.automatisations_suspendues?"gold":"danger"} sz="sm" onClick={toggleAutomatisationsSuspendues}>
+                {parametresCom.automatisations_suspendues ? "Réactiver" : "Suspendre tout"}
+              </BBtn>
+            </div>
+          )}
+          <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2}}>
+            {[["tous","Tous"],["chaine","Chaîne"],["cercle","Cercle"],["lounge","Lounge"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setComFiltreEspace(v)}
+                style={{padding:"4px 10px",borderRadius:99,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,flexShrink:0,fontFamily:SA,
+                  background:comFiltreEspace===v?BSH.or:"rgba(255,255,255,0.06)",color:comFiltreEspace===v?BSH.fond:BSH.cremeD}}>
+                {l}
+              </button>
+            ))}
           </div>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}>
             <BBtn v="gold" sz="sm" onClick={()=>{setForm({type:"annonce",cible:"tous"});setModal("com_bsh");}}>+ Communication</BBtn>
           </div>
-          {coms.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune communication pour l'instant.</div>}
-          {coms.map(c=>(
+          {coms.filter(c=>comFiltreEspace==="tous"||c.espace===comFiltreEspace).length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune communication pour l'instant.</div>}
+          {coms.filter(c=>comFiltreEspace==="tous"||c.espace===comFiltreEspace).map(c=>(
             <div key={c.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{c.titre}</div>
-                  <div style={{fontSize:10,color:BSH.cremeD}}>{c.type} · cible : {c.cible}</div>
+                  <div style={{fontSize:10,color:BSH.cremeD}}>
+                    {c.type} · cible : {c.cible}{c.espace?" · "+({chaine:"Chaîne",cercle:"Cercle",lounge:"Lounge"}[c.espace]):""}
+                    {c.date_programmee && " · programmé le "+new Date(c.date_programmee).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}
+                  </div>
                 </div>
-                <BTag c={{brouillon:BSH.or,publie:BSH.vert,archive:BSH.cremeD}[c.statut]} sz={9}>{c.statut}</BTag>
+                <BTag c={{brouillon:BSH.cremeD,en_attente:BSH.or,valide:BSH.or,programme:BSH.bord,pret:BSH.rose,publie:BSH.vert,archive:BSH.cremeD}[c.statut]} sz={9}>{COM_STATUT_LABEL[c.statut]||c.statut}</BTag>
               </div>
               <div style={{fontSize:11,color:BSH.cremeD,marginBottom:7,whiteSpace:"pre-wrap"}}>{c.contenu}</div>
-              <div style={{display:"flex",gap:6}}>
+              {c.lien_externe && <div style={{fontSize:10,color:BSH.or,marginBottom:7,wordBreak:"break-all"}}>🔗 {c.lien_externe}</div>}
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 <BBtn v="ghost" sz="sm" onClick={()=>{setForm({...c,_edit:c.id});setModal("com_bsh");}}>✏ Modifier</BBtn>
-                {c.statut!=="publie" && <BBtn v="gold" sz="sm" onClick={()=>publierCom(c)}>📢 Publier</BBtn>}
-                {c.statut==="publie" && <BBtn v="danger" sz="sm" onClick={()=>archiverCom(c)}>Archiver</BBtn>}
+                {COM_STATUT_SUIVANT[c.statut] && (
+                  <BBtn v="gold" sz="sm" onClick={()=>avancerStatutCom(c)}>→ {COM_STATUT_LABEL[COM_STATUT_SUIVANT[c.statut]]}</BBtn>
+                )}
+                {(c.statut==="pret"||c.statut==="publie") && (
+                  <>
+                    <BBtn v="ghost" sz="sm" onClick={()=>copierTexteCom(c)}>📋 Copier</BBtn>
+                    <BBtn v="ghost" sz="sm" onClick={()=>partagerWaCom(c)}>💬 Partager</BBtn>
+                  </>
+                )}
+                {c.statut!=="archive" && <BBtn v="danger" sz="sm" onClick={()=>archiverCom(c)}>Archiver</BBtn>}
               </div>
             </div>
           ))}
@@ -6845,9 +6922,33 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           <Fld label="Type"><Sel value={form.type||"annonce"} onChange={e=>setForm({...form,type:e.target.value})} options={["annonce","notification","publication"]}/></Fld>
           <Fld label="Cible"><Sel value={form.cible||"tous"} onChange={e=>setForm({...form,cible:e.target.value})} options={["tous","clientes","hotesses","fondatrice"]}/></Fld>
         </div>
+        <Fld label="Espace WhatsApp (optionnel)">
+          <select value={form.espace||""} onChange={e=>setForm({...form,espace:e.target.value||null})}
+            style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid "+(BSH.line),borderRadius:10,padding:"9px 12px",color:BSH.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+            <option value="">— Aucun (communication générale) —</option>
+            <option value="chaine">Chaîne BSH</option>
+            <option value="cercle">Cercle BSH</option>
+            <option value="lounge">BSH Lounge</option>
+          </select>
+        </Fld>
         <Fld label="Contenu"><Inp value={form.contenu||""} onChange={e=>setForm({...form,contenu:e.target.value})} rows={4}/></Fld>
+        <Fld label="Lien à joindre (jeu, salon, événement — optionnel)">
+          <Inp value={form.lien_externe||""} onChange={e=>setForm({...form,lien_externe:e.target.value})} placeholder="https://..."/>
+        </Fld>
+        {jeuxListe.length>0 && (
+          <Fld label="Lier à un jeu Secret Games (optionnel)">
+            <select value={form.jeu_id||""} onChange={e=>setForm({...form,jeu_id:e.target.value||null})}
+              style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid "+(BSH.line),borderRadius:10,padding:"9px 12px",color:BSH.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
+              <option value="">— Aucun —</option>
+              {jeuxListe.map(j=><option key={j.id} value={j.id}>{j.nom}</option>)}
+            </select>
+          </Fld>
+        )}
+        <Fld label="Programmer pour (optionnel — fuseau Cayenne)">
+          <Inp type="datetime-local" value={form.date_programmee?form.date_programmee.slice(0,16):""} onChange={e=>setForm({...form,date_programmee:e.target.value})}/>
+        </Fld>
         <div style={{fontSize:10,color:B.muted,marginBottom:10,lineHeight:1.6}}>
-          Enregistrée en brouillon — utilise "📢 Publier" dans la liste pour la rendre visible.
+          Enregistrée en brouillon. Fais-la avancer depuis la liste (Validé → Programmé → Prêt à partager → Publié) — le partage WhatsApp reste toujours une action manuelle de ta part.
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarderCom} full v="gold">Enregistrer</Btn><Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn></div>
       </Mdl>}
