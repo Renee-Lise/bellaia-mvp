@@ -93,9 +93,15 @@ export default function ProductCard({ p }: { p: ProduitBSH }) {
         </div>
       )}
 
-      <div style={{ marginTop: "auto", fontSize: 10, color: "rgba(198,161,91,0.45)", fontStyle: "italic" }}>
-        Prix à venir
-      </div>
+      {p.prix_vente ? (
+        <div style={{ marginTop: "auto", fontSize: 14, fontFamily: DISPLAY, fontWeight: 600, color: C.goldL }}>
+          {p.prix_vente.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+        </div>
+      ) : (
+        <div style={{ marginTop: "auto", fontSize: 10, color: "rgba(198,161,91,0.45)", fontStyle: "italic" }}>
+          Prix à venir
+        </div>
+      )}
     </div>
   );
 }

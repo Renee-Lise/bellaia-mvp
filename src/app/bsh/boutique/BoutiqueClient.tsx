@@ -4,9 +4,10 @@
 //
 // Reçoit les produits déjà chargés côté serveur (présents dans le
 // HTML initial pour le référencement) et gère uniquement le filtre
-// par catégorie côté client. Aucun prix réel, aucune remise : tout
-// affiche "Prix à venir" tant que Renée-Lise n'a pas dit le
-// contraire. Les 4 champs de fiche produit (tailles, composition,
+// par catégorie côté client. Le prix public réel s'affiche quand il
+// existe (stocks.prix_vente) ; "Prix à venir" reste en repli pour
+// les quelques produits sans prix renseigné. Les 4 champs de fiche
+// produit (tailles, composition,
 // usage, entretien) ne s'affichent que s'ils sont renseignés — pas
 // de ligne vide sur les produits qui n'en ont pas encore.
 // ═══════════════════════════════════════════════════════════

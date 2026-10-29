@@ -21,9 +21,10 @@ export interface ProduitBSH {
   usage_conseils: string | null;
   entretien: string | null;
   image_url: string | null;
+  prix_vente: number | null;
 }
 
-const SELECT = "id,nom,categorie,notes,tailles,composition,usage_conseils,entretien,image_url";
+const SELECT = "id,nom,categorie,notes,tailles,composition,usage_conseils,entretien,image_url,prix_vente";
 
 export interface ResultatProduitsBSH {
   produits: ProduitBSH[];

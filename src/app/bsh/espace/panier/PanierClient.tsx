@@ -3,11 +3,12 @@
 // Panier — src/app/bsh/espace/panier/PanierClient.tsx
 //
 // Lit panier_items (migration 0001) avec le produit embarqué via
-// l'embed PostgREST sur stock_id → stocks. Aucun prix réel affiché
-// ("Prix à venir" — cf. ProductCard) et aucun total chiffré tant que
-// rien n'est activé commercialement : seul le nombre d'articles est
-// montré. Réutilise QuantityStepper (même stepper que PanierButton
-// sur la Boutique/Coffrets) pour ajuster ou retirer une ligne.
+// l'embed PostgREST sur stock_id → stocks. Affiche le prix réel par
+// ligne et le total quand stocks.prix_vente est renseigné (comme
+// ProductCard) ; "Prix à venir" reste en repli pour les quelques
+// articles sans prix. Réutilise QuantityStepper (même stepper que
+// PanierButton sur la Boutique/Coffrets) pour ajuster ou retirer une
+// ligne.
 // ═══════════════════════════════════════════════════════════
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -37,7 +38,7 @@ export default function PanierClient() {
     if (etat.statut !== "connectee") return;
     const res = await espaceFetch(
       etat.token,
-      "panier_items?select=id,quantite,stocks(id,nom,categorie,notes,tailles,composition,usage_conseils,entretien)&order=created_at.desc&limit=200"
+      "panier_items?select=id,quantite,stocks(id,nom,categorie,notes,tailles,composition,usage_conseils,entretien,prix_vente)&order=created_at.desc&limit=200"
     );
     if (res.ok) setLignes(await res.json());
   }
@@ -98,6 +99,9 @@ export default function PanierClient() {
 
   const lignesValides = (lignes || []).filter((l) => l.stocks);
   const totalArticles = lignesValides.reduce((s, l) => s + l.quantite, 0);
+  const totalPrix = lignesValides.reduce((s, l) => s + (l.stocks?.prix_vente ? l.stocks.prix_vente * l.quantite : 0), 0);
+  const aDesArticlesSansPrix = lignesValides.some((l) => !l.stocks?.prix_vente);
+  const formatPrix = (v: number) => v.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
   return (
     <div
@@ -135,7 +139,12 @@ export default function PanierClient() {
         </h1>
         {totalArticles > 0 && (
           <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>
-            {totalArticles} article{totalArticles > 1 ? "s" : ""} — Prix à venir
+            {totalArticles} article{totalArticles > 1 ? "s" : ""}
+            {totalPrix > 0 ? (
+              <> — <span style={{ color: C.goldL, fontWeight: 600 }}>{formatPrix(totalPrix)}</span>{aDesArticlesSansPrix ? " (hors articles sans prix)" : ""}</>
+            ) : (
+              " — Prix à venir"
+            )}
           </div>
         )}
       </div>
@@ -197,9 +206,18 @@ export default function PanierClient() {
                   <div style={{ fontFamily: DISPLAY, fontSize: 13, fontWeight: 600, color: C.cream }}>
                     {l.stocks?.nom}
                   </div>
-                  <div style={{ fontSize: 10, color: "rgba(198,161,91,0.45)", fontStyle: "italic", marginTop: 3 }}>
-                    Prix à venir
-                  </div>
+                  {l.stocks?.prix_vente ? (
+                    <div style={{ fontSize: 11, color: C.goldL, fontWeight: 600, marginTop: 3 }}>
+                      {formatPrix(l.stocks.prix_vente)}
+                      {l.quantite > 1 && (
+                        <span style={{ color: C.muted, fontWeight: 300 }}> × {l.quantite} = {formatPrix(l.stocks.prix_vente * l.quantite)}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 10, color: "rgba(198,161,91,0.45)", fontStyle: "italic", marginTop: 3 }}>
+                      Prix à venir
+                    </div>
+                  )}
                 </div>
                 <div style={{ width: 90, flexShrink: 0 }}>
                   <QuantityStepper
