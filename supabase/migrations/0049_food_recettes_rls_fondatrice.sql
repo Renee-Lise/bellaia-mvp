@@ -25,6 +25,7 @@
 -- ═══════════════════════════════════════════════════════════
 
 drop policy if exists food_recettes_auth on public.food_recettes;
+drop policy if exists food_recettes_fondatrice on public.food_recettes;
 
 create policy food_recettes_fondatrice on public.food_recettes
   for all to public
