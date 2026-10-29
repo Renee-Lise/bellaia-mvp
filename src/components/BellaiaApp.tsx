@@ -3345,6 +3345,15 @@ async function getTokenAsync() {
   return fresh || SB_KEY;
 }
 
+// Exposé sur window pour les modules "autonomes" (ex. Bella'Food —
+// foodApi.ts, FoodImport.tsx, FoodStocks.tsx) qui appellent
+// window.getTokenAsync() pour obtenir le vrai jeton de session sans
+// dépendre de BellaiaApp.tsx. Sans ça, ces modules retombaient
+// silencieusement sur la clé anonyme — jamais "la fondatrice" pour
+// les policies RLS, d'où les refus "new row violates row-level
+// security policy" malgré une session active.
+if (typeof window !== "undefined") (window as any).getTokenAsync = getTokenAsync;
+
 // Compatibilité synchrone (pour les rares cas qui ne peuvent pas await)
 function getToken() {
   if (typeof window === "undefined") return SB_KEY;
