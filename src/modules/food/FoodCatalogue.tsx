@@ -1,12 +1,19 @@
 // ═══════════════════════════════════════════════════════════
 // FoodCatalogue — Catalogue produits ÉDITABLE Bella'Food
-// Créer, modifier, dupliquer, archiver, (in)visibilité
+// Branché sur catalogue_produits (zone 2 — migration 0050) : plus de
+// données en dur, la fondatrice voit tous les statuts (brouillon,
+// actif, archive), seul statut='actif'+visible_client=true+
+// disponible=true sort côté client (ClientFood).
 // src/modules/food/FoodCatalogue.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_CATALOGUE, FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useEffect, useMemo, useState } from "react";
+import { FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix } from "./foodUtils";
-import type { Produit, CategorieRecette } from "./foodTypes";
+import {
+  getCatalogueFoodAvecDiagnostic, creerProduitCatalogue, majProduitCatalogue,
+  supprimerProduitCatalogue,
+} from "./catalogueApi";
+import type { Produit } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const inp: React.CSSProperties = {
@@ -15,76 +22,92 @@ const inp: React.CSSProperties = {
   fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box",
 };
 
-interface Props { onSelectionner?: (produit: Produit) => void; }
+type ProduitForm = Partial<Produit> & { visibleClient?: boolean };
 
-const FORM0: Omit<Produit,"id"> = {
-  nom:"", categorie:"patisserie", disponible:true, visibleEvents:true, prix:null,
+const FORM0: ProduitForm = {
+  nom: "", categorie: "autre", disponible: true, visibleClient: false, prix: null, statut: "brouillon",
 };
 
-export default function FoodCatalogue({ onSelectionner }: Props) {
-  const [produits, setProduits] = useState<Produit[]>(
-    FOOD_CATALOGUE.map(p => ({ ...p }))
-  );
+const STATUT_LABEL: Record<string, string> = { brouillon: "Brouillon", actif: "Actif", archive: "Archivé" };
+const STATUT_COL: Record<string, string> = {
+  brouillon: "rgba(255,255,255,0.06)", actif: "rgba(21,128,61,0.2)", archive: "rgba(255,255,255,0.04)",
+};
+const STATUT_TXT: Record<string, string> = {
+  brouillon: "rgba(255,255,255,0.5)", actif: FC.vertL, archive: "rgba(255,255,255,0.3)",
+};
+
+export default function FoodCatalogue() {
+  const [produits, setProduits] = useState<(Produit & { visibleClient?: boolean })[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [cat,      setCat]      = useState("tous");
   const [search,   setSearch]   = useState("");
   const [modal,    setModal]    = useState<"form"|null>(null);
   const [editing,  setEditing]  = useState<Produit|null>(null);
-  const [form,     setForm]     = useState<Omit<Produit,"id">>(FORM0);
+  const [form,     setForm]     = useState<ProduitForm>(FORM0);
   const [showArch, setShowArch] = useState(false);
+  const [erreur,   setErreur]   = useState<string | null>(null);
+  const [sauvegarde, setSauvegarde] = useState(false);
+
+  const charger = async () => {
+    setChargement(true);
+    const { produits: p, diagnostic: d } = await getCatalogueFoodAvecDiagnostic();
+    setProduits(p);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+
+  useEffect(() => { charger(); }, []);
 
   const filtres = useMemo(() => produits.filter(p => {
-    if (!showArch && !p.disponible && !(p as any).archive) {
-      // Masquer non disponibles sauf si on affiche les archivés
-    }
     const matchCat  = cat === "tous" || p.categorie === cat;
     const matchSrch = !search || p.nom.toLowerCase().includes(search.toLowerCase());
-    const matchArch = showArch ? true : !(p as any).archive;
+    const matchArch = showArch ? true : p.statut !== "archive";
     return matchCat && matchSrch && matchArch;
   }), [produits, cat, search, showArch]);
 
-  const ouvrir = (p?: Produit) => {
+  const ouvrir = (p?: Produit & { visibleClient?: boolean }) => {
     setEditing(p || null);
     setForm(p ? { ...p } : { ...FORM0 });
+    setErreur(null);
     setModal("form");
   };
 
-  const sauvegarder = () => {
-    if (!form.nom.trim()) return;
-    if (editing) {
-      setProduits(ps => ps.map(p => p.id === editing.id ? { ...p, ...form } : p));
-    } else {
-      const nv: Produit = {
-        ...form,
-        id: "cp_" + Date.now().toString().slice(-6),
-      };
-      setProduits(ps => [nv, ...ps]);
+  const sauvegarder = async () => {
+    if (!form.nom?.trim()) { setErreur("Le nom du produit est obligatoire."); return; }
+    setSauvegarde(true);
+    setErreur(null);
+    const res = editing ? await majProduitCatalogue(editing.id, form) : await creerProduitCatalogue(form);
+    setSauvegarde(false);
+    if (!res.ok) {
+      setErreur((res as { error?: string }).error || "Échec de l'enregistrement — réessayez.");
+      return;
     }
     setModal(null); setEditing(null); setForm(FORM0);
+    await charger();
   };
 
-  const dupliquer = (p: Produit) => {
-    const nv: Produit = {
-      ...p,
-      id:  "cp_" + Date.now().toString().slice(-6),
-      nom: p.nom + " (copie)",
-      disponible: false,
-    };
-    setProduits(ps => [nv, ...ps]);
+  const dupliquer = async (p: Produit & { visibleClient?: boolean }) => {
+    const res = await creerProduitCatalogue({ ...p, id: undefined, nom: `${p.nom} (copie)`, statut: "brouillon", visibleClient: false });
+    if (res.ok) charger();
+    else setErreur("Échec de la duplication — réessayez.");
   };
 
-  const archiver = (id: string) =>
-    setProduits(ps => ps.map(p => p.id === id ? { ...p, archive:true, disponible:false } as any : p));
-
-  const supprimer = (id: string) => {
-    if (!confirm("Supprimer ce produit ?")) return;
-    setProduits(ps => ps.filter(p => p.id !== id));
+  const archiver = async (id: string) => {
+    const res = await majProduitCatalogue(id, { statut: "archive", visibleClient: false });
+    if (res.ok) charger();
+    else setErreur("Échec de l'archivage — réessayez.");
   };
 
-  const toggleDispo = (id: string) =>
-    setProduits(ps => ps.map(p => p.id === id ? { ...p, disponible:!p.disponible } : p));
+  const supprimer = async (id: string) => {
+    if (!confirm("Supprimer définitivement ce produit ? Préférez « Archiver » pour le retirer sans perdre l'historique.")) return;
+    const res = await supprimerProduitCatalogue(id);
+    if (res.ok) charger();
+    else setErreur("Échec de la suppression — réessayez.");
+  };
 
-  const toggleVisible = (id: string) =>
-    setProduits(ps => ps.map(p => p.id === id ? { ...p, visibleEvents:!p.visibleEvents } : p));
+  const toggleDispo = async (p: Produit) => { if ((await majProduitCatalogue(p.id, { disponible: !p.disponible })).ok) charger(); };
+  const toggleVisible = async (p: Produit & { visibleClient?: boolean }) => { if ((await majProduitCatalogue(p.id, { visibleClient: !p.visibleClient })).ok) charger(); };
 
   const Field = ({ label, k, type="text", ph="" }: any) => (
     <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
@@ -100,7 +123,6 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-      {/* Barre outils */}
       <div style={{ display:"flex", gap:8 }}>
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="🔍 Rechercher..."
@@ -112,15 +134,20 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
         </button>
       </div>
 
-      {/* Filtres catégories */}
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
+
       <div style={{ display:"flex", gap:5, overflowX:"auto", paddingBottom:2 }}>
-        {["tous", ...FOOD_CATEGORIES].map(c => (
+        {["tous", ...FOOD_CATEGORIES.map(c => c.id)].map(c => (
           <button key={c} onClick={() => setCat(c)}
             style={{ padding:"4px 10px", borderRadius:99, border:"none", cursor:"pointer",
               fontSize:9, fontWeight:700, flexShrink:0, fontFamily:SA,
               background:cat===c?FC.vert:"rgba(255,255,255,0.06)",
               color:cat===c?"#fff":"rgba(255,255,255,0.5)" }}>
-            {c}
+            {c === "tous" ? "Toutes" : FOOD_CATEGORIES.find(fc => fc.id === c)?.nom || c}
           </button>
         ))}
         <button onClick={() => setShowArch(a=>!a)}
@@ -133,13 +160,12 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
       </div>
 
       <div style={{ fontSize:11, color:FC.creamD }}>
-        {filtres.length} produit{filtres.length>1?"s":""}
+        {chargement ? "Chargement…" : `${filtres.length} produit${filtres.length>1?"s":""}`}
       </div>
 
-      {/* Liste */}
       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
         {filtres.map(p => {
-          const archive = (p as any).archive;
+          const archive = p.statut === "archive";
           return (
             <div key={p.id} style={{ background:FC.card,
               border:`1px solid ${archive?"rgba(255,255,255,0.05)":FC.line}`,
@@ -149,7 +175,7 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{p.nom}</div>
                   <div style={{ fontSize:10, color:FC.creamD }}>
-                    {p.categorie}{p.sousCat ? " · " + p.sousCat : ""}
+                    {FOOD_CATEGORIES.find(c => c.id === p.categorie)?.nom || p.categorie}{p.sousCat ? " · " + p.sousCat : ""}
                   </div>
                 </div>
                 <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -160,33 +186,28 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
                 </div>
               </div>
 
-              {/* Badges état */}
               <div style={{ display:"flex", gap:5, marginBottom:8, flexWrap:"wrap" }}>
-                <button onClick={() => toggleDispo(p.id)}
+                <span style={{ fontSize:9, padding:"2px 8px", borderRadius:99, fontFamily:SA, fontWeight:700,
+                  background: STATUT_COL[p.statut || "brouillon"], color: STATUT_TXT[p.statut || "brouillon"] }}>
+                  {STATUT_LABEL[p.statut || "brouillon"]}
+                </span>
+                <button onClick={() => toggleDispo(p)}
                   style={{ fontSize:9, padding:"2px 8px", borderRadius:99, cursor:"pointer",
                     border:"none", fontFamily:SA,
                     background:p.disponible?"rgba(21,128,61,0.2)":"rgba(255,255,255,0.06)",
                     color:p.disponible?FC.vertL:"rgba(255,255,255,0.4)" }}>
                   {p.disponible ? "✅ Disponible" : "○ Indisponible"}
                 </button>
-                <button onClick={() => toggleVisible(p.id)}
+                <button onClick={() => toggleVisible(p)}
                   style={{ fontSize:9, padding:"2px 8px", borderRadius:99, cursor:"pointer",
                     border:"none", fontFamily:SA,
-                    background:p.visibleEvents?"rgba(201,168,76,0.15)":"rgba(255,255,255,0.06)",
-                    color:p.visibleEvents?FC.or:"rgba(255,255,255,0.4)" }}>
-                  {p.visibleEvents ? "👁 Visible Events" : "○ Masqué Events"}
+                    background:p.visibleClient?"rgba(201,168,76,0.15)":"rgba(255,255,255,0.06)",
+                    color:p.visibleClient?FC.or:"rgba(255,255,255,0.4)" }}>
+                  {p.visibleClient ? "👁 Visible boutique" : "○ Masqué boutique"}
                 </button>
               </div>
 
-              {/* Actions */}
-              <div style={{ display:"flex", gap:5 }}>
-                {onSelectionner && (
-                  <button onClick={() => onSelectionner(p)}
-                    style={{ fontSize:10, padding:"4px 10px", borderRadius:7, cursor:"pointer",
-                      background:FC.vert, border:"none", color:"#fff", fontFamily:SA }}>
-                    Choisir
-                  </button>
-                )}
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
                 <button onClick={() => ouvrir(p)}
                   style={{ fontSize:10, padding:"4px 10px", borderRadius:7, cursor:"pointer",
                     background:"rgba(255,255,255,0.06)", border:"none",
@@ -204,22 +225,26 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
                     style={{ fontSize:10, padding:"4px 9px", borderRadius:7, cursor:"pointer",
                       background:"rgba(255,255,255,0.04)", border:"none",
                       color:"rgba(255,255,255,0.35)", fontFamily:SA }}>
-                    📁
+                    📁 Archiver
                   </button>
                 )}
                 <button onClick={() => supprimer(p.id)}
                   style={{ fontSize:10, padding:"4px 8px", borderRadius:7, cursor:"pointer",
                     background:"rgba(248,113,113,0.1)", border:"none",
                     color:"#f87171", fontFamily:SA }}>
-                  ✕
+                  ✕ Supprimer
                 </button>
               </div>
             </div>
           );
         })}
+        {!chargement && !diagnostic && filtres.length === 0 && (
+          <div style={{ textAlign:"center", padding:"24px", color:"rgba(255,255,255,0.3)", fontSize:13 }}>
+            Aucun produit {cat !== "tous" ? "dans cette catégorie" : "pour l'instant"}.
+          </div>
+        )}
       </div>
 
-      {/* Modal création/édition */}
       {modal === "form" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000,
           display:"flex", flexDirection:"column", overflowY:"auto", padding:20 }}>
@@ -234,21 +259,30 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
                   cursor:"pointer", fontSize:20 }}>✕</button>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-              <Field label="Nom *"                 k="nom"         ph="Layer cake chocolat..."/>
+              <Field label="Nom *"                 k="nom"         ph="Poulet boucané, Jus goyave..."/>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   <label style={{ fontSize:10, color:FC.creamD }}>Catégorie</label>
-                  <select value={form.categorie || "patisserie"}
-                    onChange={e => setForm(f => ({ ...f, categorie:e.target.value as CategorieRecette }))}
+                  <select value={form.categorie || "autre"}
+                    onChange={e => setForm(f => ({ ...f, categorie:e.target.value as any }))}
                     style={{ ...inp, background:"#1a1a2e" }}>
-                    {FOOD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {FOOD_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.ico} {c.nom}</option>)}
                   </select>
                 </div>
                 <Field label="Sous-catégorie"      k="sousCat"     ph="bento, number cake..."/>
                 <Field label="Prix (€)"             k="prix"        type="number" ph="0"/>
                 <Field label="Unité"                k="unite"       ph="pièce, part, kg..."/>
                 <Field label="Temps prépa (min)"    k="tempsPrepa"  type="number" ph="0"/>
-                <Field label="Temps total (min)"    k="tempsTotal"  type="number" ph="0"/>
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:FC.creamD }}>Statut</label>
+                  <select value={form.statut || "brouillon"}
+                    onChange={e => setForm(f => ({ ...f, statut:e.target.value as any }))}
+                    style={{ ...inp, background:"#1a1a2e" }}>
+                    <option value="brouillon">Brouillon</option>
+                    <option value="actif">Actif</option>
+                    <option value="archive">Archivé</option>
+                  </select>
+                </div>
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                 <label style={{ fontSize:10, color:FC.creamD }}>Description</label>
@@ -256,25 +290,36 @@ export default function FoodCatalogue({ onSelectionner }: Props) {
                   onChange={e => setForm(f => ({ ...f, description:e.target.value }))}
                   style={{ ...inp, resize:"vertical" as const }}/>
               </div>
-              <Field label="Allergènes (virgules)"  k="allergenes"  ph="gluten, lactose..."/>
-              {/* Toggles */}
-              <div style={{ display:"flex", gap:14 }}>
-                {([["disponible","Disponible"],["visibleEvents","Visible Events"]] as const).map(([k,l])=>(
-                  <label key={k} style={{ display:"flex", gap:6, alignItems:"center",
-                    cursor:"pointer", fontSize:11, color:FC.creamD }}>
-                    <input type="checkbox"
-                      checked={!!(form[k as keyof typeof form])}
-                      onChange={e => setForm(f => ({ ...f, [k]:e.target.checked }))}
-                      style={{ accentColor:FC.vert, width:16, height:16 }}/>
-                    {l}
-                  </label>
-                ))}
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:FC.creamD }}>Allergènes (séparés par une virgule)</label>
+                <input value={(form.allergenes || []).join(", ")}
+                  onChange={e => setForm(f => ({ ...f, allergenes: e.target.value.split(",").map(s=>s.trim()).filter(Boolean) }))}
+                  placeholder="gluten, lait, crustacés…" style={inp}/>
               </div>
+              <label style={{ display:"flex", gap:6, alignItems:"center", cursor:"pointer", fontSize:11, color:FC.creamD }}>
+                <input type="checkbox" checked={!!form.disponible}
+                  onChange={e => setForm(f => ({ ...f, disponible:e.target.checked }))}
+                  style={{ accentColor:FC.vert, width:16, height:16 }}/>
+                Disponible
+              </label>
+              <label style={{ display:"flex", gap:6, alignItems:"center", cursor:"pointer", fontSize:11, color:FC.creamD }}>
+                <input type="checkbox" checked={!!form.visibleClient}
+                  onChange={e => setForm(f => ({ ...f, visibleClient:e.target.checked }))}
+                  style={{ accentColor:FC.vert, width:16, height:16 }}/>
+                Visible dans la boutique cliente
+              </label>
+
+              {erreur && (
+                <div style={{ fontSize:11, color: "#f87171", background: "rgba(248,113,113,0.1)", borderRadius: 8, padding: "8px 12px" }}>
+                  ⚠️ {erreur}
+                </div>
+              )}
+
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={sauvegarder}
+                <button onClick={sauvegarder} disabled={sauvegarde}
                   style={{ flex:1, background:FC.vert, border:"none", borderRadius:10, padding:"10px",
-                    color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
-                  ✅ {editing?"Enregistrer":"Créer"}
+                    color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA, opacity: sauvegarde ? 0.7 : 1 }}>
+                  {sauvegarde ? "Enregistrement…" : (editing?"✅ Enregistrer":"✅ Créer")}
                 </button>
                 <button onClick={() => { setModal(null); setEditing(null); setForm(FORM0); }}
                   style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none",

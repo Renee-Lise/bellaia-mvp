@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";
+import { FOOD_CATEGORIES } from "@/modules/food/foodConsts";
+import { getCatalogueFoodPublic } from "@/modules/food/catalogueApi";
 // ═══════════════════════════════════════════════════════════
 // MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
 // Si ce texte apparaît sur l'écran de connexion, le build est à jour.
@@ -2903,15 +2905,30 @@ function ClientFood({ user, onBack }) {
 
   const FC = "#15803d"; const FC2 = "#22c55e"; const FC3 = "#c9a96e";
 
-  const CATALOGUE_FOOD = [
-    {id:"LC",  ico:"🎂", nom:"Layer Cake",        cat:"Gâteaux",   desc:"Gâteau à étages · 2 à 5 niveaux · sur devis", prix:null, tags:["personnalisé"]},
-    {id:"BC",  ico:"🍱", nom:"Bento Cake",         cat:"Gâteaux",   desc:"Mini-gâteau individuel · 1 à 4 parts",        prix:45,   tags:[]},
-    {id:"NC",  ico:"🔢", nom:"Number Cake",        cat:"Gâteaux",   desc:"Gâteau chiffre · chiffre ou lettre",          prix:null, tags:["personnalisé"]},
-    {id:"CPC", ico:"🧁", nom:"Cupcakes",           cat:"Gâteaux",   desc:"Boîte de 6 ou 12 cupcakes décorés",           prix:30,   tags:[]},
-    {id:"GLI", ico:"🍦", nom:"Glaces artisanales", cat:"Glaces",    desc:"Parfums variés · pot ou cornet",              prix:8,    tags:[]},
-    {id:"JUS", ico:"🥤", nom:"Jus naturels",       cat:"Boissons",  desc:"Jus de fruits frais · 1 L",                  prix:6,    tags:[]},
-    {id:"BUF", ico:"🍽",  nom:"Buffet traiteur",   cat:"Traiteur",  desc:"Buffet salé · complet · à partir de 10 pers",prix:null, tags:["sur-devis"]},
-  ];
+  // Catalogue réel — catalogue_produits (zone 2, migration 0050),
+  // business_unit='FOOD', visible_client=true, disponible=true,
+  // statut='actif' uniquement (lecture publique, clé anonyme).
+  // Remplace l'ancienne liste figée en dur (Layer Cake, Bento Cake...)
+  // qui ne correspondait plus à l'offre réelle de Bella'Food.
+  const [CATALOGUE_FOOD, setCatalogueFood] = React.useState([]);
+  const [catalogueDiag,  setCatalogueDiag] = React.useState(null);
+  const [catalogueCharge,setCatalogueCharge]=React.useState(true);
+
+  React.useEffect(() => {
+    let actif = true;
+    (async () => {
+      const { produits, diagnostic } = await getCatalogueFoodPublic();
+      if (!actif) return;
+      const mapped = produits.map(p => {
+        const catInfo = FOOD_CATEGORIES.find(c => c.id === p.categorie);
+        return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [] };
+      });
+      setCatalogueFood(mapped);
+      setCatalogueDiag(diagnostic);
+      setCatalogueCharge(false);
+    })();
+    return () => { actif = false; };
+  }, []);
 
   React.useEffect(() => {
     if (!SB_URL || !user) return;
@@ -3019,7 +3036,16 @@ function ClientFood({ user, onBack }) {
         {page==="catalogue" && !succes && (
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:6}}>Notre catalogue</div>
-            {["Gâteaux","Glaces","Boissons","Traiteur"].map(cat=>(
+            {catalogueCharge && (
+              <div style={{textAlign:"center",padding:"28px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Chargement du catalogue…</div>
+            )}
+            {catalogueDiag && !catalogueCharge && (
+              <div style={{fontSize:10,color:"#f87171",fontFamily:"monospace"}}>{catalogueDiag}</div>
+            )}
+            {!catalogueCharge && !catalogueDiag && CATALOGUE_FOOD.length===0 && (
+              <div style={{textAlign:"center",padding:"28px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Le catalogue se prépare — revenez bientôt.</div>
+            )}
+            {Array.from(new Set(CATALOGUE_FOOD.map(p=>p.cat))).map(cat=>(
               <div key={cat}>
                 <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontWeight:700,letterSpacing:1,marginBottom:6,marginTop:10}}>{cat.toUpperCase()}</div>
                 {CATALOGUE_FOOD.filter(p=>p.cat===cat).map(p=>(

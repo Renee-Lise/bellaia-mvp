@@ -159,6 +159,9 @@ export interface Produit {
   visibleEvents?: boolean;
   tags?: string[];
   notes?: string;
+  // Catalogue réel (catalogue_produits, migration 0050) uniquement —
+  // "brouillon" (pas encore public) / "actif" (en vente) / "archive".
+  statut?: "brouillon" | "actif" | "archive";
 }
 
 // ── Stock matières premières ───────────────────────────────
