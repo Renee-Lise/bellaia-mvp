@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0048_bsh_retrait_gadgets_spencer_fleetwood.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-29 (0 article Spencer-Fleetwood encore actif, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-29
 -- Objet : retrait des articles "gag gift" Spencer-Fleetwood (bonbons
 --   en forme suggestive, bijoux factices en bonbon, etc. — lots 7 et
