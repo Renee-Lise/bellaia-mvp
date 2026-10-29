@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0049_food_recettes_rls_fondatrice.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-29 (une seule policy food_recettes_fondatrice basée sur is_fondatrice(), exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-29
 -- Objet : correctif de sécurité confirmé par Renée-Lise — la policy
 --   actuelle sur food_recettes ("food_recettes_auth", FOR ALL,
