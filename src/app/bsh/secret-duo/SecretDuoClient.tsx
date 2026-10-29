@@ -35,11 +35,15 @@ export default function SecretDuoClient({
   const [chargementCartes, setChargementCartes] = useState(false);
   const [carte, setCarte] = useState<CarteBSH | null>(null);
   const [tirageEnregistre, setTirageEnregistre] = useState(false);
+  // migration 0047 : pour les jeux à choix (ex. Les Trois Portes du
+  // Désir), la catégorie actuellement choisie.
+  const [categorieActive, setCategorieActive] = useState<string | null>(null);
 
   const choisirJeu = async (j: JeuBSH) => {
     if (j.id === jeuActif?.id) return;
     setJeuActif(j);
     setCarte(null);
+    setCategorieActive(null);
     setTirageEnregistre(false);
     setChargementCartes(true);
     try {
@@ -52,9 +56,7 @@ export default function SecretDuoClient({
     setChargementCartes(false);
   };
 
-  const tirer = async () => {
-    if (cartes.length === 0) return;
-    const c = cartes[Math.floor(Math.random() * cartes.length)];
+  const enregistrerTirage = async (c: CarteBSH) => {
     setCarte(c);
     setTirageEnregistre(false);
     if (etat.statut === "connectee") {
@@ -64,6 +66,18 @@ export default function SecretDuoClient({
       });
       if (res.ok) setTirageEnregistre(true);
     }
+  };
+
+  const tirer = async () => {
+    if (cartes.length === 0) return;
+    await enregistrerTirage(cartes[Math.floor(Math.random() * cartes.length)]);
+  };
+
+  const tirerCategorie = async (cat: string) => {
+    const pool = cartes.filter((c) => c.nom === cat);
+    if (pool.length === 0) return;
+    setCategorieActive(cat);
+    await enregistrerTirage(pool[Math.floor(Math.random() * pool.length)]);
   };
 
   return (
@@ -118,16 +132,36 @@ export default function SecretDuoClient({
               BSH Secret Duo se prépare — les premiers jeux arrivent bientôt.
             </p>
           )}
-          {!chargementCartes && cartes.length > 0 && !carte && (
-            <button onClick={tirer} style={{
-              width: 200, height: 260, borderRadius: 14, border: `1px solid ${C.borderM}`,
-              background: `linear-gradient(160deg, ${C.plum}, ${C.night})`, color: C.goldL,
-              fontFamily: DISPLAY, fontSize: 16, cursor: "pointer", display: "flex",
-              flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10,
-            }}>
-              <span style={{ fontSize: 36 }}>✦</span>
-              Tirer une carte
-            </button>
+          {!chargementCartes && cartes.length > 0 && jeuActif?.choix_categories?.length ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              {!carte && (
+                <p style={{ fontSize: 12, color: C.muted, margin: 0, fontStyle: "italic" }}>Choisissez :</p>
+              )}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+                {jeuActif.choix_categories.map((cat) => (
+                  <button key={cat} onClick={() => tirerCategorie(cat)} style={{
+                    minWidth: 140, padding: "20px 18px", borderRadius: 12,
+                    border: `1px solid ${categorieActive === cat ? C.gold : C.borderM}`,
+                    background: categorieActive === cat ? `linear-gradient(160deg, ${C.plum}, ${C.night})` : "rgba(255,255,255,0.06)",
+                    color: C.goldL, fontFamily: DISPLAY, fontSize: 15, letterSpacing: 1, cursor: "pointer",
+                  }}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            !chargementCartes && cartes.length > 0 && !carte && (
+              <button onClick={tirer} style={{
+                width: 200, height: 260, borderRadius: 14, border: `1px solid ${C.borderM}`,
+                background: `linear-gradient(160deg, ${C.plum}, ${C.night})`, color: C.goldL,
+                fontFamily: DISPLAY, fontSize: 16, cursor: "pointer", display: "flex",
+                flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10,
+              }}>
+                <span style={{ fontSize: 36 }}>✦</span>
+                Tirer une carte
+              </button>
+            )
           )}
           {carte && (
             <div style={{
@@ -147,9 +181,11 @@ export default function SecretDuoClient({
                 style={{ fontSize: 11, color: "#25d366", border: "1px solid rgba(37,211,102,0.4)", borderRadius: 20, padding: "7px 14px", textDecoration: "none" }}>
                 💬 Partager
               </a>
-              <button onClick={tirer} style={{ fontSize: 11, color: C.goldL, background: "none", border: `1px solid ${C.borderM}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontFamily: BODY }}>
-                ↻ Tirer une autre carte
-              </button>
+              {!jeuActif?.choix_categories?.length && (
+                <button onClick={tirer} style={{ fontSize: 11, color: C.goldL, background: "none", border: `1px solid ${C.borderM}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontFamily: BODY }}>
+                  ↻ Tirer une autre carte
+                </button>
+              )}
             </div>
           )}
           {carte && etat.statut !== "connectee" && (

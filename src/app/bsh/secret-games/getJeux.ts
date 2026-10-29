@@ -14,6 +14,10 @@ export interface JeuBSH {
   icone: string;
   intensite: string;
   mode?: string;
+  // migration 0047 : liste des valeurs de bsh_jeux_cartes.nom que la
+  // joueuse doit choisir avant le tirage (ex. ["Action","Vérité"]).
+  // null/absent = tirage simple au hasard, comportement inchangé.
+  choix_categories?: string[] | null;
 }
 
 export interface ResultatJeuxBSH {
@@ -32,7 +36,7 @@ export async function getJeuxBSH(mode: "communautaire" | "duo" = "communautaire"
     return { jeux: [], diagnostic: "Configuration manquante : NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY absente sur ce déploiement." };
   }
 
-  const query = `statut=eq.publie&mode=eq.${mode}&select=id,nom,description,icone,intensite,mode&order=ordre.asc&limit=50`;
+  const query = `statut=eq.publie&mode=eq.${mode}&select=id,nom,description,icone,intensite,mode,choix_categories&order=ordre.asc&limit=50`;
 
   try {
     const res = await fetch(`${url}/rest/v1/bsh_jeux?${query}`, {
