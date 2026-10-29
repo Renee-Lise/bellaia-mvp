@@ -317,10 +317,23 @@ export default function FoodRecettes() {
       <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 12, padding: "14px" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, marginBottom: 10, letterSpacing: 1 }}>INGRÉDIENTS</div>
         {detail.ingredients.length === 0 && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>Aucun ingrédient renseigné.</div>}
-        {detail.ingredients.map(ing => (
-          <div key={ing.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{ing.nom}</span>
-            <span style={{ fontSize: 12, color: FC.or, fontWeight: 600 }}>{ing.quantite} {ing.unite}</span>
+        {detail.ingredients.map((ing: any) => (
+          <div key={ing.id} style={{ padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{ing.nom}</span>
+              {ing.quantite != null ? (
+                <span style={{ fontSize: 12, color: FC.or, fontWeight: 600 }}>{ing.quantite} {ing.unite}</span>
+              ) : ing.quantite_min != null || ing.quantite_max != null ? (
+                <span style={{ fontSize: 12, color: "#fb923c", fontWeight: 600 }}>
+                  {ing.quantite_min ?? "?"}–{ing.quantite_max ?? "?"} {ing.unite} (à confirmer)
+                </span>
+              ) : (
+                <span style={{ fontSize: 11, color: "rgba(251,146,60,0.7)", fontStyle: "italic" }}>à doser</span>
+              )}
+            </div>
+            {ing.notes && (
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{ing.notes}</div>
+            )}
           </div>
         ))}
         {detail.coutMatiere != null && (
