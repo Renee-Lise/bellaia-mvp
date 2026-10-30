@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0054_food_menus.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : table réelle pour les menus Bella'Food (zone "Menus" du
 --   module). Vérifié le 30/10 : aucune table "menus" existante
