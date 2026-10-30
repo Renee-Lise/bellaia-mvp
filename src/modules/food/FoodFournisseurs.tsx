@@ -2,8 +2,9 @@
 // FoodFournisseurs — CRM Fournisseurs Bella'Food Partie III
 // src/modules/food/FoodFournisseurs.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState } from "react";
-import { FOOD_FOURNISSEURS_INIT, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
+import { getFournisseursFoodAvecDiagnostic, creerFournisseurFood, majFournisseurFood } from "./fournisseursApi";
 import type { Fournisseur } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
@@ -16,30 +17,35 @@ const inp: React.CSSProperties = {
 const ETOILES = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
 
 export default function FoodFournisseurs() {
-  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>(FOOD_FOURNISSEURS_INIT);
+  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal,   setModal]   = useState<"creer"|"detail"|null>(null);
   const [detail,  setDetail]  = useState<Fournisseur|null>(null);
   const [search,  setSearch]  = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
   const FORM0: Partial<Fournisseur> = { actif:true };
   const [form, setForm] = useState<Partial<Fournisseur>>(FORM0);
+
+  const charger = async () => {
+    setChargement(true);
+    const { fournisseurs: f, diagnostic: d } = await getFournisseursFoodAvecDiagnostic();
+    setFournisseurs(f);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
 
   const visibles = fournisseurs.filter(f =>
     !search || f.nom.toLowerCase().includes(search.toLowerCase())
   );
 
-  const sauvegarder = () => {
-    if (!form.nom?.trim()) return;
-    if (form.id) {
-      setFournisseurs(fs => fs.map(f => f.id === form.id ? { ...f, ...form } as Fournisseur : f));
-    } else {
-      const nv: Fournisseur = {
-        ...form as Fournisseur,
-        id: "frnr_" + Date.now().toString().slice(-5),
-        actif: true,
-      };
-      setFournisseurs(fs => [nv, ...fs]);
-    }
-    setModal(null); setForm(FORM0);
+  const sauvegarder = async () => {
+    if (!form.nom?.trim()) { setErreur("Le nom est obligatoire."); return; }
+    const res = form.id ? await majFournisseurFood(form.id, form) : await creerFournisseurFood(form);
+    if (!res.ok) { setErreur(("error" in res && res.error) || "Échec de l'enregistrement — réessayez."); return; }
+    setModal(null); setForm(FORM0); setErreur(null);
+    await charger();
   };
 
   const Field = ({ label, k, type="text", ph="" }: { label:string; k:keyof Fournisseur; type?:string; ph?:string }) => (
@@ -119,13 +125,19 @@ export default function FoodFournisseurs() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{visibles.length} fournisseur{visibles.length>1?"s":""}</div>
-        <button onClick={() => { setForm(FORM0); setModal("creer"); }}
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${visibles.length} fournisseur${visibles.length>1?"s":""}`}</div>
+        <button onClick={() => { setForm(FORM0); setErreur(null); setModal("creer"); }}
           style={{ background:FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
             color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
           + Nouveau fournisseur
         </button>
       </div>
+
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
 
       <input value={search} onChange={e => setSearch(e.target.value)}
         placeholder="🔍 Rechercher un fournisseur..."
@@ -207,6 +219,9 @@ export default function FoodFournisseurs() {
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   style={{ ...inp, resize:"vertical" }} />
               </div>
+              {erreur && (
+                <div style={{ fontSize:11, color:"#f87171", background:"rgba(248,113,113,0.1)", borderRadius:8, padding:"8px 12px" }}>⚠️ {erreur}</div>
+              )}
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={sauvegarder}
                   style={{ flex:1, background:FC.vert, border:"none", borderRadius:10,

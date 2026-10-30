@@ -4,10 +4,11 @@
 // src/modules/food/FoodAchats.tsx
 // ═══════════════════════════════════════════════════════════
 import React, { useState, useMemo, useEffect } from "react";
-import { FOOD_COLORS as FC, FOOD_FOURNISSEURS_INIT } from "./foodConsts";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { construireLigneAchat, calculerTotauxAchat, genBonCommandeHTML, fmtPrix } from "./foodUtils";
 import { getAchatsFoodAvecDiagnostic, creerAchatFood, majAchatFood } from "./achatsApi";
-import type { Achat, LigneAchat, StatutAchat } from "./foodTypes";
+import { getFournisseursFoodAvecDiagnostic } from "./fournisseursApi";
+import type { Achat, LigneAchat, StatutAchat, Fournisseur } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const inp: React.CSSProperties = {
@@ -37,11 +38,15 @@ export default function FoodAchats() {
   const [lignes,  setLignes]  = useState<LigneAchat[]>([]);
   const [nouvLigne, setNouvLigne] = useState({ produit:"", stockItemId:"", quantite:1, prixUnitaire:0, tva:5.5, unite:"kg" });
   const [erreur, setErreur] = useState<string | null>(null);
+  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
 
   const charger = async () => {
     setChargement(true);
-    const { achats: a, diagnostic: d } = await getAchatsFoodAvecDiagnostic();
+    const [{ achats: a, diagnostic: d }, { fournisseurs: f }] = await Promise.all([
+      getAchatsFoodAvecDiagnostic(), getFournisseursFoodAvecDiagnostic(),
+    ]);
     setAchats(a);
+    setFournisseurs(f);
     setDiagnostic(d);
     setChargement(false);
   };
@@ -112,7 +117,7 @@ export default function FoodAchats() {
   };
 
   const envoyerWA = (a: Achat) => {
-    const frnr = FOOD_FOURNISSEURS_INIT.find(f => f.nom === a.fournisseurNom);
+    const frnr = fournisseurs.find(f => f.nom === a.fournisseurNom);
     const msg = [
       `Bonjour,\nVoici notre bon de commande ${a.reference} du ${new Date(a.date).toLocaleDateString("fr-FR")} :`,
       ...a.lignes.map(l => `• ${l.produit} — ${l.quantite} ${l.unite} @ ${l.prixUnitaire}€/u`),
@@ -212,7 +217,7 @@ export default function FoodAchats() {
         </div>
         {/* Suggestions fournisseurs */}
         <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:6 }}>
-          {FOOD_FOURNISSEURS_INIT.filter(f => f.actif).map(f => (
+          {fournisseurs.filter(f => f.actif).map(f => (
             <button key={f.id} onClick={() => setForm(fr => ({ ...fr, fournisseurNom: f.nom }))}
               style={{ fontSize:9, padding:"2px 8px", borderRadius:99, cursor:"pointer",
                 background:form.fournisseurNom===f.nom?"rgba(21,128,61,0.2)":"rgba(255,255,255,0.05)",

@@ -3,10 +3,12 @@
 // Lignes structurées, PDF HTML, statuts, conversion commande
 // src/modules/food/FoodDevis.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_CATALOGUE, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix, calculerTotauxDevis } from "./foodUtils";
-import type { DevisFood, LigneDevisFood, StatutDevisFood } from "./foodTypes";
+import { getDevisFoodAvecDiagnostic, creerDevisFood, majStatutDevisFood } from "./devisApi";
+import { getCatalogueFoodAvecDiagnostic } from "./catalogueApi";
+import type { DevisFood, LigneDevisFood, StatutDevisFood, Produit } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const FS = "Georgia, 'Times New Roman', serif";
@@ -83,9 +85,24 @@ ${devis.notes?`<p style='font-size:11px;color:#6b7280;margin-top:8px'>Notes : ${
 
 export default function FoodDevis() {
   const [devis,  setDevis]  = useState<DevisFood[]>([]);
+  const [catalogue, setCatalogue] = useState<Produit[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal,  setModal]  = useState<"creer"|"detail"|null>(null);
   const [detail, setDetail] = useState<DevisFood|null>(null);
   const [filtre, setFiltre] = useState<StatutDevisFood|"tous">("tous");
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const charger = async () => {
+    setChargement(true);
+    const [{ devis: d, diagnostic: dg }, { produits: c }] = await Promise.all([
+      getDevisFoodAvecDiagnostic(), getCatalogueFoodAvecDiagnostic(),
+    ]);
+    setDevis(d); setCatalogue(c);
+    setDiagnostic(dg);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
 
   const FORM_INIT = {
     client:"", tel:"", email:"", acomptePct:30, conditions:"", notes:"",
@@ -118,7 +135,7 @@ export default function FoodDevis() {
   };
 
   const ajouterDepuisCatalogue = (id: string) => {
-    const p = FOOD_CATALOGUE.find(x=>x.id===id);
+    const p = catalogue.find(x=>x.id===id);
     if (!p) return;
     setLignes(ls => [...ls, {
       id:"lg_"+Date.now().toString().slice(-5),
@@ -129,10 +146,9 @@ export default function FoodDevis() {
 
   const suppLigne = (id:string) => setLignes(ls=>ls.filter(l=>l.id!==id));
 
-  const creerDevis = () => {
-    if (!form.client.trim() || !form.tel.trim()) { alert("Client et téléphone requis."); return; }
-    const d: DevisFood = {
-      id:"devf_"+Date.now().toString().slice(-5),
+  const creerDevis = async () => {
+    if (!form.client.trim() || !form.tel.trim()) { setErreur("Client et téléphone requis."); return; }
+    const d: Partial<DevisFood> = {
       reference:"DEVF-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-4),
       client:form.client, tel:form.tel, email:form.email||undefined,
       lignes, conditions:form.conditions, notes:form.notes||undefined,
@@ -143,12 +159,16 @@ export default function FoodDevis() {
       })(),
       acomptePct:form.acomptePct, statut:"brouillon",
     };
-    setDevis(ds=>[d,...ds]);
-    setModal(null); setForm(FORM_INIT); setLignes([]);
-    setDetail(d);
+    const res = await creerDevisFood(d);
+    if (!res.ok || !res.devis) { setErreur(res.error || "Échec de l'enregistrement — réessayez."); return; }
+    setModal(null); setForm(FORM_INIT); setLignes([]); setErreur(null);
+    await charger();
+    setDetail(res.devis);
   };
 
-  const changerStatut = (id:string, statut:StatutDevisFood) => {
+  const changerStatut = async (id:string, statut:StatutDevisFood) => {
+    const res = await majStatutDevisFood(id, statut);
+    if (!res.ok) { alert("Échec de l'enregistrement du statut."); return; }
     setDevis(ds=>ds.map(d=>d.id===id?{...d,statut}:d));
     if (detail?.id===id) setDetail(d=>d?{...d,statut}:null);
   };
@@ -310,7 +330,7 @@ export default function FoodDevis() {
         <select onChange={e=>{ if(e.target.value){ajouterDepuisCatalogue(e.target.value);e.target.value="";} }}
           style={{ ...inpStyle, background:"#1a1a2e" }}>
           <option value="">+ Ajouter depuis le catalogue…</option>
-          {FOOD_CATALOGUE.filter(p=>p.disponible).map(p=>(
+          {catalogue.filter(p=>p.disponible).map(p=>(
             <option key={p.id} value={p.id}>{p.nom} {p.prix!=null?"("+p.prix+"€/"+( p.unite||"u")+")":"(Sur devis)"}</option>
           ))}
         </select>
@@ -374,6 +394,9 @@ export default function FoodDevis() {
         </div>
       </div>
 
+      {erreur && (
+        <div style={{ fontSize:11, color:"#f87171", background:"rgba(248,113,113,0.1)", borderRadius:8, padding:"8px 12px" }}>⚠️ {erreur}</div>
+      )}
       <div style={{ display:"flex", gap:8 }}>
         <button onClick={creerDevis}
           style={{ flex:1, background:FC.vert, border:"none", borderRadius:10,
@@ -392,13 +415,19 @@ export default function FoodDevis() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{visibles.length} devis</div>
-        <button onClick={()=>setModal("creer")}
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${visibles.length} devis`}</div>
+        <button onClick={()=>{setErreur(null);setModal("creer");}}
           style={{ background:FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
             color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
           + Créer un devis
         </button>
       </div>
+
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
 
       <div style={{ display:"flex", gap:4, overflowX:"auto" }}>
         {(["tous","brouillon","envoye","accepte","refuse"] as const).map(s=>(
@@ -412,7 +441,7 @@ export default function FoodDevis() {
         ))}
       </div>
 
-      {devis.length===0 && (
+      {!chargement && devis.length===0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           Aucun devis. Créez votre premier devis Food.
         </div>
