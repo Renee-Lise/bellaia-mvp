@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0055_food_achats.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : table réelle pour les achats Bella'Food. Vérifié le 30/10 :
 --   le module Achats (FoodAchats.tsx) n'était jusqu'ici qu'un mock en
