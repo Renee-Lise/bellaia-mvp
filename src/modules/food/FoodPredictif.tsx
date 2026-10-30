@@ -4,13 +4,12 @@
 // Architecture préparée pour connexion API future
 // src/modules/food/FoodPredictif.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import {
-  FOOD_RECETTES_INIT, FOOD_CATALOGUE, FOOD_STOCK_INIT,
-  FOOD_COLORS as FC, FOOD_MATERIEL_INIT, FOOD_CONSOMMABLES_INIT,
-} from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { genererAlertesStock, fmtPrix, fmtDuree } from "./foodUtils";
-import type { Recommandation, PrevisionAchat } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic, getStockGlobalFood } from "./foodApi";
+import { getCatalogueFoodAvecDiagnostic } from "./catalogueApi";
+import type { Recette, StockItem, Produit } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 
@@ -36,11 +35,13 @@ const MODES: { id: ModeAnalyse; ico: string; question: string }[] = [
 ];
 
 // Analyse locale — remplace une IA externe
-function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode {
+function analyserLocal(
+  mode: ModeAnalyse, recettes: Recette[], stocks: StockItem[], catalogue: Produit[], nbPersonnes?: number
+): React.ReactNode {
   switch (mode) {
 
     case "prix": {
-      const valides = FOOD_RECETTES_INIT.filter(r => r.statut === "validee" && r.prixConseille);
+      const valides = recettes.filter(r => r.statut === "validee" && r.prixConseille);
       if (!valides.length) return <p style={{ color:FC.creamD }}>Aucune recette validée avec prix dans la base.</p>;
       const r = valides[Math.floor(Math.random() * valides.length)];
       const cout = (r.coutMatiere || 0) + (r.coutConsommables || 0);
@@ -61,7 +62,7 @@ function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode
     }
 
     case "marge": {
-      const problematiques = FOOD_RECETTES_INIT.filter(r =>
+      const problematiques = recettes.filter(r =>
         r.prixConseille && r.coutMatiere &&
         ((r.coutMatiere + (r.coutConsommables||0)) / r.prixConseille) > 0.6
       );
@@ -88,13 +89,13 @@ function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode
     }
 
     case "achats": {
-      const alertes = genererAlertesStock(FOOD_STOCK_INIT);
+      const alertes = genererAlertesStock(stocks);
       if (!alertes.length) return <p style={{ color:"#22c55e" }}>✅ Aucun stock en alerte. Pas d'achat urgent.</p>;
       return (
         <div>
           <p style={{ color:FC.or, fontWeight:700 }}>📋 {alertes.length} produit{alertes.length>1?"s à acheter":""} :</p>
           {alertes.map(a => {
-            const s = FOOD_STOCK_INIT.find(x => x.id === a.entiteId);
+            const s = stocks.find(x => x.id === a.entiteId);
             return (
               <div key={a.id} style={{ display:"flex", justifyContent:"space-between",
                 padding:"5px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
@@ -113,7 +114,7 @@ function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode
     }
 
     case "recettes_rentables": {
-      const classees = [...FOOD_RECETTES_INIT]
+      const classees = [...recettes]
         .filter(r => r.prixConseille && r.coutMatiere)
         .sort((a,b) => {
           const ma = a.prixConseille ? (1 - ((a.coutMatiere||0)+(a.coutConsommables||0))/a.prixConseille) : 0;
@@ -146,7 +147,7 @@ function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode
     }
 
     case "peremptions": {
-      const alertes = genererAlertesStock(FOOD_STOCK_INIT).filter(a => a.niveau === "critique");
+      const alertes = genererAlertesStock(stocks).filter(a => a.niveau === "critique");
       if (!alertes.length) return <p style={{ color:"#22c55e" }}>✅ Aucun stock critique détecté.</p>;
       return (
         <div>
@@ -162,14 +163,17 @@ function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode
 
     case "avec_stock": {
       const stockMap: Record<string, number> = {};
-      FOOD_STOCK_INIT.forEach(s => { stockMap[s.id] = s.qteRestante; });
+      stocks.forEach(s => { stockMap[s.id] = s.qteRestante; });
 
-      const faisables: typeof FOOD_RECETTES_INIT = [];
-      const quasi:     typeof FOOD_RECETTES_INIT = [];
+      const faisables: Recette[] = [];
+      const quasi:     Recette[] = [];
 
-      for (const r of FOOD_RECETTES_INIT) {
+      for (const r of recettes) {
+        // Seuls les ingrédients explicitement liés à une fiche de stock
+        // (stockItemId) peuvent être évalués — sans lien, impossible de
+        // savoir honnêtement si on a la quantité ou non.
         const manquants = r.ingredients.filter(i =>
-          i.coutUnitaire && (stockMap[i.id] || 0) < i.quantite
+          i.stockItemId && i.quantite != null && (stockMap[i.stockItemId] ?? 0) < i.quantite
         );
         if (!manquants.length) faisables.push(r);
         else if (manquants.length <= 2) quasi.push(r);
@@ -204,13 +208,13 @@ function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode
 
     case "menu_suggestion": {
       const nb  = nbPersonnes || 10;
-      const plats = FOOD_CATALOGUE.filter(p => ["repas_guyanais","poulet","poisson","plat"].includes(p.categorie) && p.disponible);
-      const deserts = FOOD_CATALOGUE.filter(p => ["patisserie","cake","glace"].includes(p.categorie) && p.disponible);
-      const boissons = FOOD_CATALOGUE.filter(p => p.categorie === "jus" && p.disponible);
+      const plats = catalogue.filter(p => ["repas_guyanais","repas_creole","poulet","poisson","buffet","traiteur"].includes(p.categorie) && p.disponible);
+      const deserts = catalogue.filter(p => ["patisserie","cake","glace","dessert"].includes(p.categorie) && p.disponible);
+      const boissons = catalogue.filter(p => ["jus","boisson","cocktail","mocktail"].includes(p.categorie) && p.disponible);
       const pick = <T,>(arr: T[]) => arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
-      const plat   = pick(plats) as typeof FOOD_CATALOGUE[0] | null;
-      const dessert = pick(deserts) as typeof FOOD_CATALOGUE[0] | null;
-      const boisson = pick(boissons) as typeof FOOD_CATALOGUE[0] | null;
+      const plat    = pick(plats);
+      const dessert = pick(deserts);
+      const boisson = pick(boissons);
       const totalEst = [plat, dessert, boisson].reduce((s, p) =>
         s + (p?.prix ? p.prix * nb : 0), 0);
       return (
@@ -235,10 +239,10 @@ function analyserLocal(mode: ModeAnalyse, nbPersonnes?: number): React.ReactNode
     }
 
     case "recommandations": {
-      const alertes  = genererAlertesStock(FOOD_STOCK_INIT);
+      const alertes  = genererAlertesStock(stocks);
       const items: string[] = [];
       if (alertes.some(a => a.niveau === "critique")) items.push("🚨 Passez une commande de matières premières en urgence.");
-      const topRentable = [...FOOD_RECETTES_INIT]
+      const topRentable = [...recettes]
         .filter(r => r.margeEstimee && r.prixConseille)
         .sort((a,b) => (b.margeEstimee||0)-(a.margeEstimee||0))[0];
       if (topRentable) items.push(`⭐ Mettez en avant "${topRentable.nom}" — meilleure marge estimée.`);
@@ -267,10 +271,24 @@ export default function FoodPredictif() {
   const [mode,        setMode]        = useState<ModeAnalyse>("recommandations");
   const [nbPersonnes, setNbPersonnes] = useState(10);
   const [afficher,    setAfficher]    = useState(true);
+  const [recettes,    setRecettes]    = useState<Recette[]>([]);
+  const [stocks,      setStocks]      = useState<StockItem[]>([]);
+  const [catalogue,   setCatalogue]   = useState<Produit[]>([]);
+  const [chargement,  setChargement]  = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const [{ recettes: r }, s, { produits: c }] = await Promise.all([
+        getRecettesFoodAvecDiagnostic(), getStockGlobalFood(), getCatalogueFoodAvecDiagnostic(),
+      ]);
+      setRecettes(r); setStocks(s); setCatalogue(c);
+      setChargement(false);
+    })();
+  }, []);
 
   const resultat = useMemo(() =>
-    analyserLocal(mode, nbPersonnes),
-  [mode, nbPersonnes]);
+    analyserLocal(mode, recettes, stocks, catalogue, nbPersonnes),
+  [mode, recettes, stocks, catalogue, nbPersonnes]);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
@@ -321,7 +339,10 @@ export default function FoodPredictif() {
       )}
 
       {/* Résultat */}
-      {afficher && (
+      {chargement && (
+        <div style={{ textAlign:"center", padding:"20px", color:FC.creamD, fontSize:12 }}>Chargement des données…</div>
+      )}
+      {!chargement && afficher && (
         <div style={{ background:"rgba(21,128,61,0.07)", border:`1px solid ${FC.line}`,
           borderRadius:14, padding:"14px 16px" }}>
           {resultat}

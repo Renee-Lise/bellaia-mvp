@@ -3,10 +3,11 @@
 // Stock faible, DLC, température, productions oubliées
 // src/modules/food/FoodAlertes.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_STOCK_INIT, FOOD_COLORS as FC, ALERTE_CONFIG } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC, ALERTE_CONFIG } from "./foodConsts";
 import { genererAlertesStock } from "./foodUtils";
-import type { Alerte, NiveauAlerte, TypeAlerte } from "./foodTypes";
+import { getStockGlobalFood } from "./foodApi";
+import type { Alerte, NiveauAlerte, TypeAlerte, StockItem } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 
@@ -20,10 +21,16 @@ const NIVEAU_BG: Record<NiveauAlerte, string> = {
 export default function FoodAlertes() {
   const [alertesManuellesLues, setAlertesManuelles] = useState<Set<string>>(new Set());
   const [filtre, setFiltre] = useState<NiveauAlerte|"toutes">("toutes");
+  const [stocks, setStocks] = useState<StockItem[]>([]);
+  const [chargement, setChargement] = useState(true);
 
-  // Alertes générées automatiquement depuis les stocks initiaux
+  useEffect(() => {
+    getStockGlobalFood().then(s => { setStocks(s); setChargement(false); });
+  }, []);
+
+  // Alertes générées automatiquement depuis les vrais stocks
   const alertesAuto: Alerte[] = useMemo(() =>
-    genererAlertesStock(FOOD_STOCK_INIT), []
+    genererAlertesStock(stocks), [stocks]
   );
 
   const toutes = alertesAuto;
@@ -82,7 +89,10 @@ export default function FoodAlertes() {
       </div>
 
       {/* Liste alertes */}
-      {filtrees.length === 0 && (
+      {chargement && (
+        <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13 }}>Chargement…</div>
+      )}
+      {!chargement && filtrees.length === 0 && (
         <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           {toutes.length === 0 ? "✅ Aucune alerte — tout est sous contrôle !" : "Aucune alerte pour ce filtre."}
         </div>
@@ -127,7 +137,7 @@ export default function FoodAlertes() {
       {/* Note */}
       <div style={{ background:"rgba(255,255,255,0.03)", border:"1px dashed rgba(255,255,255,0.1)",
         borderRadius:10, padding:"10px 13px", fontSize:10, color:"rgba(255,255,255,0.35)", lineHeight:1.6 }}>
-        Les alertes sont générées automatiquement à partir des stocks, DLC, DDM et températures HACCP. En production, elles seront poussées en temps réel depuis Supabase.
+        Les alertes sont générées automatiquement à partir des stocks réels (quantités, DLC, DDM). Les alertes température HACCP seront ajoutées quand ce module sera branché.
       </div>
     </div>
   );
