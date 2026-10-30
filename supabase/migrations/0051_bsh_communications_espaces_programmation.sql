@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0051_bsh_communications_espaces_programmation.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-30 (5 colonnes présentes, bsh_communications_parametres créée avec automatisations_suspendues=false, exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-29
 -- Objet : Phase 1 de la mission "BSH Communications & Automatisations"
 --   — étend bsh_communications (déjà réelle et déjà utilisée par la
