@@ -15,6 +15,8 @@ function mapMenuFromDb(row: any): Menu {
     notes: row.notes ?? undefined,
     statut: row.statut ?? "brouillon",
     dateCreation: row.created_at ? row.created_at.slice(0, 10) : "",
+    realise: row.realise ?? false,
+    dateRealisation: row.date_realisation ?? undefined,
   };
 }
 
@@ -26,6 +28,8 @@ function mapMenuToDb(m: Partial<Menu>): Record<string, any> {
   if (m.lignes !== undefined) d.lignes = m.lignes;
   if (m.notes !== undefined) d.notes = m.notes;
   if (m.statut !== undefined) d.statut = m.statut;
+  if (m.realise !== undefined) d.realise = m.realise;
+  if (m.dateRealisation !== undefined) d.date_realisation = m.dateRealisation;
   return d;
 }
 
@@ -58,6 +62,10 @@ export interface IngredientAgrege {
   unite: string;
   quantite: number | null;
   incertain: boolean; // au moins une recette contribue sans quantité connue
+  // Présent quand TOUTES les contributions à cette ligne agrégée
+  // portent le même stockItemId — permet un rapprochement fiable par
+  // id plutôt que par nom (achats, décompte de stock).
+  stockItemId?: string;
 }
 
 export function agregerIngredients(lignes: LigneMenu[], recettesParId: Map<string, any>): IngredientAgrege[] {
@@ -67,18 +75,22 @@ export function agregerIngredients(lignes: LigneMenu[], recettesParId: Map<strin
     if (!recette || !recette.nbParts) continue;
     const facteur = ligne.nbPortions / recette.nbParts;
     for (const ing of recette.ingredients as any[]) {
-      const cle = `${ing.nom.toLowerCase()}__${ing.unite}`;
+      // Clé de regroupement : par stockItemId quand il est renseigné
+      // (fiable même si le nom varie d'une recette à l'autre), sinon
+      // par nom+unité (comportement historique).
+      const cle = ing.stockItemId ? `sid:${ing.stockItemId}` : `${ing.nom.toLowerCase()}__${ing.unite}`;
       const existant = totaux.get(cle);
       if (ing.quantite != null) {
         const q = Math.round(ing.quantite * facteur * 100) / 100;
         if (existant) {
           existant.quantite = (existant.quantite ?? 0) + q;
+          if (existant.stockItemId !== ing.stockItemId) existant.stockItemId = undefined;
         } else {
-          totaux.set(cle, { nom: ing.nom, unite: ing.unite, quantite: q, incertain: false });
+          totaux.set(cle, { nom: ing.nom, unite: ing.unite, quantite: q, incertain: false, stockItemId: ing.stockItemId || undefined });
         }
       } else {
         if (existant) existant.incertain = true;
-        else totaux.set(cle, { nom: ing.nom, unite: ing.unite, quantite: null, incertain: true });
+        else totaux.set(cle, { nom: ing.nom, unite: ing.unite, quantite: null, incertain: true, stockItemId: ing.stockItemId || undefined });
       }
     }
   }

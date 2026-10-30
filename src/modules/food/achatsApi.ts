@@ -68,9 +68,11 @@ export const supprimerAchatFood = (id: string) => sbFoodDelete("food_achats", id
 // Ne traite que les ingrédients dont la quantité est chiffrée
 // (un "à confirmer"/"à doser" ne peut pas générer une ligne d'achat
 // fiable — reste dans la liste de courses, à vérifier à la main).
-// Rapprochement par nom exact (insensible à la casse/espaces) avec
-// stock_global : aucune correspondance approximative, pour ne jamais
-// imputer une quantité au mauvais ingrédient.
+// Rapprochement par stockItemId quand l'ingrédient est explicitement
+// lié à une fiche de stock (fiable même si le nom diffère), sinon par
+// nom exact (insensible à la casse/espaces) — jamais de correspondance
+// approximative, pour ne jamais imputer une quantité au mauvais
+// ingrédient.
 export function construireLignesAchatDepuisManque(
   agreges: IngredientAgrege[],
   stocks: StockItem[]
@@ -78,7 +80,9 @@ export function construireLignesAchatDepuisManque(
   const lignes: LigneAchat[] = [];
   for (const a of agreges) {
     if (a.quantite == null) continue;
-    const stock = stocks.find(s => s.nom.trim().toLowerCase() === a.nom.trim().toLowerCase());
+    const stock = a.stockItemId
+      ? stocks.find(s => s.id === a.stockItemId)
+      : stocks.find(s => s.nom.trim().toLowerCase() === a.nom.trim().toLowerCase());
     const dejaEnStock = stock?.qteRestante ?? 0;
     const manque = Math.round((a.quantite - dejaEnStock) * 100) / 100;
     if (manque <= 0) continue;

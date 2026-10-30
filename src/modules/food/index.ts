@@ -56,7 +56,7 @@ export {
   sbFoodGet, sbFoodPost, sbFoodPatch, sbFoodDelete,
   getRecettesFood, creerRecette, majRecette,
   getCommandesFood, creerCommande, majStatutCommande,
-  getStocksFood, majStock, getMaterielFood, getConsommablesFood,
+  getMaterielFood, getConsommablesFood, getStockGlobalFood,
 } from "./foodApi";
 
 // ── Liaison Bella'Events ───────────────────────────────────

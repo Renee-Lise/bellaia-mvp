@@ -53,6 +53,10 @@ export interface Ingredient {
   allergene?: boolean;
   categorie?: string;
   notes?: string;
+  // Lien optionnel vers une fiche de stock réelle (stock_global) —
+  // sert au rapprochement menu→stock/achat quand le nom seul ne
+  // suffit pas (orthographe différente, article plus précis, etc.).
+  stockItemId?: string;
 }
 
 // ── Valeurs nutritionnelles ────────────────────────────────
@@ -325,6 +329,10 @@ export interface Menu {
   notes?: string;
   statut: StatutMenu;
   dateCreation: string;
+  // migration 0057 — une fois réalisé, le stock a été décompté pour
+  // ce menu ; empêche un second décompte si on reclique par erreur.
+  realise?: boolean;
+  dateRealisation?: string;
 }
 
 // ── Planning de production ──────────────────────────────────

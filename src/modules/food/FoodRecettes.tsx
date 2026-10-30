@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
 import { fmtDuree, fmtPrix, calculerCoutRecette } from "./foodUtils";
-import { getRecettesFoodAvecDiagnostic, creerRecette, majRecette, uploadMediaRecette } from "./foodApi";
-import type { Recette, Ingredient, StatutRecette, UniteMesure } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic, creerRecette, majRecette, uploadMediaRecette, getStockGlobalFood } from "./foodApi";
+import type { Recette, Ingredient, StatutRecette, UniteMesure, StockItem } from "./foodTypes";
 
 const STATUT_COL: Record<string, string> = {
   brouillon:   "rgba(255,255,255,0.08)",
@@ -102,11 +102,15 @@ export default function FoodRecettes() {
   const [sauvegarde, setSauvegarde] = useState(false);
   const [erreurSauvegarde, setErreurSauvegarde] = useState<string | null>(null);
   const [filtCat, setFiltCat] = useState("tous");
+  const [stocks, setStocks] = useState<StockItem[]>([]);
 
   const charger = async () => {
     setChargement(true);
-    const { recettes: r, diagnostic: d } = await getRecettesFoodAvecDiagnostic();
+    const [{ recettes: r, diagnostic: d }, s] = await Promise.all([
+      getRecettesFoodAvecDiagnostic(), getStockGlobalFood(),
+    ]);
     setRecettes(r);
+    setStocks(s);
     setDiagnostic(d);
     setChargement(false);
   };
@@ -315,13 +319,20 @@ export default function FoodRecettes() {
         <div style={{ background: FC.card, border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, letterSpacing: 1 }}>INGRÉDIENTS</div>
           {form.ingredients.map((ing, i) => (
-            <div key={ing.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input value={ing.nom} onChange={e => majIngredient(i, "nom", e.target.value)} placeholder="Nom" style={{ ...inp, flex: 2 }} />
-              <input type="number" value={ing.quantite || ""} onChange={e => majIngredient(i, "quantite", parseFloat(e.target.value) || 0)} placeholder="Qté" style={{ ...inp, flex: 1 }} />
-              <select value={ing.unite} onChange={e => majIngredient(i, "unite", e.target.value)} style={{ ...inp, flex: 1, background: "#1a1a2e" }}>
-                {UNITES.map(u => <option key={u} value={u}>{u}</option>)}
+            <div key={ing.id} style={{ display: "flex", flexDirection: "column", gap: 4, paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input value={ing.nom} onChange={e => majIngredient(i, "nom", e.target.value)} placeholder="Nom" style={{ ...inp, flex: 2 }} />
+                <input type="number" value={ing.quantite || ""} onChange={e => majIngredient(i, "quantite", parseFloat(e.target.value) || 0)} placeholder="Qté" style={{ ...inp, flex: 1 }} />
+                <select value={ing.unite} onChange={e => majIngredient(i, "unite", e.target.value)} style={{ ...inp, flex: 1, background: "#1a1a2e" }}>
+                  {UNITES.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <button onClick={() => supprimerIngredient(i)} style={{ ...btnSecondaire, padding: "6px 9px" }}>✕</button>
+              </div>
+              <select value={ing.stockItemId || ""} onChange={e => majIngredient(i, "stockItemId", e.target.value || undefined)}
+                style={{ ...inp, background: "#1a1a2e", fontSize: 10, color: ing.stockItemId ? FC.vertL : "rgba(255,255,255,0.4)" }}>
+                <option value="">— lier à une fiche de stock (optionnel) —</option>
+                {stocks.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
               </select>
-              <button onClick={() => supprimerIngredient(i)} style={{ ...btnSecondaire, padding: "6px 9px" }}>✕</button>
             </div>
           ))}
           <button onClick={ajouterIngredient} style={{ ...btnSecondaire, alignSelf: "flex-start" }}>+ Ingrédient</button>

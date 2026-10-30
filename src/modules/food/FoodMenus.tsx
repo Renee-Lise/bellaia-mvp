@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useState } from "react";
 import { FOOD_COLORS as FC } from "./foodConsts";
-import { getRecettesFoodAvecDiagnostic, getStockGlobalFood } from "./foodApi";
+import { getRecettesFoodAvecDiagnostic, getStockGlobalFood, majStockGlobalQuantite } from "./foodApi";
 import { getMenusFoodAvecDiagnostic, creerMenuFood, majMenuFood, agregerIngredients } from "./menusApi";
 import { creerAchatFood, construireLignesAchatDepuisManque } from "./achatsApi";
 import { calculerTotauxAchat } from "./foodUtils";
@@ -156,6 +156,27 @@ export default function FoodMenus() {
     alert(`Brouillon d'achat créé (${lignesAchat.length} ligne${lignesAchat.length>1?"s":""}) — retrouvez-le dans l'onglet Achats pour choisir le fournisseur et ajuster les prix.`);
   };
 
+  const realiserMenuEtDecompterStock = async (m: Menu) => {
+    if (m.realise) { alert(`Le stock a déjà été décompté pour ce menu le ${m.dateRealisation ? new Date(m.dateRealisation).toLocaleDateString("fr-FR") : ""}.`); return; }
+    if (!confirm(`Marquer "${m.nom}" comme réalisé et décompter le stock en conséquence ? Cette action ne peut pas être annulée automatiquement.`)) return;
+    const agreges = agregerIngredients(m.lignes, recettesParId);
+    let decomptes = 0, nonTrouves = 0;
+    for (const a of agreges) {
+      if (a.quantite == null) continue;
+      const stock = a.stockItemId
+        ? stocks.find(s => s.id === a.stockItemId)
+        : stocks.find(s => s.nom.trim().toLowerCase() === a.nom.trim().toLowerCase());
+      if (!stock) { nonTrouves++; continue; }
+      const nouvelle = Math.max(0, Math.round((stock.qteRestante - a.quantite) * 100) / 100);
+      await majStockGlobalQuantite(stock.id, nouvelle);
+      decomptes++;
+    }
+    const res = await majMenuFood(m.id, { realise: true, dateRealisation: new Date().toISOString() });
+    if (!res.ok) { alert("Le décompte de stock a été appliqué, mais le menu n'a pas pu être marqué réalisé — réessayez."); }
+    await charger();
+    alert(`Stock décompté pour ${decomptes} ingrédient${decomptes>1?"s":""}${nonTrouves>0?` — ${nonTrouves} ingrédient${nonTrouves>1?"s":""} non trouvé(s) en stock, à ajuster manuellement`:""}.`);
+  };
+
   const imprimerMenu = (m: Menu) => {
     const lignesHtml = m.lignes.map(l => {
       const recette = recettesParId.get(l.recetteId);
@@ -260,6 +281,19 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
           </button>
         </div>
       </div>
+
+      {detail.realise ? (
+        <div style={{ fontSize:11, color:"#22c55e", background:"rgba(21,128,61,0.1)", borderRadius:8, padding:"8px 12px" }}>
+          ✅ Stock décompté le {detail.dateRealisation ? new Date(detail.dateRealisation).toLocaleDateString("fr-FR") : ""}
+        </div>
+      ) : (
+        <button onClick={()=>realiserMenuEtDecompterStock(detail)}
+          style={{ fontSize:11, padding:"8px 14px", borderRadius:10, cursor:"pointer",
+            background:"rgba(21,128,61,0.15)", border:`1px solid ${FC.vert}`,
+            color:FC.vertL, fontWeight:700, fontFamily:SA, alignSelf:"flex-start" }}>
+          ✅ Marquer réalisé (décompte le stock)
+        </button>
+      )}
 
       <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
         {(["brouillon","valide","archive"] as StatutMenu[]).map(s=>(

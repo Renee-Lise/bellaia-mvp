@@ -233,14 +233,14 @@ export const creerCommande     = (c:Partial<CommandeFood>) => sbFoodPost<Command
 export const majStatutCommande = (id:string,statut:string) => sbFoodPatch("food_commandes",id,{statut});
 
 // ── API Stocks ─────────────────────────────────────────────
-export const getStocksFood = () => sbFoodGet<StockItem>("food_stocks","order=nom.asc");
-export const majStock      = (id:string,qteRestante:number) => sbFoodPatch("food_stocks",id,{qte_restante:qteRestante});
-
 // stock_global est la table réellement utilisée par l'écran Stocks
-// (filtrée business_unit=FOOD, actif=true) — distincte de l'ancienne
-// food_stocks ci-dessus, qui n'est plus lue par aucun écran. Exposée
-// ici pour que d'autres zones (ex. Menus) lisent les mêmes données
-// que la page Stocks, sans dupliquer la requête.
+// (filtrée business_unit=FOOD, actif=true). L'ancienne table
+// food_stocks et ses fonctions (getStocksFood/majStock) ont été
+// retirées le 30/10 : vérifié qu'aucun écran ne les appelait plus
+// (seulement ré-exportées depuis index.ts, jamais utilisées) — code
+// mort pointant vers une table que personne ne lit ni n'écrit.
+// Exposée ici pour que d'autres zones (ex. Menus) lisent les mêmes
+// données que la page Stocks, sans dupliquer la requête.
 function mapStockGlobalFromDb(r: any): StockItem {
   return {
     id: r.id,
@@ -260,6 +260,9 @@ function mapStockGlobalFromDb(r: any): StockItem {
 export async function getStockGlobalFood(): Promise<StockItem[]> {
   const rows = await sbFoodGet<any>("stock_global", "business_unit=eq.FOOD&actif=eq.true&order=nom.asc");
   return rows.map(mapStockGlobalFromDb);
+}
+export async function majStockGlobalQuantite(id: string, nouvelleQuantite: number): Promise<{ ok: boolean }> {
+  return sbFoodPatch("stock_global", id, { stock_actuel: nouvelleQuantite });
 }
 
 // ── API Matériel ───────────────────────────────────────────
