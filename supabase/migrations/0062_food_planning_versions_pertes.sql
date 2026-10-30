@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0062_food_planning_versions_pertes.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : finir Bella'Food, lot 2/3. FoodPlanning.tsx, FoodVersions.tsx
 --   et FoodPertes.tsx n'étaient encore que des mocks en mémoire.
