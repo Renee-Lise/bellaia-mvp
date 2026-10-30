@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0053_food_recettes_import_lot8_dossier80.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-30 (total final 80/80 exact, 68 du premier dossier + 12 nouvelles)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : import des 12 fiches NOUVELLES apportées par le second
 --   dossier transmis ("BELLAFOOD_80_RECETTES.zip", 80 fiches au

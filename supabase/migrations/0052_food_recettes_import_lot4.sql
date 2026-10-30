@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0052_food_recettes_import_lot4.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-30 (cumul confirmé après chaque lot, total final 68/68 exact)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-29
 -- Objet : import des fiches recettes transmises par Renée-Lise —
 --   lot 4/7 (10 fiches sur 68 au total).
