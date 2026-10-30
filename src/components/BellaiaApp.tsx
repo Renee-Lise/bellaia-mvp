@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { FOOD_CATEGORIES } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic } from "@/modules/food/catalogueApi";
+import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
+import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
 // MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
 // Si ce texte apparaît sur l'écran de connexion, le build est à jour.
@@ -2914,6 +2916,11 @@ function ClientFood({ user, onBack }) {
   const [catalogueDiag,  setCatalogueDiag] = React.useState(null);
   const [catalogueCharge,setCatalogueCharge]=React.useState(true);
 
+  // Menu(s) du jour + lieu(x) de vente (migration 0060) — doit être
+  // visible dès l'ouverture de la session, pas seulement sur demande.
+  const [menusJour, setMenusJour] = React.useState<MenuJour[]>([]);
+  const [menuJourCharge, setMenuJourCharge] = React.useState(true);
+
   React.useEffect(() => {
     let actif = true;
     (async () => {
@@ -2926,6 +2933,12 @@ function ClientFood({ user, onBack }) {
       setCatalogueFood(mapped);
       setCatalogueDiag(diagnostic);
       setCatalogueCharge(false);
+    })();
+    (async () => {
+      const { menusJour: m } = await getMenuJourPublicAujourdhui();
+      if (!actif) return;
+      setMenusJour(m);
+      setMenuJourCharge(false);
     })();
     return () => { actif = false; };
   }, []);
@@ -3035,6 +3048,37 @@ function ClientFood({ user, onBack }) {
         {/* ── CATALOGUE ── */}
         {page==="catalogue" && !succes && (
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            {/* Menu du jour + lieux de vente — tout en haut, visible
+                sans avoir à chercher, dès l'ouverture de la session. */}
+            {!menuJourCharge && menusJour.length>0 && menusJour.map(m=>(
+              <div key={m.id} style={{background:"linear-gradient(135deg,rgba(21,128,61,0.18),rgba(201,168,76,0.08))",border:"1px solid rgba(21,128,61,0.35)",borderRadius:14,padding:"13px 15px",marginBottom:4}}>
+                <div style={{fontFamily:FS,fontSize:15,color:"#4ade80",marginBottom:8}}>☀️ Aujourd'hui chez Bella'Food</div>
+                {m.items.length>0 && (
+                  <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:m.lieux.length>0?10:0}}>
+                    {m.items.map((it,i)=>(
+                      <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                        <div>
+                          <span style={{fontSize:13,color:"#fff",fontWeight:600}}>{it.nom}</span>
+                          {it.description && <span style={{fontSize:11,color:"rgba(245,240,232,0.6)"}}> — {it.description}</span>}
+                        </div>
+                        {it.prix!=null && <span style={{fontSize:12,color:"#c9a96e",fontWeight:700,flexShrink:0,marginLeft:8}}>{it.prix}€</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {m.lieux.length>0 && (
+                  <div style={{borderTop:"1px solid rgba(21,128,61,0.25)",paddingTop:9,display:"flex",flexDirection:"column",gap:5}}>
+                    {m.lieux.map((l,i)=>(
+                      <div key={i} style={{fontSize:11,color:"rgba(245,240,232,0.85)"}}>
+                        📍 <span style={{fontWeight:700}}>{l.nom}</span>
+                        {l.adresse && <> — {l.adresse}</>}
+                        {l.horaires && <div style={{marginLeft:16,color:"rgba(245,240,232,0.55)"}}>🕐 {l.horaires}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
             <div style={{fontFamily:FS,fontSize:16,color:"#4ade80",marginBottom:6}}>Notre catalogue</div>
             {catalogueCharge && (
               <div style={{textAlign:"center",padding:"28px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Chargement du catalogue…</div>

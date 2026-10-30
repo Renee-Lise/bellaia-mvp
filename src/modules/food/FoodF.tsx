@@ -18,6 +18,7 @@ import FoodImport       from "./FoodImport";
 import FoodCourses      from "./FoodCourses";
 import FoodAssistant    from "./FoodAssistant";
 import FoodMenus        from "./FoodMenus";
+import FoodMenuJour     from "./FoodMenuJour";
 import FoodPlanning     from "./FoodPlanning";
 import FoodDevis        from "./FoodDevis";
 import FoodRecherche    from "./FoodRecherche";
@@ -37,7 +38,7 @@ import FoodExports      from "./FoodExports";
 
 type Section =
   | "dashboard" | "catalogue" | "recettes" | "recherche"
-  | "commandes" | "devis" | "menus" | "planning"
+  | "commandes" | "devis" | "menus" | "menu_jour" | "planning"
   | "stocks" | "materiel" | "consommables"
   | "calculateur" | "import" | "courses" | "assistant"
   | "fournisseurs" | "achats"
@@ -55,6 +56,7 @@ const NAV = [
     {id:"commandes"    as Section, ico:"📋", label:"Commandes"},
     {id:"devis"        as Section, ico:"📄", label:"Devis"},
     {id:"menus"        as Section, ico:"🍽",  label:"Menus"},
+    {id:"menu_jour"    as Section, ico:"☀️", label:"Menu du jour"},
   ]},
   {groupe:"PRODUCTION", items:[
     {id:"recettes"    as Section, ico:"📖", label:"Recettes"},
@@ -98,7 +100,7 @@ export default function FoodF({ user }: { user?: any }) {
   const titres: Record<Section, string> = {
     dashboard:"Dashboard", catalogue:"Catalogue", recettes:"Recettes",
     recherche:"Rechercher", commandes:"Commandes", devis:"Devis",
-    menus:"Menus", planning:"Planning", stocks:"Stocks",
+    menus:"Menus", menu_jour:"Menu du jour", planning:"Planning", stocks:"Stocks",
     materiel:"Matériel", consommables:"Consommables",
     calculateur:"Calculateur", import:"Import recette",
     courses:"Liste de courses", assistant:"Assistant",
@@ -183,6 +185,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="commandes"     && <FoodCommandes/>}
         {section==="devis"         && <FoodDevis/>}
         {section==="menus"         && <FoodMenus/>}
+        {section==="menu_jour"     && <FoodMenuJour/>}
         {section==="planning"      && <FoodPlanning/>}
         {section==="production"    && <FoodProduction/>}
         {section==="pertes"        && <FoodPertes/>}

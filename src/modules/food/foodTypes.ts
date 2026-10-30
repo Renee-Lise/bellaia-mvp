@@ -335,6 +335,34 @@ export interface Menu {
   dateRealisation?: string;
 }
 
+// ── Menu du jour + lieux de vente (migration 0060) ─────────
+// Affichés aux clientes (lecture publique si statut='publie') dès
+// l'ouverture de leur session Bella'Food — distinct de Menu/LigneMenu
+// ci-dessus qui sont des menus de planification interne par
+// événement, jamais visibles d'une cliente.
+export interface ItemMenuJour {
+  nom: string;
+  description?: string;
+  prix?: number;
+}
+
+export interface LieuVente {
+  nom: string;
+  adresse?: string;
+  horaires?: string;
+}
+
+export type StatutMenuJour = "brouillon" | "publie";
+
+export interface MenuJour {
+  id: string;
+  date: string;
+  items: ItemMenuJour[];
+  lieux: LieuVente[];
+  statut: StatutMenuJour;
+  notes?: string;
+}
+
 // ── Planning de production ──────────────────────────────────
 export type JourProduction = "J-3" | "J-2" | "J-1" | "JourJ";
 
