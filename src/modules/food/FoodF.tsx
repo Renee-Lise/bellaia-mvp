@@ -2,9 +2,10 @@
 // BELLA'FOOD — Module principal — Parties I + II + III + IV
 // src/modules/food/FoodF.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState } from "react";
-import { FOOD_COLORS as FC, FOOD_STOCK_INIT, FOOD_CONSOMMABLES_INIT } from "./foodConsts";
-import { getAlerteStock, genererAlertesStock } from "./foodUtils";
+import React, { useEffect, useState } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
+import { getAlerteStock } from "./foodUtils";
+import { getStockGlobalFood, getConsommablesFood } from "./foodApi";
 // Parties I & II
 import FoodDashboard    from "./FoodDashboard";
 import FoodCatalogue    from "./FoodCatalogue";
@@ -21,7 +22,6 @@ import FoodPlanning     from "./FoodPlanning";
 import FoodDevis        from "./FoodDevis";
 import FoodRecherche    from "./FoodRecherche";
 // Partie III
-import FoodDashboardPro from "./FoodDashboardPro";
 import FoodFournisseurs from "./FoodFournisseurs";
 import FoodAchats       from "./FoodAchats";
 import FoodInventaire   from "./FoodInventaire";
@@ -34,20 +34,19 @@ import FoodPertes       from "./FoodPertes";
 import FoodEtiquettes   from "./FoodEtiquettes";
 import FoodPredictif    from "./FoodPredictif";
 import FoodExports      from "./FoodExports";
-import type { CommandeFood } from "./foodTypes";
 
 type Section =
   | "dashboard" | "catalogue" | "recettes" | "recherche"
   | "commandes" | "devis" | "menus" | "planning"
   | "stocks" | "materiel" | "consommables"
   | "calculateur" | "import" | "courses" | "assistant"
-  | "dashboard_pro" | "fournisseurs" | "achats"
+  | "fournisseurs" | "achats"
   | "inventaire" | "production" | "haccp" | "alertes"
   | "versions" | "pertes" | "etiquettes" | "predictif" | "exports";
 
 const NAV = [
   {groupe:"PILOTAGE",   items:[
-    {id:"dashboard_pro" as Section, ico:"📊", label:"Dashboard"},
+    {id:"dashboard"      as Section, ico:"📊", label:"Dashboard"},
     {id:"alertes"        as Section, ico:"🔔", label:"Alertes"},
     {id:"predictif"      as Section, ico:"🤖", label:"Prédictif"},
     {id:"exports"        as Section, ico:"📤", label:"Exports"},
@@ -80,27 +79,30 @@ const NAV = [
     {id:"import"      as Section, ico:"📥", label:"Import"},
     {id:"assistant"   as Section, ico:"💬", label:"Assistant"},
     {id:"materiel"    as Section, ico:"🧰", label:"Matériel"},
-    {id:"dashboard"   as Section, ico:"◈",  label:"Accueil"},
   ]},
 ];
 
 const ALL_SECTIONS = NAV.flatMap(g => g.items);
 
 export default function FoodF({ user }: { user?: any }) {
-  const [section, setSection] = useState<Section>("dashboard_pro");
-  const [commandes] = useState<CommandeFood[]>([]);
+  const [section, setSection] = useState<Section>("dashboard");
+  const [nbAlertes, setNbAlertes] = useState(0);
 
-  const nbAlertes = getAlerteStock(FOOD_STOCK_INIT).length
-                  + getAlerteStock(FOOD_CONSOMMABLES_INIT).length;
+  useEffect(() => {
+    (async () => {
+      const [stocks, consommables] = await Promise.all([getStockGlobalFood(), getConsommablesFood()]);
+      setNbAlertes(getAlerteStock(stocks).length + getAlerteStock(consommables).length);
+    })();
+  }, []);
 
   const titres: Record<Section, string> = {
-    dashboard:"Accueil", catalogue:"Catalogue", recettes:"Recettes",
+    dashboard:"Dashboard", catalogue:"Catalogue", recettes:"Recettes",
     recherche:"Rechercher", commandes:"Commandes", devis:"Devis",
     menus:"Menus", planning:"Planning", stocks:"Stocks",
     materiel:"Matériel", consommables:"Consommables",
     calculateur:"Calculateur", import:"Import recette",
     courses:"Liste de courses", assistant:"Assistant",
-    dashboard_pro:"Dashboard Pro", fournisseurs:"Fournisseurs",
+    fournisseurs:"Fournisseurs",
     achats:"Achats", inventaire:"Inventaire",
     production:"Production", haccp:"HACCP", alertes:"Alertes",
     versions:"Versions de recettes", pertes:"Pertes",
@@ -133,8 +135,8 @@ export default function FoodF({ user }: { user?: any }) {
               🔔 {nbAlertes}
             </button>
           )}
-          {section !== "dashboard_pro" && (
-            <button onClick={() => setSection("dashboard_pro")}
+          {section !== "dashboard" && (
+            <button onClick={() => setSection("dashboard")}
               style={{ background:"none", border:`1px solid ${FC.line}`,
                 borderRadius:8, padding:"3px 9px", color:FC.creamD, cursor:"pointer", fontSize:10 }}>
               📊
@@ -162,7 +164,7 @@ export default function FoodF({ user }: { user?: any }) {
       </div>
 
       {/* Titre section */}
-      {!["dashboard_pro","dashboard"].includes(section) && (
+      {section !== "dashboard" && (
         <div style={{ padding:"10px 14px 0", fontSize:13, fontWeight:700, color:"#fff" }}>
           {titres[section]}
         </div>
@@ -170,8 +172,7 @@ export default function FoodF({ user }: { user?: any }) {
 
       {/* Contenu */}
       <div style={{ flex:1, overflowY:"auto", padding:14 }}>
-        {section==="dashboard_pro" && <FoodDashboardPro commandes={commandes}/>}
-        {section==="dashboard"     && <FoodDashboard commandes={commandes} stocks={FOOD_STOCK_INIT} consommables={FOOD_CONSOMMABLES_INIT} onNavigue={s=>setSection(s as Section)}/>}
+        {section==="dashboard"     && <FoodDashboard onNavigue={s=>setSection(s as Section)}/>}
         {section==="alertes"       && <FoodAlertes/>}
         {section==="predictif"     && <FoodPredictif/>}
         {section==="exports"       && <FoodExports/>}

@@ -3911,6 +3911,16 @@ function DashF({ user, goto }) {
         {!briefs && !briefLoading && <p style={{margin:0,fontSize:11,color:B.muted}}>Génère ton brief quotidien avec l'IA.</p>}
       </div>
 
+      {/* Alertes — priorité la plus haute, juste après le brief, pour ne jamais
+          se perdre en bas de page derrière finances/CRM/agenda. */}
+      {invoicesRetard.length>0&&(
+        <div style={{background:"rgba(180,80,80,0.1)",border:"1px solid rgba(180,80,80,0.3)",borderRadius:12,padding:"11px 14px"}}>
+          <div style={{fontSize:12,fontWeight:800,color:B.danger,marginBottom:6}}>⚠ {invoicesRetard.length} facture{invoicesRetard.length>1?"s":""} en retard</div>
+          {invoicesRetard.map(i=><div key={i.id} style={{fontSize:11,color:B.danger,marginBottom:3}}>{i.client_nom} — {i.solde_restant}€</div>)}
+          <div style={{marginTop:8}}><Btn sm v="danger" onClick={()=>goto("finances")}>Traiter →</Btn></div>
+        </div>
+      )}
+
       {/* KPIs Finances */}
       <div>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
@@ -3972,23 +3982,19 @@ function DashF({ user, goto }) {
         </div>
       )}
 
-      {/* Alertes */}
-      {invoicesRetard.length>0&&(
-        <div style={{background:"rgba(180,80,80,0.1)",border:"1px solid rgba(180,80,80,0.3)",borderRadius:12,padding:"11px 14px"}}>
-          <div style={{fontSize:12,fontWeight:800,color:B.danger,marginBottom:6}}>⚠ {invoicesRetard.length} facture{invoicesRetard.length>1?"s":""} en retard</div>
-          {invoicesRetard.map(i=><div key={i.id} style={{fontSize:11,color:B.danger,marginBottom:3}}>{i.client_nom} — {i.solde_restant}€</div>)}
-          <div style={{marginTop:8}}><Btn sm v="danger" onClick={()=>goto("finances")}>Traiter →</Btn></div>
-        </div>
-      )}
-
-      {/* Accès rapides pôles */}
+      {/* Accès rapides pôles — même habillage visuel que les cartes KPI
+          (bordure haute colorée, pas latérale) pour une page cohérente de
+          haut en bas, avec un chevron qui rend la navigation évidente. */}
       <div>
         <div style={{fontSize:12,fontWeight:800,color:B.cream,marginBottom:10}}>Pôles Bella'Studio</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {POLES.map(p=>(
-            <div key={p.id} style={{background:B.card,border:"1px solid "+(p.col)+("30"),borderRadius:11,padding:"10px 12px",cursor:"pointer",borderLeft:"3px solid "+(p.col)}} onClick={()=>goto(p.id)}>
-              <div style={{fontSize:18,marginBottom:4}}>{p.ico}</div>
-              <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{p.nom}</div>
+            <div key={p.id} style={{background:B.card,border:"1px solid "+(B.border),borderTop:"3px solid "+(p.col),borderRadius:11,padding:"11px 12px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}} onClick={()=>goto(p.id)}>
+              <div>
+                <div style={{fontSize:18,marginBottom:4}}>{p.ico}</div>
+                <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{p.nom}</div>
+              </div>
+              <span style={{fontSize:14,color:B.muted}}>›</span>
             </div>
           ))}
         </div>
