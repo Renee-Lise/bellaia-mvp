@@ -1,11 +1,14 @@
 // ═══════════════════════════════════════════════════════════
-// FoodMenus — Menus par type d'événement Bella'Food Partie II
+// FoodMenus — Menus Bella'Food, branchés sur food_menus (migration 0054)
+// Un menu = des lignes de vraies recettes (food_recettes) pour un
+// nombre de personnes donné, avec liste de courses agrégée.
 // src/modules/food/FoodMenus.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_CATALOGUE, FOOD_COLORS as FC } from "./foodConsts";
-import { fmtPrix } from "./foodUtils";
-import type { Menu, LigneMenu, TypeMenu, StatutMenu } from "./foodTypes";
+import React, { useEffect, useState } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
+import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getMenusFoodAvecDiagnostic, creerMenuFood, majMenuFood, agregerIngredients } from "./menusApi";
+import type { Menu, LigneMenu, TypeMenu, StatutMenu, Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const FS = "Georgia, 'Times New Roman', serif";
@@ -40,117 +43,110 @@ const inpStyle: React.CSSProperties = {
   fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box",
 };
 
-// ── Suggestions automatiques par type de menu ──────────────
-function suggererProduits(type: TypeMenu, nbPersonnes: number): LigneMenu[] {
-  const filtered = FOOD_CATALOGUE.filter(p => p.disponible);
-  const suggestions: LigneMenu[] = [];
-
-  const ajouter = (categorie: string, qteParPers: number = 1) => {
-    const prod = filtered.filter(p => p.categorie === categorie || p.sousCat === categorie);
-    if (!prod.length) return;
-    // Prendre 1 à 2 produits de la catégorie
-    prod.slice(0, Math.min(2, prod.length)).forEach(p => {
-      const qteBase = p.unite === "par personne" ? nbPersonnes
-        : p.unite === "douzaine" ? Math.ceil(nbPersonnes / 12 * qteParPers)
-        : qteParPers;
-      suggestions.push({
-        produitId:   p.id,
-        nom:         p.nom,
-        categorie:   p.categorie,
-        qte:         qteBase,
-        unite:       p.unite || "prestation",
-        prixUnitaire:p.prix,
-        totalEstime: p.prix ? Math.round(p.prix * qteBase * 100)/100 : null,
-      });
-    });
-  };
-
-  if (type === "buffet" || type === "cocktail") {
-    ajouter("buffet", 1);
-    ajouter("jus", Math.ceil(nbPersonnes / 10));
-    ajouter("patisserie", Math.ceil(nbPersonnes / 12));
-  } else if (type === "anniversaire") {
-    ajouter("cake", 1);
-    ajouter("cupcake", Math.ceil(nbPersonnes / 12));
-    ajouter("jus", Math.ceil(nbPersonnes / 10));
-  } else if (type === "mariage") {
-    ajouter("mariage", 1);
-    ajouter("buffet", 1);
-    ajouter("boisson", Math.ceil(nbPersonnes / 8));
-  } else if (type === "baby_shower" || type === "communion" || type === "bapteme") {
-    ajouter("patisserie", 1);
-    ajouter("cupcake", Math.ceil(nbPersonnes / 12));
-    ajouter("jus", Math.ceil(nbPersonnes / 10));
-  } else if (type === "repas_creole" || type === "repas_guyanais" || type === "repas_local") {
-    ajouter("repas_guyanais", 1);
-    ajouter("accompagnement", Math.ceil(nbPersonnes / 4));
-    ajouter("boisson", Math.ceil(nbPersonnes / 8));
-  } else if (type === "brunch") {
-    ajouter("brunch", 1);
-    ajouter("viennoiserie", Math.ceil(nbPersonnes / 6));
-    ajouter("smoothie", Math.ceil(nbPersonnes / 4));
-  } else if (type === "premium") {
-    ajouter("entremet", 1);
-    ajouter("macarons", Math.ceil(nbPersonnes / 12));
-    ajouter("cocktail", Math.ceil(nbPersonnes / 4));
-  } else {
-    ajouter("patisserie", 1);
-    ajouter("boisson", Math.ceil(nbPersonnes / 8));
-  }
-
-  return suggestions.filter((v,i,a) => a.findIndex(x=>x.produitId===v.produitId)===i);
-}
-
 export default function FoodMenus() {
-  const [menus,   setMenus]   = useState<Menu[]>([]);
-  const [modal,   setModal]   = useState<"creer"|"detail"|null>(null);
-  const [detail,  setDetail]  = useState<Menu|null>(null);
-  const [filtre,  setFiltre]  = useState<TypeMenu|"tous">("tous");
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
+  const [modal, setModal] = useState<"creer"|null>(null);
+  const [detail, setDetail] = useState<Menu|null>(null);
+  const [filtre, setFiltre] = useState<TypeMenu|"tous">("tous");
+  const [recetteAjout, setRecetteAjout] = useState("");
+  const [portionsAjout, setPortionsAjout] = useState(4);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   const FORM_INIT: Omit<Menu,"id"|"dateCreation"> = {
     nom:"", type:"anniversaire", nbPersonnes:10, lignes:[], statut:"brouillon",
   };
   const [form, setForm] = useState<Omit<Menu,"id"|"dateCreation">>(FORM_INIT);
 
+  const charger = async () => {
+    setChargement(true);
+    const [{ menus: m, diagnostic: dMenus }, { recettes: r, diagnostic: dRecettes }] = await Promise.all([
+      getMenusFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(),
+    ]);
+    setMenus(m);
+    setRecettes(r);
+    setDiagnostic(dMenus || dRecettes);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
+
+  const recettesParId = new Map(recettes.map(r => [r.id, r]));
   const visibles = menus.filter(m => filtre==="tous" || m.type===filtre);
 
-  const totalMenu = (m: Menu) =>
-    m.lignes.reduce((s,l) => s+(l.totalEstime||0),0);
-
-  const creerMenu = () => {
-    if (!form.nom.trim()) return;
-    const lignesSugg = form.lignes.length
-      ? form.lignes
-      : suggererProduits(form.type, form.nbPersonnes);
-    setMenus(ms => [{
-      ...form, id:"m_"+Date.now().toString().slice(-5),
-      dateCreation:new Date().toISOString().split("T")[0],
-      lignes: lignesSugg,
-    }, ...ms]);
+  const creerMenu = async () => {
+    if (!form.nom.trim()) { setErreur("Le nom du menu est obligatoire."); return; }
+    const res = await creerMenuFood(form);
+    if (!res.ok) { setErreur(res.error || "Échec de l'enregistrement — réessayez."); return; }
     setModal(null);
     setForm(FORM_INIT);
+    setErreur(null);
+    await charger();
   };
 
-  const changerStatut = (id:string, statut:StatutMenu) =>
+  const changerStatut = async (id:string, statut:StatutMenu) => {
+    const res = await majMenuFood(id, { statut });
+    if (!res.ok) { alert("Échec de l'enregistrement du statut."); return; }
     setMenus(ms => ms.map(m => m.id===id?{...m,statut}:m));
+    setDetail(d => d && d.id===id ? {...d,statut} : d);
+  };
+
+  const ajouterLigne = async () => {
+    if (!detail || !recetteAjout || portionsAjout <= 0) return;
+    const recette = recettesParId.get(recetteAjout);
+    if (!recette) return;
+    const nouvelleLigne: LigneMenu = { recetteId: recette.id, recetteNom: recette.nom, nbPortions: portionsAjout };
+    const lignes = [...detail.lignes, nouvelleLigne];
+    const res = await majMenuFood(detail.id, { lignes });
+    if (!res.ok) { alert("Échec de l'enregistrement de la ligne."); return; }
+    const miseAJour = { ...detail, lignes };
+    setDetail(miseAJour);
+    setMenus(ms => ms.map(m => m.id===detail.id ? miseAJour : m));
+    setRecetteAjout("");
+  };
+
+  const supprimerLigne = async (index: number) => {
+    if (!detail) return;
+    const lignes = detail.lignes.filter((_, i) => i !== index);
+    const res = await majMenuFood(detail.id, { lignes });
+    if (!res.ok) { alert("Échec de la suppression."); return; }
+    const miseAJour = { ...detail, lignes };
+    setDetail(miseAJour);
+    setMenus(ms => ms.map(m => m.id===detail.id ? miseAJour : m));
+  };
+
+  const genererListeCourses = (m: Menu) => {
+    const agreges = agregerIngredients(m.lignes, recettesParId);
+    if (agreges.length === 0) { alert("Ce menu n'a pas encore de recette avec ingrédients renseignés."); return; }
+    const lignesTexte = agreges.map(a =>
+      a.quantite != null
+        ? `- ${a.nom} : ${a.quantite} ${a.unite}${a.incertain ? " (+ quantité non chiffrée sur une autre recette)" : ""}`
+        : `- ${a.nom} : à doser (${a.unite})`
+    );
+    const texte = [`Liste de courses — ${m.nom} (${m.nbPersonnes} personnes)`, "", ...lignesTexte].join("\n");
+    navigator.clipboard?.writeText(texte).then(
+      () => alert("Liste de courses copiée — collez-la où vous voulez."),
+      () => alert("Impossible de copier automatiquement — recopiez la liste manuellement.")
+    );
+  };
 
   const imprimerMenu = (m: Menu) => {
-    const total = totalMenu(m);
-    const lignesHtml = m.lignes.map(l =>
-      `<tr><td>${l.nom}</td><td>${l.qte} ${l.unite}</td><td>${l.prixUnitaire!=null?fmtPrix(l.prixUnitaire):"Sur devis"}</td><td>${l.totalEstime!=null?fmtPrix(l.totalEstime):"—"}</td></tr>`
-    ).join("");
+    const lignesHtml = m.lignes.map(l => {
+      const recette = recettesParId.get(l.recetteId);
+      return `<tr><td>${l.recetteNom}</td><td>${l.nbPortions} portion${l.nbPortions>1?"s":""}</td><td>${recette ? (recette.statut==="validee"?"Validée":"Brouillon") : "—"}</td></tr>`;
+    }).join("");
     const html = `<!DOCTYPE html><html lang='fr'><head><meta charset='UTF-8'><title>Menu ${m.nom}</title>
 <style>body{font-family:Arial,sans-serif;padding:24px;max-width:700px;margin:0 auto}
 h1{color:#15803d;border-bottom:2px solid #15803d;padding-bottom:8px}
 table{width:100%;border-collapse:collapse;margin:12px 0}
 th,td{padding:7px 10px;border:1px solid #e5e7eb;font-size:12px}
-thead{background:#15803d;color:#fff}.total{font-weight:bold;color:#15803d;font-size:14px;margin-top:12px;text-align:right}
+thead{background:#15803d;color:#fff}
 </style></head><body>
 <h1>🍽 ${m.nom}</h1>
 <p>${TYPES_MENU.find(t=>t.id===m.type)?.nom||m.type} · ${m.nbPersonnes} personnes · ${m.dateCreation}</p>
-<table><thead><tr><th>Produit</th><th>Quantité</th><th>P.U.</th><th>Total</th></tr></thead>
+<table><thead><tr><th>Recette</th><th>Portions</th><th>Statut recette</th></tr></thead>
 <tbody>${lignesHtml}</tbody></table>
-<p class='total'>Total estimé : ${fmtPrix(total)}</p>
 ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
 </body></html>`;
     const win = window.open("","_blank");
@@ -184,29 +180,54 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
           </span>
         </div>
 
+        {detail.lignes.length === 0 && (
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", fontStyle:"italic", padding:"8px 0" }}>
+            Aucune recette dans ce menu pour l'instant.
+          </div>
+        )}
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:12 }}>
-          {detail.lignes.map((l,i) => (
-            <div key={i} style={{ display:"flex", justifyContent:"space-between",
+          {detail.lignes.map((l,i) => {
+            const recette = recettesParId.get(l.recetteId);
+            return (
+            <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
               padding:"7px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
               <div>
-                <div style={{ fontSize:12, color:"#fff" }}>{l.nom}</div>
-                <div style={{ fontSize:10, color:FC.creamD }}>{l.qte} {l.unite}</div>
-              </div>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:12, fontWeight:700, color:l.totalEstime?FC.or:FC.creamD }}>
-                  {l.totalEstime!=null?fmtPrix(l.totalEstime):"Sur devis"}
+                <div style={{ fontSize:12, color:"#fff" }}>{l.recetteNom}</div>
+                <div style={{ fontSize:10, color:FC.creamD }}>
+                  {l.nbPortions} portion{l.nbPortions>1?"s":""}
+                  {recette && recette.statut!=="validee" && <span style={{ color:"#fb923c" }}> · {recette.statut === "brouillon" ? "brouillon" : recette.statut}</span>}
+                  {!recette && <span style={{ color:"#f87171" }}> · recette introuvable</span>}
                 </div>
               </div>
+              <button onClick={()=>supprimerLigne(i)}
+                style={{ fontSize:10, padding:"3px 9px", borderRadius:7, cursor:"pointer",
+                  background:"rgba(248,113,113,0.1)", border:"none", color:"#f87171", fontFamily:SA }}>
+                ✕
+              </button>
             </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8,
-          borderTop:`1px solid ${FC.line}` }}>
-          <span style={{ fontSize:12, color:FC.creamD }}>Total estimé</span>
-          <span style={{ fontSize:18, fontWeight:700, color:FC.or, fontFamily:FS }}>
-            {fmtPrix(totalMenu(detail))}
-          </span>
+        <div style={{ display:"flex", gap:6, alignItems:"flex-end" }}>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", gap:3 }}>
+            <label style={{ fontSize:10, color:FC.creamD }}>Ajouter une recette</label>
+            <select value={recetteAjout} onChange={e=>setRecetteAjout(e.target.value)} style={{ ...inpStyle, background:"#1a1a2e" }}>
+              <option value="">— Choisir —</option>
+              {recettes.filter(r=>r.statut!=="archivee").map(r=>(
+                <option key={r.id} value={r.id}>{r.nom}{r.statut!=="validee"?" (brouillon)":""}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ width:80, display:"flex", flexDirection:"column", gap:3 }}>
+            <label style={{ fontSize:10, color:FC.creamD }}>Portions</label>
+            <input type="number" min={1} value={portionsAjout} onChange={e=>setPortionsAjout(parseInt(e.target.value)||1)} style={inpStyle}/>
+          </div>
+          <button onClick={ajouterLigne} disabled={!recetteAjout}
+            style={{ background:FC.vert, border:"none", borderRadius:8, padding:"9px 14px",
+              color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA, opacity:recetteAjout?1:0.5 }}>
+            + Ajouter
+          </button>
         </div>
       </div>
 
@@ -220,6 +241,12 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
             {s}
           </button>
         ))}
+        <button onClick={()=>genererListeCourses(detail)}
+          style={{ fontSize:10, padding:"4px 12px", borderRadius:99, cursor:"pointer",
+            background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)",
+            color:"rgba(255,255,255,0.7)", fontFamily:SA }}>
+          📋 Liste de courses
+        </button>
         <button onClick={()=>imprimerMenu(detail)}
           style={{ fontSize:10, padding:"4px 12px", borderRadius:99, cursor:"pointer",
             background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)",
@@ -233,15 +260,20 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{visibles.length} menu{visibles.length>1?"s":""}</div>
-        <button onClick={()=>{setForm(FORM_INIT);setModal("creer");}}
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${visibles.length} menu${visibles.length>1?"s":""}`}</div>
+        <button onClick={()=>{setForm(FORM_INIT);setErreur(null);setModal("creer");}}
           style={{ background:FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
             color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
           + Créer un menu
         </button>
       </div>
 
-      {/* Filtres type */}
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
+
       <div style={{ display:"flex", gap:4, overflowX:"auto", paddingBottom:2 }}>
         <button onClick={()=>setFiltre("tous")}
           style={{ padding:"4px 10px", borderRadius:99, border:"none", cursor:"pointer",
@@ -259,7 +291,7 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
         ))}
       </div>
 
-      {menus.length===0 && (
+      {!chargement && menus.length===0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           Aucun menu créé. Commencez par "Créer un menu".
         </div>
@@ -278,17 +310,11 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
           </div>
           <div style={{ fontSize:11, color:FC.creamD }}>
             {TYPES_MENU.find(t=>t.id===m.type)?.ico} {TYPES_MENU.find(t=>t.id===m.type)?.nom}
-            {" · "}{m.nbPersonnes} personnes · {m.lignes.length} produits
+            {" · "}{m.nbPersonnes} personnes · {m.lignes.length} recette{m.lignes.length>1?"s":""}
           </div>
-          {totalMenu(m) > 0 && (
-            <div style={{ fontSize:13, fontWeight:700, color:FC.or, marginTop:4 }}>
-              {fmtPrix(totalMenu(m))}
-            </div>
-          )}
         </div>
       ))}
 
-      {/* Modal création */}
       {modal==="creer" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:1000,
           display:"flex", flexDirection:"column", overflowY:"auto", padding:20 }}>
@@ -329,8 +355,13 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
               </div>
               <div style={{ background:"rgba(21,128,61,0.08)", border:`1px solid ${FC.line}`,
                 borderRadius:8, padding:"10px 12px", fontSize:11, color:FC.creamD }}>
-                💡 Les produits seront suggérés automatiquement selon le type et le nombre de personnes.
+                💡 Ajoutez les recettes une fois le menu créé, depuis sa fiche.
               </div>
+              {erreur && (
+                <div style={{ fontSize:11, color:"#f87171", background:"rgba(248,113,113,0.1)", borderRadius:8, padding:"8px 12px" }}>
+                  ⚠️ {erreur}
+                </div>
+              )}
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={creerMenu}
                   style={{ flex:1, background:FC.vert, border:"none", borderRadius:10,

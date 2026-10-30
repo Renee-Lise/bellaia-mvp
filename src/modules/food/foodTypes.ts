@@ -305,14 +305,15 @@ export type TypeMenu =
 
 export type StatutMenu = "brouillon" | "valide" | "archive";
 
+// migration 0054 — une ligne de menu référence une vraie recette
+// (food_recettes), plus le nombre de portions prévues pour cette
+// recette dans ce menu (sert de base au calcul de production /
+// liste de courses agrégée).
 export interface LigneMenu {
-  produitId: string;
-  nom: string;
-  categorie: string;
-  qte: number;
-  unite: string;
-  prixUnitaire: number | null;
-  totalEstime: number | null;
+  recetteId: string;
+  recetteNom: string;
+  nbPortions: number;
+  notes?: string;
 }
 
 export interface Menu {
@@ -321,9 +322,6 @@ export interface Menu {
   type: TypeMenu;
   nbPersonnes: number;
   lignes: LigneMenu[];
-  coutEstime?: number;
-  prixEstime?: number;
-  marge?: number;
   notes?: string;
   statut: StatutMenu;
   dateCreation: string;
