@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0063_food_haccp_etiquettes.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : finir Bella'Food, lot 3/3 (dernier). FoodHACCP.tsx (3
 --   concepts : relevés de température, fiches de nettoyage,
