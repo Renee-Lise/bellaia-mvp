@@ -3,9 +3,11 @@
 // Génération, formats, impression HTML
 // src/modules/food/FoodEtiquettes.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState } from "react";
-import { FOOD_RECETTES_INIT, FOOD_COLORS as FC } from "./foodConsts";
-import type { Etiquette, FormatEtiquette, MentionEtiquette } from "./foodTypes";
+import React, { useState, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
+import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getEtiquettesFoodAvecDiagnostic, creerEtiquetteFood } from "./etiquettesApi";
+import type { Etiquette, FormatEtiquette, MentionEtiquette, Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const inp: React.CSSProperties = {
@@ -92,12 +94,26 @@ const FORM0: Partial<Etiquette> = {
 
 export default function FoodEtiquettes() {
   const [etiquettes, setEtiquettes] = useState<Etiquette[]>([]);
+  const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal,      setModal]      = useState(false);
   const [form,       setForm]       = useState<Partial<Etiquette>>(FORM0);
   const [previewFmt, setPreviewFmt] = useState<FormatEtiquette>("moyen");
 
+  const charger = async () => {
+    setChargement(true);
+    const [{ etiquettes: e, diagnostic: d }, { recettes: r }] = await Promise.all([
+      getEtiquettesFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(),
+    ]);
+    setEtiquettes(e); setRecettes(r);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
+
   const chargerDepuisRecette = (id: string) => {
-    const r = FOOD_RECETTES_INIT.find(x => x.id === id);
+    const r = recettes.find(x => x.id === id);
     if (!r) return;
     setForm(f => ({
       ...f,
@@ -108,10 +124,9 @@ export default function FoodEtiquettes() {
     }));
   };
 
-  const creer = () => {
+  const creer = async () => {
     if (!form.nomProduit?.trim()) return;
-    const e: Etiquette = {
-      id:                   "etiq_" + Date.now().toString().slice(-5),
+    const e: Partial<Etiquette> = {
       nomProduit:           form.nomProduit!,
       dateFabrication:      form.dateFabrication || new Date().toISOString().split("T")[0],
       dlc:                  form.dlc,
@@ -126,12 +141,14 @@ export default function FoodEtiquettes() {
       mention:              form.mention || "client",
       format:               form.format || "moyen",
     };
-    setEtiquettes(es => [e, ...es]);
+    const res = await creerEtiquetteFood(e);
+    if (!res.ok || !res.etiquette) { alert(res.error || "Échec de l'enregistrement — réessayez."); return; }
     setModal(false);
     setForm(FORM0);
+    await charger();
     // Ouvrir directement dans un nouvel onglet pour impression
-    const fmt = FORMATS.find(f => f.id === e.format)!;
-    const html = genEtiquetteHTML(e, fmt);
+    const fmt = FORMATS.find(f => f.id === res.etiquette!.format)!;
+    const html = genEtiquetteHTML(res.etiquette, fmt);
     const win = window.open("","_blank");
     if (win) { win.document.write(html); win.document.close(); }
   };
@@ -157,13 +174,19 @@ export default function FoodEtiquettes() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{etiquettes.length} étiquette{etiquettes.length>1?"s":""}</div>
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${etiquettes.length} étiquette${etiquettes.length>1?"s":""}`}</div>
         <button onClick={() => { setForm(FORM0); setModal(true); }}
           style={{ background:FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
             color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
           + Nouvelle étiquette
         </button>
       </div>
+
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
 
       {/* Formats disponibles */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
@@ -179,7 +202,7 @@ export default function FoodEtiquettes() {
         ))}
       </div>
 
-      {etiquettes.length === 0 && (
+      {!chargement && etiquettes.length === 0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"24px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           Aucune étiquette générée. Créez la première.
         </div>
@@ -228,7 +251,7 @@ export default function FoodEtiquettes() {
                 <select onChange={e => chargerDepuisRecette(e.target.value)}
                   style={{ ...inp, background:"#1a1a2e" }}>
                   <option value="">— Choisir —</option>
-                  {FOOD_RECETTES_INIT.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                  {recettes.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
                 </select>
               </div>
               <Field label="Nom du produit *"       k="nomProduit"            ph="Layer Cake chocolat"/>

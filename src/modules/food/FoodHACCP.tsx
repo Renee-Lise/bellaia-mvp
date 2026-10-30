@@ -3,8 +3,9 @@
 // Températures, nettoyage, traçabilité, conformité
 // src/modules/food/FoodHACCP.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FOOD_COLORS as FC, HACCP_SEUILS } from "./foodConsts";
+import { getRelevesHaccpAvecDiagnostic, creerReleveHaccp, getFichesNettoyageAvecDiagnostic, creerFicheNettoyage, getTracabilitesAvecDiagnostic, creerTracabilite } from "./haccpApi";
 import type { RelevéTemperature, FicheNettoyage, TraçabiliteProduit } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
@@ -37,6 +38,17 @@ export default function FoodHACCP() {
   const [releves,      setReleves]      = useState<RelevéTemperature[]>([]);
   const [fiches,       setFiches]       = useState<FicheNettoyage[]>([]);
   const [tracabilites, setTracabilites] = useState<TraçabiliteProduit[]>([]);
+  const [chargement, setChargement] = useState(true);
+
+  const charger = async () => {
+    setChargement(true);
+    const [{ releves: r }, { fiches: f }, { tracabilites: t }] = await Promise.all([
+      getRelevesHaccpAvecDiagnostic(), getFichesNettoyageAvecDiagnostic(), getTracabilitesAvecDiagnostic(),
+    ]);
+    setReleves(r); setFiches(f); setTracabilites(t);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
 
   // Formulaire températures
   const [formTemp, setFormTemp] = useState({
@@ -51,23 +63,28 @@ export default function FoodHACCP() {
     zone: ZONES_NETTOYAGE[0], produitUtilise: "", operateur: "", observations: "",
   });
 
-  const ajouterReleve = () => {
+  // Formulaire traçabilité (saisie manuelle, en plus du lien automatique prévu depuis Production)
+  const [formTrac, setFormTrac] = useState({
+    recetteNom: "", dateProduction: new Date().toISOString().split("T")[0],
+    operateur: "", dlc: "", observations: "",
+  });
+
+  const ajouterReleve = async () => {
     const conforme = isConforme(formTemp.zone, formTemp.temperature);
-    const r: RelevéTemperature = {
-      id: "rlv_" + Date.now().toString().slice(-5),
+    const res = await creerReleveHaccp({
       zone:        formTemp.zone,
       temperature: formTemp.temperature,
       dateHeure:   new Date().toISOString(),
       operateur:   formTemp.operateur || "—",
       conforme,
       action:      conforme ? undefined : (formTemp.action || "À corriger"),
-    };
-    setReleves(rs => [r, ...rs]);
+    });
+    if (!res.ok) { alert("Échec de l'enregistrement — réessayez."); return; }
+    await charger();
   };
 
-  const ajouterFiche = () => {
-    const f: FicheNettoyage = {
-      id:             "nett_" + Date.now().toString().slice(-5),
+  const ajouterFiche = async () => {
+    const res = await creerFicheNettoyage({
       zone:           formNett.zone,
       date:           new Date().toISOString().split("T")[0],
       heure:          new Date().toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" }),
@@ -75,9 +92,25 @@ export default function FoodHACCP() {
       produitUtilise: formNett.produitUtilise || undefined,
       valide:         true,
       observations:   formNett.observations || undefined,
-    };
-    setFiches(fs => [f, ...fs]);
+    });
+    if (!res.ok) { alert("Échec de l'enregistrement — réessayez."); return; }
     setFormNett({ zone:ZONES_NETTOYAGE[0], produitUtilise:"", operateur:"", observations:"" });
+    await charger();
+  };
+
+  const ajouterTracabilite = async () => {
+    if (!formTrac.recetteNom.trim()) return;
+    const res = await creerTracabilite({
+      recetteNom: formTrac.recetteNom,
+      dateProduction: formTrac.dateProduction,
+      operateur: formTrac.operateur || "—",
+      dlc: formTrac.dlc || undefined,
+      observations: formTrac.observations || undefined,
+      lotsIngredients: [],
+    });
+    if (!res.ok) { alert("Échec de l'enregistrement — réessayez."); return; }
+    setFormTrac({ recetteNom:"", dateProduction:new Date().toISOString().split("T")[0], operateur:"", dlc:"", observations:"" });
+    await charger();
   };
 
   const imprimerBilanHACCP = () => {
@@ -274,15 +307,51 @@ ${nonConformes.length ? `<h2 style='color:#dc2626'>⚠ Points non conformes (${n
       {onglet==="tracabilite" && (
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
           <div style={{ background:FC.card, border:`1px solid ${FC.line}`, borderRadius:12, padding:14 }}>
-            <div style={{ fontSize:11, color:FC.creamD, lineHeight:1.6 }}>
-              La traçabilité est enregistrée automatiquement lors de la création d'une production dans l'onglet Production. Elle liste les lots d'ingrédients utilisés, l'opérateur, les températures et la DLC.
+            <div style={{ fontSize:11, fontWeight:700, color:FC.or, marginBottom:10 }}>NOUVELLE FICHE</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:FC.creamD }}>Recette / produit</label>
+                <input value={formTrac.recetteNom} onChange={e => setFormTrac(f=>({...f,recetteNom:e.target.value}))} style={inp}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:FC.creamD }}>Date de production</label>
+                  <input type="date" value={formTrac.dateProduction} onChange={e => setFormTrac(f=>({...f,dateProduction:e.target.value}))} style={inp}/>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:FC.creamD }}>Opérateur</label>
+                  <input value={formTrac.operateur} onChange={e => setFormTrac(f=>({...f,operateur:e.target.value}))} style={inp}/>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  <label style={{ fontSize:10, color:FC.creamD }}>DLC</label>
+                  <input type="date" value={formTrac.dlc} onChange={e => setFormTrac(f=>({...f,dlc:e.target.value}))} style={inp}/>
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:FC.creamD }}>Observations</label>
+                <input value={formTrac.observations} onChange={e => setFormTrac(f=>({...f,observations:e.target.value}))} style={inp}/>
+              </div>
+              <button onClick={ajouterTracabilite}
+                style={{ background:FC.vert, border:"none", borderRadius:9, padding:"9px",
+                  color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
+                ✅ Enregistrer la fiche
+              </button>
             </div>
           </div>
-          {tracabilites.length === 0 && (
+          {tracabilites.length === 0 ? (
             <div style={{ textAlign:"center", padding:"20px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
-              Aucune fiche de traçabilité. Créez une production pour en générer automatiquement.
+              Aucune fiche de traçabilité.
             </div>
-          )}
+          ) : tracabilites.slice(0,10).map(t => (
+            <div key={t.id} style={{ background:FC.card, border:`1px solid ${FC.line}`, borderRadius:10, padding:"10px 13px" }}>
+              <div style={{ fontSize:12, color:"#fff", fontWeight:600 }}>{t.recetteNom}</div>
+              <div style={{ fontSize:10, color:FC.creamD }}>
+                {new Date(t.dateProduction).toLocaleDateString("fr-FR")} · {t.operateur}
+                {t.dlc ? ` · DLC : ${new Date(t.dlc).toLocaleDateString("fr-FR")}` : ""}
+              </div>
+              {t.observations && <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", marginTop:3 }}>{t.observations}</div>}
+            </div>
+          ))}
         </div>
       )}
     </div>
