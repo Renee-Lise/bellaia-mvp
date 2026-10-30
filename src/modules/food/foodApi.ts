@@ -220,6 +220,32 @@ export const majStatutCommande = (id:string,statut:string) => sbFoodPatch("food_
 export const getStocksFood = () => sbFoodGet<StockItem>("food_stocks","order=nom.asc");
 export const majStock      = (id:string,qteRestante:number) => sbFoodPatch("food_stocks",id,{qte_restante:qteRestante});
 
+// stock_global est la table réellement utilisée par l'écran Stocks
+// (filtrée business_unit=FOOD, actif=true) — distincte de l'ancienne
+// food_stocks ci-dessus, qui n'est plus lue par aucun écran. Exposée
+// ici pour que d'autres zones (ex. Menus) lisent les mêmes données
+// que la page Stocks, sans dupliquer la requête.
+function mapStockGlobalFromDb(r: any): StockItem {
+  return {
+    id: r.id,
+    nom: r.nom,
+    categorie: r.categorie || "sec",
+    unite: r.unite,
+    qteRestante: r.stock_actuel ?? 0,
+    seuilAlerte: r.stock_min ?? 0,
+    seuilCritique: r.seuil_critique ?? undefined,
+    prixAchat: r.prix_achat ?? undefined,
+    fournisseur: r.fournisseur_nom ?? undefined,
+    dlc: r.dlc ?? undefined,
+    ddm: r.ddm ?? undefined,
+    notes: r.notes ?? undefined,
+  };
+}
+export async function getStockGlobalFood(): Promise<StockItem[]> {
+  const rows = await sbFoodGet<any>("stock_global", "business_unit=eq.FOOD&actif=eq.true&order=nom.asc");
+  return rows.map(mapStockGlobalFromDb);
+}
+
 // ── API Matériel ───────────────────────────────────────────
 export const getMaterielFood = () => sbFoodGet<Materiel>("food_materiel","order=nom.asc");
 

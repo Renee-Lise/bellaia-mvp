@@ -6,9 +6,11 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useState } from "react";
 import { FOOD_COLORS as FC } from "./foodConsts";
-import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getRecettesFoodAvecDiagnostic, getStockGlobalFood } from "./foodApi";
 import { getMenusFoodAvecDiagnostic, creerMenuFood, majMenuFood, agregerIngredients } from "./menusApi";
-import type { Menu, LigneMenu, TypeMenu, StatutMenu, Recette } from "./foodTypes";
+import { creerAchatFood, construireLignesAchatDepuisManque } from "./achatsApi";
+import { calculerTotauxAchat } from "./foodUtils";
+import type { Menu, LigneMenu, TypeMenu, StatutMenu, Recette, StockItem } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const FS = "Georgia, 'Times New Roman', serif";
@@ -46,6 +48,7 @@ const inpStyle: React.CSSProperties = {
 export default function FoodMenus() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [stocks, setStocks] = useState<StockItem[]>([]);
   const [chargement, setChargement] = useState(true);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal, setModal] = useState<"creer"|null>(null);
@@ -62,11 +65,12 @@ export default function FoodMenus() {
 
   const charger = async () => {
     setChargement(true);
-    const [{ menus: m, diagnostic: dMenus }, { recettes: r, diagnostic: dRecettes }] = await Promise.all([
-      getMenusFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(),
+    const [{ menus: m, diagnostic: dMenus }, { recettes: r, diagnostic: dRecettes }, s] = await Promise.all([
+      getMenusFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(), getStockGlobalFood(),
     ]);
     setMenus(m);
     setRecettes(r);
+    setStocks(s);
     setDiagnostic(dMenus || dRecettes);
     setChargement(false);
   };
@@ -129,6 +133,27 @@ export default function FoodMenus() {
       () => alert("Liste de courses copiée — collez-la où vous voulez."),
       () => alert("Impossible de copier automatiquement — recopiez la liste manuellement.")
     );
+  };
+
+  const creerAchatDepuisManque = async (m: Menu) => {
+    const agreges = agregerIngredients(m.lignes, recettesParId);
+    const lignesAchat = construireLignesAchatDepuisManque(agreges, stocks);
+    if (lignesAchat.length === 0) {
+      alert("Rien à acheter : tout est déjà en stock, ou les quantités de ce menu ne sont pas encore chiffrées.");
+      return;
+    }
+    const tots = calculerTotauxAchat(lignesAchat);
+    const res = await creerAchatFood({
+      reference: "ACH-" + new Date().getFullYear() + "-" + Date.now().toString().slice(-4),
+      fournisseurNom: "",
+      date: new Date().toISOString().split("T")[0],
+      lignes: lignesAchat,
+      statut: "brouillon",
+      observations: `Généré depuis le menu "${m.nom}" — quantités manquantes par rapport au stock.`,
+      ...tots,
+    });
+    if (!res.ok) { alert("Échec de la création de l'achat — réessayez."); return; }
+    alert(`Brouillon d'achat créé (${lignesAchat.length} ligne${lignesAchat.length>1?"s":""}) — retrouvez-le dans l'onglet Achats pour choisir le fournisseur et ajuster les prix.`);
   };
 
   const imprimerMenu = (m: Menu) => {
@@ -246,6 +271,12 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
             background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)",
             color:"rgba(255,255,255,0.7)", fontFamily:SA }}>
           📋 Liste de courses
+        </button>
+        <button onClick={()=>creerAchatDepuisManque(detail)}
+          style={{ fontSize:10, padding:"4px 12px", borderRadius:99, cursor:"pointer",
+            background:"rgba(201,168,76,0.12)", border:"1px solid rgba(201,168,76,0.3)",
+            color:FC.or, fontFamily:SA }}>
+          🛒 Créer un achat (ce qui manque)
         </button>
         <button onClick={()=>imprimerMenu(detail)}
           style={{ fontSize:10, padding:"4px 12px", borderRadius:99, cursor:"pointer",

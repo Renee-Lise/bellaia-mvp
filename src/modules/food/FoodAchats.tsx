@@ -1,11 +1,12 @@
 // ═══════════════════════════════════════════════════════════
-// FoodAchats — Module Achats Bella'Food Partie III
-// Création, édition, bon de commande, PDF, WhatsApp
+// FoodAchats — Module Achats Bella'Food, branché sur food_achats
+// (migration 0055). Création, édition, bon de commande, PDF, WhatsApp.
 // src/modules/food/FoodAchats.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_COLORS as FC, FOOD_STOCK_INIT, FOOD_FOURNISSEURS_INIT } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC, FOOD_FOURNISSEURS_INIT } from "./foodConsts";
 import { construireLigneAchat, calculerTotauxAchat, genBonCommandeHTML, fmtPrix } from "./foodUtils";
+import { getAchatsFoodAvecDiagnostic, creerAchatFood, majAchatFood } from "./achatsApi";
 import type { Achat, LigneAchat, StatutAchat } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
@@ -27,12 +28,24 @@ const TVALIST = [0, 5.5, 10, 20];
 
 export default function FoodAchats() {
   const [achats,  setAchats]  = useState<Achat[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal,   setModal]   = useState<"creer"|"detail"|null>(null);
   const [detail,  setDetail]  = useState<Achat|null>(null);
   const [filtre,  setFiltre]  = useState<StatutAchat|"tous">("tous");
   const [form,    setForm]    = useState({ fournisseurNom:"", date:new Date().toISOString().split("T")[0], facture:"", categorie:"", observations:"" });
   const [lignes,  setLignes]  = useState<LigneAchat[]>([]);
   const [nouvLigne, setNouvLigne] = useState({ produit:"", stockItemId:"", quantite:1, prixUnitaire:0, tva:5.5, unite:"kg" });
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const charger = async () => {
+    setChargement(true);
+    const { achats: a, diagnostic: d } = await getAchatsFoodAvecDiagnostic();
+    setAchats(a);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
 
   const visibles = achats.filter(a => filtre === "tous" || a.statut === filtre);
   const { totalHT, totalTTC } = useMemo(() => calculerTotauxAchat(lignes), [lignes]);
@@ -46,11 +59,10 @@ export default function FoodAchats() {
     setNouvLigne({ produit:"", stockItemId:"", quantite:1, prixUnitaire:0, tva:5.5, unite:"kg" });
   };
 
-  const creerAchat = () => {
-    if (!form.fournisseurNom.trim() || lignes.length === 0) return;
+  const creerAchat = async () => {
+    if (!form.fournisseurNom.trim() || lignes.length === 0) { setErreur("Fournisseur et au moins une ligne sont obligatoires."); return; }
     const tots = calculerTotauxAchat(lignes);
-    const a: Achat = {
-      id: "ach_" + Date.now().toString().slice(-5),
+    const a: Partial<Achat> = {
       reference: "ACH-" + new Date().getFullYear() + "-" + Date.now().toString().slice(-4),
       fournisseurNom: form.fournisseurNom,
       date: form.date,
@@ -59,25 +71,36 @@ export default function FoodAchats() {
       observations: form.observations || undefined,
       lignes, statut:"brouillon", ...tots,
     };
-    setAchats(as => [a, ...as]);
-    setModal(null); setLignes([]); setForm({ fournisseurNom:"", date:new Date().toISOString().split("T")[0], facture:"", categorie:"", observations:"" });
-    setDetail(a);
+    const res = await creerAchatFood(a);
+    if (!res.ok || !res.achat) { setErreur(res.error || "Échec de l'enregistrement — réessayez."); return; }
+    setModal(null); setLignes([]); setErreur(null);
+    setForm({ fournisseurNom:"", date:new Date().toISOString().split("T")[0], facture:"", categorie:"", observations:"" });
+    await charger();
+    setDetail(res.achat);
   };
 
-  const changerStatut = (id: string, statut: StatutAchat) => {
+  const changerStatut = async (id: string, statut: StatutAchat) => {
+    const res = await majAchatFood(id, { statut });
+    if (!res.ok) { alert("Échec de l'enregistrement du statut."); return; }
     setAchats(as => as.map(a => a.id === id ? { ...a, statut } : a));
     if (detail?.id === id) setDetail(d => d ? { ...d, statut } : null);
   };
 
-  const dupliquer = (a: Achat) => {
-    const nv: Achat = {
-      ...a,
-      id: "ach_" + Date.now().toString().slice(-5),
+  const dupliquer = async (a: Achat) => {
+    const nv: Partial<Achat> = {
       reference: "ACH-" + new Date().getFullYear() + "-" + Date.now().toString().slice(-4),
+      fournisseurNom: a.fournisseurNom,
+      lignes: a.lignes,
+      totalHT: a.totalHT,
+      totalTTC: a.totalTTC,
+      categorie: a.categorie,
+      observations: a.observations,
       date: new Date().toISOString().split("T")[0],
       statut: "brouillon",
     };
-    setAchats(as => [nv, ...as]);
+    const res = await creerAchatFood(nv);
+    if (!res.ok) { alert("Échec de la duplication."); return; }
+    await charger();
   };
 
   const imprimer = (a: Achat) => {
@@ -170,7 +193,7 @@ export default function FoodAchats() {
   if (modal === "creer") return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-        <button onClick={() => { setModal(null); setLignes([]); }}
+        <button onClick={() => { setModal(null); setLignes([]); setErreur(null); }}
           style={{ background:"none", border:`1px solid ${FC.line}`, borderRadius:8,
             padding:"4px 12px", color:FC.creamD, cursor:"pointer", fontSize:11, fontFamily:SA }}>‹ Annuler</button>
         <div style={{ fontSize:14, fontWeight:700, color:"#fff" }}>Nouvel achat</div>
@@ -238,6 +261,11 @@ export default function FoodAchats() {
           </div>
         )}
       </div>
+      {erreur && (
+        <div style={{ fontSize:11, color:"#f87171", background:"rgba(248,113,113,0.1)", borderRadius:8, padding:"8px 12px" }}>
+          ⚠️ {erreur}
+        </div>
+      )}
       <button onClick={creerAchat}
         style={{ background:FC.vert, border:"none", borderRadius:10, padding:"11px",
           color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:SA }}>
@@ -249,13 +277,18 @@ export default function FoodAchats() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{visibles.length} achat{visibles.length>1?"s":""}</div>
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${visibles.length} achat${visibles.length>1?"s":""}`}</div>
         <button onClick={() => setModal("creer")}
           style={{ background:FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
             color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
           + Nouvel achat
         </button>
       </div>
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
       <div style={{ display:"flex", gap:4, overflowX:"auto" }}>
         {(["tous","brouillon","envoye","confirme","recu","annule"] as const).map(s => (
           <button key={s} onClick={() => setFiltre(s as any)}
@@ -267,9 +300,9 @@ export default function FoodAchats() {
           </button>
         ))}
       </div>
-      {achats.length === 0 && (
+      {!chargement && achats.length === 0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
-          Aucun achat enregistré. Créez le premier achat.
+          Aucun achat enregistré. Créez le premier achat, ou générez-en un depuis un menu.
         </div>
       )}
       {visibles.map(a => (
@@ -277,13 +310,14 @@ export default function FoodAchats() {
           style={{ background:FC.card, border:`1px solid ${FC.line}`, borderRadius:12, padding:"13px 14px", cursor:"pointer" }}>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
             <div>
-              <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{a.fournisseurNom}</div>
+              <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{a.fournisseurNom || "(fournisseur à définir)"}</div>
               <div style={{ fontSize:10, color:FC.creamD }}>{a.reference} · {new Date(a.date).toLocaleDateString("fr-FR")}</div>
             </div>
             <span style={{ fontSize:9, background:STATUT_COL[a.statut], color:STATUT_TXT[a.statut],
               borderRadius:4, padding:"2px 7px", fontWeight:700 }}>{a.statut}</span>
           </div>
           <div style={{ fontSize:13, fontWeight:700, color:FC.or }}>{fmtPrix(a.totalHT)} HT</div>
+          {a.observations && <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", fontStyle:"italic", marginTop:3 }}>{a.observations}</div>}
         </div>
       ))}
     </div>
