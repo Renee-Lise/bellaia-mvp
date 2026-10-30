@@ -1,12 +1,15 @@
 // ═══════════════════════════════════════════════════════════
-// FoodProduction — Module Production Bella'Food Partie III
-// Statuts, fiches labo/cuisson/conditionnement, lots
+// FoodProduction — Module Production Bella'Food, branché sur
+// food_productions (migration 0058), food_recettes et food_materiel.
+// Statuts, fiches labo/cuisson/conditionnement, lots.
 // src/modules/food/FoodProduction.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState } from "react";
-import { FOOD_RECETTES_INIT, FOOD_MATERIEL_INIT, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useEffect, useState } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { genererFicheHTML, fmtDuree } from "./foodUtils";
-import type { Production, StatutProduction } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic, getMaterielFood } from "./foodApi";
+import { getProductionsFoodAvecDiagnostic, creerProductionFood, majStatutProduction } from "./productionApi";
+import type { Production, StatutProduction, Recette, Materiel } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 
@@ -29,19 +32,36 @@ const TYPE_FICHE = [
 ] as const;
 
 export default function FoodProduction() {
-  const [productions,setProductions]=useState<Production[]>([]);
+  const [productions, setProductions] = useState<Production[]>([]);
+  const [recettes,    setRecettes]     = useState<Recette[]>([]);
+  const [materiel,    setMateriel]     = useState<Materiel[]>([]);
+  const [chargement,  setChargement]   = useState(true);
+  const [diagnostic,  setDiagnostic]   = useState<string | null>(null);
   const [modal,      setModal]      =useState<"creer"|null>(null);
   const [detail,     setDetail]     =useState<Production|null>(null);
+  const [erreur,     setErreur]     =useState<string | null>(null);
   const [form,       setForm]       =useState({
     recetteId:"", recetteNom:"", date:new Date().toISOString().split("T")[0],
     operateur:"", quantite:1, commandeId:"", observations:"",
   });
 
-  const creer = () => {
-    if (!form.recetteNom.trim()) return;
-    const recette = FOOD_RECETTES_INIT.find(r => r.id === form.recetteId);
-    const prod: Production = {
-      id:         "prod_" + Date.now().toString().slice(-5),
+  const charger = async () => {
+    setChargement(true);
+    const [{ productions: p, diagnostic: d }, { recettes: r, diagnostic: dr }, m] = await Promise.all([
+      getProductionsFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(), getMaterielFood(),
+    ]);
+    setProductions(p);
+    setRecettes(r);
+    setMateriel(m);
+    setDiagnostic(d || dr);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
+
+  const creer = async () => {
+    if (!form.recetteNom.trim()) { setErreur("Le nom de la recette est obligatoire."); return; }
+    const recette = recettes.find(r => r.id === form.recetteId);
+    const prod: Partial<Production> = {
       numero:     "PROD-" + new Date().getFullYear() + "-" + Date.now().toString().slice(-4),
       recetteId:  form.recetteId || undefined,
       recetteNom: form.recetteNom,
@@ -49,34 +69,38 @@ export default function FoodProduction() {
       operateur:  form.operateur || undefined,
       quantite:   form.quantite,
       dureeMin:   recette ? (recette.tempsPrepa + recette.tempsCuisson + (recette.tempsRepos||0)) : undefined,
-      materiel:   FOOD_MATERIEL_INIT.filter(m => m.qteDispo > 0).slice(0,4).map(m => m.nom),
-      ingredients: recette ? recette.ingredients.map(i => ({
+      materiel:   materiel.filter(mt => mt.qteDispo > 0).slice(0,4).map(mt => mt.nom),
+      ingredients: recette && recette.nbParts > 0 ? recette.ingredients.map(i => ({
         ingredientId:i.id, nom:i.nom,
-        quantite:Math.round(i.quantite * form.quantite / recette.nbParts * 100)/100,
+        quantite: i.quantite != null ? Math.round(i.quantite * form.quantite / recette.nbParts * 100)/100 : 0,
         unite:i.unite,
       })) : [],
       statut: "prevue",
       observations: form.observations || undefined,
       commandeId: form.commandeId || undefined,
     };
-    setProductions(ps => [prod, ...ps]);
-    setModal(null);
+    const res = await creerProductionFood(prod);
+    if (!res.ok || !res.production) { setErreur(res.error || "Échec de l'enregistrement — réessayez."); return; }
+    setModal(null); setErreur(null);
     setForm({ recetteId:"", recetteNom:"", date:new Date().toISOString().split("T")[0], operateur:"", quantite:1, commandeId:"", observations:"" });
-    setDetail(prod);
+    await charger();
+    setDetail(res.production);
   };
 
-  const changerStatut = (id: string, statut: StatutProduction) => {
+  const changerStatut = async (id: string, statut: StatutProduction) => {
+    const res = await majStatutProduction(id, statut);
+    if (!res.ok) { alert("Échec de l'enregistrement du statut."); return; }
     setProductions(ps => ps.map(p => p.id === id ? { ...p, statut } : p));
     if (detail?.id === id) setDetail(d => d ? { ...d, statut } : null);
   };
 
   const ouvrirFiche = (p: Production, type: "cuisine"|"laboratoire"|"haccp"|"impression") => {
-    const recette = FOOD_RECETTES_INIT.find(r => r.id === p.recetteId) || {
+    const recette = recettes.find(r => r.id === p.recetteId) || {
       nom:p.recetteNom, nbParts:p.quantite, tempsPrepa:0, tempsCuisson:0,
       difficulte:3 as const, ingredients:p.ingredients.map(i=>({...i,id:i.ingredientId})),
       etapes:[], statut:"validee" as const, categorie:"patisserie" as const,
     };
-    const html = genererFicheHTML(recette, type);
+    const html = genererFicheHTML(recette as any, type);
     const win = window.open("","_blank");
     if (!win) return;
     win.document.write(html); win.document.close(); win.focus();
@@ -163,7 +187,7 @@ export default function FoodProduction() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{productions.length} production{productions.length>1?"s":""}</div>
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${productions.length} production${productions.length>1?"s":""}`}</div>
         <button onClick={() => setModal("creer")}
           style={{ background:FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
             color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
@@ -171,7 +195,13 @@ export default function FoodProduction() {
         </button>
       </div>
 
-      {productions.length === 0 && (
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
+
+      {!chargement && productions.length === 0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           Aucune production enregistrée.
         </div>
@@ -200,7 +230,7 @@ export default function FoodProduction() {
             borderRadius:16, padding:20, maxWidth:480, width:"100%" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
               <div style={{ fontSize:14, fontWeight:700, color:"#fff" }}>Nouvelle production</div>
-              <button onClick={() => setModal(null)}
+              <button onClick={() => { setModal(null); setErreur(null); }}
                 style={{ background:"none", border:"none", color:"rgba(255,255,255,0.5)", cursor:"pointer", fontSize:20 }}>✕</button>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
@@ -208,13 +238,17 @@ export default function FoodProduction() {
                 <label style={{ fontSize:10, color:FC.creamD }}>Recette</label>
                 <select value={form.recetteId}
                   onChange={e => {
-                    const r = FOOD_RECETTES_INIT.find(x => x.id === e.target.value);
+                    const r = recettes.find(x => x.id === e.target.value);
                     setForm(f => ({ ...f, recetteId:e.target.value, recetteNom:r?.nom||"" }));
                   }}
                   style={{ ...inp, background:"#1a1a2e" }}>
                   <option value="">— Choisir une recette —</option>
-                  {FOOD_RECETTES_INIT.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                  {recettes.filter(r => r.statut !== "archivee").map(r => <option key={r.id} value={r.id}>{r.nom}{r.statut!=="validee"?" (brouillon)":""}</option>)}
                 </select>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <label style={{ fontSize:10, color:FC.creamD }}>Ou nom libre (sans recette liée)</label>
+                <input value={form.recetteNom} onChange={e => setForm(f=>({...f,recetteNom:e.target.value, recetteId: form.recetteId ? f.recetteId : ""}))} style={inp}/>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
@@ -239,13 +273,18 @@ export default function FoodProduction() {
                 <textarea rows={2} value={form.observations} onChange={e => setForm(f=>({...f,observations:e.target.value}))}
                   style={{ ...inp, resize:"vertical" }}/>
               </div>
+              {erreur && (
+                <div style={{ fontSize:11, color:"#f87171", background:"rgba(248,113,113,0.1)", borderRadius:8, padding:"8px 12px" }}>
+                  ⚠️ {erreur}
+                </div>
+              )}
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={creer}
                   style={{ flex:1, background:FC.vert, border:"none", borderRadius:10, padding:"10px",
                     color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
                   Créer la production
                 </button>
-                <button onClick={() => setModal(null)}
+                <button onClick={() => { setModal(null); setErreur(null); }}
                   style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none", borderRadius:10,
                     padding:"10px", color:"rgba(255,255,255,0.5)", fontSize:12, cursor:"pointer", fontFamily:SA }}>
                   Annuler
