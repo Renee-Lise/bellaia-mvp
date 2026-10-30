@@ -1,6 +1,7 @@
-import React, { useState, lazy, Suspense } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import { FOOD_COLORS as FC, FOOD_CATALOGUE } from "./foodConsts";
 import { fmtPrix } from "./foodUtils";
+import { getCommandesFoodAvecDiagnostic, creerCommandeFood, majCommandeFood, majStatutCommandeFood } from "./commandesApi";
 import type { CommandeFood, StatutCommande } from "./foodTypes";
 
 // Import dynamique du configurateur core (pas de dépendance circulaire)
@@ -26,53 +27,66 @@ const FORM_INIT: Partial<CommandeFood> = {
 
 export default function FoodCommandes() {
   const [commandes, setCommandes] = useState<CommandeFood[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal,     setModal]     = useState<"form"|"detail"|"configurateur"|null>(null);
   const [form,      setForm]      = useState<Partial<CommandeFood>>(FORM_INIT);
   const [detail,    setDetail]    = useState<CommandeFood|null>(null);
   const [filtre,    setFiltre]    = useState<StatutCommande|"tous">("tous");
   // Produit sélectionné pour le configurateur
   const [produitConfig, setProduitConfig] = useState<any>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const charger = async () => {
+    setChargement(true);
+    const { commandes: c, diagnostic: d } = await getCommandesFoodAvecDiagnostic();
+    setCommandes(c);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
 
   const visibles = commandes.filter(c => filtre === "tous" || c.statut === filtre);
 
   // Quand le configurateur valide — créer la commande avec les données configurées
-  const onConfigValide = (config: any) => {
+  const onConfigValide = async (config: any) => {
     if (!produitConfig) return;
-    const id = "FC" + Date.now().toString().slice(-6);
-    const nv: CommandeFood = {
-      id, reference: id, statut: "demande_recue",
+    const nv: Partial<CommandeFood> = {
+      reference: "FC" + Date.now().toString().slice(-6),
+      statut: "demande_recue",
       client: form.client || "",
       tel: form.tel || "",
       dateCommande: new Date().toISOString().split("T")[0],
-      dateLivraison: form.dateLivraison || "",
+      dateLivraison: form.dateLivraison || undefined,
       produit: produitConfig.nom || "",
       nbParts: config.options?.parts || config.nbPersonnes || undefined,
       prixCalcule: config.prixTotal,
       acompte: Math.round(config.prixTotal * 0.3 * 100) / 100,
       solde:   Math.round(config.prixTotal * 0.7 * 100) / 100,
-      message: [
+      notes: [
         config.options?.saveur ? "Saveur : " + config.options.saveur : "",
         config.options?.forme  ? "Forme : "  + config.options.forme  : "",
         config.options?.decoration ? "Décoration : " + config.options.decoration : "",
         config.commentaire || "",
-      ].filter(Boolean).join(" | "),
+      ].filter(Boolean).join(" | ") || undefined,
     };
-    setCommandes(cs => [nv, ...cs]);
+    const res = await creerCommandeFood(nv);
+    if (!res.ok) { alert(res.error || "Échec de l'enregistrement — réessayez."); return; }
     setModal(null); setProduitConfig(null); setForm(FORM_INIT);
+    await charger();
   };
 
-  const enregistrer = () => {
-    if (!form.client || !form.produit) { alert("Client et produit requis."); return; }
-    const id = "FC" + Date.now().toString().slice(-6);
-    if (form.id) {
-      setCommandes(cs => cs.map(c => c.id === form.id ? { ...c, ...form } as CommandeFood : c));
-    } else {
-      setCommandes(cs => [{ ...form, id } as CommandeFood, ...cs]);
-    }
-    setModal(null); setForm(FORM_INIT);
+  const enregistrer = async () => {
+    if (!form.client || !form.produit) { setErreur("Client et produit requis."); return; }
+    const res = form.id ? await majCommandeFood(form.id, form) : await creerCommandeFood(form);
+    if (!res.ok) { setErreur(("error" in res && res.error) || "Échec de l'enregistrement — réessayez."); return; }
+    setModal(null); setForm(FORM_INIT); setErreur(null);
+    await charger();
   };
 
-  const changerStatut = (id: string, statut: StatutCommande) => {
+  const changerStatut = async (id: string, statut: StatutCommande) => {
+    const res = await majStatutCommandeFood(id, statut);
+    if (!res.ok) { alert("Échec de l'enregistrement du statut."); return; }
     setCommandes(cs => cs.map(c => c.id === id ? { ...c, statut } : c));
     if (detail?.id === id) setDetail(d => d ? { ...d, statut } : null);
   };
@@ -234,7 +248,7 @@ export default function FoodCommandes() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{visibles.length} commande{visibles.length>1?"s":""}</div>
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{chargement ? "Chargement…" : `${visibles.length} commande${visibles.length>1?"s":""}`}</div>
         <div style={{ display:"flex", gap:6 }}>
           <button onClick={() => setModal("configurateur")}
             style={{ background:"rgba(21,128,61,0.15)", border:`1px solid ${FC.vert}`,
@@ -242,13 +256,19 @@ export default function FoodCommandes() {
               fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:"sans-serif" }}>
             🎛 Configurateur
           </button>
-          <button onClick={() => { setForm(FORM_INIT); setModal("form"); }}
+          <button onClick={() => { setForm(FORM_INIT); setErreur(null); setModal("form"); }}
             style={{ background: FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
               color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"sans-serif" }}>
             + Nouvelle commande
           </button>
         </div>
       </div>
+
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
 
       {/* Filtres statut */}
       <div style={{ display:"flex", gap:4, overflowX:"auto", paddingBottom:2 }}>
@@ -268,7 +288,7 @@ export default function FoodCommandes() {
         ))}
       </div>
 
-      {commandes.length === 0 && (
+      {!chargement && commandes.length === 0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"32px", color:"rgba(255,255,255,0.3)", fontSize:13 }}>
           Aucune commande. Créez la première !
         </div>
@@ -304,7 +324,7 @@ export default function FoodCommandes() {
             padding:20, maxWidth:480, margin:"auto", width:"100%" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
               <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>Nouvelle commande</div>
-              <button onClick={() => setModal(null)}
+              <button onClick={() => { setModal(null); setErreur(null); }}
                 style={{ background:"none", border:"none", color:"rgba(255,255,255,0.5)",
                   cursor:"pointer", fontSize:20 }}>✕</button>
             </div>
@@ -319,6 +339,11 @@ export default function FoodCommandes() {
               {inp("Prix calculé (€)",  "prixCalcule",   "number","")}
               {inp("Allergies",         "allergies",     "text",  "Lactose, gluten...")}
               {inp("Notes",             "notes",         "text",  "")}
+              {erreur && (
+                <div style={{ fontSize:11, color:"#f87171", background:"rgba(248,113,113,0.1)", borderRadius:8, padding:"8px 12px" }}>
+                  ⚠️ {erreur}
+                </div>
+              )}
               <div style={{ display:"flex", gap:8, marginTop:6 }}>
                 <button onClick={enregistrer}
                   style={{ flex:1, background: FC.vert, border:"none", borderRadius:10,
@@ -326,7 +351,7 @@ export default function FoodCommandes() {
                     cursor:"pointer", fontFamily:"sans-serif" }}>
                   Créer la commande
                 </button>
-                <button onClick={() => setModal(null)}
+                <button onClick={() => { setModal(null); setErreur(null); }}
                   style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none", borderRadius:10,
                     padding:"11px", color:"rgba(255,255,255,0.5)", fontSize:13,
                     cursor:"pointer", fontFamily:"sans-serif" }}>

@@ -55,9 +55,12 @@ export {
 export {
   sbFoodGet, sbFoodPost, sbFoodPatch, sbFoodDelete,
   getRecettesFood, creerRecette, majRecette,
-  getCommandesFood, creerCommande, majStatutCommande,
   getMaterielFood, getConsommablesFood, getStockGlobalFood,
 } from "./foodApi";
+export {
+  getCommandesFoodAvecDiagnostic, creerCommandeFood,
+  majCommandeFood, majStatutCommandeFood, supprimerCommandeFood,
+} from "./commandesApi";
 
 // ── Liaison Bella'Events ───────────────────────────────────
 export { getProduitsVisiblesEvents as getFoodPourEvents } from "./foodUtils";

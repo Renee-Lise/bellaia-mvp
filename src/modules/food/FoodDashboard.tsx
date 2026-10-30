@@ -14,7 +14,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix, getAlerteStock } from "./foodUtils";
-import { getCommandesFood, getStockGlobalFood, getConsommablesFood, getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getStockGlobalFood, getConsommablesFood, getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getCommandesFoodAvecDiagnostic } from "./commandesApi";
 import type { CommandeFood, StockItem, Consommable, Recette } from "./foodTypes";
 
 interface Props {
@@ -41,10 +42,10 @@ export default function FoodDashboard({ onNavigue }: Props) {
 
   useEffect(() => {
     (async () => {
-      const [c, s, co, { recettes: r }] = await Promise.all([
-        getCommandesFood(), getStockGlobalFood(), getConsommablesFood(), getRecettesFoodAvecDiagnostic(),
+      const [{ commandes: c }, s, co, { recettes: r }] = await Promise.all([
+        getCommandesFoodAvecDiagnostic(), getStockGlobalFood(), getConsommablesFood(), getRecettesFoodAvecDiagnostic(),
       ]);
-      setCommandes(Array.isArray(c) ? c : []);
+      setCommandes(c);
       setStocks(s);
       setConsommables(co);
       setRecettes(r);

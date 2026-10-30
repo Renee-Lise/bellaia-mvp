@@ -4,7 +4,7 @@
 // Tables : food_recettes, food_stocks, food_commandes,
 //          food_materiel, food_consommables
 // ═══════════════════════════════════════════════════════════
-import type { CommandeFood, Recette, StockItem, Materiel, Consommable } from "./foodTypes";
+import type { Recette, StockItem, Materiel, Consommable } from "./foodTypes";
 
 // ── Mapping food_recettes (snake_case en base) ↔ Recette (camelCase) ──
 // La table réelle existe déjà dans Supabase (vérifié le 29/10) avec un
@@ -227,10 +227,11 @@ export async function majRecette(id: string, d: Partial<Recette>): Promise<{ ok:
 
 export const supprimerRecette = (id:string) => sbFoodDelete("food_recettes",id);
 
-// ── API Commandes ──────────────────────────────────────────
-export const getCommandesFood  = () => sbFoodGet<CommandeFood>("food_commandes","order=date_commande.desc&limit=100");
-export const creerCommande     = (c:Partial<CommandeFood>) => sbFoodPost<CommandeFood>("food_commandes",c);
-export const majStatutCommande = (id:string,statut:string) => sbFoodPatch("food_commandes",id,{statut});
+// API Commandes : voir commandesApi.ts. Les fonctions qui vivaient
+// ici (getCommandesFood/creerCommande/majStatutCommande) passaient
+// les objets CommandeFood (camelCase) tels quels vers food_commandes,
+// dont les colonnes réelles sont en snake_case — jamais fonctionnel,
+// jamais appelé par aucun écran. Retirées le 30/10.
 
 // ── API Stocks ─────────────────────────────────────────────
 // stock_global est la table réellement utilisée par l'écran Stocks
