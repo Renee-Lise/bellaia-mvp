@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0057_food_menus_realisation.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : "déduire automatiquement le stock" (demande de Renée-Lise,
 --   étape 2 de son plan). Jusqu'ici, un menu ne faisait que CALCULER
