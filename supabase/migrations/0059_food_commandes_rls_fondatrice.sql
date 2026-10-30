@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0059_food_commandes_rls_fondatrice.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : correctif de sécurité sur food_commandes, même nature que
 --   la migration 0049 sur food_recettes. Vérifié le 30/10 : la policy
