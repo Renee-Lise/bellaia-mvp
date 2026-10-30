@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0058_food_productions.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : table réelle pour le module Production (étape 4 du plan de
 --   Renée-Lise). Vérifié le 30/10 : FoodProduction.tsx n'était encore

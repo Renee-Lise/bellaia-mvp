@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0056_food_recettes_media.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : upload réel de photos/vidéos sur une fiche recette, demandé
 --   par Renée-Lise ("ajouter des liens, vidéos, photos de recettes").
