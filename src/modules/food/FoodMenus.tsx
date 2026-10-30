@@ -216,12 +216,17 @@ ${m.notes?`<p style='font-size:11px;color:#6b7280'>Notes : ${m.notes}</p>`:""}
             return (
             <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
               padding:"7px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-              <div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                {recette?.photo && (
+                  <img src={recette.photo} alt="" style={{ width:32, height:32, objectFit:"cover", borderRadius:6, flexShrink:0 }} />
+                )}
+                <div>
                 <div style={{ fontSize:12, color:"#fff" }}>{l.recetteNom}</div>
                 <div style={{ fontSize:10, color:FC.creamD }}>
                   {l.nbPortions} portion{l.nbPortions>1?"s":""}
                   {recette && recette.statut!=="validee" && <span style={{ color:"#fb923c" }}> · {recette.statut === "brouillon" ? "brouillon" : recette.statut}</span>}
                   {!recette && <span style={{ color:"#f87171" }}> · recette introuvable</span>}
+                </div>
                 </div>
               </div>
               <button onClick={()=>supprimerLigne(i)}

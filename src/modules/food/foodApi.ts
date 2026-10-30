@@ -172,6 +172,22 @@ export async function sbFoodDelete(table: string, id: string): Promise<{ ok: boo
   } catch { return { ok:false }; }
 }
 
+// ── Upload médias recette (bucket food-recettes-media, migration 0056) ──
+export async function uploadMediaRecette(file: File, dossier: "photos" | "videos"): Promise<string | null> {
+  if (!SB_URL) return null;
+  try {
+    const token = await getFoodToken();
+    const chemin = `${dossier}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
+    const r = await fetch(`${SB_URL}/storage/v1/object/food-recettes-media/${chemin}`, {
+      method: "POST",
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${token}`, "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    if (!r.ok) return null;
+    return `${SB_URL}/storage/v1/object/public/food-recettes-media/${chemin}`;
+  } catch { return null; }
+}
+
 // ── API Recettes ───────────────────────────────────────────
 // getRecettesFoodAvecDiagnostic distingue "aucune recette" d'un échec
 // réseau/RLS — même raison que getProduitsBSH côté BSH : un échec

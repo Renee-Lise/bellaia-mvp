@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
 import { fmtDuree, fmtPrix, calculerCoutRecette } from "./foodUtils";
-import { getRecettesFoodAvecDiagnostic, creerRecette, majRecette } from "./foodApi";
+import { getRecettesFoodAvecDiagnostic, creerRecette, majRecette, uploadMediaRecette } from "./foodApi";
 import type { Recette, Ingredient, StatutRecette, UniteMesure } from "./foodTypes";
 
 const STATUT_COL: Record<string, string> = {
@@ -82,7 +82,7 @@ function formVide(): FormRecette {
   return {
     categorie: "poulet", difficulte: 3, nbParts: 4,
     tempsPrepa: 0, tempsCuisson: 0, statut: "brouillon",
-    ingredients: [], etapes: [], allergenes: [],
+    ingredients: [], etapes: [], allergenes: [], galerie: [],
   };
 }
 
@@ -98,6 +98,7 @@ export default function FoodRecettes() {
   const [cibleRendement, setCibleRendement] = useState<number | null>(null);
   const [form, setForm] = useState<FormRecette | null>(null);
   const [formId, setFormId] = useState<string | null>(null); // id en édition, null = création/duplication
+  const [uploadEnCours, setUploadEnCours] = useState<string | null>(null); // "photo" | "video" | "galerie" | null
   const [sauvegarde, setSauvegarde] = useState(false);
   const [erreurSauvegarde, setErreurSauvegarde] = useState<string | null>(null);
   const [filtCat, setFiltCat] = useState("tous");
@@ -146,6 +147,32 @@ export default function FoodRecettes() {
   };
 
   const majForm = (champ: keyof FormRecette, val: any) => setForm(f => f ? { ...f, [champ]: val } : f);
+
+  const uploaderPhoto = async (file: File) => {
+    setUploadEnCours("photo");
+    const url = await uploadMediaRecette(file, "photos");
+    if (url) majForm("photo", url); else alert("Échec de l'envoi de la photo. Réessayez.");
+    setUploadEnCours(null);
+  };
+
+  const uploaderVideo = async (file: File) => {
+    setUploadEnCours("video");
+    const url = await uploadMediaRecette(file, "videos");
+    if (url) majForm("video", url); else alert("Échec de l'envoi de la vidéo. Réessayez.");
+    setUploadEnCours(null);
+  };
+
+  const ajouterPhotoGalerie = async (file: File) => {
+    setUploadEnCours("galerie");
+    const url = await uploadMediaRecette(file, "photos");
+    if (url) setForm(f => f ? { ...f, galerie: [...(f.galerie || []), url] } : f);
+    else alert("Échec de l'envoi de la photo. Réessayez.");
+    setUploadEnCours(null);
+  };
+
+  const supprimerPhotoGalerie = (index: number) => {
+    setForm(f => f ? { ...f, galerie: (f.galerie || []).filter((_, i) => i !== index) } : f);
+  };
 
   const ajouterIngredient = () => majForm("ingredients", [...(form?.ingredients || []), { id: nouvelId("ing"), nom: "", quantite: 0, unite: "g" as UniteMesure }]);
   const majIngredient = (i: number, champ: keyof Ingredient, val: any) => {
@@ -217,9 +244,70 @@ export default function FoodRecettes() {
             </div>
           </div>
 
+        </div>
+
+        {/* Médias — photo principale, galerie, vidéo */}
+        <div style={{ background: FC.card, border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, letterSpacing: 1 }}>MÉDIAS</div>
+
+          {/* Photo principale */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Photo (URL)</label>
-            <input value={form.photo || ""} onChange={e => majForm("photo", e.target.value)} placeholder="https://…" style={inp} />
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Photo principale</label>
+            {form.photo && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <img src={form.photo} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8, border: `1px solid ${FC.line}` }} />
+                <button onClick={() => majForm("photo", "")} style={{ ...btnSecondaire, padding: "4px 9px" }}>✕ Retirer</button>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6 }}>
+              <label style={{ ...btnSecondaire, cursor: "pointer", opacity: uploadEnCours === "photo" ? 0.5 : 1 }}>
+                {uploadEnCours === "photo" ? "Envoi…" : "📷 Depuis le téléphone"}
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadEnCours === "photo"}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploaderPhoto(f); e.target.value = ""; }} />
+              </label>
+              <input value={form.photo || ""} onChange={e => majForm("photo", e.target.value)} placeholder="ou collez un lien https://…" style={{ ...inp, flex: 1 }} />
+            </div>
+          </div>
+
+          {/* Galerie */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Galerie (photos supplémentaires)</label>
+            {(form.galerie || []).length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {(form.galerie || []).map((url, i) => (
+                  <div key={i} style={{ position: "relative" }}>
+                    <img src={url} alt="" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${FC.line}` }} />
+                    <button onClick={() => supprimerPhotoGalerie(i)}
+                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%",
+                        background: "#f87171", border: "none", color: "#fff", fontSize: 10, cursor: "pointer", lineHeight: "18px" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label style={{ ...btnSecondaire, cursor: "pointer", alignSelf: "flex-start", opacity: uploadEnCours === "galerie" ? 0.5 : 1 }}>
+              {uploadEnCours === "galerie" ? "Envoi…" : "+ Ajouter une photo"}
+              <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadEnCours === "galerie"}
+                onChange={e => { const f = e.target.files?.[0]; if (f) ajouterPhotoGalerie(f); e.target.value = ""; }} />
+            </label>
+          </div>
+
+          {/* Vidéo */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Vidéo</label>
+            {form.video && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>🎬 vidéo attachée</span>
+                <button onClick={() => majForm("video", "")} style={{ ...btnSecondaire, padding: "4px 9px" }}>✕ Retirer</button>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6 }}>
+              <label style={{ ...btnSecondaire, cursor: "pointer", opacity: uploadEnCours === "video" ? 0.5 : 1 }}>
+                {uploadEnCours === "video" ? "Envoi…" : "🎬 Depuis le téléphone"}
+                <input type="file" accept="video/*" style={{ display: "none" }} disabled={uploadEnCours === "video"}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploaderVideo(f); e.target.value = ""; }} />
+              </label>
+              <input value={form.video || ""} onChange={e => majForm("video", e.target.value)} placeholder="ou collez un lien https://…" style={{ ...inp, flex: 1 }} />
+            </div>
           </div>
         </div>
 
@@ -343,6 +431,28 @@ export default function FoodRecettes() {
           ))}
         </div>
       </div>
+
+      {(detail.photo || (detail.galerie && detail.galerie.length > 0) || detail.video) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {detail.photo && (
+            <img src={detail.photo} alt={detail.nom} style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 12, border: `1px solid ${FC.line}` }} />
+          )}
+          {detail.galerie && detail.galerie.length > 0 && (
+            <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
+              {detail.galerie.map((url, i) => (
+                <img key={i} src={url} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: `1px solid ${FC.line}`, flexShrink: 0 }} />
+              ))}
+            </div>
+          )}
+          {detail.video && (
+            /\.(mp4|webm|mov|m4v)$/i.test(detail.video) ? (
+              <video src={detail.video} controls style={{ width: "100%", maxHeight: 260, borderRadius: 12, border: `1px solid ${FC.line}` }} />
+            ) : (
+              <a href={detail.video} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: FC.or }}>🎬 Voir la vidéo</a>
+            )
+          )}
+        </div>
+      )}
 
       {detail.nbParts > 0 && (
         <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 12, padding: "14px" }}>
@@ -499,6 +609,9 @@ export default function FoodRecettes() {
           style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`,
             borderRadius: 12, padding: "13px 14px", cursor: "pointer" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            {r.photo && (
+              <img src={r.photo} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8, marginRight: 10, flexShrink: 0 }} />
+            )}
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{r.nom}</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
