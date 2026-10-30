@@ -111,7 +111,10 @@ export function genererListeCourses(
           ingredientId:       ing.id,
           nom:                ing.nom,
           quantiteNecessaire: 0,
-          quantiteEnStock:    stockActuel[ing.id] ?? 0,
+          // Le stock ne peut être rapproché que via le lien explicite
+          // stockItemId (l'id de l'ingrédient et celui du stock ne sont
+          // jamais la même valeur).
+          quantiteEnStock:    ing.stockItemId ? (stockActuel[ing.stockItemId] ?? 0) : 0,
           quantiteAacheter:   0,
           unite:              ing.unite,
           prixEstime:         ing.coutUnitaire,

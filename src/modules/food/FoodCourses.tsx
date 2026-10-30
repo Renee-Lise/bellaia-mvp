@@ -3,13 +3,14 @@
 // Fusion ingrédients, stock, budget, export WhatsApp / impression
 // src/modules/food/FoodCourses.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_RECETTES_INIT, FOOD_STOCK_INIT, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import {
   genererListeCourses, calculerBudgetCourses,
   exportCoursesWhatsApp, fmtPrix,
 } from "./foodUtils";
-import type { Recette, LigneCourses } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic, getStockGlobalFood } from "./foodApi";
+import type { Recette, LigneCourses, StockItem } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const FS = "Georgia, 'Times New Roman', serif";
@@ -36,16 +37,27 @@ export default function FoodCourses() {
   const [recettesSelectionnees, setRecettesSelectionnees] = useState<Set<string>>(new Set());
   const [coches,                setCoches]                = useState<Set<string>>(new Set());
   const [afficherDisponibles,   setAfficherDisponibles]   = useState(false);
+  const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [stocks,   setStocks]   = useState<StockItem[]>([]);
+  const [chargement, setChargement] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const [{ recettes: r }, s] = await Promise.all([getRecettesFoodAvecDiagnostic(), getStockGlobalFood()]);
+      setRecettes(r); setStocks(s);
+      setChargement(false);
+    })();
+  }, []);
 
   // Convertir stocks en map id→qte
   const stockMap = useMemo(() =>
-    Object.fromEntries(FOOD_STOCK_INIT.map(s => [s.id, s.qteRestante])),
-  []);
+    Object.fromEntries(stocks.map(s => [s.id, s.qteRestante])),
+  [stocks]);
 
   // Recettes sélectionnées
   const recettesChoisies = useMemo(() =>
-    FOOD_RECETTES_INIT.filter(r => recettesSelectionnees.has(r.id)),
-  [recettesSelectionnees]);
+    recettes.filter(r => recettesSelectionnees.has(r.id)),
+  [recettes, recettesSelectionnees]);
 
   // Générer la liste de courses
   const lignes: LigneCourses[] = useMemo(() =>
@@ -111,8 +123,9 @@ th{background:#065f46;color:#fff}.total{font-size:14px;font-weight:bold;color:#0
         <div style={{ fontSize:11, fontWeight:700, color:FC.or, marginBottom:10, letterSpacing:1 }}>
           SÉLECTIONNER LES RECETTES
         </div>
+        {chargement && <div style={{ fontSize:11, color:FC.creamD, textAlign:"center", padding:"12px 0" }}>Chargement…</div>}
         <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:240, overflowY:"auto" }}>
-          {FOOD_RECETTES_INIT.map(r => (
+          {recettes.map(r => (
             <div key={r.id} onClick={()=>toggleRecette(r.id)}
               style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
                 padding:"8px 10px", borderRadius:8, cursor:"pointer",

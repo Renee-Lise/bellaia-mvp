@@ -3,9 +3,12 @@
 // CSV, WhatsApp, PDF HTML imprimable, rapport mensuel
 // src/modules/food/FoodExports.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState } from "react";
-import { FOOD_RECETTES_INIT, FOOD_STOCK_INIT, FOOD_CATALOGUE, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix, fmtDuree } from "./foodUtils";
+import { getRecettesFoodAvecDiagnostic, getStockGlobalFood } from "./foodApi";
+import { getCatalogueFoodAvecDiagnostic } from "./catalogueApi";
+import type { Recette, StockItem, Produit } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 
@@ -37,9 +40,9 @@ function telechargerCSV(content: string, filename: string) {
 }
 
 // ── Générateurs par type ───────────────────────────────────
-function exportRecettesCSV() {
+function exportRecettesCSV(recettes: Recette[]) {
   const headers = ["Nom","Catégorie","Statut","Difficulté","Nb parts","Prépa (min)","Cuisson (min)","Coût matière €","Prix conseillé €","Marge €","Allergènes"];
-  const rows = FOOD_RECETTES_INIT.map(r => [
+  const rows = recettes.map(r => [
     r.nom, r.categorie, r.statut, String(r.difficulte),
     String(r.nbParts), String(r.tempsPrepa), String(r.tempsCuisson),
     String(r.coutMatiere||""), String(r.prixConseille||""),
@@ -48,18 +51,18 @@ function exportRecettesCSV() {
   telechargerCSV(genCSV(headers, rows), "bellaïa_recettes_" + new Date().toISOString().slice(0,10) + ".csv");
 }
 
-function exportStocksCSV() {
+function exportStocksCSV(stocks: StockItem[]) {
   const headers = ["Nom","Catégorie","Unité","Qté restante","Seuil alerte","Prix achat €","Fournisseur","Statut"];
-  const rows = FOOD_STOCK_INIT.map(s => {
+  const rows = stocks.map(s => {
     const statut = s.qteRestante === 0 ? "Rupture" : s.qteRestante <= s.seuilAlerte ? "Faible" : "OK";
     return [s.nom, s.categorie, s.unite, String(s.qteRestante), String(s.seuilAlerte), String(s.prixAchat||""), s.fournisseur||"", statut];
   });
   telechargerCSV(genCSV(headers, rows), "bellaïa_stocks_" + new Date().toISOString().slice(0,10) + ".csv");
 }
 
-function exportCatalogueCSV() {
+function exportCatalogueCSV(catalogue: Produit[]) {
   const headers = ["Nom","Catégorie","Sous-catégorie","Prix €","Unité","Disponible","Visible Events"];
-  const rows = FOOD_CATALOGUE.map(p => [
+  const rows = catalogue.map(p => [
     p.nom, p.categorie, p.sousCat||"", String(p.prix ?? "Sur devis"),
     p.unite||"", p.disponible ? "Oui":"Non", p.visibleEvents ? "Oui":"Non",
   ]);
@@ -67,10 +70,8 @@ function exportCatalogueCSV() {
 }
 
 // ── Rapport mensuel HTML ───────────────────────────────────
-function genRapportHTML(): string {
+function genRapportHTML(recettes: Recette[], stocks: StockItem[]): string {
   const date     = new Date().toLocaleDateString("fr-FR", {month:"long", year:"numeric"});
-  const recettes = FOOD_RECETTES_INIT;
-  const stocks   = FOOD_STOCK_INIT;
   const alertes  = stocks.filter(s => s.qteRestante <= s.seuilAlerte);
   const top5     = [...recettes]
     .filter(r => r.prixConseille && r.coutMatiere)
@@ -130,15 +131,15 @@ ${alertes.length > 0 ? `<h2 style='color:#dc2626'>⚠ Points d'attention (${aler
 }
 
 // ── Résumé WhatsApp ────────────────────────────────────────
-function genWhatsApp(): string {
-  const alertes = FOOD_STOCK_INIT.filter(s => s.qteRestante <= s.seuilAlerte);
-  const top1    = [...FOOD_RECETTES_INIT]
+function genWhatsApp(recettes: Recette[], stocks: StockItem[]): string {
+  const alertes = stocks.filter(s => s.qteRestante <= s.seuilAlerte);
+  const top1    = [...recettes]
     .filter(r => r.margeEstimee).sort((a,b) => (b.margeEstimee||0)-(a.margeEstimee||0))[0];
   return [
     "*🍃 Résumé Bella'Food — " + new Date().toLocaleDateString("fr-FR") + "*",
     "",
-    `📖 ${FOOD_RECETTES_INIT.length} recettes · ${FOOD_RECETTES_INIT.filter(r=>r.statut==="validee").length} validées`,
-    `📦 ${FOOD_STOCK_INIT.length} stocks suivis · ${alertes.length} alertes`,
+    `📖 ${recettes.length} recettes · ${recettes.filter(r=>r.statut==="validee").length} validées`,
+    `📦 ${stocks.length} stocks suivis · ${alertes.length} alertes`,
     alertes.length > 0 ? "⚠ À acheter : " + alertes.slice(0,3).map(s=>s.nom).join(", ") : "✅ Stocks OK",
     "",
     top1 ? `⭐ Recette la plus rentable : ${top1.nom} (${top1.margeEstimee}€ de marge estimée)` : "",
@@ -149,17 +150,31 @@ function genWhatsApp(): string {
 
 export default function FoodExports() {
   const [loading, setLoading] = useState<TypeExport|null>(null);
+  const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [stocks,   setStocks]   = useState<StockItem[]>([]);
+  const [catalogue,setCatalogue]= useState<Produit[]>([]);
+  const [chargement, setChargement] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const [{ recettes: r }, s, { produits: c }] = await Promise.all([
+        getRecettesFoodAvecDiagnostic(), getStockGlobalFood(), getCatalogueFoodAvecDiagnostic(),
+      ]);
+      setRecettes(r); setStocks(s); setCatalogue(c);
+      setChargement(false);
+    })();
+  }, []);
 
   const lancer = (type: TypeExport) => {
     setLoading(type);
     setTimeout(() => {
       try {
         switch (type) {
-          case "recettes":         exportRecettesCSV();  break;
-          case "stocks":           exportStocksCSV();    break;
-          case "catalogue":        exportCatalogueCSV(); break;
+          case "recettes":         exportRecettesCSV(recettes);  break;
+          case "stocks":           exportStocksCSV(stocks);    break;
+          case "catalogue":        exportCatalogueCSV(catalogue); break;
           case "rapport_mensuel": {
-            const html = genRapportHTML();
+            const html = genRapportHTML(recettes, stocks);
             const win = window.open("","_blank");
             if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(()=>win.print(),400); }
             break;
@@ -170,7 +185,7 @@ export default function FoodExports() {
   };
 
   const envoyerWA = () => {
-    const msg = genWhatsApp();
+    const msg = genWhatsApp(recettes, stocks);
     window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
   };
 
@@ -179,6 +194,7 @@ export default function FoodExports() {
       <div style={{ fontSize:12, color:FC.creamD, lineHeight:1.6 }}>
         Exportez vos données Bella'Food en CSV (Excel), PDF ou WhatsApp.
       </div>
+      {chargement && <div style={{ fontSize:11, color:FC.creamD, textAlign:"center" }}>Chargement des données…</div>}
 
       {/* Exports CSV + rapport */}
       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -194,11 +210,11 @@ export default function FoodExports() {
               </div>
             </div>
             <div style={{ display:"flex", gap:6 }}>
-              <button onClick={() => lancer(e.id)} disabled={loading === e.id}
+              <button onClick={() => lancer(e.id)} disabled={loading === e.id || chargement}
                 style={{ background:FC.vert, border:"none", borderRadius:8,
                   padding:"7px 12px", color:"#fff", fontWeight:700, fontSize:11,
-                  cursor:loading===e.id?"wait":"pointer", fontFamily:SA,
-                  opacity:loading===e.id?0.6:1 }}>
+                  cursor:(loading===e.id||chargement)?"wait":"pointer", fontFamily:SA,
+                  opacity:(loading===e.id||chargement)?0.6:1 }}>
                 {loading===e.id ? "…" : e.id === "rapport_mensuel" ? "🖨 PDF" : "⬇ CSV"}
               </button>
             </div>
