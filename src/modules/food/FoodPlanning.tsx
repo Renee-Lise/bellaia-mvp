@@ -3,10 +3,12 @@
 // Tâches J-3 / J-2 / J-1 / Jour J par commande
 // src/modules/food/FoodPlanning.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_COLORS as FC, FOOD_RECETTES_INIT } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { genererPlanningProduction, fmtDuree } from "./foodUtils";
-import type { PlanningProduction, TacheProduction, JourProduction } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getPlanningsFoodAvecDiagnostic, creerPlanningFood, majPlanningFood } from "./planningApi";
+import type { PlanningProduction, TacheProduction, JourProduction, Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 
@@ -28,6 +30,9 @@ const TYPE_ICO: Record<string, string> = {
 
 export default function FoodPlanning() {
   const [plannings,   setPlannings]   = useState<PlanningProduction[]>([]);
+  const [recettes,    setRecettes]    = useState<Recette[]>([]);
+  const [chargement,  setChargement]  = useState(true);
+  const [diagnostic,  setDiagnostic]  = useState<string | null>(null);
   const [modal,       setModal]       = useState(false);
   const [detail,      setDetail]      = useState<PlanningProduction|null>(null);
   const [jourFiltre,  setJourFiltre]  = useState<JourProduction|"tous">("tous");
@@ -37,30 +42,42 @@ export default function FoodPlanning() {
     recetteIds:    [] as string[],
   });
 
-  const creer = () => {
+  const charger = async () => {
+    setChargement(true);
+    const [{ plannings: p, diagnostic: d }, { recettes: r }] = await Promise.all([
+      getPlanningsFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(),
+    ]);
+    setPlannings(p); setRecettes(r);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
+
+  const creer = async () => {
     if (!form.nomCommande.trim() || !form.dateLivraison) return;
     const p = genererPlanningProduction(
       "cmd_" + Date.now().toString().slice(-5),
       form.nomCommande,
       form.dateLivraison,
       form.recetteIds,
+      recettes,
     );
-    setPlannings(ps => [p, ...ps]);
+    const res = await creerPlanningFood(p);
+    if (!res.ok || !res.planning) { alert(res.error || "Échec de l'enregistrement — réessayez."); return; }
     setModal(false);
     setForm({ nomCommande:"", dateLivraison:"", recetteIds:[] });
-    setDetail(p);
+    await charger();
+    setDetail(res.planning);
   };
 
-  const toggleTache = (planningId: string, tacheId: string) => {
-    setPlannings(ps => ps.map(p =>
-      p.id !== planningId ? p :
-      { ...p, taches: p.taches.map(t => t.id===tacheId?{...t,faite:!t.faite}:t) }
-    ));
-    if (detail?.id === planningId) {
-      setDetail(d => d ? {
-        ...d, taches: d.taches.map(t => t.id===tacheId?{...t,faite:!t.faite}:t)
-      } : null);
-    }
+  const toggleTache = async (planningId: string, tacheId: string) => {
+    const planning = plannings.find(p => p.id === planningId);
+    if (!planning) return;
+    const taches = planning.taches.map(t => t.id===tacheId?{...t,faite:!t.faite}:t);
+    const res = await majPlanningFood(planningId, { taches });
+    if (!res.ok) { alert("Échec de l'enregistrement."); return; }
+    setPlannings(ps => ps.map(p => p.id !== planningId ? p : { ...p, taches }));
+    if (detail?.id === planningId) setDetail(d => d ? { ...d, taches } : null);
   };
 
   const tachesFiltrees = (p: PlanningProduction) =>
@@ -167,7 +184,7 @@ export default function FoodPlanning() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{plannings.length} planning{plannings.length>1?"s":""}</div>
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${plannings.length} planning${plannings.length>1?"s":""}`}</div>
         <button onClick={()=>setModal(true)}
           style={{ background:FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
             color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:SA }}>
@@ -175,7 +192,13 @@ export default function FoodPlanning() {
         </button>
       </div>
 
-      {plannings.length===0 && (
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
+
+      {!chargement && plannings.length===0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           Aucun planning de production. Créez-en un à partir d'une commande.
         </div>
@@ -229,7 +252,7 @@ export default function FoodPlanning() {
               <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                 <label style={{ fontSize:10, color:"rgba(255,255,255,0.5)", fontFamily:SA }}>Recettes concernées (optionnel)</label>
                 <div style={{ maxHeight:140, overflowY:"auto", display:"flex", flexDirection:"column", gap:4 }}>
-                  {FOOD_RECETTES_INIT.filter(r=>r.statut==="validee").map(r=>(
+                  {recettes.filter(r=>r.statut==="validee").map(r=>(
                     <label key={r.id} style={{ display:"flex", gap:8, alignItems:"center", cursor:"pointer" }}>
                       <input type="checkbox"
                         checked={form.recetteIds.includes(r.id)}

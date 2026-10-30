@@ -268,7 +268,8 @@ export function genererPlanningProduction(
   commandeId: string,
   nomCommande: string,
   dateLivraison: string,
-  recetteIds: string[]
+  recetteIds: string[],
+  recettes: Recette[]
 ): PlanningProduction {
   const taches: TacheProduction[] = [];
   let idxCounter = 0;
@@ -284,7 +285,7 @@ export function genererPlanningProduction(
 
   // Tâches par recette
   for (const rid of recetteIds) {
-    const r = FOOD_RECETTES_INIT.find(x => x.id === rid);
+    const r = recettes.find(x => x.id === rid);
     if (!r) continue;
     taches.push({
       id:mkId(), jour:"J-1", heure:"09:00",

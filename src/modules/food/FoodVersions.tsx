@@ -3,10 +3,12 @@
 // Créer, comparer, sélectionner les versions d'une recette
 // src/modules/food/FoodVersions.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_RECETTES_INIT, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix, fmtDuree } from "./foodUtils";
-import type { VersionRecette, TypeVersion } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getVersionsFoodAvecDiagnostic, creerVersionFood } from "./versionsApi";
+import type { VersionRecette, TypeVersion, Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const FS = "Georgia, 'Times New Roman', serif";
@@ -44,11 +46,25 @@ const FORM0: Partial<VersionRecette> = {
 
 export default function FoodVersions() {
   const [versions,   setVersions]   = useState<VersionRecette[]>([]);
+  const [recettes,   setRecettes]   = useState<Recette[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal,      setModal]      = useState<"creer"|"comparer"|null>(null);
   const [detail,     setDetail]     = useState<VersionRecette|null>(null);
   const [filtreRec,  setFiltreRec]  = useState("");
   const [form,       setForm]       = useState<Partial<VersionRecette>>(FORM0);
   const [selection,  setSelection]  = useState<Set<string>>(new Set());
+
+  const charger = async () => {
+    setChargement(true);
+    const [{ versions: v, diagnostic: d }, { recettes: r }] = await Promise.all([
+      getVersionsFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(),
+    ]);
+    setVersions(v); setRecettes(r);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
 
   // Grouper par recette
   const parRecette = useMemo(() => {
@@ -60,11 +76,10 @@ export default function FoodVersions() {
     return map;
   }, [versions]);
 
-  const creer = () => {
+  const creer = async () => {
     if (!form.recetteId || !form.nomVersion?.trim()) return;
-    const recette = FOOD_RECETTES_INIT.find(r => r.id === form.recetteId);
-    const nv: VersionRecette = {
-      id:             "ver_" + Date.now().toString().slice(-5),
+    const recette = recettes.find(r => r.id === form.recetteId);
+    const nv: Partial<VersionRecette> = {
       recetteId:      form.recetteId!,
       recetteNom:     recette?.nom || form.recetteId,
       typeVersion:    form.typeVersion || "version_test",
@@ -79,12 +94,13 @@ export default function FoodVersions() {
       margeEstimee:   form.margeEstimee ?? recette?.margeEstimee ?? null,
       notes:          form.notes,
       statut:         form.statut || "brouillon",
-      dateCreation:   new Date().toISOString().split("T")[0],
     };
-    setVersions(vs => [nv, ...vs]);
+    const res = await creerVersionFood(nv);
+    if (!res.ok || !res.version) { alert(res.error || "Échec de l'enregistrement — réessayez."); return; }
     setModal(null);
     setForm(FORM0);
-    setDetail(nv);
+    await charger();
+    setDetail(res.version);
   };
 
   const toggleSelection = (id: string) => {
@@ -225,7 +241,7 @@ export default function FoodVersions() {
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       {/* En-tête */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{versions.length} version{versions.length>1?"s":""}</div>
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${versions.length} version${versions.length>1?"s":""}`}</div>
         <div style={{ display:"flex", gap:6 }}>
           {selection.size >= 2 && (
             <button onClick={() => setModal("comparer")}
@@ -247,11 +263,16 @@ export default function FoodVersions() {
       <select value={filtreRec} onChange={e => setFiltreRec(e.target.value)}
         style={{ ...inp, background:"#1a1a2e" }}>
         <option value="">— Toutes les recettes —</option>
-        {FOOD_RECETTES_INIT.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+        {recettes.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
       </select>
 
       {/* Liste */}
-      {versions.length === 0 && (
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
+      {!chargement && versions.length === 0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"28px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           Aucune version créée. Créez la première version d'une recette.
         </div>
@@ -321,7 +342,7 @@ export default function FoodVersions() {
                 <select value={form.recetteId || ""} onChange={e => setForm(f => ({ ...f, recetteId:e.target.value }))}
                   style={{ ...inp, background:"#1a1a2e" }}>
                   <option value="">— Choisir —</option>
-                  {FOOD_RECETTES_INIT.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                  {recettes.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
                 </select>
               </div>
               <Field label="Nom de la version *" k="nomVersion" ph="Ex : Version sans gluten, Version économique..."/>

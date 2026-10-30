@@ -3,10 +3,12 @@
 // Enregistrement, coûts, taux de perte, impact marge
 // src/modules/food/FoodPertes.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_RECETTES_INIT, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix } from "./foodUtils";
-import type { Perte, TypePerte } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getPertesFoodAvecDiagnostic, creerPerteFood, majStatutPerteFood } from "./pertesApi";
+import type { Perte, TypePerte, Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const inp: React.CSSProperties = {
@@ -35,10 +37,24 @@ const STATUT_TXT = { ouverte:"#f87171", traitee:"#22c55e", archivee:"rgba(255,25
 
 export default function FoodPertes() {
   const [pertes, setPertes] = useState<Perte[]>([]);
+  const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [modal,  setModal]  = useState(false);
   const [form,   setForm]   = useState<Partial<Perte>>({
     date:new Date().toISOString().split("T")[0], cause:"casse", statut:"ouverte",
   });
+
+  const charger = async () => {
+    setChargement(true);
+    const [{ pertes: p, diagnostic: d }, { recettes: r }] = await Promise.all([
+      getPertesFoodAvecDiagnostic(), getRecettesFoodAvecDiagnostic(),
+    ]);
+    setPertes(p); setRecettes(r);
+    setDiagnostic(d);
+    setChargement(false);
+  };
+  useEffect(() => { charger(); }, []);
 
   const stats = useMemo(() => {
     const coutTotal  = pertes.reduce((s,p) => s + p.coutEstime, 0);
@@ -57,12 +73,10 @@ export default function FoodPertes() {
     return { coutTotal, coutMois, parCause, parRecette, nb:pertes.length };
   }, [pertes]);
 
-  const enregistrer = () => {
+  const enregistrer = async () => {
     if (!form.produit?.trim() || !form.cause) return;
-    const recette = FOOD_RECETTES_INIT.find(r => r.id === form.recetteId);
-    setPertes(ps => [{
-      ...form as Perte,
-      id:         "pert_" + Date.now().toString().slice(-5),
+    const nv: Partial<Perte> = {
+      ...form,
       produit:    form.produit!,
       quantite:   form.quantite || 1,
       unite:      form.unite || "pièce",
@@ -70,13 +84,19 @@ export default function FoodPertes() {
       cause:      form.cause!,
       statut:     "ouverte",
       date:       form.date || new Date().toISOString().split("T")[0],
-    } as Perte, ...ps]);
+    };
+    const res = await creerPerteFood(nv);
+    if (!res.ok) { alert(res.error || "Échec de l'enregistrement — réessayez."); return; }
     setModal(false);
     setForm({ date:new Date().toISOString().split("T")[0], cause:"casse", statut:"ouverte" });
+    await charger();
   };
 
-  const changerStatut = (id: string, statut: Perte["statut"]) =>
+  const changerStatut = async (id: string, statut: Perte["statut"]) => {
+    const res = await majStatutPerteFood(id, statut);
+    if (!res.ok) { alert("Échec de l'enregistrement du statut."); return; }
     setPertes(ps => ps.map(p => p.id === id ? { ...p, statut } : p));
+  };
 
   const Field = ({ label, k, type="text", ph="" }: { label:string; k:keyof Perte; type?:string; ph?:string }) => (
     <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
@@ -133,7 +153,7 @@ export default function FoodPertes() {
       )}
 
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:FC.creamD }}>{pertes.length} perte{pertes.length>1?"s":""}</div>
+        <div style={{ fontSize:12, color:FC.creamD }}>{chargement ? "Chargement…" : `${pertes.length} perte${pertes.length>1?"s":""}`}</div>
         <button onClick={() => setModal(true)}
           style={{ background:"rgba(248,113,113,0.2)", border:"1px solid rgba(248,113,113,0.4)",
             borderRadius:8, padding:"7px 14px", color:"#f87171", fontWeight:700,
@@ -142,8 +162,14 @@ export default function FoodPertes() {
         </button>
       </div>
 
+      {diagnostic && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnostic}
+        </div>
+      )}
+
       {/* Liste */}
-      {pertes.length === 0 && (
+      {!chargement && pertes.length === 0 && !diagnostic && (
         <div style={{ textAlign:"center", padding:"24px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
           Aucune perte enregistrée.
         </div>
@@ -220,7 +246,7 @@ export default function FoodPertes() {
                 <select value={form.recetteId || ""} onChange={e => setForm(f => ({ ...f, recetteId:e.target.value || undefined }))}
                   style={{ ...inp, background:"#1a1a2e" }}>
                   <option value="">—</option>
-                  {FOOD_RECETTES_INIT.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                  {recettes.map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}
                 </select>
               </div>
               <Field label="Action corrective"    k="actionCorrective" ph="Mesure prise..."/>
