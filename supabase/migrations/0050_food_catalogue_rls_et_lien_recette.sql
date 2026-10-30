@@ -49,7 +49,13 @@ alter table public.catalogue_produits
   add column if not exists recette_id uuid references public.food_recettes(id) on delete set null;
 
 -- ── catalogue_produits ──────────────────────────────────────
+-- drop systématique de toutes les policies qu'on va créer, pas
+-- seulement l'ancienne "catalogue_auth" : une tentative précédente a
+-- laissé catalogue_produits_fondatrice déjà en place, bloquant un
+-- simple "create policy" — idempotent pour de bon cette fois.
 drop policy if exists catalogue_auth on public.catalogue_produits;
+drop policy if exists catalogue_produits_fondatrice on public.catalogue_produits;
+drop policy if exists catalogue_produits_lecture_publique on public.catalogue_produits;
 
 create policy catalogue_produits_fondatrice on public.catalogue_produits
   for all to public
@@ -73,6 +79,9 @@ grant select (
 ) on public.catalogue_produits to anon, authenticated;
 
 -- ── catalogue_variantes ─────────────────────────────────────
+drop policy if exists catalogue_variantes_fondatrice on public.catalogue_variantes;
+drop policy if exists catalogue_variantes_lecture_publique on public.catalogue_variantes;
+
 create policy catalogue_variantes_fondatrice on public.catalogue_variantes
   for all to public
   using (public.is_fondatrice())
