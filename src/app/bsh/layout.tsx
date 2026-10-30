@@ -14,6 +14,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Jost } from "next/font/google";
 import { BSH_PALETTE } from "./bshTokens";
 import AgeGate from "./AgeGate";
+import BshNav from "./BshNav";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -50,7 +51,10 @@ export default function BshLayout({ children }: { children: React.ReactNode }) {
         dans chaque page : elle ne se réaffiche pas en naviguant d'une
         page BSH à une autre, seulement à la toute première visite.
       */}
-      <AgeGate>{children}</AgeGate>
+      <AgeGate>
+        <BshNav />
+        {children}
+      </AgeGate>
     </div>
   );
 }
