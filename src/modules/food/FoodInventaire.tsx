@@ -3,9 +3,10 @@
 // Stock théorique vs réel, écarts, corrections, historique
 // src/modules/food/FoodInventaire.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_STOCK_INIT, FOOD_COLORS as FC } from "./foodConsts";
-import type { Inventaire, LigneInventaire } from "./foodTypes";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
+import { getStockGlobalFood, majStockGlobalQuantite } from "./foodApi";
+import type { Inventaire, LigneInventaire, StockItem } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 
@@ -14,9 +15,16 @@ export default function FoodInventaire() {
   const [enCours,     setEnCours]     = useState<LigneInventaire[]>([]);
   const [modeComptage,setModeComptage]= useState(false);
   const [detail,      setDetail]      = useState<Inventaire|null>(null);
+  const [stocks, setStocks] = useState<StockItem[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [validation, setValidation] = useState(false);
+
+  useEffect(() => {
+    getStockGlobalFood().then(s => { setStocks(s); setChargement(false); });
+  }, []);
 
   const startInventaire = () => {
-    const lignes: LigneInventaire[] = FOOD_STOCK_INIT.map(s => ({
+    const lignes: LigneInventaire[] = stocks.map(s => ({
       stockItemId:    s.id,
       nom:            s.nom,
       unite:          s.unite,
@@ -41,7 +49,14 @@ export default function FoodInventaire() {
     setEnCours(ls => ls.map(l => l.stockItemId !== id ? l : { ...l, justification: txt }));
   };
 
-  const validerInventaire = () => {
+  const validerInventaire = async () => {
+    setValidation(true);
+    // Applique chaque écart compté au stock réel (stock_global) — sans
+    // ça, l'inventaire ne ferait que constater des écarts sans jamais
+    // corriger la donnée que lisent les autres écrans.
+    const avecEcart = enCours.filter(l => l.ecart !== 0);
+    await Promise.all(avecEcart.map(l => majStockGlobalQuantite(l.stockItemId, l.stockReel)));
+
     const inv: Inventaire = {
       id:    "inv_" + Date.now().toString().slice(-5),
       date:  new Date().toISOString().split("T")[0],
@@ -53,6 +68,8 @@ export default function FoodInventaire() {
     setModeComptage(false);
     setEnCours([]);
     setDetail(inv);
+    setValidation(false);
+    getStockGlobalFood().then(setStocks);
   };
 
   const ecartTotal = useMemo(() =>
@@ -146,10 +163,11 @@ export default function FoodInventaire() {
         ))}
       </div>
       <div style={{ display:"flex", gap:8 }}>
-        <button onClick={validerInventaire}
+        <button onClick={validerInventaire} disabled={validation}
           style={{ flex:1, background:FC.vert, border:"none", borderRadius:10,
-            padding:"11px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:SA }}>
-          ✅ Valider l'inventaire
+            padding:"11px", color:"#fff", fontWeight:700, fontSize:13,
+            cursor:validation?"wait":"pointer", fontFamily:SA, opacity:validation?0.6:1 }}>
+          {validation ? "Application des corrections…" : "✅ Valider l'inventaire (corrige le stock)"}
         </button>
         <button onClick={() => { setModeComptage(false); setEnCours([]); }}
           style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none", borderRadius:10,
@@ -167,17 +185,24 @@ export default function FoodInventaire() {
           Gestion des inventaires
         </div>
         <div style={{ fontSize:11, color:FC.creamD, lineHeight:1.6, marginBottom:12 }}>
-          Compare le stock théorique (calculé) et le stock réel (compté physiquement). Identifie les écarts pour correction.
+          Compare le stock théorique (le vrai stock enregistré) et le stock réel (compté physiquement). La validation corrige directement le stock pour chaque écart constaté.
         </div>
-        <button onClick={startInventaire}
+        <button onClick={startInventaire} disabled={chargement || stocks.length === 0}
           style={{ width:"100%", background:FC.vert, border:"none", borderRadius:10,
-            padding:"11px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:SA }}>
-          🔢 Démarrer un inventaire complet
+            padding:"11px", color:"#fff", fontWeight:700, fontSize:13,
+            cursor:(chargement||stocks.length===0)?"not-allowed":"pointer", fontFamily:SA,
+            opacity:(chargement||stocks.length===0)?0.5:1 }}>
+          {chargement ? "Chargement du stock…" : "🔢 Démarrer un inventaire complet"}
         </button>
       </div>
       {inventaires.length === 0 && (
         <div style={{ textAlign:"center", padding:"24px", color:FC.creamD, fontSize:13, fontStyle:"italic" }}>
-          Aucun inventaire réalisé. Démarrez le premier.
+          {chargement ? "" : "Aucun inventaire réalisé dans cette session. Démarrez le premier."}
+        </div>
+      )}
+      {inventaires.length > 0 && (
+        <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", fontStyle:"italic", textAlign:"center" }}>
+          L'historique ci-dessous n'est conservé que pour cette session — il n'est pas encore sauvegardé.
         </div>
       )}
       {inventaires.map(inv => {

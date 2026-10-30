@@ -1,14 +1,28 @@
-import React, { useState } from "react";
-import { FOOD_CATALOGUE, FOOD_STOCK_INIT, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { rechercherProduitsFood, getAlerteStock, fmtPrix, calculerPrix } from "./foodUtils";
+import { getStockGlobalFood } from "./foodApi";
+import { getCatalogueFoodAvecDiagnostic } from "./catalogueApi";
+import type { StockItem, Produit } from "./foodTypes";
 
 export default function FoodAssistant() {
   const [mode,    setMode]    = useState<"prix"|"courses"|"stock"|"menu"|null>(null);
   const [query,   setQuery]   = useState("");
   const [resultat,setResultat]= useState<any>(null);
+  const [stocks, setStocks] = useState<StockItem[]>([]);
+  const [catalogue, setCatalogue] = useState<Produit[]>([]);
+  const [chargement, setChargement] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const [s, { produits: c }] = await Promise.all([getStockGlobalFood(), getCatalogueFoodAvecDiagnostic()]);
+      setStocks(s); setCatalogue(c);
+      setChargement(false);
+    })();
+  }, []);
 
   const analyserPrix = () => {
-    const produits = rechercherProduitsFood(query.split(" "));
+    const produits = rechercherProduitsFood(query.split(" "), catalogue);
     if (produits.length === 0) {
       setResultat({ type:"rien", msg: "Aucun produit trouvé pour « "+query+" ». Vérifiez le catalogue." });
       return;
@@ -23,14 +37,14 @@ export default function FoodAssistant() {
   };
 
   const checkStock = () => {
-    const alertes = getAlerteStock(FOOD_STOCK_INIT);
+    const alertes = getAlerteStock(stocks);
     setResultat({ type:"stock", alertes });
   };
 
   const genererMenu = () => {
-    const plats  = FOOD_CATALOGUE.filter(p => p.categorie === "plat" && p.disponible);
-    const desserts= FOOD_CATALOGUE.filter(p => ["patisserie","dessert"].includes(p.categorie) && p.disponible);
-    const boissons= FOOD_CATALOGUE.filter(p => p.categorie === "boisson" && p.disponible);
+    const plats  = catalogue.filter(p => ["repas_guyanais","repas_creole","poulet","poisson","buffet","traiteur"].includes(p.categorie) && p.disponible);
+    const desserts= catalogue.filter(p => ["patisserie","dessert","cake","glace"].includes(p.categorie) && p.disponible);
+    const boissons= catalogue.filter(p => ["boisson","jus","cocktail","mocktail"].includes(p.categorie) && p.disponible);
     setResultat({
       type:"menu",
       plat:   plats[Math.floor(Math.random() * plats.length)],
@@ -51,6 +65,7 @@ export default function FoodAssistant() {
       <div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", lineHeight:1.6 }}>
         🤖 Je suis l'assistant Bella'Food. Que voulez-vous faire ?
       </div>
+      {chargement && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textAlign:"center" }}>Chargement…</div>}
 
       {/* Modes */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>

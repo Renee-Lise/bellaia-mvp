@@ -9,7 +9,7 @@ import type {
   StockItem, LigneCourses, UniteMesure, ImportRecette,
   CriteresRecherche, TypeFiche, PlanningProduction, TacheProduction,
   LigneDevisFood, DevisFood,
-  Achat, LigneAchat, Alerte, Lot,
+  Achat, LigneAchat, Alerte, Lot, Produit,
 } from "./foodTypes";
 
 // ── Imports constantes (un seul bloc) ─────────────────────
@@ -84,8 +84,8 @@ export function calculerTempsTotal(
 }
 
 // ── Recherche catalogue Food (liaison Events) ──────────────
-export function rechercherProduitsFood(motsCles: string[]) {
-  return FOOD_CATALOGUE.filter(p => {
+export function rechercherProduitsFood(motsCles: string[], catalogue: Produit[]) {
+  return catalogue.filter(p => {
     const t = [p.nom, p.sousCat || "", p.description || ""].join(" ").toLowerCase();
     return motsCles.some(m => t.includes(m.toLowerCase()));
   });
