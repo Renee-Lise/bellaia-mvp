@@ -89,6 +89,13 @@ export async function getCatalogueFoodAvecDiagnostic(): Promise<{ produits: (Pro
   };
 }
 
+// Avant de publier une recette au catalogue, vérifie qu'elle n'y est
+// pas déjà (évite un doublon si on clique deux fois).
+export async function getProduitCatalogueParRecette(recetteId: string): Promise<Produit | null> {
+  const rows = await sbFoodGet<any>("catalogue_produits", `business_unit=eq.FOOD&recette_id=eq.${recetteId}&limit=1`);
+  return rows.length > 0 ? mapProduitFromDb(rows[0]) : null;
+}
+
 export async function creerProduitCatalogue(p: Partial<Produit> & { visibleClient?: boolean }): Promise<{ ok: boolean; produit?: Produit; error?: string }> {
   const res = await sbFoodPost<any>("catalogue_produits", mapProduitToDb(p));
   if (!res.ok) return { ok: false, error: typeof res.error === "string" ? res.error : res.error?.message || "Échec de l'enregistrement." };

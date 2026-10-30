@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
 import { fmtDuree, fmtPrix, calculerCoutRecette } from "./foodUtils";
 import { getRecettesFoodAvecDiagnostic, creerRecette, majRecette, uploadMediaRecette, getStockGlobalFood } from "./foodApi";
-import type { Recette, Ingredient, StatutRecette, UniteMesure, StockItem } from "./foodTypes";
+import { creerProduitCatalogue, getProduitCatalogueParRecette } from "./catalogueApi";
+import type { Recette, Ingredient, StatutRecette, UniteMesure, StockItem, Produit } from "./foodTypes";
 
 const STATUT_COL: Record<string, string> = {
   brouillon:   "rgba(255,255,255,0.08)",
@@ -86,6 +87,44 @@ function formVide(): FormRecette {
   };
 }
 
+function CarteRecette({ r, onOuvrir }: { r: Recette; onOuvrir: () => void }) {
+  return (
+    <div onClick={onOuvrir}
+      style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`,
+        borderRadius: 12, padding: "13px 14px", cursor: "pointer" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        {r.photo && (
+          <img src={r.photo} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8, marginRight: 10, flexShrink: 0 }} />
+        )}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{r.nom}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+            {r.nbParts} parts · {fmtDuree(r.tempsPrepa + r.tempsCuisson)} au total
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <span style={{ fontSize: 9, background: STATUT_COL[r.statut], color: STATUT_TXT[r.statut], borderRadius: 4, padding: "2px 7px", fontWeight: 700 }}>
+            {STATUT_LABEL[r.statut] || r.statut}
+          </span>
+          {r.prixConseille && (
+            <span style={{ fontSize: 12, color: FC.or, fontWeight: 700 }}>{fmtPrix(r.prixConseille)}</span>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+        {r.ingredients.slice(0, 3).map(i => (
+          <span key={i.id} style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.05)", borderRadius: 4, padding: "1px 6px" }}>
+            {i.nom}
+          </span>
+        ))}
+        {r.ingredients.length > 3 && (
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>+{r.ingredients.length - 3}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function FoodRecettes() {
   const [recettes, setRecettes] = useState<Recette[]>([]);
   const [chargement, setChargement] = useState(true);
@@ -132,6 +171,28 @@ export default function FoodRecettes() {
     const res = await majRecette(r.id, { statut: "archivee" });
     if (res.ok) charger();
     else setErreurSauvegarde("Échec de l'archivage — réessayez.");
+  };
+
+  // Lien catalogue de la recette actuellement ouverte en détail —
+  // undefined = pas encore vérifié, null = pas (encore) publiée.
+  const [catalogueLink, setCatalogueLink] = useState<Produit | null | undefined>(undefined);
+  useEffect(() => {
+    if (!detail) { setCatalogueLink(undefined); return; }
+    let actif = true;
+    getProduitCatalogueParRecette(detail.id).then(p => { if (actif) setCatalogueLink(p); });
+    return () => { actif = false; };
+  }, [detail]);
+
+  const publierAuCatalogue = async (r: Recette) => {
+    const res = await creerProduitCatalogue({
+      nom: r.nom, categorie: r.categorie, prix: r.prixConseille ?? null,
+      recetteId: r.id, disponible: true, photo: r.photo,
+      allergenes: r.allergenes, tags: r.tags,
+      statut: "brouillon", visibleClient: false,
+    });
+    if (!res.ok || !res.produit) { alert("Échec de la publication au catalogue — réessayez."); return; }
+    setCatalogueLink(res.produit);
+    alert("Recette ajoutée au catalogue en brouillon — ouvrez l'onglet Catalogue pour relire la fiche, ajouter une description client et l'activer. Elle ne sera visible d'aucune cliente avant ça.");
   };
 
   const sauvegarderForm = async () => {
@@ -414,6 +475,21 @@ export default function FoodRecettes() {
         </div>
       </div>
 
+      {catalogueLink !== undefined && (
+        catalogueLink ? (
+          <div style={{ fontSize: 11, color: FC.vertL, background: "rgba(21,128,61,0.1)", borderRadius: 8, padding: "8px 12px" }}>
+            🛍 Déjà au catalogue — statut : {catalogueLink.statut === "actif" ? "actif (visible clientes)" : catalogueLink.statut === "brouillon" ? "brouillon (pas encore visible)" : catalogueLink.statut}. À gérer depuis l'onglet Catalogue.
+          </div>
+        ) : (
+          <button onClick={() => publierAuCatalogue(detail)}
+            style={{ fontSize: 11, padding: "9px 14px", borderRadius: 10, cursor: "pointer",
+              background: "rgba(201,168,76,0.12)", border: `1px solid ${FC.or}`,
+              color: FC.or, fontWeight: 700, fontFamily: "sans-serif", alignSelf: "flex-start" }}>
+            🛍 Publier au catalogue (brouillon)
+          </button>
+        )
+      )}
+
       <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 14, padding: "16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
           <div>
@@ -615,40 +691,28 @@ export default function FoodRecettes() {
         </div>
       )}
 
-      {!chargement && filtrees.map(r => (
-        <div key={r.id} onClick={() => { setDetail(r); setCibleRendement(null); }}
-          style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`,
-            borderRadius: 12, padding: "13px 14px", cursor: "pointer" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            {r.photo && (
-              <img src={r.photo} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8, marginRight: 10, flexShrink: 0 }} />
-            )}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{r.nom}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                {r.nbParts} parts · {fmtDuree(r.tempsPrepa + r.tempsCuisson)} au total
-              </div>
+      {!chargement && filtCat === "tous" && (() => {
+        // Vue "Toutes" : regroupée par catégorie (dans l'ordre de
+        // FOOD_CATEGORIES) plutôt qu'une liste alphabétique plate —
+        // c'est ce qui manquait pour "voir les recettes rangées dans
+        // leur catégorie".
+        const presentes = FOOD_CATEGORIES.filter(c => filtrees.some(r => r.categorie === c.id));
+        return presentes.map(cat => (
+          <div key={cat.id}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 1, marginBottom: 6, marginTop: 4 }}>
+              {cat.ico} {cat.nom.toUpperCase()} ({filtrees.filter(r => r.categorie === cat.id).length})
             </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-              <span style={{ fontSize: 9, background: STATUT_COL[r.statut], color: STATUT_TXT[r.statut], borderRadius: 4, padding: "2px 7px", fontWeight: 700 }}>
-                {STATUT_LABEL[r.statut] || r.statut}
-              </span>
-              {r.prixConseille && (
-                <span style={{ fontSize: 12, color: FC.or, fontWeight: 700 }}>{fmtPrix(r.prixConseille)}</span>
-              )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+              {filtrees.filter(r => r.categorie === cat.id).map(r => (
+                <CarteRecette key={r.id} r={r} onOuvrir={() => { setDetail(r); setCibleRendement(null); }} />
+              ))}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-            {r.ingredients.slice(0, 3).map(i => (
-              <span key={i.id} style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.05)", borderRadius: 4, padding: "1px 6px" }}>
-                {i.nom}
-              </span>
-            ))}
-            {r.ingredients.length > 3 && (
-              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>+{r.ingredients.length - 3}</span>
-            )}
-          </div>
-        </div>
+        ));
+      })()}
+
+      {!chargement && filtCat !== "tous" && filtrees.map(r => (
+        <CarteRecette key={r.id} r={r} onOuvrir={() => { setDetail(r); setCibleRendement(null); }} />
       ))}
       {!chargement && !diagnostic && filtrees.length === 0 && (
         <div style={{ textAlign: "center", padding: "28px", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
