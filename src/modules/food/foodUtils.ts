@@ -13,7 +13,7 @@ import type {
 } from "./foodTypes";
 
 // ── Imports constantes (un seul bloc) ─────────────────────
-import { FOOD_CATALOGUE, FOOD_RECETTES_INIT, FOOD_STOCK_INIT } from "./foodConsts";
+import { FOOD_CATALOGUE } from "./foodConsts";
 
 // ═══════════════════════════════════════════════════════════
 // PARTIE I — Calculs, formatage, liste de courses
@@ -235,9 +235,10 @@ export function exportCoursesWhatsApp(lignes: LigneCourses[], budget?: number): 
 
 // ── Moteur de recherche recettes ───────────────────────────
 export function rechercherRecettes(
-  criteres: CriteresRecherche
-): typeof FOOD_RECETTES_INIT {
-  return FOOD_RECETTES_INIT.filter(r => {
+  criteres: CriteresRecherche,
+  recettes: Recette[]
+): Recette[] {
+  return recettes.filter(r => {
     if (criteres.categorie && r.categorie !== criteres.categorie) return false;
     if (criteres.difficulteMax && r.difficulte > criteres.difficulteMax) return false;
     if (criteres.tempsMaxMin) {

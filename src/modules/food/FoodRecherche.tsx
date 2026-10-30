@@ -4,10 +4,11 @@
 // Export fiche cuisine/laboratoire/réseaux HTML
 // src/modules/food/FoodRecherche.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_RECETTES_INIT, FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
 import { rechercherRecettes, genererFicheHTML, fmtDuree, fmtPrix } from "./foodUtils";
-import type { CriteresRecherche, TypeFiche } from "./foodTypes";
+import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import type { CriteresRecherche, TypeFiche, Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 const ETOILES = (n:number) => "★".repeat(n)+"☆".repeat(5-n);
@@ -27,8 +28,14 @@ export default function FoodRecherche() {
   const [filtrePaneau, setFiltrePaneau] = useState(false);
   const [selectedFiche, setSelectedFiche] = useState<string|null>(null);
   const [typeFiche, setTypeFiche] = useState<TypeFiche>("cuisine");
+  const [recettes, setRecettes] = useState<Recette[]>([]);
+  const [chargement, setChargement] = useState(true);
 
-  const resultats = useMemo(() => rechercherRecettes(criteres), [criteres]);
+  useEffect(() => {
+    getRecettesFoodAvecDiagnostic().then(({ recettes: r }) => { setRecettes(r); setChargement(false); });
+  }, []);
+
+  const resultats = useMemo(() => rechercherRecettes(criteres, recettes), [criteres, recettes]);
 
   const maj = (k: keyof CriteresRecherche, v: any) =>
     setCriteres(c => ({ ...c, [k]: v || undefined }));
@@ -40,7 +47,7 @@ export default function FoodRecherche() {
     });
 
   const ouvrirFiche = (recetteId: string, type: TypeFiche) => {
-    const r = FOOD_RECETTES_INIT.find(x=>x.id===recetteId);
+    const r = recettes.find(x=>x.id===recetteId);
     if (!r) return;
     let html = genererFicheHTML(r, type);
 
@@ -187,7 +194,7 @@ ${r.allergenes?.length?`<p><strong>⚠️ Allergènes déclarés :</strong> ${r.
 
       {/* Résultats */}
       <div style={{ fontSize:11, color:FC.creamD }}>
-        {resultats.length} recette{resultats.length>1?"s":""} trouvée{resultats.length>1?"s":""}
+        {chargement ? "Chargement…" : `${resultats.length} recette${resultats.length>1?"s":""} trouvée${resultats.length>1?"s":""}`}
       </div>
 
       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>

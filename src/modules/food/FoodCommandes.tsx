@@ -1,8 +1,9 @@
 import React, { useEffect, useState, lazy, Suspense } from "react";
-import { FOOD_COLORS as FC, FOOD_CATALOGUE } from "./foodConsts";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix } from "./foodUtils";
 import { getCommandesFoodAvecDiagnostic, creerCommandeFood, majCommandeFood, majStatutCommandeFood } from "./commandesApi";
-import type { CommandeFood, StatutCommande } from "./foodTypes";
+import { getCatalogueFoodAvecDiagnostic } from "./catalogueApi";
+import type { CommandeFood, StatutCommande, Produit } from "./foodTypes";
 
 // Import dynamique du configurateur core (pas de dépendance circulaire)
 const ProductConfigurator = lazy(() =>
@@ -36,11 +37,15 @@ export default function FoodCommandes() {
   // Produit sélectionné pour le configurateur
   const [produitConfig, setProduitConfig] = useState<any>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [catalogue, setCatalogue] = useState<Produit[]>([]);
 
   const charger = async () => {
     setChargement(true);
-    const { commandes: c, diagnostic: d } = await getCommandesFoodAvecDiagnostic();
+    const [{ commandes: c, diagnostic: d }, { produits: cat }] = await Promise.all([
+      getCommandesFoodAvecDiagnostic(), getCatalogueFoodAvecDiagnostic(),
+    ]);
     setCommandes(c);
+    setCatalogue(cat);
     setDiagnostic(d);
     setChargement(false);
   };
@@ -197,7 +202,7 @@ export default function FoodCommandes() {
         </div>
         {/* Produits configurables */}
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {FOOD_CATALOGUE.filter(p => p.disponible).slice(0, 12).map(p => (
+          {catalogue.filter(p => p.disponible).slice(0, 12).map(p => (
             <button key={p.id} onClick={() => setProduitConfig(p)}
               style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
                 background:"rgba(255,255,255,0.04)", border:`1px solid ${FC.line}`,

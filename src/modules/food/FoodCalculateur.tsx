@@ -3,9 +3,11 @@
 // Énergie, coût/portion, prix premium, seuil de rentabilité
 // src/modules/food/FoodCalculateur.tsx
 // ═══════════════════════════════════════════════════════════
-import React, { useState, useMemo } from "react";
-import { FOOD_COLORS as FC, FOOD_RECETTES_INIT } from "./foodConsts";
+import React, { useState, useMemo, useEffect } from "react";
+import { FOOD_COLORS as FC } from "./foodConsts";
 import { calculerPrix, fmtPrix } from "./foodUtils";
+import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import type { Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
 
@@ -18,6 +20,11 @@ const inpBase: React.CSSProperties = {
 export default function FoodCalculateur() {
   const [source, setSource] = useState<"manuel"|"recette">("manuel");
   const [recetteId, setRecetteId] = useState("");
+  const [recettes, setRecettes] = useState<Recette[]>([]);
+
+  useEffect(() => {
+    getRecettesFoodAvecDiagnostic().then(({ recettes: r }) => setRecettes(r));
+  }, []);
   const [form, setForm] = useState({
     coutMatiere:      0,
     coutConsommables: 0,
@@ -36,7 +43,7 @@ export default function FoodCalculateur() {
 
   // Si recette sélectionnée, pré-remplir les coûts
   const chargerRecette = (id: string) => {
-    const r = FOOD_RECETTES_INIT.find(x => x.id === id);
+    const r = recettes.find(x => x.id === id);
     if (!r) return;
     setForm(f => ({
       ...f,
@@ -97,7 +104,7 @@ export default function FoodCalculateur() {
           <select value={recetteId} onChange={e=>chargerRecette(e.target.value)}
             style={{ ...inpBase, background:"#1a1a2e" }}>
             <option value="">— Sélectionner —</option>
-            {FOOD_RECETTES_INIT.map(r=>(
+            {recettes.map(r=>(
               <option key={r.id} value={r.id}>{r.nom}</option>
             ))}
           </select>
