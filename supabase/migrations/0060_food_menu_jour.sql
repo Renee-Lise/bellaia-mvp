@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0060_food_menu_jour.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : "menu(s) du jour" + "lieu(x) de vente" visibles par les
 --   clientes dès l'ouverture de leur session Bella'Food (demande de
