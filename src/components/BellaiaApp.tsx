@@ -3911,8 +3911,32 @@ function DashF({ user, goto }) {
         {!briefs && !briefLoading && <p style={{margin:0,fontSize:11,color:B.muted}}>Génère ton brief quotidien avec l'IA.</p>}
       </div>
 
-      {/* Alertes — priorité la plus haute, juste après le brief, pour ne jamais
-          se perdre en bas de page derrière finances/CRM/agenda. */}
+      {/* Agenda — tout en haut, visible dès l'ouverture sans scroller, et
+          les factures en retard juste en dessous (les deux informations
+          qu'on veut voir d'un coup d'œil en arrivant). */}
+      {events.length>0&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+            <span style={{fontSize:12,fontWeight:800,color:B.cream}}>📅 Agenda</span>
+            <span style={{fontSize:11,color:B.violetL,cursor:"pointer"}} onClick={()=>goto("calendrier")}>Voir tout →</span>
+          </div>
+          {events.slice(0,3).map(e=>(
+            <div key={e.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"10px 13px",marginBottom:6,borderLeft:"3px solid "+(e.couleur||B.violet)}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{e.titre}</div>
+                  {e.lieu&&<div style={{fontSize:10,color:B.muted}}>📍 {e.lieu}</div>}
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:e.compte_rebours?13:11,fontWeight:700,color:e.compte_rebours?B.gold:B.violetL,fontFamily:e.compte_rebours?FS:SA}}>{countdown(e.date_debut)}</div>
+                  <div style={{fontSize:9,color:B.muted}}>{new Date(e.date_debut).toLocaleDateString("fr-FR",{day:"2-digit",month:"short"})}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {invoicesRetard.length>0&&(
         <div style={{background:"rgba(180,80,80,0.1)",border:"1px solid rgba(180,80,80,0.3)",borderRadius:12,padding:"11px 14px"}}>
           <div style={{fontSize:12,fontWeight:800,color:B.danger,marginBottom:6}}>⚠ {invoicesRetard.length} facture{invoicesRetard.length>1?"s":""} en retard</div>
@@ -3957,30 +3981,6 @@ function DashF({ user, goto }) {
           ))}
         </div>
       </div>
-
-      {/* Événements + countdown */}
-      {events.length>0&&(
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:800,color:B.cream}}>📅 Agenda</span>
-            <span style={{fontSize:11,color:B.violetL,cursor:"pointer"}} onClick={()=>goto("calendrier")}>Voir tout →</span>
-          </div>
-          {events.slice(0,3).map(e=>(
-            <div key={e.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:11,padding:"10px 13px",marginBottom:6,borderLeft:"3px solid "+(e.couleur||B.violet)}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{e.titre}</div>
-                  {e.lieu&&<div style={{fontSize:10,color:B.muted}}>📍 {e.lieu}</div>}
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:e.compte_rebours?13:11,fontWeight:700,color:e.compte_rebours?B.gold:B.violetL,fontFamily:e.compte_rebours?FS:SA}}>{countdown(e.date_debut)}</div>
-                  <div style={{fontSize:9,color:B.muted}}>{new Date(e.date_debut).toLocaleDateString("fr-FR",{day:"2-digit",month:"short"})}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Accès rapides pôles — même habillage visuel que les cartes KPI
           (bordure haute colorée, pas latérale) pour une page cohérente de
