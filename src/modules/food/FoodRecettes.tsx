@@ -37,6 +37,31 @@ const ETOILES = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
 
 const nouvelId = (prefixe: string) => `${prefixe}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
+// Liste de courses d'une recette, au rendement choisi — copiée dans
+// le presse-papiers, pas d'envoi automatique (même esprit que le
+// partage WhatsApp des communications BSH : une action manuelle).
+function copierListeCourses(recette: Recette, cible: number | null) {
+  const facteur = cible != null && recette.nbParts > 0 ? cible / recette.nbParts : 1;
+  const lignes = recette.ingredients.map((ing: any) => {
+    if (ing.quantite != null) {
+      const q = Math.round(ing.quantite * facteur * 100) / 100;
+      return `- ${ing.nom} : ${q} ${ing.unite}`;
+    }
+    if (ing.quantite_min != null || ing.quantite_max != null) {
+      const qMin = ing.quantite_min != null ? Math.round(ing.quantite_min * facteur * 100) / 100 : "?";
+      const qMax = ing.quantite_max != null ? Math.round(ing.quantite_max * facteur * 100) / 100 : "?";
+      return `- ${ing.nom} : ${qMin}–${qMax} ${ing.unite} (à confirmer)`;
+    }
+    return `- ${ing.nom} : à doser`;
+  });
+  const entete = `Liste de courses — ${recette.nom}${cible != null ? ` (pour ${cible}, recette de base ${recette.nbParts})` : ""}`;
+  const texte = [entete, "", ...lignes].join("\n");
+  navigator.clipboard?.writeText(texte).then(
+    () => alert("Liste de courses copiée — collez-la où vous voulez."),
+    () => alert("Impossible de copier automatiquement — recopiez la liste manuellement.")
+  );
+}
+
 const inp: React.CSSProperties = {
   background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 8, padding: "8px 10px", color: "#fff", fontSize: 12,
@@ -66,6 +91,11 @@ export default function FoodRecettes() {
   const [chargement, setChargement] = useState(true);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [detail, setDetail] = useState<Recette | null>(null);
+  // Calculateur de production — recalcule les quantités d'ingrédients
+  // au prorata d'un rendement cible (ex. 1 à 20 assiettes, mais aussi
+  // des bases pâtissières dont le rendement est en grammes, d'où un
+  // champ libre plutôt qu'un plafond strict à 20).
+  const [cibleRendement, setCibleRendement] = useState<number | null>(null);
   const [form, setForm] = useState<FormRecette | null>(null);
   const [formId, setFormId] = useState<string | null>(null); // id en édition, null = création/duplication
   const [sauvegarde, setSauvegarde] = useState(false);
@@ -275,7 +305,7 @@ export default function FoodRecettes() {
   if (detail) return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button onClick={() => setDetail(null)} style={btnSecondaire}>‹ Retour</button>
+        <button onClick={() => { setDetail(null); setCibleRendement(null); }} style={btnSecondaire}>‹ Retour</button>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => ouvrirEdition(detail)} style={btnSecondaire}>✎ Modifier</button>
           <button onClick={() => ouvrirDuplication(detail)} style={btnSecondaire}>⧉ Dupliquer</button>
@@ -314,18 +344,64 @@ export default function FoodRecettes() {
         </div>
       </div>
 
+      {detail.nbParts > 0 && (
+        <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 12, padding: "14px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, marginBottom: 8, letterSpacing: 1 }}>CALCULATEUR DE PRODUCTION</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 10 }}>
+            Rendement de base : {detail.nbParts} {detail.sousCat?.includes("preparation") || detail.nbParts > 20 ? "(unité du rendement d'origine)" : "portions"}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {[1, 2, 4, 6, 8, 10, 12, 20].map(n => (
+              <button key={n} onClick={() => setCibleRendement(n)}
+                style={{ fontSize: 11, padding: "5px 11px", borderRadius: 20, cursor: "pointer", fontFamily: "sans-serif",
+                  border: `1px solid ${cibleRendement === n ? FC.or : "rgba(255,255,255,0.15)"}`,
+                  background: cibleRendement === n ? "rgba(201,168,76,0.15)" : "transparent",
+                  color: cibleRendement === n ? FC.or : "rgba(255,255,255,0.5)" }}>
+                {n}
+              </button>
+            ))}
+            <input type="number" min={1} placeholder="Autre…" value={cibleRendement && ![1,2,4,6,8,10,12,20].includes(cibleRendement) ? cibleRendement : ""}
+              onChange={e => setCibleRendement(parseInt(e.target.value) || null)}
+              style={{ width: 70, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20,
+                padding: "5px 11px", color: "#fff", fontSize: 11, fontFamily: "sans-serif", outline: "none" }}/>
+            {cibleRendement != null && (
+              <button onClick={() => setCibleRendement(null)} style={{ fontSize: 11, padding: "5px 11px", borderRadius: 20, cursor: "pointer",
+                background: "none", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.4)", fontFamily: "sans-serif" }}>
+                ↺ Réinitialiser
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 12, padding: "14px" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, marginBottom: 10, letterSpacing: 1 }}>INGRÉDIENTS</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, letterSpacing: 1 }}>
+            INGRÉDIENTS {cibleRendement != null && <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>— pour {cibleRendement}</span>}
+          </div>
+          {detail.ingredients.length > 0 && (
+            <button onClick={() => copierListeCourses(detail, cibleRendement)}
+              style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, cursor: "pointer",
+                background: "none", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)", fontFamily: "sans-serif" }}>
+              📋 Liste de courses
+            </button>
+          )}
+        </div>
         {detail.ingredients.length === 0 && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>Aucun ingrédient renseigné.</div>}
-        {detail.ingredients.map((ing: any) => (
+        {detail.ingredients.map((ing: any) => {
+          const facteur = cibleRendement != null && detail.nbParts > 0 ? cibleRendement / detail.nbParts : 1;
+          const q = ing.quantite != null ? Math.round(ing.quantite * facteur * 100) / 100 : null;
+          const qMin = ing.quantite_min != null ? Math.round(ing.quantite_min * facteur * 100) / 100 : null;
+          const qMax = ing.quantite_max != null ? Math.round(ing.quantite_max * facteur * 100) / 100 : null;
+          return (
           <div key={ing.id} style={{ padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{ing.nom}</span>
-              {ing.quantite != null ? (
-                <span style={{ fontSize: 12, color: FC.or, fontWeight: 600 }}>{ing.quantite} {ing.unite}</span>
-              ) : ing.quantite_min != null || ing.quantite_max != null ? (
+              {q != null ? (
+                <span style={{ fontSize: 12, color: FC.or, fontWeight: 600 }}>{q} {ing.unite}</span>
+              ) : qMin != null || qMax != null ? (
                 <span style={{ fontSize: 12, color: "#fb923c", fontWeight: 600 }}>
-                  {ing.quantite_min ?? "?"}–{ing.quantite_max ?? "?"} {ing.unite} (à confirmer)
+                  {qMin ?? "?"}–{qMax ?? "?"} {ing.unite} (à confirmer)
                 </span>
               ) : (
                 <span style={{ fontSize: 11, color: "rgba(251,146,60,0.7)", fontStyle: "italic" }}>à doser</span>
@@ -335,7 +411,8 @@ export default function FoodRecettes() {
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{ing.notes}</div>
             )}
           </div>
-        ))}
+          );
+        })}
         {detail.coutMatiere != null && (
           <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Coût matière estimé : {fmtPrix(detail.coutMatiere)}</div>
         )}
@@ -418,7 +495,7 @@ export default function FoodRecettes() {
       )}
 
       {!chargement && filtrees.map(r => (
-        <div key={r.id} onClick={() => setDetail(r)}
+        <div key={r.id} onClick={() => { setDetail(r); setCibleRendement(null); }}
           style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`,
             borderRadius: 12, padding: "13px 14px", cursor: "pointer" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
