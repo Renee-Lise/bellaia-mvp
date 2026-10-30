@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0061_food_fournisseurs_devis.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ (exécutée et vérifiée le 30/10/2026)
 -- Auteur : Claude Code · Date de rédaction : 2026-10-30
 -- Objet : finir Bella'Food, lot 1/3. FoodFournisseurs.tsx et
 --   FoodDevis.tsx n'étaient encore que des mocks en mémoire, comme
