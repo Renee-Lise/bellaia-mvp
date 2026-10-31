@@ -4657,10 +4657,10 @@ function FinancesP1({ user }) {
   };
 
   const createInvoice = async () => {
-    if (!form.client_nom?.trim()) return;
+    if (!form.client_nom?.trim()) { alert("Le nom du client est obligatoire."); return; }
     const totalTTC = formItems.length > 0 ? calcTotalTTC() : parseFloat(form.total_ttc)||0;
     const totalHT  = formItems.length > 0 ? calcTotalHT()  : totalTTC/1.2;
-    const inv = await sbPost("invoices", {
+    const res = await sbPost("invoices", {
       ...form,
       fondatrice_id: getFondId(),
       total_ht:      parseFloat(totalHT.toFixed(2)),
@@ -4668,11 +4668,16 @@ function FinancesP1({ user }) {
       solde_restant: parseFloat(totalTTC.toFixed(2)),
       objet:         formItems.map(i=>i.desc).filter(Boolean).join(", ") || form.objet || "",
     });
-    // Sauvegarder les items
+    if (!res.ok) {
+      alert("La facture n'a pas pu être enregistrée.\n"+(JSON.stringify(res.error)||"Réessayez."));
+      return; // modale laissée ouverte, rien n'a été créé
+    }
+    // sbPost renvoie {ok,status,data,error} — la ligne créée est dans res.data (array via return=representation)
+    const inv = Array.isArray(res.data) ? res.data[0] : res.data;
     if (inv?.id && formItems.length > 0) {
       for (const [idx, item] of formItems.entries()) {
         if (!item.desc) continue;
-        const riItem = await sbPost("invoice_items", {
+        await sbPost("invoice_items", {
           invoice_id:   inv.id,
           designation:  item.desc,
           quantite:     parseFloat(item.qte)||1,
@@ -4688,20 +4693,25 @@ function FinancesP1({ user }) {
   };
 
   const createQuote = async () => {
-    if (!form.client_nom?.trim()) return;
+    if (!form.client_nom?.trim()) { alert("Le nom du client est obligatoire."); return; }
     const totalTTC = formItems.length > 0 ? calcTotalTTC() : parseFloat(form.total_ttc)||0;
     const totalHT  = formItems.length > 0 ? calcTotalHT()  : totalTTC/1.2;
-    const q = await sbPost("quotes", {
+    const res = await sbPost("quotes", {
       ...form,
       fondatrice_id: getFondId(),
       total_ht:      parseFloat(totalHT.toFixed(2)),
       total_ttc:     parseFloat(totalTTC.toFixed(2)),
       objet:         formItems.map(i=>i.desc).filter(Boolean).join(", ") || form.objet || "",
     });
+    if (!res.ok) {
+      alert("Le devis n'a pas pu être enregistré.\n"+(JSON.stringify(res.error)||"Réessayez."));
+      return;
+    }
+    const q = Array.isArray(res.data) ? res.data[0] : res.data;
     if (q?.id && formItems.length > 0) {
       for (const [idx, item] of formItems.entries()) {
         if (!item.desc) continue;
-        const rqItem = await sbPost("quote_items", {
+        await sbPost("quote_items", {
           quote_id:     q.id,
           designation:  item.desc,
           quantite:     parseFloat(item.qte)||1,
@@ -4725,16 +4735,23 @@ function FinancesP1({ user }) {
   };
 
   const createPayment = async () => {
-    if (!form.montant) return;
-    const rPay = await sbPost("payments", { ...form, fondatrice_id: getFondId() });
-    if (!rPay.ok) { alert("Erreur enregistrement paiement.\n"+(rPay.error||"")); return; }
+    if (!form.montant) { alert("Le montant est obligatoire."); return; }
+    // Variable renommée (resPay, pas rPay) : "rPay" écrasait la fonction
+    // de rechargement reload:rPay du hook useP1Data("payments", ...)
+    // ci-dessus — l'appeler plantait silencieusement juste après
+    // l'enregistrement (TypeError: rPay is not a function), laissant
+    // la modale ouverte comme si rien ne s'était passé alors que le
+    // paiement était bien créé en base.
+    const resPay = await sbPost("payments", { ...form, fondatrice_id: getFondId() });
+    if (!resPay.ok) { alert("Erreur enregistrement paiement.\n"+(JSON.stringify(resPay.error)||"")); return; }
     rPay(); rInv(); setModal(null);
   };
 
   const createExpense = async () => {
-    if (!form.designation?.trim() || !form.montant) return;
-    const rExp = await sbPost("expenses", { ...form, fondatrice_id: getFondId() });
-    if (!rExp.ok) { alert("Erreur enregistrement dépense.\n"+(rExp.error||"")); return; }
+    if (!form.designation?.trim() || !form.montant) { alert("Désignation et montant sont obligatoires."); return; }
+    // Même bug de collision de nom que createPayment — voir commentaire ci-dessus.
+    const resExp = await sbPost("expenses", { ...form, fondatrice_id: getFondId() });
+    if (!resExp.ok) { alert("Erreur enregistrement dépense.\n"+(JSON.stringify(resExp.error)||"")); return; }
     rExp(); setModal(null);
   };
 
