@@ -142,6 +142,9 @@ export default function FoodRecettes() {
   const [erreurSauvegarde, setErreurSauvegarde] = useState<string | null>(null);
   const [filtCat, setFiltCat] = useState("tous");
   const [stocks, setStocks] = useState<StockItem[]>([]);
+  // Coût matière : auto-calculé depuis les ingrédients tant que la
+  // fondatrice n'a pas tapé une valeur à la main (bascule "manuel").
+  const [coutMatiereTouche, setCoutMatiereTouche] = useState(false);
 
   const charger = async () => {
     setChargement(true);
@@ -158,14 +161,16 @@ export default function FoodRecettes() {
 
   const filtrees = recettes.filter(r => filtCat === "tous" || r.categorie === filtCat);
 
-  const ouvrirCreation = () => { setForm(formVide()); setFormId(null); setErreurSauvegarde(null); };
+  const ouvrirCreation = () => { setForm(formVide()); setFormId(null); setErreurSauvegarde(null); setCoutMatiereTouche(false); };
   const ouvrirEdition = (r: Recette) => {
     setForm({ ...r, ingredients: r.ingredients || [], etapes: r.etapes || [] });
     setFormId(r.id); setErreurSauvegarde(null);
+    setCoutMatiereTouche(r.coutMatiere != null);
   };
   const ouvrirDuplication = (r: Recette) => {
     setForm({ ...r, id: undefined, nom: `${r.nom} (copie)`, statut: "brouillon", ingredients: r.ingredients || [], etapes: r.etapes || [] });
     setFormId(null); setErreurSauvegarde(null);
+    setCoutMatiereTouche(r.coutMatiere != null);
   };
   const archiver = async (r: Recette) => {
     const res = await majRecette(r.id, { statut: "archivee" });
@@ -182,6 +187,18 @@ export default function FoodRecettes() {
     getProduitCatalogueParRecette(detail.id).then(p => { if (actif) setCatalogueLink(p); });
     return () => { actif = false; };
   }, [detail]);
+
+  // Recalcule le coût matière depuis les ingrédients (quantité × coût
+  // unitaire) à chaque modification, tant que coutMatiereTouche est faux —
+  // dès que la fondatrice tape une valeur à la main, on arrête d'écraser
+  // son choix (bascule "↻" pour revenir au calcul auto).
+  useEffect(() => {
+    if (!form || coutMatiereTouche) return;
+    const estime = calculerCoutRecette(form.ingredients);
+    if (estime !== (form.coutMatiere ?? 0)) {
+      setForm(f => f ? { ...f, coutMatiere: estime } : f);
+    }
+  }, [form?.ingredients, coutMatiereTouche]);
 
   const publierAuCatalogue = async (r: Recette) => {
     const res = await creerProduitCatalogue({
@@ -246,6 +263,16 @@ export default function FoodRecettes() {
     majForm("ingredients", copie);
   };
   const supprimerIngredient = (i: number) => majForm("ingredients", (form?.ingredients || []).filter((_, idx) => idx !== i));
+  const majIngredientStock = (i: number, stockItemId: string) => {
+    const stock = stocks.find(s => s.id === stockItemId);
+    const copie = [...(form?.ingredients || [])];
+    copie[i] = {
+      ...copie[i],
+      stockItemId: stockItemId || undefined,
+      ...(stock?.prixUnitaire != null ? { coutUnitaire: stock.prixUnitaire } : {}),
+    };
+    majForm("ingredients", copie);
+  };
 
   const ajouterEtape = () => majForm("etapes", [...(form?.etapes || []), ""]);
   const majEtape = (i: number, val: string) => {
@@ -389,16 +416,30 @@ export default function FoodRecettes() {
                 </select>
                 <button onClick={() => supprimerIngredient(i)} style={{ ...btnSecondaire, padding: "6px 9px" }}>✕</button>
               </div>
-              <select value={ing.stockItemId || ""} onChange={e => majIngredient(i, "stockItemId", e.target.value || undefined)}
-                style={{ ...inp, background: "#1a1a2e", fontSize: 10, color: ing.stockItemId ? FC.vertL : "rgba(255,255,255,0.4)" }}>
-                <option value="">— lier à une fiche de stock (optionnel) —</option>
-                {stocks.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
-              </select>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <select value={ing.stockItemId || ""} onChange={e => majIngredientStock(i, e.target.value)}
+                  style={{ ...inp, flex: 2, background: "#1a1a2e", fontSize: 10, color: ing.stockItemId ? FC.vertL : "rgba(255,255,255,0.4)" }}>
+                  <option value="">— lier à une fiche de stock (optionnel) —</option>
+                  {stocks.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                </select>
+                <input type="number" min={0} step={0.001}
+                  value={ing.coutUnitaire ?? ""}
+                  onChange={e => majIngredient(i, "coutUnitaire", e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                  placeholder="Coût unitaire €"
+                  title="Coût par unité (€) — utilisé pour calculer automatiquement le coût matière de la recette"
+                  style={{ ...inp, flex: 1, fontSize: 10 }} />
+              </div>
             </div>
           ))}
           <button onClick={ajouterIngredient} style={{ ...btnSecondaire, alignSelf: "flex-start" }}>+ Ingrédient</button>
-          {coutEstime > 0 && (
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Coût matière estimé (si coûts unitaires saisis) : {fmtPrix(coutEstime)}</div>
+          {coutMatiereTouche && coutEstime > 0 && (
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+              Coût matière calculé depuis les ingrédients : {fmtPrix(coutEstime)} —{" "}
+              <button type="button" onClick={() => setCoutMatiereTouche(false)}
+                style={{ background: "none", border: "none", color: FC.vertL, cursor: "pointer", fontSize: 10, padding: 0, textDecoration: "underline" }}>
+                utiliser cette valeur
+              </button>
+            </div>
           )}
         </div>
 
@@ -434,8 +475,19 @@ export default function FoodRecettes() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Coût matière (€)</label>
-              <input type="number" value={form.coutMatiere ?? ""} onChange={e => majForm("coutMatiere", e.target.value === "" ? undefined : parseFloat(e.target.value))} style={inp} />
+              <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                Coût matière (€) {!coutMatiereTouche && <span style={{ color: FC.vertL }}>· auto</span>}
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input type="number" value={form.coutMatiere ?? ""}
+                  onChange={e => { setCoutMatiereTouche(true); majForm("coutMatiere", e.target.value === "" ? undefined : parseFloat(e.target.value)); }}
+                  style={inp} />
+                {coutMatiereTouche && (
+                  <button type="button" onClick={() => setCoutMatiereTouche(false)}
+                    title="Revenir au calcul automatique depuis les ingrédients"
+                    style={{ ...btnSecondaire, padding: "6px 9px" }}>↻</button>
+                )}
+              </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Prix conseillé (€)</label>
