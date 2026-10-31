@@ -1,0 +1,35 @@
+-- ═══════════════════════════════════════════════════════════
+-- 0067_catalogue_variantes_drop_policy_residuelle.sql
+-- STATUT: PROPOSITION
+-- Auteur : Claude Code · Date de rédaction : 2026-10-31
+-- Objet : la vérification de la migration 0050 a montré que
+--   catalogue_variantes avait 3 policies au lieu des 2 attendues —
+--   une ancienne "cat_variantes_auth" (auth.role()='authenticated',
+--   FOR ALL) n'a jamais été supprimée, car la migration 0050
+--   supprimait "catalogue_auth" sur catalogue_produits mais n'avait
+--   pas prévu l'équivalent sur catalogue_variantes (oubli de ma
+--   part). Résultat : n'importe quelle cliente connectée pouvait
+--   encore lire ET modifier toutes les variantes de tous les
+--   produits, indépendamment de visible_client/disponible/statut —
+--   le même trou que 0050 était censé fermer, resté ouvert sur cette
+--   seule table.
+--
+-- Impact : 1 policy supprimée sur catalogue_variantes. Les 2 policies
+--   déjà correctes (catalogue_variantes_fondatrice,
+--   catalogue_variantes_lecture_publique) ne sont pas touchées.
+-- ═══════════════════════════════════════════════════════════
+
+drop policy if exists cat_variantes_auth on public.catalogue_variantes;
+
+-- ═══════════════════════════════════════════════════════════
+-- Vérification après exécution :
+--
+--   select policyname, cmd, roles, qual
+--   from pg_policies
+--   where schemaname='public' and tablename in ('catalogue_produits','catalogue_variantes')
+--   order by tablename, policyname;
+--   → attendu : catalogue_produits a 2 lignes, catalogue_variantes a
+--     2 lignes (catalogue_variantes_fondatrice,
+--     catalogue_variantes_lecture_publique) — cat_variantes_auth a
+--     disparu, plus aucune ligne avec "authenticated".
+-- ═══════════════════════════════════════════════════════════
