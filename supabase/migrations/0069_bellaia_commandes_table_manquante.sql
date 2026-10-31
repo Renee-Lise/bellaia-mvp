@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0069_bellaia_commandes_table_manquante.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-31
 -- Auteur : Claude Code · Date de rédaction : 2026-10-31
 -- Objet : bellaia_commandes est utilisée par le code depuis le début
 --   du suivi des migrations (documentée dans supabase/README.md comme
