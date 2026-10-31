@@ -127,6 +127,13 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
   const [saving,  setSaving]  = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const [hotes, setHotes] = useState<{id:string; nom:string}[]>([]);
+
+  useEffect(() => {
+    sbGet("bsh_hotes", "order=nom.asc&select=id,nom,prenom").then(rows => {
+      setHotes(rows.map((r:any) => ({ id:r.id, nom:[r.prenom, r.nom].filter(Boolean).join(" ") || r.id })));
+    });
+  }, []);
 
   // Chargement depuis Supabase — noms de colonnes alignés sur le vrai
   // schéma de bellaia_documents (vérifié en base le 2026-10-26, voir
@@ -517,9 +524,13 @@ export default function DocumentCenter({ moduleInitial }: { moduleInitial?: Modu
               ))}
               {form.module === "BSH" && (
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-                  <label style={{ fontSize:10, color:CLR.creamD }}>Hôtesse BSH (identifiant compte, optionnel)</label>
-                  <input placeholder="UUID de la fiche bsh_hotes — pour qu'elle voie ce document" value={form.hoteId||""}
-                    onChange={e => setForm(f => ({...f,hoteId:e.target.value}))} style={inp}/>
+                  <label style={{ fontSize:10, color:CLR.creamD }}>Hôtesse BSH (optionnel — pour qu'elle voie ce document)</label>
+                  <select value={form.hoteId||""}
+                    onChange={e => setForm(f => ({...f,hoteId:e.target.value || undefined}))}
+                    style={{ ...inp, background:"#1a1a2e" }}>
+                    <option value="">— Aucune —</option>
+                    {hotes.map(h => <option key={h.id} value={h.id}>{h.nom}</option>)}
+                  </select>
                 </div>
               )}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
