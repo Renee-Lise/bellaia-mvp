@@ -134,6 +134,7 @@ export interface ProduitPublicFood {
   description?: string;
   prix: number | null;
   tags?: string[];
+  photo?: string;
 }
 
 export async function getCatalogueFoodPublic(): Promise<{ produits: ProduitPublicFood[]; diagnostic: string | null }> {
@@ -156,6 +157,7 @@ export async function getCatalogueFoodPublic(): Promise<{ produits: ProduitPubli
         id: row.id, nom: row.nom, categorie: row.categorie_slug ?? "autre",
         sousCat: row.sous_categorie ?? undefined, description: row.description_courte ?? undefined,
         prix: row.prix ?? null, tags: row.tags ?? undefined,
+        photo: Array.isArray(row.galerie_photos) ? row.galerie_photos[0] : undefined,
       })),
       diagnostic: null,
     };

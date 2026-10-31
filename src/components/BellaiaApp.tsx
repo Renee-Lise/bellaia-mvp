@@ -2928,7 +2928,7 @@ function ClientFood({ user, onBack }) {
       if (!actif) return;
       const mapped = produits.map(p => {
         const catInfo = FOOD_CATEGORIES.find(c => c.id === p.categorie);
-        return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [] };
+        return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [], photo: p.photo || null };
       });
       setCatalogueFood(mapped);
       setCatalogueDiag(diagnostic);
@@ -3096,7 +3096,11 @@ function ClientFood({ user, onBack }) {
                   <div key={p.id} style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.18)",borderRadius:12,padding:"11px 13px",marginBottom:7}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                       <div style={{display:"flex",gap:9}}>
-                        <span style={{fontSize:22,flexShrink:0}}>{p.ico}</span>
+                        {p.photo ? (
+                          <img src={p.photo} alt={p.nom} style={{width:40,height:40,borderRadius:9,objectFit:"cover",flexShrink:0}}/>
+                        ) : (
+                          <span style={{fontSize:22,flexShrink:0}}>{p.ico}</span>
+                        )}
                         <div>
                           <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{p.nom}</div>
                           <div style={{fontSize:11,color:"rgba(245,240,232,0.6)",lineHeight:1.4,marginTop:2}}>{p.desc}</div>
