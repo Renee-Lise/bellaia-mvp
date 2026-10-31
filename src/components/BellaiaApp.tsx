@@ -13155,7 +13155,7 @@ export default function BellaiaApp() {
   };
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream,maxWidth:"clamp(430px, 92vw, 960px)",margin:"0 auto",overflowX:"hidden"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream,overflowX:"hidden"}}>
 
       {/* Header Fondatrice */}
       <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
@@ -13184,7 +13184,7 @@ export default function BellaiaApp() {
       </div>
 
       {/* Bottom nav fixe — scrollable horizontalement pour 10 modules */}
-      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"clamp(430px, 92vw, 960px)",borderTop:"1px solid "+(B.border),background:B.deep,padding:"5px 0 calc(5px + env(safe-area-inset-bottom))",zIndex:100,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      <div style={{position:"fixed",bottom:0,left:0,width:"100%",borderTop:"1px solid "+(B.border),background:B.deep,padding:"5px 0 calc(5px + env(safe-area-inset-bottom))",zIndex:100,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         <div style={{display:"flex",minWidth:"max-content",padding:"0 4px"}}>
           {NAV_F.map(m=>(
             <button key={m.id} onClick={()=>setActiveF(m.id)}
