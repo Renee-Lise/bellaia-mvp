@@ -16,12 +16,20 @@
 --
 -- Vérifié dans src/modules/messaging/messagingApi.ts (code réel, pas
 --   une supposition) avant d'écrire les policies :
---   - une conversation est créée avec { cree_par: userId } (POST sur
---     bellaia_conversations), puis la créatrice est ajoutée comme
---     membre juste après (POST sur bellaia_conv_membres) — donc au
---     moment du POST sur bellaia_conversations, aucune ligne de
---     membre n'existe encore : l'INSERT ne peut pas être conditionné
---     à "est déjà membre", seulement à "crée en son propre nom".
+--   - une conversation est créée (POST sur bellaia_conversations),
+--     puis la créatrice est ajoutée comme membre juste après (POST
+--     sur bellaia_conv_membres) — donc au moment du POST sur
+--     bellaia_conversations, aucune ligne de membre n'existe encore :
+--     l'INSERT ne peut pas être conditionné à "est déjà membre".
+--     Correction du 2026-10-31 : la première version de cette
+--     migration conditionnait l'INSERT à "cree_par = auth.uid()", en
+--     se fiant au payload envoyé par l'app (creerConversationDirecte/
+--     creerGroupe) sans avoir vérifié que la colonne existe
+--     réellement — erreur 42703 "column cree_par does not exist" à
+--     l'exécution. Corrigé : l'INSERT est simplement ouvert à toute
+--     cliente connectée (comme c'était déjà le cas), la protection
+--     réelle restant sur le SELECT (scopé aux membres) — créer une
+--     ligne de conversation vide n'est pas sensible en soi.
 --   - un message est envoyé avec { conversation_id, auteur_id } où
 --     auteur_id = l'utilisateur courant.
 --   - supprimerMessage() fait un PATCH (suppression douce,
@@ -53,7 +61,7 @@ create policy bconv_select on public.bellaia_conversations
 
 create policy bconv_insert on public.bellaia_conversations
   for insert to authenticated
-  with check (cree_par = auth.uid());
+  with check (true);
 
 create policy bconv_update on public.bellaia_conversations
   for update to authenticated
