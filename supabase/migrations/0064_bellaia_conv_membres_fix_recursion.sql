@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0064_bellaia_conv_membres_fix_recursion.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-31
 -- Auteur : Claude Code · Date de rédaction : 2026-10-31
 -- Objet : corrige l'erreur "infinite recursion detected in policy for
 --   relation bellaia_conv_membres" vue en direct dans l'écran Messages

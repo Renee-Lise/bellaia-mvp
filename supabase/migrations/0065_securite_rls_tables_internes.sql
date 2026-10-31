@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0065_securite_rls_tables_internes.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-31
 -- Auteur : Claude Code · Date de rédaction : 2026-10-31
 -- Objet : corrige une faille de sécurité trouvée via l'audit RLS
 --   demandé par Renée-Lise (requête consolidée sur pg_policies). De
