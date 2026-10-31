@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0050_food_catalogue_rls_et_lien_recette.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-31
 -- Auteur : Claude Code · Date de rédaction : 2026-10-29
 -- Objet : Zone 2 (Catalogue & Menus) — préparation du branchement
 --   réel de FoodCatalogue.tsx et ClientFood sur catalogue_produits /

@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0067_catalogue_variantes_drop_policy_residuelle.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-31
 -- Auteur : Claude Code · Date de rédaction : 2026-10-31
 -- Objet : la vérification de la migration 0050 a montré que
 --   catalogue_variantes avait 3 policies au lieu des 2 attendues —
