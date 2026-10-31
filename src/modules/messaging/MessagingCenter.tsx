@@ -7,7 +7,14 @@ import {
   getConversations, getProfiles, creerConversationDirecte, creerGroupe,
   getMessages, envoyerMessage, supprimerMessage, marquerLu,
   toggleReaction, uploadAttachment, subscribeToMessages,
+  getAutreMembreId, getTelephoneProfil,
 } from "./messagingApi";
+
+// Numéro WhatsApp fixe de Bella'Studio — utilisé quand l'expéditeur
+// est une cliente (elle ne peut pas lire le téléphone d'un autre
+// profil via RLS, et dans ce sens le message va toujours vers la
+// fondatrice/l'équipe, jamais vers une autre cliente).
+const WA_NUMERO_STUDIO = (process.env.NEXT_PUBLIC_WA_NUMBER || "").replace(/\D/g, "");
 
 const C = {
   bg:"#09070f", surface:"#181428", card:"#1e1a30", card2:"#231f38",
@@ -53,6 +60,10 @@ export default function MessagingCenter({ user, onClose, initialConvId }: Props)
   const [loadMsgs, setLoadMsgs]     = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [erreur, setErreur]         = useState("");
+  // Numéro WhatsApp à utiliser pour la conversation directe ouverte —
+  // résolu à l'ouverture, utilisé pour l'envoi simultané automatique.
+  const [autreTel, setAutreTel]     = useState<string | null>(null);
+  const estStaff = user.role === "fondatrice" || user.role === "assistante";
 
   // Nouveau groupe
   const [groupNom, setGroupNom]     = useState("");
@@ -84,7 +95,17 @@ export default function MessagingCenter({ user, onClose, initialConvId }: Props)
   useEffect(() => () => { unsubRef.current?.(); }, []);
 
   const ouvrirConv = useCallback(async (conv: Conversation) => {
-    setActive(conv); setVue("conv"); setMessages([]); setReponseA(null); setErreur("");
+    setActive(conv); setVue("conv"); setMessages([]); setReponseA(null); setErreur(""); setAutreTel(null);
+    if (conv.type === "direct") {
+      if (estStaff) {
+        getAutreMembreId(conv.id, user.id)
+          .then(autreId => autreId ? getTelephoneProfil(autreId) : null)
+          .then(setAutreTel)
+          .catch(() => setAutreTel(null));
+      } else {
+        setAutreTel(WA_NUMERO_STUDIO || null);
+      }
+    }
     unsubRef.current?.();
     setLoadMsgs(true);
     try {
@@ -99,15 +120,24 @@ export default function MessagingCenter({ user, onClose, initialConvId }: Props)
       if (msg.auteur_id !== user.id) marquerLu([msg.id], user.id).catch(() => {});
     });
     unsubRef.current = unsub;
-  }, [user.id]);
+  }, [user.id, estStaff]);
 
   const envoyer = async () => {
     if (!texte.trim() || !active || loading) return;
     const txt = texte.trim(); setTexte(""); setReponseA(null); setLoading(true);
+    // Fenêtre WhatsApp ouverte vide tout de suite (dans le même geste
+    // utilisateur que le clic) pour ne pas être bloquée comme pop-up
+    // par le navigateur — sa destination est fixée une fois l'envoi
+    // interne confirmé, plus bas.
+    const waWin = (active.type === "direct" && autreTel) ? window.open("", "_blank") : null;
     try {
       const msg = await envoyerMessage(active.id, user.id, txt, "texte", {}, reponseA?.id);
       if (msg) setMessages(prev => [...prev, msg]);
-    } catch(e: any) { setErreur(e.message); setTexte(txt); }
+      if (waWin) {
+        if (autreTel) waWin.location.href = `https://wa.me/${autreTel}?text=${encodeURIComponent(txt)}`;
+        else waWin.close();
+      }
+    } catch(e: any) { setErreur(e.message); setTexte(txt); waWin?.close(); }
     finally { setLoading(false); }
   };
 
@@ -571,11 +601,10 @@ export default function MessagingCenter({ user, onClose, initialConvId }: Props)
           </button>
         </div>
         {active?.type==="direct" && (
-          <div style={{textAlign:"center",marginTop:5}}>
-            <button onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent("Bonjour")}`, "_blank")}
-              style={{background:"none",border:"none",fontSize:10,color:"rgba(139,127,168,0.35)",cursor:"pointer"}}>
-              Ouvrir aussi dans WhatsApp ↗
-            </button>
+          <div style={{textAlign:"center",marginTop:5,fontSize:10,color:"rgba(139,127,168,0.45)"}}>
+            {autreTel
+              ? "💬 Chaque message est aussi envoyé sur WhatsApp"
+              : "WhatsApp indisponible (numéro inconnu) — message envoyé ici uniquement"}
           </div>
         )}
       </div>

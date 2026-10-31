@@ -86,6 +86,23 @@ export async function creerGroupe(
   return conv;
 }
 
+// ── Envoi simultané WhatsApp ─────────────────────────────────
+// L'autre membre d'une conversation directe (pour cibler le bon
+// numéro quand l'expéditeur est staff — fondatrice/assistante,
+// seules à pouvoir lire le téléphone d'un autre profil via RLS).
+export async function getAutreMembreId(convId: string, userId: string): Promise<string | null> {
+  const membres = await sbApiFetch(
+    `bellaia_conv_membres?conversation_id=eq.${convId}&user_id=neq.${userId}&select=user_id&limit=1`
+  );
+  return membres?.[0]?.user_id || null;
+}
+
+export async function getTelephoneProfil(userId: string): Promise<string | null> {
+  const rows = await sbApiFetch(`profiles?id=eq.${userId}&select=telephone`);
+  const tel = rows?.[0]?.telephone;
+  return tel ? String(tel).replace(/\D/g, "") : null;
+}
+
 export async function getMessages(convId: string, limit = 50): Promise<Message[]> {
   const msgs = await sbApiFetch(
     `bellaia_messages?conversation_id=eq.${convId}&supprime=eq.false&order=created_at.asc&limit=${limit}`
