@@ -10,6 +10,9 @@ import { sbFoodGet, sbFoodPost, sbFoodPatch, sbFoodDelete } from "./foodApi";
 import type { CommandeFood, StatutCommande } from "./foodTypes";
 
 function mapCommandeFromDb(row: any): CommandeFood {
+  let lignes: CommandeFood["lignes"];
+  try { lignes = row.lignes ? (typeof row.lignes === "string" ? JSON.parse(row.lignes) : row.lignes) : undefined; }
+  catch { lignes = undefined; }
   return {
     id: row.id,
     reference: row.reference ?? undefined,
@@ -31,6 +34,10 @@ function mapCommandeFromDb(row: any): CommandeFood {
     paiement: row.paiement ?? undefined,
     statut: row.statut ?? "demande_recue",
     notes: row.notes ?? undefined,
+    lignes,
+    modeLivraison: row.mode_livraison ?? undefined,
+    lieuRetrait: row.lieu_retrait ?? undefined,
+    fraisLivraison: row.frais_livraison ?? undefined,
   };
 }
 
@@ -56,6 +63,10 @@ function mapCommandeToDb(c: Partial<CommandeFood> & { recetteId?: string }): Rec
   if (c.statut !== undefined) d.statut = c.statut;
   if (c.notes !== undefined) d.notes = c.notes;
   if (c.recetteId !== undefined) d.recette_id = c.recetteId || null;
+  if (c.lignes !== undefined) d.lignes = JSON.stringify(c.lignes);
+  if (c.modeLivraison !== undefined) d.mode_livraison = c.modeLivraison;
+  if (c.lieuRetrait !== undefined) d.lieu_retrait = c.lieuRetrait;
+  if (c.fraisLivraison !== undefined) d.frais_livraison = c.fraisLivraison;
   return d;
 }
 

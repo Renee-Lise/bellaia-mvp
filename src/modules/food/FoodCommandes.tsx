@@ -38,6 +38,13 @@ export default function FoodCommandes() {
   const [produitConfig, setProduitConfig] = useState<any>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [catalogue, setCatalogue] = useState<Produit[]>([]);
+  // Lignes multi-produits + livraison du formulaire manuel "+ Nouvelle
+  // commande" — demande explicite de Renée-Lise (un seul champ texte
+  // "produit" ne permettait de choisir qu'un seul article, et aucun
+  // champ de livraison n'existait).
+  const [lignesForm, setLignesForm] = useState<{ id: string; nom: string; quantite: number; prixUnitaire: number }[]>([]);
+  const FRAIS_LIVRAISON = [5, 10, 15, 20];
+  const LIEUX_RETRAIT = ["Sinnamary", "Saint-Laurent-du-Maroni"];
 
   const charger = async () => {
     setChargement(true);
@@ -81,11 +88,19 @@ export default function FoodCommandes() {
     await charger();
   };
 
+  const ajouterLigne = () => setLignesForm(ls => [...ls, { id: "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nom: "", quantite: 1, prixUnitaire: 0 }]);
+  const majLigne = (i: number, champ: "nom" | "quantite" | "prixUnitaire", val: any) =>
+    setLignesForm(ls => ls.map((l, idx) => idx === i ? { ...l, [champ]: val } : l));
+  const supprimerLigne = (i: number) => setLignesForm(ls => ls.filter((_, idx) => idx !== i));
+  const totalLignes = lignesForm.reduce((s, l) => s + (l.quantite || 0) * (l.prixUnitaire || 0), 0) + (form.fraisLivraison || 0);
+
   const enregistrer = async () => {
-    if (!form.client || !form.produit) { setErreur("Client et produit requis."); return; }
-    const res = form.id ? await majCommandeFood(form.id, form) : await creerCommandeFood(form);
+    const produitResume = lignesForm.filter(l => l.nom.trim()).map(l => `${l.nom} ×${l.quantite}`).join(", ") || form.produit;
+    if (!form.client || !produitResume) { setErreur("Client et au moins un produit sont requis."); return; }
+    const payload: Partial<CommandeFood> = { ...form, produit: produitResume, lignes: lignesForm.filter(l => l.nom.trim()) };
+    const res = form.id ? await majCommandeFood(form.id, payload) : await creerCommandeFood(payload);
     if (!res.ok) { setErreur(("error" in res && res.error) || "Échec de l'enregistrement — réessayez."); return; }
-    setModal(null); setForm(FORM_INIT); setErreur(null);
+    setModal(null); setForm(FORM_INIT); setLignesForm([]); setErreur(null);
     await charger();
   };
 
@@ -110,10 +125,16 @@ export default function FoodCommandes() {
 
   if (detail) return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-      <button onClick={() => setDetail(null)}
-        style={{ alignSelf:"flex-start", background:"none", border:"1px solid rgba(255,255,255,0.15)",
-          borderRadius:8, padding:"5px 12px", color:"rgba(255,255,255,0.6)",
-          cursor:"pointer", fontSize:11, fontFamily:"sans-serif" }}>‹ Retour</button>
+      <div style={{ display:"flex", justifyContent:"space-between" }}>
+        <button onClick={() => setDetail(null)}
+          style={{ background:"none", border:"1px solid rgba(255,255,255,0.15)",
+            borderRadius:8, padding:"5px 12px", color:"rgba(255,255,255,0.6)",
+            cursor:"pointer", fontSize:11, fontFamily:"sans-serif" }}>‹ Retour</button>
+        <button onClick={() => { setForm(detail); setLignesForm(detail.lignes || []); setErreur(null); setModal("form"); setDetail(null); }}
+          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)",
+            borderRadius:8, padding:"5px 12px", color:FC.creamD,
+            cursor:"pointer", fontSize:11, fontFamily:"sans-serif" }}>✎ Modifier</button>
+      </div>
 
       <div style={{ background:"rgba(255,255,255,0.04)", border:`1px solid ${FC.line}`,
         borderRadius:14, padding:"16px" }}>
@@ -261,7 +282,7 @@ export default function FoodCommandes() {
               fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:"sans-serif" }}>
             🎛 Configurateur
           </button>
-          <button onClick={() => { setForm(FORM_INIT); setErreur(null); setModal("form"); }}
+          <button onClick={() => { setForm(FORM_INIT); setLignesForm([]); setErreur(null); setModal("form"); }}
             style={{ background: FC.vert, border:"none", borderRadius:8, padding:"7px 14px",
               color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"sans-serif" }}>
             + Nouvelle commande
@@ -328,7 +349,7 @@ export default function FoodCommandes() {
           <div style={{ background:"#0f1a0f", border:`1px solid ${FC.line}`, borderRadius:16,
             padding:20, maxWidth:480, margin:"auto", width:"100%" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>Nouvelle commande</div>
+              <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>{form.id ? "Modifier la commande" : "Nouvelle commande"}</div>
               <button onClick={() => { setModal(null); setErreur(null); }}
                 style={{ background:"none", border:"none", color:"rgba(255,255,255,0.5)",
                   cursor:"pointer", fontSize:20 }}>✕</button>
@@ -336,11 +357,77 @@ export default function FoodCommandes() {
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
               {inp("Client *",          "client",        "text",  "Nom du client")}
               {inp("Téléphone",         "tel",           "tel",   "+594...")}
-              {inp("Produit commandé *","produit",       "text",  "Layer cake, jus...")}
+
+              {/* Produits — plusieurs lignes possibles */}
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                <label style={{ fontSize:10, color:"rgba(255,255,255,0.5)" }}>Produits commandés *</label>
+                {lignesForm.map((l, i) => (
+                  <div key={l.id} style={{ display:"flex", gap:5 }}>
+                    <input value={l.nom} onChange={e => majLigne(i, "nom", e.target.value)} placeholder="Layer cake, jus..."
+                      style={{ flex:2, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"7px 9px", color:"#fff", fontSize:12, fontFamily:"sans-serif", outline:"none" }}/>
+                    <input type="number" value={l.quantite} onChange={e => majLigne(i, "quantite", parseFloat(e.target.value) || 0)} placeholder="Qté"
+                      style={{ flex:1, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"7px 9px", color:"#fff", fontSize:12, fontFamily:"sans-serif", outline:"none" }}/>
+                    <input type="number" value={l.prixUnitaire} onChange={e => majLigne(i, "prixUnitaire", parseFloat(e.target.value) || 0)} placeholder="PU €"
+                      style={{ flex:1, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"7px 9px", color:"#fff", fontSize:12, fontFamily:"sans-serif", outline:"none" }}/>
+                    <button onClick={() => supprimerLigne(i)} style={{ background:"rgba(248,113,113,0.12)", border:"none", borderRadius:8, padding:"0 9px", color:"#f87171", cursor:"pointer" }}>✕</button>
+                  </div>
+                ))}
+                <button onClick={ajouterLigne} style={{ alignSelf:"flex-start", background:"none", border:`1px solid ${FC.line}`, borderRadius:8, padding:"5px 12px", color:FC.creamD, cursor:"pointer", fontSize:11, fontFamily:"sans-serif" }}>+ Produit</button>
+                {lignesForm.length === 0 && (
+                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>Aucun produit — cliquez "+ Produit", ou laissez vide pour saisir un libellé manuel ci-dessous.</div>
+                )}
+              </div>
+              {lignesForm.length === 0 && inp("Produit commandé (manuel)","produit","text","Layer cake, jus...")}
+
               {inp("Thème",             "theme",         "text",  "Jungle, princesse...")}
               {inp("Saveur",            "saveur",        "text",  "Chocolat, vanille...")}
               {inp("Nb parts",          "nbParts",       "number","")}
               {inp("Date livraison",    "dateLivraison", "date",  "")}
+
+              {/* Mode de retrait / livraison */}
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                <label style={{ fontSize:10, color:"rgba(255,255,255,0.5)" }}>Retrait ou livraison</label>
+                <div style={{ display:"flex", gap:6 }}>
+                  {(["retrait","livraison"] as const).map(m => (
+                    <button key={m} onClick={() => setForm(f => ({ ...f, modeLivraison:m }))}
+                      style={{ flex:1, padding:"7px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"sans-serif",
+                        background: form.modeLivraison===m ? FC.vert : "rgba(255,255,255,0.06)",
+                        color: form.modeLivraison===m ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                      {m==="retrait" ? "🏠 Retrait" : "🚚 Livraison"}
+                    </button>
+                  ))}
+                </div>
+                {form.modeLivraison === "retrait" && (
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {LIEUX_RETRAIT.map(l => (
+                      <button key={l} onClick={() => setForm(f => ({ ...f, lieuRetrait:l }))}
+                        style={{ padding:"5px 10px", borderRadius:99, border:`1px solid ${form.lieuRetrait===l ? FC.vert : "rgba(255,255,255,0.15)"}`,
+                          background: form.lieuRetrait===l ? "rgba(21,128,61,0.2)" : "transparent",
+                          color: form.lieuRetrait===l ? FC.vertL : "rgba(255,255,255,0.5)", cursor:"pointer", fontSize:10, fontFamily:"sans-serif" }}>
+                        {l}
+                      </button>
+                    ))}
+                    <input value={form.lieuRetrait || ""} onChange={e => setForm(f => ({ ...f, lieuRetrait:e.target.value }))}
+                      placeholder="Autre lieu…" style={{ flex:1, minWidth:120, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"5px 9px", color:"#fff", fontSize:11, fontFamily:"sans-serif", outline:"none" }}/>
+                  </div>
+                )}
+                {form.modeLivraison === "livraison" && (
+                  <div style={{ display:"flex", gap:6 }}>
+                    {FRAIS_LIVRAISON.map(p => (
+                      <button key={p} onClick={() => setForm(f => ({ ...f, fraisLivraison:p }))}
+                        style={{ flex:1, padding:"7px", borderRadius:8, border:`1px solid ${form.fraisLivraison===p ? FC.vert : "rgba(255,255,255,0.15)"}`,
+                          background: form.fraisLivraison===p ? "rgba(21,128,61,0.2)" : "transparent",
+                          color: form.fraisLivraison===p ? FC.vertL : "rgba(255,255,255,0.5)", cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"sans-serif" }}>
+                        {p}€
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {lignesForm.length > 0 && (
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>Total produits + livraison : {totalLignes.toFixed(2)}€ (indicatif — ajustez "Prix calculé" ci-dessous si besoin)</div>
+              )}
               {inp("Prix calculé (€)",  "prixCalcule",   "number","")}
               {inp("Allergies",         "allergies",     "text",  "Lactose, gluten...")}
               {inp("Notes",             "notes",         "text",  "")}
@@ -354,7 +441,7 @@ export default function FoodCommandes() {
                   style={{ flex:1, background: FC.vert, border:"none", borderRadius:10,
                     padding:"11px", color:"#fff", fontWeight:700, fontSize:13,
                     cursor:"pointer", fontFamily:"sans-serif" }}>
-                  Créer la commande
+                  {form.id ? "Enregistrer" : "Créer la commande"}
                 </button>
                 <button onClick={() => { setModal(null); setErreur(null); }}
                   style={{ flex:1, background:"rgba(255,255,255,0.06)", border:"none", borderRadius:10,

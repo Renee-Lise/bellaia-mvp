@@ -273,6 +273,17 @@ export interface CommandeFood {
   paiement?: string;
   statut: StatutCommande;
   notes?: string;
+  lignes?: LigneCommandeProduit[];
+  modeLivraison?: "retrait" | "livraison";
+  lieuRetrait?: string;
+  fraisLivraison?: number;
+}
+
+export interface LigneCommandeProduit {
+  id: string;
+  nom: string;
+  quantite: number;
+  prixUnitaire: number;
 }
 
 // ── Calculateur ────────────────────────────────────────────
