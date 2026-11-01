@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0068_bsh_experiences_phase1.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-10-31
 -- Auteur : Claude Code · Date de rédaction : 2026-10-31
 -- Objet : Phase 1 du module "BSH Experiences — Boudoir Sessions"
 --   demandé par Renée-Lise. Construit sur l'existant plutôt que de
