@@ -5832,7 +5832,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
-  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"params",l:"⚙",t:"Réglages"}];
+  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"experiences",l:"💎",t:"Experiences"},{id:"params",l:"⚙",t:"Réglages"}];
 
   // ── Communication BSH (annonces, notifications, publications) ──
   // Phase 1 de la mission "BSH Communications & Automatisations" :
@@ -6655,6 +6655,9 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             </>);
           })()}
         </div>}
+        {sec==="experiences"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <ExperiencesBSHWrapper/>
+        </div>}
         {sec==="docs"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <DocumentsBSHWrapper/>
         </div>}
@@ -7073,6 +7076,16 @@ function DocumentsBSHWrapper() {
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
   return <Comp moduleInitial="BSH"/>;
+}
+
+// ── Wrapper BSH Secret Circle & Experiences
+function ExperiencesBSHWrapper() {
+  const [Comp, setComp] = React.useState(null);
+  React.useEffect(() => {
+    import("../modules/bshExperiences/BshExperiencesF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement BSH Experiences…</div>;
+  return <Comp/>;
 }
 
 
