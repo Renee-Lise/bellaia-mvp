@@ -1751,35 +1751,17 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
 
         {/* ── BOUTIQUE ── */}
         {page === "boutique" && (
-          <div style={{display:"flex",flexDirection:"column",gap:11}}>
-            <h2 style={{fontFamily:FS,fontSize:18,color:BSH.or,margin:0}}>Boutique</h2>
-            {produits.length === 0 ? (
-              <div style={{textAlign:"center",padding:"40px 16px",color:"rgba(203,185,185,0.5)"}}>
-                <p style={{fontSize:13,lineHeight:1.7,margin:0}}>La boutique se prépare — les premiers articles arrivent bientôt.</p>
-              </div>
-            ) : (
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {produits.map(p => (
-                <BCard key={p.id} accent style={{padding:"11px",cursor:"pointer"}} onClick={() => setModal({type:"prod",p})}>
-                  <div style={{position:"relative"}}>
-                    {p.image ? (
-                      <img src={p.image} alt={p.name} style={{width:"100%",aspectRatio:"1/1",objectFit:"cover",borderRadius:8,marginBottom:6,display:"block"}}/>
-                    ) : (
-                      <div style={{fontSize:30,textAlign:"center",padding:"7px 0",background:(BSH.bord)+"18",borderRadius:8,marginBottom:6}}>{p.ico||"🌹"}</div>
-                    )}
-                    <button onClick={e=>{e.stopPropagation();togFav(p.id);}} style={{position:"absolute",top:2,right:2,background:"none",border:"none",cursor:"pointer",fontSize:13}}>{fav.includes(p.id)?"❤️":"🤍"}</button>
-                  </div>
-                  {p.isNew && <BTag c={BSH.vert} sz={8}>Nouveau</BTag>}
-                  <div style={{fontFamily:FS,fontSize:11,fontWeight:600,color:BSH.creme,margin:"4px 0 3px",lineHeight:1.3}}>{p.name}</div>
-                  <div style={{marginBottom:7,fontSize:10,fontWeight:p.prix?700:400,color:p.prix?BSH.or:"rgba(198,161,91,0.6)",fontStyle:p.prix?"normal":"italic"}}>
-                    {p.prix ? Number(p.prix).toFixed(2).replace(".",",")+" €" : "Prix à venir"}
-                  </div>
-                  <BBtn v="bord" sz="sm" full onClick={e=>{e.stopPropagation();addCart(p);}}>+ Panier</BBtn>
-                </BCard>
-              ))}
-            </div>
-            )}
-          </div>
+          // Affiche la VRAIE page publique /bsh/boutique dans un cadre,
+          // plutôt qu'une reconstitution séparée à maintenir en double —
+          // deux implémentations distinctes de la même boutique ont fini
+          // par diverger (images, prix, mise en page) malgré plusieurs
+          // correctifs. Un iframe garantit un contenu identique, pour de
+          // bon : c'est littéralement la même page, les mêmes données.
+          <iframe
+            src={(typeof window !== "undefined" ? window.location.origin : "") + "/bsh/boutique"}
+            title="Boutique BSH (aperçu de la vraie page publique)"
+            style={{width:"100%",height:"calc(100vh - 160px)",border:"none",borderRadius:12,background:BSH.fond}}
+          />
         )}
 
         {/* ── ÉVÉNEMENTS ── */}
