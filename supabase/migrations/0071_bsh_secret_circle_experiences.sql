@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0071_bsh_secret_circle_experiences.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-02
 -- Auteur : Claude Code · Date de rédaction : 2026-11-01
 -- Objet : socle de données pour "BSH Secret Circle & Experiences"
 --   (consigne complète de Renée-Lise, exécutée en autonomie pendant
@@ -232,5 +232,6 @@ create policy bsh_playlists_fondatrice on public.bsh_playlists
 --   order by tablename, policyname;
 --   → attendu : bsh_preinscriptions 2, bsh_invitations 3,
 --     bsh_billets 1, bsh_messages_modeles 1, bsh_playlists 1
---     (10 lignes au total).
+--     (8 lignes au total — erreur de calcul corrigée après coup,
+--     la vérification réelle de Renée-Lise a bien donné 8).
 -- ═══════════════════════════════════════════════════════════
