@@ -112,7 +112,7 @@ export interface PreinscriptionBSH {
 
 export interface InvitationBSH {
   id: string; evenementId: string; nomDestinataire: string; categorie: string;
-  code: string; utilisee: boolean; dateUtilisation?: string; annulee: boolean;
+  code: string; utilisee: boolean; dateUtilisation?: string; annulee: boolean; profileId?: string;
 }
 
 export interface MessageModeleBSH {
@@ -313,13 +313,14 @@ export async function creerPreinscriptionPublicBSH(p: {
 const mapInvitation = (r: any): InvitationBSH => ({
   id: r.id, evenementId: r.evenement_id, nomDestinataire: r.nom_destinataire, categorie: r.categorie,
   code: r.code, utilisee: !!r.utilisee, dateUtilisation: r.date_utilisation ?? undefined, annulee: !!r.annulee,
+  profileId: r.profile_id ?? undefined,
 });
 export async function getInvitationsBSH(evenementId?: string): Promise<InvitationBSH[]> {
   const filtre = evenementId ? `evenement_id=eq.${evenementId}&` : "";
   return (await sbGet("bsh_invitations", `${filtre}order=created_at.desc&limit=300`)).map(mapInvitation);
 }
-export async function creerInvitationBSH(i: { evenementId: string; nomDestinataire: string; categorie: string }) {
-  return sbPost("bsh_invitations", { evenement_id: i.evenementId, nom_destinataire: i.nomDestinataire, categorie: i.categorie });
+export async function creerInvitationBSH(i: { evenementId: string; nomDestinataire: string; categorie: string; profileId?: string }) {
+  return sbPost("bsh_invitations", { evenement_id: i.evenementId, nom_destinataire: i.nomDestinataire, categorie: i.categorie, profile_id: i.profileId || null });
 }
 export async function pointerInvitationBSH(id: string) {
   return sbPatch("bsh_invitations", id, { utilisee: true, date_utilisation: new Date().toISOString() });
@@ -360,6 +361,35 @@ export async function creerPlaylistBSH(p: Partial<PlaylistBSH>) {
   });
 }
 export const supprimerPlaylistBSH = (id: string) => sbDelete("bsh_playlists", id);
+
+// ── Avantages membres (member_benefits) ─────────────────────
+export interface AvantageMembre {
+  id: string; title: string; description?: string; validUntil?: string; isActive: boolean;
+}
+const mapAvantage = (r: any): AvantageMembre => ({
+  id: r.id, title: r.title, description: r.description ?? undefined, validUntil: r.valid_until ?? undefined, isActive: !!r.is_active,
+});
+export async function getAvantagesMembresBSH(): Promise<AvantageMembre[]> {
+  return (await sbGet("member_benefits", "order=created_at.desc&limit=100")).map(mapAvantage);
+}
+export async function creerAvantageMembreBSH(a: Partial<AvantageMembre>) {
+  return sbPost("member_benefits", { title: a.title, description: a.description || null, valid_until: a.validUntil || null, is_active: a.isActive ?? true });
+}
+export async function majAvantageMembreBSH(id: string, a: Partial<AvantageMembre>) {
+  const d: Record<string, any> = {};
+  if (a.title !== undefined) d.title = a.title;
+  if (a.description !== undefined) d.description = a.description;
+  if (a.validUntil !== undefined) d.valid_until = a.validUntil;
+  if (a.isActive !== undefined) d.is_active = a.isActive;
+  return sbPatch("member_benefits", id, d);
+}
+export const supprimerAvantageMembreBSH = (id: string) => sbDelete("member_benefits", id);
+
+// ── Membres (pour relier une invitation à un compte connu) ────
+export async function getMembresBSH(): Promise<{ id: string; nom: string }[]> {
+  const rows = await sbGet("profiles", "membership_status=in.(member,founding_member)&select=id,prenom,nom&order=nom.asc");
+  return rows.map((r: any) => ({ id: r.id, nom: [r.prenom, r.nom].filter(Boolean).join(" ") || r.id }));
+}
 
 // ── Hôtesses (liste pour menus déroulants — jamais d'UUID à saisir) ──
 export async function getHotesBSH(): Promise<{ id: string; nom: string }[]> {

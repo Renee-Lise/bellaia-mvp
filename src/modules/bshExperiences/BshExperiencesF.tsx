@@ -15,11 +15,13 @@ import {
   getInvitationsBSH, creerInvitationBSH, pointerInvitationBSH, annulerInvitationBSH,
   getMessagesModelesBSH, creerMessageModeleBSH, majMessageModeleBSH, supprimerMessageModeleBSH,
   getPlaylistsBSH, creerPlaylistBSH, supprimerPlaylistBSH,
-  getHotesBSH,
+  getHotesBSH, getMembresBSH,
+  getAvantagesMembresBSH, creerAvantageMembreBSH, majAvantageMembreBSH, supprimerAvantageMembreBSH,
 } from "./bshExperiencesApi";
 import type {
   EvenementBSH, LieuBSH, BudgetLigneBSH, ChecklistItemBSH,
   PreinscriptionBSH, InvitationBSH, MessageModeleBSH, PlaylistBSH, CategorieEvenement,
+  AvantageMembre,
 } from "./bshExperiencesApi";
 
 // Palette BSH (bshTokens.ts) + fuchsia ajouté — aucune teinte fuchsia
@@ -63,6 +65,7 @@ const ONGLETS = [
   { id: "check", l: "✅ Check-lists" },
   { id: "preins", l: "📝 Préinscriptions" },
   { id: "invit", l: "🎟 Invitations" },
+  { id: "members", l: "💳 Members" },
   { id: "msg", l: "💬 Messages" },
   { id: "music", l: "🎵 Diamond B" },
 ] as const;
@@ -78,16 +81,18 @@ export default function BshExperiencesF() {
   const [invitations, setInvitations] = useState<InvitationBSH[]>([]);
   const [messages, setMessages] = useState<MessageModeleBSH[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistBSH[]>([]);
+  const [avantages, setAvantages] = useState<AvantageMembre[]>([]);
   const [chargement, setChargement] = useState(true);
 
   const charger = async () => {
     setChargement(true);
-    const [e, l, b, c, p, i, m, pl] = await Promise.all([
+    const [e, l, b, c, p, i, m, pl, av] = await Promise.all([
       getEvenementsBSH(), getLieuxBSH(), getBudgetLignesBSH(), getChecklistBSH(),
       getPreinscriptionsBSH(), getInvitationsBSH(), getMessagesModelesBSH(), getPlaylistsBSH(),
+      getAvantagesMembresBSH(),
     ]);
     setEvenements(e); setLieux(l); setBudget(b); setChecklist(c);
-    setPreins(p); setInvitations(i); setMessages(m); setPlaylists(pl);
+    setPreins(p); setInvitations(i); setMessages(m); setPlaylists(pl); setAvantages(av);
     setChargement(false);
   };
   useEffect(() => { charger(); }, []);
@@ -122,6 +127,7 @@ export default function BshExperiencesF() {
           {onglet === "check" && <Checklist checklist={checklist} recharger={charger} />}
           {onglet === "preins" && <Preinscriptions preins={preins} evenements={evenements} recharger={charger} />}
           {onglet === "invit" && <Invitations invitations={invitations} evenements={evenements} recharger={charger} />}
+          {onglet === "members" && <Members avantages={avantages} recharger={charger} />}
           {onglet === "msg" && <Messages messages={messages} recharger={charger} />}
           {onglet === "music" && <DiamondB playlists={playlists} evenements={evenements} recharger={charger} />}
         </>
@@ -511,12 +517,14 @@ function Preinscriptions({ preins, evenements, recharger }: { preins: Preinscrip
 // ── Invitations ─────────────────────────────────────────────
 function Invitations({ invitations, evenements, recharger }: { invitations: InvitationBSH[]; evenements: EvenementBSH[]; recharger: () => void }) {
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<{ evenementId: string; nomDestinataire: string; categorie: string }>({ evenementId: "", nomDestinataire: "", categorie: "invite" });
+  const [form, setForm] = useState<{ evenementId: string; nomDestinataire: string; categorie: string; profileId: string }>({ evenementId: "", nomDestinataire: "", categorie: "invite", profileId: "" });
+  const [membres, setMembres] = useState<{ id: string; nom: string }[]>([]);
+  useEffect(() => { if (modal) getMembresBSH().then(setMembres); }, [modal]);
   const enregistrer = async () => {
     if (!form.evenementId || !form.nomDestinataire.trim()) return;
     const res = await creerInvitationBSH(form);
     if (!res.ok) { alert("Échec : " + ("error" in res ? res.error : "")); return; }
-    setModal(false); setForm({ evenementId: "", nomDestinataire: "", categorie: "invite" }); await recharger();
+    setModal(false); setForm({ evenementId: "", nomDestinataire: "", categorie: "invite", profileId: "" }); await recharger();
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -556,8 +564,64 @@ function Invitations({ invitations, evenements, recharger }: { invitations: Invi
               {["invite", "cercle", "members", "vip", "equipe"].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Champ>
+          <Champ label="Rattacher à une membre BSH Members (optionnel)">
+            <select style={{ ...inp, background: C.plumD }} value={form.profileId} onChange={e => setForm(f => ({ ...f, profileId: e.target.value }))}>
+              <option value="">— Aucune (invitée hors programme) —</option>
+              {membres.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+            </select>
+          </Champ>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             <button onClick={enregistrer} style={{ ...btnP, flex: 1 }}>Créer</button>
+            <button onClick={() => setModal(false)} style={{ ...btnS, flex: 1 }}>Annuler</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── Members — avantages (member_benefits), configurables par la
+//    fondatrice. Les niveaux d'adhésion (membership_status) restent
+//    gérés depuis l'écran BSH Members existant (CRM) — ici, seuls
+//    les avantages affichés sur la carte membre sont gérés.
+function Members({ avantages, recharger }: { avantages: AvantageMembre[]; recharger: () => void }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState<Partial<AvantageMembre>>({ isActive: true });
+  const enregistrer = async () => {
+    if (!form.title?.trim()) return;
+    const res = form.id ? await majAvantageMembreBSH(form.id, form) : await creerAvantageMembreBSH(form);
+    if (!res.ok) { alert("Échec : " + ("error" in res ? res.error : "")); return; }
+    setModal(false); setForm({ isActive: true }); await recharger();
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontSize: 11, color: C.muted }}>
+        Avantages affichés sur la carte de membre numérique (espace « Mon espace BSH Members »). Les niveaux d&apos;adhésion eux-mêmes (Membre, Membre Fondateur…) restent gérés depuis l&apos;onglet BSH Members du CRM.
+      </div>
+      <button onClick={() => { setForm({ isActive: true }); setModal(true); }} style={{ ...btnP, alignSelf: "flex-start" }}>+ Avantage</button>
+      {avantages.length === 0 && <div style={{ textAlign: "center", padding: 24, color: C.muted, fontSize: 12 }}>Aucun avantage — les membres verront "des avantages arrivent bientôt" tant qu'aucun n'est actif.</div>}
+      {avantages.map(a => (
+        <div key={a.id} style={card} onClick={() => { setForm(a); setModal(true); }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{a.title}</div>
+            <span style={{ fontSize: 9, fontWeight: 700, color: a.isActive ? C.goldL : C.muted }}>{a.isActive ? "ACTIF" : "INACTIF"}</span>
+          </div>
+          {a.description && <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{a.description}</div>}
+          {a.validUntil && <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Jusqu&apos;au {a.validUntil}</div>}
+        </div>
+      ))}
+      {modal && (
+        <Modal titre={form.id ? "Modifier l'avantage" : "Nouvel avantage"} onClose={() => setModal(false)}>
+          <Champ label="Titre *"><input style={inp} value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></Champ>
+          <Champ label="Description"><textarea style={{ ...inp, minHeight: 60 }} value={form.description || ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></Champ>
+          <Champ label="Valide jusqu'au (optionnel)"><input type="date" style={inp} value={form.validUntil || ""} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></Champ>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.cream, cursor: "pointer" }}>
+            <input type="checkbox" checked={form.isActive ?? true} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
+            Actif (visible par les membres)
+          </label>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            <button onClick={enregistrer} style={{ ...btnP, flex: 1 }}>Enregistrer</button>
+            {form.id && <button onClick={async () => { if (confirm("Supprimer cet avantage ?")) { await supprimerAvantageMembreBSH(form.id!); setModal(false); await recharger(); } }} style={{ ...btnS, color: "#f87171" }}>Supprimer</button>}
             <button onClick={() => setModal(false)} style={{ ...btnS, flex: 1 }}>Annuler</button>
           </div>
         </Modal>

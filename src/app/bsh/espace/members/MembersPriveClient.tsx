@@ -32,6 +32,14 @@ interface Demande {
   decision_le: string | null;
 }
 
+interface InvitationRecue {
+  id: string;
+  evenement_id: string;
+  categorie: string;
+  utilisee: boolean;
+  annulee: boolean;
+}
+
 const LABEL_DECISION: Record<string, string> = {
   en_attente: "En cours d'examen",
   acceptee: "Acceptée",
@@ -43,6 +51,7 @@ export default function MembersPriveClient() {
   const router = useRouter();
   const [avantages, setAvantages] = useState<Avantage[] | null>(null);
   const [historique, setHistorique] = useState<Demande[] | null>(null);
+  const [invitations, setInvitations] = useState<InvitationRecue[] | null>(null);
   const [lienEnCours, setLienEnCours] = useState(false);
 
   const statut = etat.statut === "connectee" ? etat.profil.membership_status : null;
@@ -62,13 +71,15 @@ export default function MembersPriveClient() {
     let actif = true;
 
     (async () => {
-      const [rAv, rHist] = await Promise.all([
+      const [rAv, rHist, rInvit] = await Promise.all([
         espaceFetch(token, "member_benefits?is_active=eq.true&select=id,title,description,valid_until&order=created_at.desc"),
         espaceFetch(token, "bsh_members_demandes?select=id,demande_le,decision,decision_le&order=demande_le.desc"),
+        espaceFetch(token, "bsh_invitations?select=id,evenement_id,categorie,utilisee,annulee&order=created_at.desc"),
       ]);
       if (!actif) return;
       if (rAv.ok) setAvantages(await rAv.json());
       if (rHist.ok) setHistorique(await rHist.json());
+      if (rInvit.ok) setInvitations(await rInvit.json());
     })();
 
     return () => {
@@ -100,6 +111,8 @@ export default function MembersPriveClient() {
 
   const { profil } = etat;
   const estFondateur = statut === "founding_member";
+  const idInterne = profil.id.slice(0, 8).toUpperCase();
+  const dateAdhesion = historique?.find((h) => h.decision === "acceptee" && h.decision_le)?.decision_le ?? null;
 
   return (
     <div
@@ -145,6 +158,12 @@ export default function MembersPriveClient() {
         {profil.prenom && (
           <p style={{ fontSize: 12, color: C.muted, marginTop: 10 }}>Bienvenue, {profil.prenom}.</p>
         )}
+        <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 14, fontSize: 10, color: "rgba(203,185,185,0.65)" }}>
+          <span>ID membre : <strong style={{ color: C.goldL }}>{idInterne}</strong></span>
+          {dateAdhesion && (
+            <span>Membre depuis le {new Date(dateAdhesion).toLocaleDateString("fr-FR")}</span>
+          )}
+        </div>
       </div>
 
       {/* ── Avantages actifs ── */}
@@ -247,6 +266,34 @@ export default function MembersPriveClient() {
           </button>
         </div>
       </div>
+
+      {/* ── Invitations reçues ── */}
+      {invitations && invitations.length > 0 && (
+        <div style={{ padding: "22px 22px 0" }}>
+          <TitreSection>Invitations reçues</TitreSection>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {invitations.map((i) => (
+              <div
+                key={i.id}
+                style={{
+                  background: "rgba(46,26,46,0.5)",
+                  border: `1px solid ${C.borderM}`,
+                  borderRadius: 4,
+                  padding: "12px 13px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 12, color: C.cream, textTransform: "capitalize" }}>{i.categorie}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: i.annulee ? "#f87171" : i.utilisee ? "#6ee7a0" : C.gold }}>
+                  {i.annulee ? "Annulée" : i.utilisee ? "Utilisée" : "À venir"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Historique ── */}
       {historique && historique.length > 0 && (
