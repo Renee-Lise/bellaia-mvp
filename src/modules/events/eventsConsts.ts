@@ -269,6 +269,7 @@ const CLIENTES_BSH_INIT = [
   {id:"CL001",nom:"Marie S.",ville:ENV.VILLE,canal:"WhatsApp",vip:"Or",total:287,tel:"+594690000001",notes:"Cliente fidèle",preferences:"Lingerie dentelle, taille M"},
   {id:"CL002",nom:"Kathy R.",ville:"Kourou",canal:"TikTok",vip:"Argent",total:78,tel:"+594690000002",notes:"",preferences:""},
   {id:"CL003",nom:"Aline B.",ville:"Matoury",canal:"Instagram",vip:"Diamant",total:589,tel:"+594690000004",notes:"Meilleure cliente 2025",preferences:"Coffrets premium"},
+];
 
 const BE_FILTRES = ["Tous","Anniversaire","Baptême","Baby Shower","Communion","Retraite","Réception privée","Gender Reveal","Événement pro"];
 const BE_STATUTS_CMD = ["Demande reçue","Devis envoyé","Acompte reçu","En préparation","Livraison / Installation","Réalisé","Archivé","Annulé"];

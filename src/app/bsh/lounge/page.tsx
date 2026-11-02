@@ -4,10 +4,16 @@
 // N'existait nulle part dans ClientBSH : page entièrement nouvelle.
 // Même structure et mêmes jetons de palette/typographie que Le
 // Cercle, mais un ton différent — communauté ouverte et conviviale,
-// pas complice/sensuelle. Même logique de demande manuelle que Le
-// Cercle et BSH Members : DM WhatsApp pré-rempli, message qui dit
-// explicitement que c'est une demande, validation par la fondatrice
-// ensuite. Pas de questionnaire automatisé, pas d'ajout automatique.
+// pas complice/sensuelle.
+//
+// 2026-11-02 : passage en accès direct sur demande explicite de
+// Renée-Lise ("mets l'inscription en accès direct") — contrairement
+// au Cercle, qui garde le filtrage manuel. Lecture serveur de
+// BSH_LOUNGE_WA_LINK (même architecture que BSH_MEMBERS_WA_LINK :
+// jamais NEXT_PUBLIC_*, lu ici côté serveur dans ce composant
+// serveur). Tant que Renée-Lise n'a pas encore renseigné la variable
+// dans Vercel, on retombe sur l'ancien flux de demande manuelle pour
+// ne jamais afficher de lien cassé.
 // ═══════════════════════════════════════════════════════════
 import type { Metadata } from "next";
 import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } from "../bshTokens";
@@ -43,6 +49,9 @@ const MSG_REJOINDRE_LOUNGE =
   "Bonjour, je souhaite faire une demande pour rejoindre BSH Lounge.";
 
 export default function BshLoungePage() {
+  const lienDirect = process.env.BSH_LOUNGE_WA_LINK || "";
+  const accesDirect = Boolean(lienDirect);
+
   return (
     <div
       style={{
@@ -233,7 +242,7 @@ export default function BshLoungePage() {
         }}
       >
         <a
-          href={bshWaLink(MSG_REJOINDRE_LOUNGE)}
+          href={accesDirect ? lienDirect : bshWaLink(MSG_REJOINDRE_LOUNGE)}
           target="_blank"
           rel="noreferrer"
           style={{
@@ -262,9 +271,9 @@ export default function BshLoungePage() {
             lineHeight: 1.6,
           }}
         >
-          Ce bouton ouvre un message WhatsApp — c&apos;est une demande, pas
-          une inscription automatique. La fondatrice vous ajoute
-          personnellement au Lounge après l&apos;avoir lu.
+          {accesDirect
+            ? "Ce bouton ouvre directement le groupe WhatsApp du Lounge — rejoignez-le en un clic, sans demande préalable."
+            : "Ce bouton ouvre un message WhatsApp — c'est une demande, pas une inscription automatique. La fondatrice vous ajoute personnellement au Lounge après l'avoir lu."}
         </p>
         <p style={{ fontSize: 11, color: "rgba(203,185,185,0.5)", margin: 0, lineHeight: 1.6 }}>
           BSH Lounge est une communauté à part entière — distincte du{" "}

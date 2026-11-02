@@ -452,13 +452,8 @@ export function ModalGenerationDevis({ demande, onClose, onValide }: ModalProps)
           sb?.details ? "Détails : " + sb.details : null,
           sb?.hint    ? "Hint : " + sb.hint       : null,
           sb?.code    ? "Code : " + sb.code        : null,
-        ].filter(Boolean).join("
-");
-        alert("Échec sauvegarde devis :
-
-" + msg + "
-
-Consultez la console pour le détail complet.");
+        ].filter(Boolean).join("\n");
+        alert("Échec sauvegarde devis :\n\n" + msg + "\n\nConsultez la console pour le détail complet.");
         setEnvoi(false);
         return;
       }
