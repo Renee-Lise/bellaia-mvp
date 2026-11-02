@@ -8090,6 +8090,24 @@ function HoteBSH({ user, onBack }) {
   const [loading,  setLoading]  = React.useState(false);
   const [source,   setSource]   = React.useState("local");
   const [annonces, setAnnonces] = React.useState([]);
+  const [invitations, setInvitations] = React.useState([]);
+  const [tachesPerso, setTachesPerso] = React.useState([]);
+  const [codeRecherche, setCodeRecherche] = React.useState("");
+
+  const rechargerAccueil = React.useCallback(async (ficheId, missionsList) => {
+    if (!SB_URL || !ficheId) return;
+    const token = await getTokenAsync();
+    const headers = { apikey:SB_KEY, Authorization:"Bearer "+token };
+    const evtIds = Array.from(new Set((missionsList||[]).map(m=>m.evenement_id).filter(Boolean)));
+    const [rInvit, rTaches] = await Promise.all([
+      evtIds.length ? fetch(SB_URL+"/rest/v1/bsh_invitations?evenement_id=in.("+evtIds.join(",")+")&order=nom_destinataire.asc", { headers }) : null,
+      fetch(SB_URL+"/rest/v1/bsh_checklist_items?cible_type=eq.hote&cible_id=eq."+ficheId+"&order=echeance.asc.nullslast", { headers }),
+    ]);
+    const dInvit = rInvit && rInvit.ok ? await rInvit.json() : [];
+    const dTaches = rTaches.ok ? await rTaches.json() : [];
+    setInvitations(Array.isArray(dInvit) ? dInvit : []);
+    setTachesPerso(Array.isArray(dTaches) ? dTaches : []);
+  }, []);
 
   React.useEffect(() => {
     let actif = true;
@@ -8119,13 +8137,36 @@ function HoteBSH({ user, onBack }) {
           setDocs(Array.isArray(dDocs) ? dDocs : []);
           setAnnonces(Array.isArray(dAnnonces) ? dAnnonces : []);
           if (rFiche.ok) setSource("supabase");
+          if (fiche0) await rechargerAccueil(fiche0.id, dMissions);
         }
       } catch(e) { console.warn("[HoteBSH]", e.message); }
       finally { if (actif) setLoading(false); }
     };
     charger();
     return () => { actif = false; };
-  }, [user?.id]);
+  }, [user?.id, rechargerAccueil]);
+
+  const pointerInvit = async (inv) => {
+    const token = await getTokenAsync();
+    const r = await fetch(SB_URL+"/rest/v1/bsh_invitations?id=eq."+inv.id, {
+      method:"PATCH",
+      headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json", Prefer:"return=minimal" },
+      body: JSON.stringify({ utilisee:true, date_utilisation:new Date().toISOString() }),
+    });
+    if (!r.ok) { alert("Échec du pointage."); return; }
+    setInvitations(is => is.map(i => i.id===inv.id ? {...i, utilisee:true} : i));
+  };
+
+  const togglerTache = async (t) => {
+    const token = await getTokenAsync();
+    const r = await fetch(SB_URL+"/rest/v1/bsh_checklist_items?id=eq."+t.id, {
+      method:"PATCH",
+      headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json", Prefer:"return=minimal" },
+      body: JSON.stringify({ fait: !t.fait }),
+    });
+    if (!r.ok) { alert("Échec de l'enregistrement."); return; }
+    setTachesPerso(ts => ts.map(x => x.id===t.id ? {...x, fait:!x.fait} : x));
+  };
 
   const fmtDt = (s) => { try { return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch { return s||""; } };
   const colSt = (s) => ({proposee:"#60a5fa",confirmee:"#22c55e",terminee:"#16a34a",annulee:"#f87171"})[s]||"rgba(255,255,255,0.4)";
@@ -8133,6 +8174,8 @@ function HoteBSH({ user, onBack }) {
 
   const ONGLETS = [
     {id:"missions",  ico:"🎯", l:"Missions"},
+    {id:"invitations", ico:"🎟", l:"Invitations"},
+    {id:"taches",    ico:"✅", l:"Tâches"},
     {id:"annonces",  ico:"📢", l:"Annonces"},
     {id:"documents", ico:"📁", l:"Documents"},
     {id:"profil",    ico:"👤", l:"Profil"},
@@ -8196,6 +8239,57 @@ function HoteBSH({ user, onBack }) {
                 ))}
               </>
             )}
+          </div>
+        )}
+
+        {/* ── INVITATIONS (contrôle d'accès à l'entrée) ── */}
+        {onglet==="invitations" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:BSH_ACC,marginBottom:2}}>Invitations</div>
+            <div style={{fontSize:10,color:"rgba(245,240,232,0.5)",marginBottom:4}}>
+              Liste des invitées pour les événements où vous êtes affectée. Vérifiez le nom (ou le début du code) annoncé à l'entrée, puis pointez.
+            </div>
+            <input value={codeRecherche} onChange={e=>setCodeRecherche(e.target.value)} placeholder="Rechercher un nom ou un code…"
+              style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(198,161,91,0.2)",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none"}}/>
+            {invitations.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune invitation pour vos événements assignés.</div>
+            )}
+            {invitations
+              .filter(i => !codeRecherche.trim() || i.nom_destinataire.toLowerCase().includes(codeRecherche.toLowerCase()) || i.code.startsWith(codeRecherche.toLowerCase()))
+              .map(i => (
+                <div key={i.id} style={{background: i.annulee ? "rgba(248,113,113,0.08)" : i.utilisee ? "rgba(34,197,94,0.08)" : "rgba(198,161,91,0.08)", border:"1px solid rgba(198,161,91,0.2)",borderRadius:12,padding:"11px 13px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{i.nom_destinataire}</div>
+                    <div style={{fontSize:9,color:"rgba(245,240,232,0.5)"}}>{i.categorie} · code {i.code.slice(0,8)}</div>
+                  </div>
+                  {i.annulee ? (
+                    <span style={{fontSize:9,fontWeight:700,color:"#f87171"}}>ANNULÉE</span>
+                  ) : i.utilisee ? (
+                    <span style={{fontSize:9,fontWeight:700,color:"#22c55e"}}>✓ ENTRÉE</span>
+                  ) : (
+                    <button onClick={()=>pointerInvit(i)} style={{fontSize:10,fontWeight:700,padding:"6px 11px",borderRadius:8,border:"none",cursor:"pointer",background:BSH_ACC,color:"#0b0709",fontFamily:SA}}>Pointer</button>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* ── TÂCHES (check-list personnelle) ── */}
+        {onglet==="taches" && (
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{fontFamily:FS,fontSize:16,color:BSH_ACC,marginBottom:6}}>Mes tâches</div>
+            {tachesPerso.length===0 && (
+              <div style={{textAlign:"center",padding:"24px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucune tâche assignée pour l'instant.</div>
+            )}
+            {tachesPerso.map(t=>(
+              <div key={t.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(198,161,91,0.15)",borderRadius:11,padding:"10px 13px",display:"flex",alignItems:"center",gap:10}}>
+                <input type="checkbox" checked={!!t.fait} onChange={()=>togglerTache(t)} style={{width:16,height:16}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,textDecoration:t.fait?"line-through":"none",color:t.fait?"rgba(245,240,232,0.4)":"#fff"}}>{t.titre}</div>
+                  {t.echeance && <div style={{fontSize:9,color:"rgba(245,240,232,0.5)"}}>Échéance : {fmtDt(t.echeance)}</div>}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
