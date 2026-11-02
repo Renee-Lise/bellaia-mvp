@@ -123,6 +123,14 @@ export interface PlaylistBSH {
   id: string; evenementId?: string; titre: string; sequenceProgramme?: string; lienExterne?: string; notes?: string;
 }
 
+export interface BilletBSH {
+  id: string; evenementId: string; invitationId?: string; acheteurNom?: string;
+  clientId?: string; acheteurEmail?: string; acheteurTel?: string;
+  quantite: number; prix: number; montantTotal?: number;
+  statutPaiement: string; modePaiement?: string; paymentReference?: string;
+  conditionsAnnulation?: string; createdAt?: string;
+}
+
 // ── Événements ──────────────────────────────────────────────
 const mapEvt = (r: any): EvenementBSH => ({
   id: r.id, nom: r.nom, ico: r.ico, dateEvenement: r.date_evenement ?? undefined,
@@ -361,6 +369,44 @@ export async function creerPlaylistBSH(p: Partial<PlaylistBSH>) {
   });
 }
 export const supprimerPlaylistBSH = (id: string) => sbDelete("bsh_playlists", id);
+
+// ── Billets (billetterie & paiement — Phase 1, migration 0075) ──
+// Lecture/gestion fondatrice (seule autorisée par RLS à écrire ici).
+// La création d'un billet payé par carte passe par la route serveur
+// /api/bsh-experiences/billets/create-checkout (clé service-role),
+// jamais par un POST direct depuis ce module.
+const mapBillet = (r: any): BilletBSH => ({
+  id: r.id, evenementId: r.evenement_id, invitationId: r.invitation_id ?? undefined,
+  acheteurNom: r.acheteur_nom ?? undefined, clientId: r.client_id ?? undefined,
+  acheteurEmail: r.acheteur_email ?? undefined, acheteurTel: r.acheteur_tel ?? undefined,
+  quantite: r.quantite ?? 1, prix: parseFloat(r.prix) || 0,
+  montantTotal: r.montant_total != null ? parseFloat(r.montant_total) : undefined,
+  statutPaiement: r.statut_paiement, modePaiement: r.mode_paiement ?? undefined,
+  paymentReference: r.payment_reference ?? undefined, conditionsAnnulation: r.conditions_annulation ?? undefined,
+  createdAt: r.created_at ?? undefined,
+});
+export async function getBilletsBSH(evenementId?: string): Promise<BilletBSH[]> {
+  const filtre = evenementId ? `evenement_id=eq.${evenementId}&` : "";
+  return (await sbGet("bsh_billets", `${filtre}order=created_at.desc&limit=300`)).map(mapBillet);
+}
+
+// Vente manuelle (espèces/virement au guichet) — la fondatrice
+// enregistre une vente déjà réglée, statut_paiement fixé directement
+// (autorisé : policy bsh_billets_fondatrice ALL).
+export async function creerBilletManuelBSH(b: {
+  evenementId: string; acheteurNom: string; quantite: number; montantTotal: number;
+  modePaiement: string; acheteurEmail?: string; acheteurTel?: string;
+}) {
+  return sbPost("bsh_billets", {
+    evenement_id: b.evenementId, acheteur_nom: b.acheteurNom, quantite: b.quantite,
+    prix: b.montantTotal, montant_total: b.montantTotal, statut_paiement: "paye",
+    mode_paiement: b.modePaiement, acheteur_email: b.acheteurEmail || null, acheteur_tel: b.acheteurTel || null,
+  });
+}
+
+export async function majStatutBilletBSH(id: string, statutPaiement: string) {
+  return sbPatch("bsh_billets", id, { statut_paiement: statutPaiement });
+}
 
 // ── Avantages membres (member_benefits) ─────────────────────
 // Schéma réel vérifié le 2026-11-02 (information_schema.columns) —

@@ -72,5 +72,31 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Billetterie BSH Experiences (migration 0075) — commande_id
+  // réutilisé comme référence générique : si ce n'est pas l'id d'une
+  // commande events_commandes, on tente ici bsh_billets (0 ligne si
+  // ça ne correspond pas non plus, sans effet). "reçu"→paye,
+  // "annulé"→annule (places restituées), "remboursé"→rembourse
+  // (places restituées).
+  if (pmt?.commande_id) {
+    const STATUT_BILLET: Record<string, string> = { "reçu": "paye", "annulé": "annule", "remboursé": "rembourse" };
+    const statut_billet = STATUT_BILLET[statut_bellaia];
+    if (statut_billet) {
+      const { data: billet } = await SB
+        .from("bsh_billets")
+        .update({ statut_paiement: statut_billet, mode_paiement: "SumUp", updated_at: new Date().toISOString() })
+        .eq("id", pmt.commande_id)
+        .select("evenement_id, quantite")
+        .single();
+
+      if (billet && (statut_billet === "annule" || statut_billet === "rembourse")) {
+        const { data: evt } = await SB.from("bsh_evenements").select("places_restantes").eq("id", billet.evenement_id).single();
+        if (evt) {
+          await SB.from("bsh_evenements").update({ places_restantes: (evt.places_restantes ?? 0) + (billet.quantite || 1) }).eq("id", billet.evenement_id);
+        }
+      }
+    }
+  }
+
   return NextResponse.json({ received: true, statut: statut_bellaia });
 }

@@ -18,9 +18,10 @@ export interface EvenementPublic {
   capacite: number;
   placesRestantes: number;
   prix: number;
+  statut: string;
 }
 
-const SELECT = "id,nom,ico,date_evenement,ville,categorie,description,duree_minutes,capacite,places_restantes,prix";
+const SELECT = "id,nom,ico,date_evenement,ville,categorie,description,duree_minutes,capacite,places_restantes,prix,statut";
 
 export interface ResultatEvenementsPublics {
   evenements: EvenementPublic[];
@@ -49,6 +50,7 @@ export async function getEvenementsBSHPublics(): Promise<ResultatEvenementsPubli
         id: r.id, nom: r.nom, ico: r.ico, dateEvenement: r.date_evenement, ville: r.ville,
         categorie: r.categorie, description: r.description, dureeMinutes: r.duree_minutes,
         capacite: r.capacite, placesRestantes: r.places_restantes, prix: parseFloat(r.prix) || 0,
+        statut: r.statut,
       })),
       diagnostic: null,
     };

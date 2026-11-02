@@ -14,6 +14,7 @@ import { bshWaLink } from "../bshWa";
 import BshFooter from "../BshFooter";
 import { getEvenementsBSHPublics } from "./getEvenementsPublics";
 import PreinscriptionForm from "./PreinscriptionForm";
+import AchatBilletForm from "./AchatBilletForm";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,14 @@ export default async function BshExperiencesPage() {
                   <span>📍 {e.ville || "Ville à déterminer"}</span>
                   <span>👥 {e.placesRestantes} place{e.placesRestantes > 1 ? "s" : ""} restante{e.placesRestantes > 1 ? "s" : ""}</span>
                   {e.dureeMinutes && <span>⏱ {e.dureeMinutes} min</span>}
+                  {e.prix > 0 && <span>💶 {e.prix.toFixed(2)} €</span>}
                 </div>
+                {e.prix > 0 && e.statut === "actif" && e.placesRestantes > 0 && (
+                  <AchatBilletForm evenementId={e.id} prix={e.prix} placesRestantes={e.placesRestantes} />
+                )}
+                {e.placesRestantes <= 0 && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: C.fuchsia }}>Complet — préinscrivez-vous pour la liste d&apos;attente.</div>
+                )}
               </div>
             ))}
           </div>

@@ -17,11 +17,12 @@ import {
   getPlaylistsBSH, creerPlaylistBSH, supprimerPlaylistBSH,
   getHotesBSH, getMembresBSH,
   getAvantagesMembresBSH, creerAvantageMembreBSH, majAvantageMembreBSH, supprimerAvantageMembreBSH,
+  getBilletsBSH, creerBilletManuelBSH, majStatutBilletBSH,
 } from "./bshExperiencesApi";
 import type {
   EvenementBSH, LieuBSH, BudgetLigneBSH, ChecklistItemBSH,
   PreinscriptionBSH, InvitationBSH, MessageModeleBSH, PlaylistBSH, CategorieEvenement,
-  AvantageMembre,
+  AvantageMembre, BilletBSH,
 } from "./bshExperiencesApi";
 
 // Palette BSH (bshTokens.ts) + fuchsia ajouté — aucune teinte fuchsia
@@ -65,6 +66,7 @@ const ONGLETS = [
   { id: "check", l: "✅ Check-lists" },
   { id: "preins", l: "📝 Préinscriptions" },
   { id: "invit", l: "🎟 Invitations" },
+  { id: "billets", l: "🎫 Billetterie" },
   { id: "members", l: "💳 Members" },
   { id: "msg", l: "💬 Messages" },
   { id: "music", l: "🎵 Diamond B" },
@@ -79,6 +81,7 @@ export default function BshExperiencesF() {
   const [checklist, setChecklist] = useState<ChecklistItemBSH[]>([]);
   const [preins, setPreins] = useState<PreinscriptionBSH[]>([]);
   const [invitations, setInvitations] = useState<InvitationBSH[]>([]);
+  const [billets, setBillets] = useState<BilletBSH[]>([]);
   const [messages, setMessages] = useState<MessageModeleBSH[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistBSH[]>([]);
   const [avantages, setAvantages] = useState<AvantageMembre[]>([]);
@@ -86,13 +89,13 @@ export default function BshExperiencesF() {
 
   const charger = async () => {
     setChargement(true);
-    const [e, l, b, c, p, i, m, pl, av] = await Promise.all([
+    const [e, l, b, c, p, i, bl, m, pl, av] = await Promise.all([
       getEvenementsBSH(), getLieuxBSH(), getBudgetLignesBSH(), getChecklistBSH(),
-      getPreinscriptionsBSH(), getInvitationsBSH(), getMessagesModelesBSH(), getPlaylistsBSH(),
+      getPreinscriptionsBSH(), getInvitationsBSH(), getBilletsBSH(), getMessagesModelesBSH(), getPlaylistsBSH(),
       getAvantagesMembresBSH(),
     ]);
     setEvenements(e); setLieux(l); setBudget(b); setChecklist(c);
-    setPreins(p); setInvitations(i); setMessages(m); setPlaylists(pl); setAvantages(av);
+    setPreins(p); setInvitations(i); setBillets(bl); setMessages(m); setPlaylists(pl); setAvantages(av);
     setChargement(false);
   };
   useEffect(() => { charger(); }, []);
@@ -127,6 +130,7 @@ export default function BshExperiencesF() {
           {onglet === "check" && <Checklist checklist={checklist} recharger={charger} />}
           {onglet === "preins" && <Preinscriptions preins={preins} evenements={evenements} recharger={charger} />}
           {onglet === "invit" && <Invitations invitations={invitations} evenements={evenements} recharger={charger} />}
+          {onglet === "billets" && <Billetterie billets={billets} evenements={evenements} recharger={charger} />}
           {onglet === "members" && <Members avantages={avantages} recharger={charger} />}
           {onglet === "msg" && <Messages messages={messages} recharger={charger} />}
           {onglet === "music" && <DiamondB playlists={playlists} evenements={evenements} recharger={charger} />}
@@ -572,6 +576,111 @@ function Invitations({ invitations, evenements, recharger }: { invitations: Invi
           </Champ>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             <button onClick={enregistrer} style={{ ...btnP, flex: 1 }}>Créer</button>
+            <button onClick={() => setModal(false)} style={{ ...btnS, flex: 1 }}>Annuler</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── Billetterie (migration 0075) — ventes réelles (SumUp, via
+//    /api/bsh-experiences/billets/create-checkout + webhook) et
+//    ventes manuelles au guichet (espèces/virement, enregistrées
+//    directement payées).
+const LABEL_STATUT_BILLET: Record<string, string> = {
+  non_requis: "Gratuit", en_attente: "En attente de paiement", paye: "Payé ✓",
+  rembourse: "Remboursé", annule: "Annulé",
+};
+const COULEUR_STATUT_BILLET: Record<string, string> = {
+  non_requis: C.muted, en_attente: "#fbbf24", paye: "#6ee7a0", rembourse: "#60a5fa", annule: "#f87171",
+};
+
+function Billetterie({ billets, evenements, recharger }: { billets: BilletBSH[]; evenements: EvenementBSH[]; recharger: () => void }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState<{ evenementId: string; acheteurNom: string; quantite: number; modePaiement: string; acheteurEmail: string; acheteurTel: string }>(
+    { evenementId: "", acheteurNom: "", quantite: 1, modePaiement: "Especes", acheteurEmail: "", acheteurTel: "" }
+  );
+  const evtForm = evenements.find(e => e.id === form.evenementId);
+  const montantForm = evtForm ? evtForm.prix * form.quantite : 0;
+
+  const enregistrer = async () => {
+    if (!form.evenementId || !form.acheteurNom.trim() || form.quantite < 1) return;
+    const res = await creerBilletManuelBSH({
+      evenementId: form.evenementId, acheteurNom: form.acheteurNom.trim(), quantite: form.quantite,
+      montantTotal: montantForm, modePaiement: form.modePaiement,
+      acheteurEmail: form.acheteurEmail || undefined, acheteurTel: form.acheteurTel || undefined,
+    });
+    if (!res.ok) { alert("Échec : " + ("error" in res ? res.error : "")); return; }
+    setModal(false); setForm({ evenementId: "", acheteurNom: "", quantite: 1, modePaiement: "Especes", acheteurEmail: "", acheteurTel: "" });
+    await recharger();
+  };
+
+  const totalEncaisse = billets.filter(b => b.statutPaiement === "paye").reduce((s, b) => s + (b.montantTotal ?? b.prix), 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
+        Les ventes en ligne (carte, SumUp) sont créées automatiquement depuis la page publique et confirmées par webhook — rien à faire ici pour celles-ci, à part suivre leur statut. Utilisez « + Vente manuelle » pour une place vendue en espèces ou par virement.
+      </div>
+      <div style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 11, color: C.muted }}>Total encaissé (billets payés)</span>
+        <span style={{ fontSize: 16, fontWeight: 700, color: C.goldL }}>{totalEncaisse.toFixed(2)} €</span>
+      </div>
+      <button onClick={() => setModal(true)} style={{ ...btnP, alignSelf: "flex-start" }}>+ Vente manuelle</button>
+      {billets.length === 0 && <div style={{ textAlign: "center", padding: 24, color: C.muted, fontSize: 12 }}>Aucun billet vendu pour l&apos;instant.</div>}
+      {billets.map(b => {
+        const evt = evenements.find(e => e.id === b.evenementId);
+        return (
+          <div key={b.id} style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{b.acheteurNom || "Acheteuse inconnue"}</div>
+              <span style={{ fontSize: 9, fontWeight: 700, color: COULEUR_STATUT_BILLET[b.statutPaiement] || C.muted }}>
+                {(LABEL_STATUT_BILLET[b.statutPaiement] || b.statutPaiement).toUpperCase()}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+              {evt?.nom || "Événement ?"} · {b.quantite} place{b.quantite > 1 ? "s" : ""} · {(b.montantTotal ?? b.prix).toFixed(2)} € · {b.modePaiement || "—"}
+            </div>
+            {(b.acheteurEmail || b.acheteurTel) && (
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{[b.acheteurEmail, b.acheteurTel].filter(Boolean).join(" · ")}</div>
+            )}
+            {b.statutPaiement === "paye" && (
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                <button onClick={async () => { if (confirm("Marquer ce billet comme remboursé ?")) { await majStatutBilletBSH(b.id, "rembourse"); await recharger(); } }} style={{ ...btnS, color: "#f87171" }}>Marquer remboursé</button>
+              </div>
+            )}
+            {b.statutPaiement === "en_attente" && (
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                <button onClick={async () => { if (confirm("Annuler cette réservation en attente de paiement ?")) { await majStatutBilletBSH(b.id, "annule"); await recharger(); } }} style={{ ...btnS, color: "#f87171" }}>Annuler</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {modal && (
+        <Modal titre="Vente manuelle (espèces / virement)" onClose={() => setModal(false)}>
+          <Champ label="Événement *">
+            <select style={{ ...inp, background: C.plumD }} value={form.evenementId} onChange={e => setForm(f => ({ ...f, evenementId: e.target.value }))}>
+              <option value="">— Choisir —</option>
+              {evenements.map(e => <option key={e.id} value={e.id}>{e.nom} ({e.prix.toFixed(2)} €)</option>)}
+            </select>
+          </Champ>
+          <Champ label="Acheteuse *"><input style={inp} value={form.acheteurNom} onChange={e => setForm(f => ({ ...f, acheteurNom: e.target.value }))} /></Champ>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Champ label="Quantité"><input type="number" min={1} style={inp} value={form.quantite} onChange={e => setForm(f => ({ ...f, quantite: Math.max(1, parseInt(e.target.value) || 1) }))} /></Champ>
+            <Champ label="Mode de paiement">
+              <select style={{ ...inp, background: C.plumD }} value={form.modePaiement} onChange={e => setForm(f => ({ ...f, modePaiement: e.target.value }))}>
+                <option value="Especes">Espèces</option>
+                <option value="Virement">Virement</option>
+              </select>
+            </Champ>
+          </div>
+          <Champ label="Email (optionnel)"><input style={inp} value={form.acheteurEmail} onChange={e => setForm(f => ({ ...f, acheteurEmail: e.target.value }))} /></Champ>
+          <Champ label="Téléphone (optionnel)"><input style={inp} value={form.acheteurTel} onChange={e => setForm(f => ({ ...f, acheteurTel: e.target.value }))} /></Champ>
+          <div style={{ fontSize: 12, color: C.goldL, fontWeight: 700 }}>Total : {montantForm.toFixed(2)} €</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            <button onClick={enregistrer} style={{ ...btnP, flex: 1 }}>Enregistrer la vente</button>
             <button onClick={() => setModal(false)} style={{ ...btnS, flex: 1 }}>Annuler</button>
           </div>
         </Modal>
