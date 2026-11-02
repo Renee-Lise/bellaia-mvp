@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0074_member_benefits_nettoyage_policies.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-02
 -- Auteur : Claude Code · Date de rédaction : 2026-11-02
 -- Objet : la migration 0073 supposait member_benefits inexistante
 --   (comme bellaia_commandes/invoices l'étaient réellement cette
