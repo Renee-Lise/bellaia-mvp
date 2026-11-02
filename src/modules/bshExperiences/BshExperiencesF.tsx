@@ -584,21 +584,32 @@ function Invitations({ invitations, evenements, recharger }: { invitations: Invi
 //    fondatrice. Les niveaux d'adhésion (membership_status) restent
 //    gérés depuis l'écran BSH Members existant (CRM) — ici, seuls
 //    les avantages affichés sur la carte membre sont gérés.
+const NIVEAUX_ADHESION = [
+  { id: "member", l: "Membre" },
+  { id: "founding_member", l: "Membre Fondateur" },
+  { id: "vip", l: "VIP" },
+];
+
 function Members({ avantages, recharger }: { avantages: AvantageMembre[]; recharger: () => void }) {
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<Partial<AvantageMembre>>({ isActive: true });
+  const [form, setForm] = useState<Partial<AvantageMembre>>({ isActive: true, memberTiers: [] });
   const enregistrer = async () => {
     if (!form.title?.trim()) return;
+    if (!form.memberTiers || form.memberTiers.length === 0) { alert("Choisissez au moins un niveau d'adhésion — sans ça, l'avantage ne sera visible par aucune membre."); return; }
     const res = form.id ? await majAvantageMembreBSH(form.id, form) : await creerAvantageMembreBSH(form);
     if (!res.ok) { alert("Échec : " + ("error" in res ? res.error : "")); return; }
-    setModal(false); setForm({ isActive: true }); await recharger();
+    setModal(false); setForm({ isActive: true, memberTiers: [] }); await recharger();
   };
+  const toggleNiveau = (id: string) => setForm(f => {
+    const tiers = f.memberTiers || [];
+    return { ...f, memberTiers: tiers.includes(id) ? tiers.filter(t => t !== id) : [...tiers, id] };
+  });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ fontSize: 11, color: C.muted }}>
         Avantages affichés sur la carte de membre numérique (espace « Mon espace BSH Members »). Les niveaux d&apos;adhésion eux-mêmes (Membre, Membre Fondateur…) restent gérés depuis l&apos;onglet BSH Members du CRM.
       </div>
-      <button onClick={() => { setForm({ isActive: true }); setModal(true); }} style={{ ...btnP, alignSelf: "flex-start" }}>+ Avantage</button>
+      <button onClick={() => { setForm({ isActive: true, memberTiers: [] }); setModal(true); }} style={{ ...btnP, alignSelf: "flex-start" }}>+ Avantage</button>
       {avantages.length === 0 && <div style={{ textAlign: "center", padding: 24, color: C.muted, fontSize: 12 }}>Aucun avantage — les membres verront "des avantages arrivent bientôt" tant qu'aucun n'est actif.</div>}
       {avantages.map(a => (
         <div key={a.id} style={card} onClick={() => { setForm(a); setModal(true); }}>
@@ -607,6 +618,9 @@ function Members({ avantages, recharger }: { avantages: AvantageMembre[]; rechar
             <span style={{ fontSize: 9, fontWeight: 700, color: a.isActive ? C.goldL : C.muted }}>{a.isActive ? "ACTIF" : "INACTIF"}</span>
           </div>
           {a.description && <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{a.description}</div>}
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
+            {a.memberTiers.length ? a.memberTiers.map(t => NIVEAUX_ADHESION.find(n => n.id === t)?.l || t).join(", ") : "⚠️ Aucun niveau choisi — invisible pour toutes les membres"}
+          </div>
           {a.validUntil && <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Jusqu&apos;au {a.validUntil}</div>}
         </div>
       ))}
@@ -614,10 +628,24 @@ function Members({ avantages, recharger }: { avantages: AvantageMembre[]; rechar
         <Modal titre={form.id ? "Modifier l'avantage" : "Nouvel avantage"} onClose={() => setModal(false)}>
           <Champ label="Titre *"><input style={inp} value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></Champ>
           <Champ label="Description"><textarea style={{ ...inp, minHeight: 60 }} value={form.description || ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></Champ>
-          <Champ label="Valide jusqu'au (optionnel)"><input type="date" style={inp} value={form.validUntil || ""} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></Champ>
+          <Champ label="Niveaux d'adhésion concernés *">
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {NIVEAUX_ADHESION.map(n => (
+                <label key={n.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.cream, cursor: "pointer" }}>
+                  <input type="checkbox" checked={(form.memberTiers || []).includes(n.id)} onChange={() => toggleNiveau(n.id)} />
+                  {n.l}
+                </label>
+              ))}
+            </div>
+          </Champ>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Champ label="Valide à partir du"><input type="date" style={inp} value={form.validFrom || ""} onChange={e => setForm(f => ({ ...f, validFrom: e.target.value }))} /></Champ>
+            <Champ label="Valide jusqu'au"><input type="date" style={inp} value={form.validUntil || ""} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} /></Champ>
+          </div>
+          <Champ label="Lié à (optionnel)"><input style={inp} placeholder="Référence événement, produit…" value={form.linkedTo || ""} onChange={e => setForm(f => ({ ...f, linkedTo: e.target.value }))} /></Champ>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.cream, cursor: "pointer" }}>
             <input type="checkbox" checked={form.isActive ?? true} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
-            Actif (visible par les membres)
+            Actif (visible par les membres concernées)
           </label>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             <button onClick={enregistrer} style={{ ...btnP, flex: 1 }}>Enregistrer</button>

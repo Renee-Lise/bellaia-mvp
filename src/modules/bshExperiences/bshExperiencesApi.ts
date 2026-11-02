@@ -363,24 +363,40 @@ export async function creerPlaylistBSH(p: Partial<PlaylistBSH>) {
 export const supprimerPlaylistBSH = (id: string) => sbDelete("bsh_playlists", id);
 
 // ── Avantages membres (member_benefits) ─────────────────────
+// Schéma réel vérifié le 2026-11-02 (information_schema.columns) —
+// table member_benefits préexistante, pas créée par ce projet :
+// id, title, description, valid_from, valid_until, member_tiers
+// (array), is_active, linked_to, created_at, updated_at.
 export interface AvantageMembre {
-  id: string; title: string; description?: string; validUntil?: string; isActive: boolean;
+  id: string; title: string; description?: string; validFrom?: string; validUntil?: string;
+  memberTiers: string[]; isActive: boolean; linkedTo?: string;
 }
 const mapAvantage = (r: any): AvantageMembre => ({
-  id: r.id, title: r.title, description: r.description ?? undefined, validUntil: r.valid_until ?? undefined, isActive: !!r.is_active,
+  id: r.id, title: r.title, description: r.description ?? undefined,
+  validFrom: r.valid_from ?? undefined, validUntil: r.valid_until ?? undefined,
+  memberTiers: Array.isArray(r.member_tiers) ? r.member_tiers : [], isActive: !!r.is_active,
+  linkedTo: r.linked_to ?? undefined,
 });
 export async function getAvantagesMembresBSH(): Promise<AvantageMembre[]> {
   return (await sbGet("member_benefits", "order=created_at.desc&limit=100")).map(mapAvantage);
 }
 export async function creerAvantageMembreBSH(a: Partial<AvantageMembre>) {
-  return sbPost("member_benefits", { title: a.title, description: a.description || null, valid_until: a.validUntil || null, is_active: a.isActive ?? true });
+  return sbPost("member_benefits", {
+    title: a.title, description: a.description || null,
+    valid_from: a.validFrom || null, valid_until: a.validUntil || null,
+    member_tiers: a.memberTiers && a.memberTiers.length ? a.memberTiers : null,
+    is_active: a.isActive ?? true, linked_to: a.linkedTo || null,
+  });
 }
 export async function majAvantageMembreBSH(id: string, a: Partial<AvantageMembre>) {
   const d: Record<string, any> = {};
   if (a.title !== undefined) d.title = a.title;
   if (a.description !== undefined) d.description = a.description;
+  if (a.validFrom !== undefined) d.valid_from = a.validFrom;
   if (a.validUntil !== undefined) d.valid_until = a.validUntil;
+  if (a.memberTiers !== undefined) d.member_tiers = a.memberTiers.length ? a.memberTiers : null;
   if (a.isActive !== undefined) d.is_active = a.isActive;
+  if (a.linkedTo !== undefined) d.linked_to = a.linkedTo;
   return sbPatch("member_benefits", id, d);
 }
 export const supprimerAvantageMembreBSH = (id: string) => sbDelete("member_benefits", id);
