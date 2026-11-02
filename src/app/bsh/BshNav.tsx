@@ -14,6 +14,7 @@ import { BSH_PALETTE as C, BSH_FONT_BODY as BODY } from "./bshTokens";
 
 const NAV_LINKS = [
   { ico: "🏠", l: "Accueil", href: "/bsh" },
+  { ico: "✨", l: "Experiences", href: "/bsh/experiences" },
   { ico: "🛍", l: "Boutique", href: "/bsh/boutique" },
   { ico: "🎁", l: "Coffrets", href: "/bsh/coffrets" },
   { ico: "🎴", l: "Secret Games", href: "/bsh/secret-games" },

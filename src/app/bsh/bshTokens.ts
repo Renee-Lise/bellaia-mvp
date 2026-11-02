@@ -20,6 +20,10 @@ export const BSH_PALETTE = {
   cream:   "#f1e7e2",  // texte principal clair
   muted:   "#cbb9b9",  // texte secondaire
   roseD:   "#e3b9bd",  // rose discret (citations Cercle)
+  // Fuchsia demandé pour BSH Secret Circle & Experiences — absent de
+  // la palette d'origine (aucune teinte fuchsia n'existait avant).
+  // Valeur proposée, pas encore validée par Renée-Lise.
+  fuchsia: "#d9499f",
   borderL: "rgba(198,161,91,0.12)",
   border:  "rgba(198,161,91,0.15)",
   borderM: "rgba(198,161,91,0.18)",
