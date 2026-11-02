@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0072_bsh_evenements_publication_rls.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-02
 -- Auteur : Claude Code · Date de rédaction : 2026-11-02
 -- Objet : la migration 0071 a ajouté la colonne "publie" (workflow
 --   brouillon/publié demandé pour BSH Experiences), mais la policy de
