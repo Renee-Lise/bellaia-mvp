@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0075_bsh_billets_achat_paiement.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-03
 -- Auteur : Claude Code · Date de rédaction : 2026-11-02
 -- Objet : "On commence à gérer billetterie et paiement" — Phase 1
 --   pour BSH Experiences. Audité avant d'écrire une ligne de SQL :
