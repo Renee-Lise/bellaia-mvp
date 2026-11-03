@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0078_food_commandes_securite.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-03
 -- Auteur : Claude Code · Date de rédaction : 2026-11-03
 -- Objet : durcissement de /api/food/commandes/create avant tout test
 --   de commande réelle (demande explicite de Renée-Lise, 7 points).
