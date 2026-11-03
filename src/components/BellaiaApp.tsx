@@ -2885,6 +2885,16 @@ function ClientFood({ user, onBack }) {
   const [page,      setPage]     = React.useState("catalogue");
   const [commandes, setCommandes]= React.useState([]);
   const [panier,    setPanier]   = React.useState([]);
+  // Base choisie pour "Frites maison" (manioc/patate douce/plantain/
+  // pomme de terre) — obligatoire avant de choisir la garniture, ne
+  // change aucun prix (les 4 bases partagent les mêmes tarifs de
+  // garniture déjà validés). Map produitId -> baseId, remise à zéro
+  // à chaque session — un choix par visite, pas persistant.
+  const [baseFritesChoisie, setBaseFritesChoisie] = React.useState({});
+  const BASES_FRITES = [
+    {id:"manioc", l:"Manioc"}, {id:"patate_douce", l:"Patate douce"},
+    {id:"plantain", l:"Plantain"}, {id:"pomme_terre", l:"Pomme de terre"},
+  ];
   const [modal,     setModal]    = React.useState(null); // "commande"|"paiement"
   const [form,      setForm]     = React.useState({nom:"",tel:"",message:"",date:""});
   const [succes,    setSucces]   = React.useState(null);
@@ -2967,48 +2977,51 @@ function ClientFood({ user, onBack }) {
   // Colombo de poulet Petit/Moyen/Grand) : chaque variante devient sa
   // propre ligne de panier (id composite, pour ne jamais fusionner
   // deux tailles différentes du même produit).
-  const ajouterPanierVariante = (p, v) => ajouterPanier({
-    id: p.id+"::"+v.id, ico: p.ico, nom: p.nom+" — "+v.nom, cat: p.cat,
-    desc: p.desc, prix: v.prix, photo: p.photo,
-  });
+  const ajouterPanierVariante = (p, v) => {
+    const baseId = baseFritesChoisie[p.id];
+    const baseLabel = baseId ? BASES_FRITES.find(b=>b.id===baseId)?.l : null;
+    ajouterPanier({
+      id: p.id+"::"+v.id+(baseId?"::"+baseId:""),
+      ico: p.ico, nom: p.nom+(baseLabel?" ("+baseLabel+")":"")+" — "+v.nom, cat: p.cat,
+      desc: p.desc, prix: v.prix, photo: p.photo,
+    });
+  };
 
   const totalPanier = panier.reduce((s,p)=>s+(p.prix||0)*p.qte,0);
 
   const envoyerCommande = async () => {
     if (!form.nom?.trim()) return;
     setPayLoading(true);
-    const ref = await genererReference("FOOD");
-    const lignes = panier.map(p=>({libelle:p.nom,qte:p.qte,prixUnitaire:p.prix||0,total:(p.prix||0)*p.qte}));
-    const total = totalPanier;
-    // Créer dans bellaia_commandes
-    await fetch(SB_URL+"/rest/v1/bellaia_commandes", {
-      method:"POST",
-      headers:{apikey:SB_KEY, Authorization:"Bearer "+(await getTokenAsync()),
-        "Content-Type":"application/json", Prefer:"return=representation"},
+    // Le panier n'envoie que des identifiants + quantités — jamais de
+    // prix : la route recalcule chaque ligne depuis le catalogue réel
+    // au moment de la commande (jamais le prix affiché côté client,
+    // qui peut être périmé ou trafiqué).
+    const r = await fetch("/api/food/commandes/create", {
+      method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
-        bu:"FOOD", reference:ref, client_nom:form.nom, client_tel:form.tel,
-        statut:"BROUILLON", total, acompte:Math.round(total*0.3),
-        date_commande:new Date().toISOString().split("T")[0],
-        date_livraison:form.date||null,
-        lignes:JSON.stringify(lignes), notes:form.message,
-      })
-    }).then(async r => {
-      if (!r.ok) {
-        const e = await r.text().catch(()=>"");
-        console.error("[ClientFood] Commande non créée:", r.status, e);
-        setPayLoading(false);
-        alert("La commande n'a pas pu être enregistrée.\n"+(e||"Réessayez."));
-        return; // Pas de succès si Supabase refuse
-      }
-      // GED auto-save — non bloquant
-      gedAutoSave({titre:"Commande "+ref+" — "+form.nom, module:"FOOD",
+        lignes: panier.map(p=>({id:p.id, qte:p.qte})),
+        clientNom: form.nom, clientTel: form.tel,
+        dateLivraison: form.date || null, notes: form.message,
+        clientId: user?.id || null,
+      }),
+    }).catch(()=>null);
+    const d = r ? await r.json().catch(()=>null) : null;
+    if (!r || !r.ok || !d?.ok) {
+      console.error("[ClientFood] Commande non créée:", d?.error);
+      setPayLoading(false);
+      alert("La commande n'a pas pu être enregistrée.\n"+(d?.error||"Réessayez."));
+      return; // Pas de succès si la route refuse
+    }
+    const { reference: ref, total, lignes } = d;
+    // GED auto-save — non bloquant
+    gedAutoSave({titre:"Commande "+ref+" — "+form.nom, module:"FOOD",
       categorie:"bon_commande", reference:ref, clientNom:form.nom,
       contenuHtml:"<p>Commande "+ref+"</p><p>"+lignes.map(l=>l.libelle+" ×"+l.qte).join(", ")+"</p>",
     }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
-    // Notif WhatsApp
+    // Notif WhatsApp — reprend les lignes/total confirmés par le serveur
     const msg = "Bonjour 🍃\n\nCommande Bella'Food (Réf: "+ref+")\n"+
-      panier.map(p=>p.nom+" × "+p.qte+(p.prix?" ("+((p.prix||0)*p.qte).toFixed(2)+"€)":"")).join("\n")+
-      "\nTotal : "+(total>0?total.toFixed(2)+"€":"Sur devis")+
+      lignes.map(l=>l.libelle+" × "+l.qte+" ("+l.total.toFixed(2)+"€)").join("\n")+
+      "\nTotal : "+total.toFixed(2)+"€"+
       (form.date?"\nDate souhaitée : "+form.date:"")+
       (form.message?"\nMessage : "+form.message:"")+
       "\n\nClient : "+form.nom+(form.tel?" · "+form.tel:"");
@@ -3018,7 +3031,6 @@ function ClientFood({ user, onBack }) {
     setModal(null);
     setCommandes(prev=>[{reference:ref,client_nom:form.nom,statut:"BROUILLON",total,created_at:new Date().toISOString(),...(form.date?{date_livraison:form.date}:{})}, ...prev]);
     setPanier([]); setForm({nom:"",tel:"",message:"",date:""});
-    });
   };
 
   const fmtPx = (n) => n?Number(n).toFixed(2).replace(".",",")+" €":"Sur devis";
@@ -3111,15 +3123,50 @@ function ClientFood({ user, onBack }) {
                       </div>
                       {!p.variantes?.length && (
                         <div style={{textAlign:"right",flexShrink:0}}>
-                          <div style={{fontSize:13,fontWeight:700,color:"#c9a96e",marginBottom:4}}>{fmtPx(p.prix)}</div>
-                          <button onClick={()=>ajouterPanier(p)} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:8,padding:"5px 11px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>
-                            + Ajouter
-                          </button>
+                          {p.prix ? (
+                            <>
+                              <div style={{fontSize:13,fontWeight:700,color:"#c9a96e",marginBottom:4}}>{fmtPx(p.prix)}</div>
+                              <button onClick={()=>ajouterPanier(p)} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:8,padding:"5px 11px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>
+                                + Ajouter
+                              </button>
+                            </>
+                          ) : (
+                            // Produit sans prix de base ET sans variante chargée : soit un
+                            // produit réellement mal configuré, soit (cas visé ici) un
+                            // produit à variantes dont le chargement a échoué — jamais
+                            // commandable sans prix réel, pas de panier à "Sur devis".
+                            <div style={{fontSize:10,color:"rgba(245,240,232,0.4)",fontStyle:"italic"}}>Indisponible</div>
+                          )}
                         </div>
                       )}
                     </div>
-                    {/* Produit à tailles/formats multiples — un bouton par variante, chacun avec son propre prix */}
-                    {p.variantes?.length > 0 && (
+                    {/* "Frites maison" : choix de la base obligatoire avant la garniture — ne change aucun prix, juste conservé dans le libellé de la ligne de panier */}
+                    {p.nom === "Frites maison" && p.variantes?.length > 0 && (
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                          {BASES_FRITES.map(b=>(
+                            <button key={b.id} onClick={()=>setBaseFritesChoisie(prev=>({...prev,[p.id]:b.id}))}
+                              style={{background:baseFritesChoisie[p.id]===b.id?"rgba(201,169,110,0.25)":"rgba(255,255,255,0.06)",border:"1px solid "+(baseFritesChoisie[p.id]===b.id?"#c9a96e":"rgba(255,255,255,0.15)"),borderRadius:8,padding:"5px 10px",color:"#fff",fontWeight:700,fontSize:10,cursor:"pointer",fontFamily:SA}}>
+                              {b.l}
+                            </button>
+                          ))}
+                        </div>
+                        {!baseFritesChoisie[p.id] ? (
+                          <div style={{fontSize:10,color:"rgba(245,240,232,0.45)",fontStyle:"italic"}}>Choisissez une base pour voir les formules de garniture.</div>
+                        ) : (
+                          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                            {p.variantes.map(v=>(
+                              <button key={v.id} onClick={()=>ajouterPanierVariante(p,v)} style={{background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.35)",borderRadius:8,padding:"6px 10px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+                                <span>{v.nom}</span>
+                                <span style={{color:"#c9a96e"}}>{fmtPx(v.prix)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Produit à tailles/formats multiples (hors Frites maison) — un bouton par variante, chacun avec son propre prix */}
+                    {p.nom !== "Frites maison" && p.variantes?.length > 0 && (
                       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                         {p.variantes.map(v=>(
                           <button key={v.id} onClick={()=>ajouterPanierVariante(p,v)} style={{background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.35)",borderRadius:8,padding:"6px 10px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
