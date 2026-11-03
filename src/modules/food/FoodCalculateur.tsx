@@ -32,6 +32,7 @@ export default function FoodCalculateur() {
     coutDecoration:   0,
     coutMainOeuvre:   0,
     coutEnergie:      0,
+    coutPertes:       0,
     coutLivraison:    0,
     coutCharges:      0,
     margeSouhaitee:   40,
@@ -40,6 +41,12 @@ export default function FoodCalculateur() {
     acomptePct:       30,
     nbPortions:       1,
   });
+  // Prix de vente réellement pratiqué (distinct du prix conseillé
+  // calculé à partir de la marge souhaitée) — demande explicite :
+  // vérifier qu'un prix choisi couvre bien les coûts, pas seulement
+  // calculer un prix suggéré. null = non renseigné (0€ serait un
+  // vrai prix, donc jamais utilisé comme valeur "vide").
+  const [prixVentePratique, setPrixVentePratique] = useState<number | null>(null);
   const [enregistrement, setEnregistrement] = useState<"idle"|"en_cours"|"ok"|"erreur">("idle");
 
   // Si recette sélectionnée, pré-remplir les coûts
@@ -62,7 +69,7 @@ export default function FoodCalculateur() {
     coutDecoration:   form.coutDecoration,
     coutMainOeuvre:   form.coutMainOeuvre,
     coutLivraison:    form.coutLivraison,
-    coutCharges:      form.coutCharges + form.coutEnergie,
+    coutCharges:      form.coutCharges + form.coutEnergie + form.coutPertes,
     margeSouhaitee:   form.margeSouhaitee,
     supplement:       form.supplement,
     remise:           form.remise,
@@ -72,6 +79,12 @@ export default function FoodCalculateur() {
   const prixParPortion    = form.nbPortions > 1 ? Math.round(res.prixVenteConseille / form.nbPortions * 100)/100 : null;
   const prixPremium       = Math.round(res.prixVenteConseille * 1.3 * 100)/100;
   const seuilRentabilite  = res.coutTotal > 0 ? Math.ceil(res.coutTotal / Math.max(res.prixVenteConseille, 0.01)) : null;
+
+  // Vérification du prix réellement pratiqué (pas le prix conseillé) —
+  // marge réelle et alerte si ce prix ne couvre pas les coûts saisis.
+  const margeReelle = prixVentePratique != null ? Math.round((prixVentePratique - res.coutTotal) * 100) / 100 : null;
+  const tauxMargeReel = prixVentePratique != null && prixVentePratique > 0 ? Math.round((margeReelle! / prixVentePratique) * 100) : null;
+  const prixInsuffisant = margeReelle != null && margeReelle < 0;
 
   // Jusqu'ici le calculateur ne faisait que pré-remplir depuis une
   // recette, jamais l'inverse — aucun résultat n'était donc jamais
@@ -146,6 +159,7 @@ export default function FoodCalculateur() {
           <Inp label="Décoration"           k="coutDecoration"/>
           <Inp label="Main-d'œuvre"         k="coutMainOeuvre"/>
           <Inp label="Énergie (four...)"    k="coutEnergie"/>
+          <Inp label="Pertes / invendus"    k="coutPertes"/>
           <Inp label="Livraison"            k="coutLivraison"/>
           <Inp label="Charges fixes"        k="coutCharges"/>
         </div>
@@ -154,6 +168,37 @@ export default function FoodCalculateur() {
           <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>Coût total</span>
           <span style={{ fontSize:16, fontWeight:700, color:"#f87171" }}>{fmtPrix(res.coutTotal)}</span>
         </div>
+      </div>
+
+      {/* Prix de vente réellement pratiqué — vérifie qu'il couvre les
+          coûts saisis ci-dessus, distinct du prix conseillé calculé
+          plus bas à partir d'une marge souhaitée. */}
+      <div style={{ background: prixInsuffisant ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.04)",
+        border: `1px solid ${prixInsuffisant ? "#ef4444" : FC.line}`, borderRadius:12, padding:"14px" }}>
+        <div style={{ fontSize:11, fontWeight:700, color:FC.or, marginBottom:10, letterSpacing:1 }}>VOTRE PRIX DE VENTE</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:3, marginBottom: prixVentePratique != null ? 10 : 0 }}>
+          <label style={{ fontSize:10, color:"rgba(255,255,255,0.5)", fontFamily:SA }}>Prix pratiqué (€) — optionnel, pour vérifier la marge réelle</label>
+          <input type="number" min={0} step={0.01} value={prixVentePratique ?? ""}
+            onChange={e => setPrixVentePratique(e.target.value === "" ? null : parseFloat(e.target.value) || 0)}
+            style={inpBase}/>
+        </div>
+        {prixVentePratique != null && (
+          <>
+            <div style={{ display:"flex", justifyContent:"space-between", padding:"4px 0" }}>
+              <span style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>Marge brute réelle</span>
+              <span style={{ fontSize:13, fontWeight:700, color: prixInsuffisant ? "#f87171" : FC.vertL }}>{fmtPrix(margeReelle!)}</span>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", padding:"4px 0" }}>
+              <span style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>Taux de marge réel</span>
+              <span style={{ fontSize:13, fontWeight:700, color: prixInsuffisant ? "#f87171" : FC.vertL }}>{tauxMargeReel}%</span>
+            </div>
+            {prixInsuffisant && (
+              <div style={{ marginTop:8, padding:"8px 10px", borderRadius:8, background:"rgba(239,68,68,0.15)", color:"#f87171", fontSize:11, fontWeight:700 }}>
+                ⚠️ Ce prix ne couvre pas les coûts saisis (manque {fmtPrix(Math.abs(margeReelle!))}).
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Paramètres */}
