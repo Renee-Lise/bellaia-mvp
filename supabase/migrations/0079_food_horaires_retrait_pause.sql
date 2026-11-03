@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0079_food_horaires_retrait_pause.sql
--- STATUT: PROPOSITION — à exécuter et vérifier par Renée-Lise
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-03
 -- Auteur : Claude Code · Date de rédaction : 2026-11-03
 -- Objet : complète food_horaires_config (migration 0078, VALIDÉE)
 --   pour le cahier des charges horaires/quotas qu'elle a donné :
