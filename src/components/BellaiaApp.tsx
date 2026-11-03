@@ -7892,22 +7892,23 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
             <>
               <button onClick={() => verrouBsh ? alert(MSG_MODULE_MINEUR) : setActiveUnivers(bsh.id)}
                 style={{
-                  background: verrouBsh ? "rgba(255,255,255,0.03)" : `linear-gradient(135deg, ${bsh.acc}, #2e1a2e)`,
-                  border: verrouBsh ? "1px solid rgba(255,255,255,0.08)" : `1px solid ${bsh.acc}80`,
+                  background: B.card,
+                  borderTop: "1px solid "+B.border, borderRight: "1px solid "+B.border, borderBottom: "1px solid "+B.border,
+                  borderLeft: verrouBsh ? "1px solid "+B.border : `3px solid ${bsh.acc}`,
                   borderRadius: 16, padding: "20px 18px", cursor: "pointer", textAlign: "left",
                   fontFamily: SA, width: "100%", opacity: verrouBsh ? 0.5 : 1, marginBottom: 14,
                   display: "block",
                 }}>
-                <div style={{ fontSize: 9, letterSpacing: "0.12em", color: "rgba(255,255,255,0.6)", textTransform: "uppercase", marginBottom: 8 }}>
+                <div style={{ fontSize: 9, letterSpacing: "0.12em", color: B.muted, textTransform: "uppercase", marginBottom: 8 }}>
                   Votre univers
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <div style={{ fontSize: 30 }}>{verrouBsh ? "🔒" : bsh.ico}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", fontFamily: FS, marginBottom: 3 }}>{bsh.nom}</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{verrouBsh ? "Réservé aux majeurs" : bsh.tag}</div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: B.cream, fontFamily: FS, marginBottom: 3 }}>{bsh.nom}</div>
+                    <div style={{ fontSize: 12, color: B.muted }}>{verrouBsh ? "Réservé aux majeurs" : bsh.tag}</div>
                   </div>
-                  <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 20 }}>{verrouBsh ? "🔒" : "›"}</span>
+                  <span style={{ color: verrouBsh ? B.muted : bsh.acc, fontSize: 20 }}>{verrouBsh ? "🔒" : "›"}</span>
                 </div>
               </button>
 
@@ -7925,14 +7926,14 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
                   {autres.map(u => {
                     const verrou = !moduleAutorise(u.id, user);
                     return (
-                    <button key={u.id} onClick={() => verrou ? alert(MSG_MODULE_MINEUR) : setActiveUnivers(u.id)} style={{background:verrou?"rgba(255,255,255,0.03)":"linear-gradient(135deg,"+(u.acc)+"18,"+(u.acc)+"08)",border:verrou?"1px solid rgba(255,255,255,0.08)":"1px solid "+(u.acc)+"40",borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",fontFamily:SA,width:"100%",opacity:verrou?0.5:1}}>
+                    <button key={u.id} onClick={() => verrou ? alert(MSG_MODULE_MINEUR) : setActiveUnivers(u.id)} style={{background:B.card,borderTop:"1px solid "+B.border,borderRight:"1px solid "+B.border,borderBottom:"1px solid "+B.border,borderLeft:verrou?"1px solid "+B.border:"3px solid "+(u.acc),borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",fontFamily:SA,width:"100%",opacity:verrou?0.5:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:12}}>
-                        <div style={{width:40,height:40,borderRadius:11,background:verrou?"rgba(255,255,255,0.06)":(u.acc)+"25",border:verrou?"1px solid rgba(255,255,255,0.1)":"1px solid "+(u.acc)+"40",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,filter:verrou?"grayscale(1)":"none"}}>{verrou?"🔒":u.ico}</div>
+                        <div style={{width:40,height:40,borderRadius:11,background:verrou?"rgba(255,255,255,0.06)":(u.acc)+"20",border:verrou?"1px solid rgba(255,255,255,0.1)":"1px solid "+(u.acc)+"40",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,filter:verrou?"grayscale(1)":"none"}}>{verrou?"🔒":u.ico}</div>
                         <div style={{flex:1}}>
-                          <div style={{fontSize:13,fontWeight:800,color:verrou?"rgba(255,255,255,0.6)":"#fff",fontFamily:FS,marginBottom:2}}>{u.nom}</div>
-                          <div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>{verrou?"Réservé aux majeurs":u.tag}</div>
+                          <div style={{fontSize:13,fontWeight:800,color:verrou?B.muted:B.cream,fontFamily:FS,marginBottom:2}}>{u.nom}</div>
+                          <div style={{fontSize:11,color:B.muted}}>{verrou?"Réservé aux majeurs":u.tag}</div>
                         </div>
-                        <span style={{color:verrou?"rgba(255,255,255,0.3)":(u.acc)+"88",fontSize:18}}>{verrou?"🔒":"›"}</span>
+                        <span style={{color:verrou?B.muted:(u.acc),fontSize:18}}>{verrou?"🔒":"›"}</span>
                       </div>
                     </button>
                   );})}
