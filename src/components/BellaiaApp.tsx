@@ -2753,7 +2753,6 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
   const MODES_PAY = [
     {id:"virement", ico:"🏦", label:"Virement bancaire",  desc:"Coordonnées envoyées par WhatsApp"},
     {id:"especes",  ico:"💵", label:"Espèces",            desc:"En boutique sur rendez-vous"},
-    {id:"cheque",   ico:"📋", label:"Chèque",             desc:"À l'ordre de Bella'Studio"},
     {id:"sumup",    ico:"💳", label:"SumUp (carte)",      desc:"Non configuré — utiliser virement"},
   ];
 
@@ -11038,7 +11037,6 @@ function PortailSuiviClient({ onBack, user }) {
     const MODES = [
       {id:"virement",ico:"🏦",label:"Virement bancaire",desc:"Sous 48–72h · Coordonnées par WhatsApp"},
       {id:"especes", ico:"💵",label:"Espèces",           desc:"En boutique sur rendez-vous"},
-      {id:"cheque",  ico:"📋",label:"Chèque",            desc:"À l'ordre de Bella'Studio"},
       {id:"sumup",   ico:"💳",label:"SumUp (carte)",     desc:"Paiement en ligne — lien à configurer"},
     ];
     return (
@@ -13154,6 +13152,27 @@ export default function BellaiaApp() {
   const [preview, setPreview] = useState(null);
   const [activeUnivers, setActiveUnivers] = useState(null);
   const [hydrated, setHydrated] = useState(false);
+  // Badge notifications (nouvelles commandes site, etc.) visible dans
+  // l'en-tête fondatrice sur TOUTE page, pas seulement dans l'onglet
+  // Notifications — rafraîchi toutes les 60s tant qu'elle est connectée.
+  const [notifsNonLues, setNotifsNonLues] = useState(0);
+  useEffect(() => {
+    if (!user || (user.role !== "fondatrice" && user.role !== "assistante")) return;
+    let actif = true;
+    const chargerNotifs = async () => {
+      try {
+        const token = await getTokenAsync();
+        const r = await fetch(SB_URL+"/rest/v1/notifications?statut=eq.a_envoyer&select=id&limit=50", {
+          headers:{apikey:SB_KEY, Authorization:"Bearer "+token}
+        });
+        const d = r.ok ? await r.json() : [];
+        if (actif) setNotifsNonLues(Array.isArray(d) ? d.length : 0);
+      } catch {}
+    };
+    chargerNotifs();
+    const interval = setInterval(chargerNotifs, 60000);
+    return () => { actif = false; clearInterval(interval); };
+  }, [user]);
 
   // Bloque les écritures Supabase (REST + Storage) tant que l'aperçu
   // utilisateur est actif — jamais l'auth (voir setApercuActif).
@@ -13347,7 +13366,16 @@ export default function BellaiaApp() {
             </div>
           </div>
         </div>
-        <div style={{display:"flex",gap:3}}>
+        <div style={{display:"flex",gap:3,alignItems:"center"}}>
+          <button onClick={()=>setActiveF("notifications")} title="Notifications"
+            style={{position:"relative",background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:notifsNonLues>0?B.gold:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
+            🔔
+            {notifsNonLues>0 && (
+              <span style={{position:"absolute",top:-5,right:-5,background:"#ef4444",color:"#fff",borderRadius:99,minWidth:15,height:15,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>
+                {notifsNonLues>9?"9+":notifsNonLues}
+              </span>
+            )}
+          </button>
           <button onClick={()=>{setPreview("client");setActiveUnivers(null);}} title="Prévisualiser espace client"
             style={{background:"rgba(107,26,43,0.2)",border:"1px solid rgba(107,26,43,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>👁 Client</button>
           <button onClick={()=>{setPreview("hote");setActiveUnivers("bsh");}} title="Prévisualiser espace hôte BSH"

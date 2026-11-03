@@ -124,5 +124,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "La commande n'a pas pu être enregistrée." }, { status: 500 });
   }
 
+  // 4. Notification interne — visible immédiatement dans l'en-tête
+  // fondatrice (badge 🔔), pas seulement dans l'onglet Notifications.
+  // Même table/forme que creerNotification() côté admin (ex. "Nouvelle
+  // demande Events"), non bloquant : une commande déjà enregistrée ne
+  // doit jamais être perdue si cette notification échoue.
+  try {
+    let notifRef = `NOTIF-${Date.now()}`;
+    const rRef = await SB.rpc("prochaine_reference", { p_prefixe: "NOTIF" });
+    if (rRef.data && typeof rRef.data === "string") notifRef = rRef.data;
+    await SB.from("notifications").insert({
+      reference: notifRef,
+      pole: "FOOD",
+      type_notification: "nouvelle_commande",
+      titre: `Nouvelle commande Food — ${cmd.reference}`,
+      message: `Client : ${clientNom.trim()}${clientTel ? " · " + clientTel : ""}\nTotal : ${cmd.total.toFixed(2)}€\n${lignesVerifiees.map(l => l.libelle + " ×" + l.qte).join(", ")}`,
+      canal: "interne",
+      statut: "a_envoyer",
+      client_tel: clientTel || null,
+      source_table: "bellaia_commandes",
+      source_id: cmd.id,
+    });
+  } catch {}
+
   return NextResponse.json({ ok: true, commandeId: cmd.id, reference: cmd.reference, total: cmd.total, lignes: lignesVerifiees });
 }
