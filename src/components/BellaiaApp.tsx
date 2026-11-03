@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";
+import BellaiaLogo from "@/components/BellaiaLogo";
 import { FOOD_CATEGORIES } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
@@ -7070,6 +7071,16 @@ function ExperiencesBSHWrapper() {
   return <Comp/>;
 }
 
+// ── Wrapper Identité visuelle (logo Bellaïa, réservé fondatrice)
+function IdentiteVisuelleWrapper() {
+  const [Comp, setComp] = React.useState(null);
+  React.useEffect(() => {
+    import("../modules/identite/IdentiteVisuelleF").then(m => setComp(()=>m.default));
+  }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement…</div>;
+  return <Comp/>;
+}
+
 
 
 function IAF({ user, bshCmds, bshProduits }) {
@@ -7424,13 +7435,9 @@ function EcranConnexion({ onConnecte }) {
               background:"radial-gradient(circle, rgba(124,58,237,0.35) 0%, transparent 70%)",
               animation:"ds-pulse 3s ease-in-out infinite",
             }}/>
-            <div style={{
-              width:72, height:72, borderRadius:20,
-              background:`linear-gradient(135deg, ${B.violet}, ${B.violetD} 50%, ${B.gold})`,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:34, position:"relative", zIndex:1,
-              boxShadow:`0 8px 32px rgba(124,58,237,0.45), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`,
-            }}>◎</div>
+            <div style={{position:"relative",zIndex:1,boxShadow:`0 8px 32px rgba(124,58,237,0.45), 0 2px 8px rgba(0,0,0,0.4)`,borderRadius:"50%"}}>
+              <BellaiaLogo size={92}/>
+            </div>
           </div>
 
           <div style={{fontFamily:FS,fontSize:30,fontWeight:900,color:B.cream,letterSpacing:"-0.03em",marginBottom:3}}>Bellaïa</div>
@@ -7688,7 +7695,7 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
       {/* Header client */}
       <div style={{padding:"12px 16px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,"+(B.violet)+","+(B.gold)+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
+          <BellaiaLogo size={34}/>
           <div>
             <div style={{fontSize:13,fontWeight:800,color:B.cream,fontFamily:FS}}>Bella'Studio</div>
             <div style={{fontSize:9,color:B.muted,letterSpacing:"0.08em"}}>{[user.prenom,user.nom].filter(Boolean).join(" ")||user.email}</div>
@@ -7706,8 +7713,9 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 24px"}}>
-        {/* Bonjour */}
-        <div style={{marginBottom:18}}>
+        {/* Logo + Bonjour */}
+        <div style={{marginBottom:18,textAlign:"center"}}>
+          <div style={{marginBottom:14}}><BellaiaLogo size={128} style={{margin:"0 auto"}}/></div>
           <div style={{fontFamily:FS,fontSize:20,fontWeight:800,color:B.cream,marginBottom:4}}>
             Bonjour{user.prenom ? ", "+(user.prenom) : user.nom ? ", "+(user.nom.split(" ")[0]) : ""} ✦
           </div>
@@ -12640,6 +12648,7 @@ const NAV_F = [
   {id:"erp_taches",  ico:"✔",  l:"Tâches"},
   {id:"planning",    ico:"📅", l:"Planning"},
   {id:"notifications",  ico:"🔔", l:"Notifications"},
+  {id:"identite",    ico:"🖼",  l:"Identité"},
   {id:"stocks",      ico:"📦", l:"Stocks"},
   {id:"biblio",      ico:"📚", l:"Éditions"},
   {id:"odyssee",     ico:"💅", l:"Odyssée"},
@@ -13221,6 +13230,7 @@ export default function BellaiaApp() {
     erp_taches: <ErpTachesF user={user}/>,
     planning:       <PlanningCentralF user={user}/>,
     notifications:  <NotificationsF user={user}/>,
+    identite:    <IdentiteVisuelleWrapper/>,
     // Stocks (vue Supabase v_stocks_critiques)
     stocks:      <StocksF user={user}/>,
     // Bella'Odyssée — module complet
@@ -13253,7 +13263,7 @@ export default function BellaiaApp() {
       {/* Header Fondatrice */}
       <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <div style={{width:30,height:30,borderRadius:9,background:"linear-gradient(135deg,"+B.violet+","+B.gold+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>◎</div>
+          <BellaiaLogo size={32}/>
           <div>
             <div style={{fontSize:13,fontWeight:900,color:B.cream,fontFamily:FS}}>Bellaïa</div>
             <div style={{fontSize:7,color:B.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
