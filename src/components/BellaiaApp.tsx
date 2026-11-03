@@ -2891,6 +2891,11 @@ function ClientFood({ user, onBack }) {
   // garniture déjà validés). Map produitId -> baseId, remise à zéro
   // à chaque session — un choix par visite, pas persistant.
   const [baseFritesChoisie, setBaseFritesChoisie] = React.useState({});
+  // Clé anti-double-envoi : générée une fois par tentative de
+  // commande, réutilisée telle quelle si l'utilisatrice retape sur
+  // "Envoyer" (double clic, retry réseau), remise à zéro seulement
+  // après un succès confirmé ou un nouveau panier.
+  const idempotencyRef = React.useRef(null);
   const BASES_FRITES = [
     {id:"manioc", l:"Manioc"}, {id:"patate_douce", l:"Patate douce"},
     {id:"plantain", l:"Plantain"}, {id:"pomme_terre", l:"Pomme de terre"},
@@ -2992,17 +2997,22 @@ function ClientFood({ user, onBack }) {
   const envoyerCommande = async () => {
     if (!form.nom?.trim()) return;
     setPayLoading(true);
+    if (!idempotencyRef.current) {
+      idempotencyRef.current = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : "food-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+    }
     // Le panier n'envoie que des identifiants + quantités — jamais de
     // prix : la route recalcule chaque ligne depuis le catalogue réel
     // au moment de la commande (jamais le prix affiché côté client,
-    // qui peut être périmé ou trafiqué).
+    // qui peut être périmé ou trafiqué). L'identité du client vient
+    // du token, pas d'un champ du corps de la requête.
     const r = await fetch("/api/food/commandes/create", {
-      method:"POST", headers:{"Content-Type":"application/json"},
+      method:"POST",
+      headers:{"Content-Type":"application/json", Authorization:"Bearer "+(await getTokenAsync())},
       body: JSON.stringify({
         lignes: panier.map(p=>({id:p.id, qte:p.qte})),
         clientNom: form.nom, clientTel: form.tel,
         dateLivraison: form.date || null, notes: form.message,
-        clientId: user?.id || null,
+        idempotencyKey: idempotencyRef.current,
       }),
     }).catch(()=>null);
     const d = r ? await r.json().catch(()=>null) : null;
@@ -3031,6 +3041,7 @@ function ClientFood({ user, onBack }) {
     setModal(null);
     setCommandes(prev=>[{reference:ref,client_nom:form.nom,statut:"BROUILLON",total,created_at:new Date().toISOString(),...(form.date?{date_livraison:form.date}:{})}, ...prev]);
     setPanier([]); setForm({nom:"",tel:"",message:"",date:""});
+    idempotencyRef.current = null; // commande confirmée — une prochaine sera une nouvelle tentative
   };
 
   const fmtPx = (n) => n?Number(n).toFixed(2).replace(".",",")+" €":"Sur devis";

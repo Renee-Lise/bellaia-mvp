@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FOOD_COLORS as FC } from "./foodConsts";
 import { calculerPrix, fmtPrix } from "./foodUtils";
-import { getRecettesFoodAvecDiagnostic } from "./foodApi";
+import { getRecettesFoodAvecDiagnostic, majRecette } from "./foodApi";
 import type { Recette } from "./foodTypes";
 
 const SA = "system-ui, sans-serif";
@@ -40,6 +40,7 @@ export default function FoodCalculateur() {
     acomptePct:       30,
     nbPortions:       1,
   });
+  const [enregistrement, setEnregistrement] = useState<"idle"|"en_cours"|"ok"|"erreur">("idle");
 
   // Si recette sélectionnée, pré-remplir les coûts
   const chargerRecette = (id: string) => {
@@ -71,6 +72,28 @@ export default function FoodCalculateur() {
   const prixParPortion    = form.nbPortions > 1 ? Math.round(res.prixVenteConseille / form.nbPortions * 100)/100 : null;
   const prixPremium       = Math.round(res.prixVenteConseille * 1.3 * 100)/100;
   const seuilRentabilite  = res.coutTotal > 0 ? Math.ceil(res.coutTotal / Math.max(res.prixVenteConseille, 0.01)) : null;
+
+  // Jusqu'ici le calculateur ne faisait que pré-remplir depuis une
+  // recette, jamais l'inverse — aucun résultat n'était donc jamais
+  // réellement disponible ailleurs dans l'app (coût de revient
+  // toujours vide, signalé par Renée-Lise). prix_revient reprend
+  // désormais le coût total réellement saisi ici (matière +
+  // consommables + emballage + décoration + main-d'œuvre + énergie +
+  // livraison + charges) — rien d'estimé ou d'inventé, uniquement ce
+  // que la fondatrice a entré dans ce formulaire.
+  const enregistrerDansRecette = async () => {
+    if (!recetteId) return;
+    setEnregistrement("en_cours");
+    const res2 = await majRecette(recetteId, {
+      coutMatiere:      form.coutMatiere,
+      coutConsommables: form.coutConsommables,
+      prixRevient:      res.coutTotal,
+      prixConseille:    res.prixVenteConseille,
+      margeEstimee:     res.margeBrute,
+    });
+    setEnregistrement(res2.ok ? "ok" : "erreur");
+    if (res2.ok) setTimeout(() => setEnregistrement("idle"), 2500);
+  };
 
   const Inp = ({ label, k, suffix="€" }: { label:string; k:keyof typeof form; suffix?:string }) => (
     <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
@@ -169,6 +192,16 @@ export default function FoodCalculateur() {
           </div>
         ))}
       </div>
+
+      {source==="recette" && recetteId && (
+        <button onClick={enregistrerDansRecette} disabled={enregistrement==="en_cours"}
+          style={{ padding:"11px", borderRadius:10, border:"none", cursor:enregistrement==="en_cours"?"wait":"pointer",
+            fontSize:12, fontWeight:700, fontFamily:SA,
+            background: enregistrement==="ok" ? "rgba(21,128,61,0.3)" : `linear-gradient(135deg,${FC.vert},${FC.vertL})`,
+            color:"#fff" }}>
+          {enregistrement==="en_cours" ? "Enregistrement…" : enregistrement==="ok" ? "✓ Enregistré dans la recette" : enregistrement==="erreur" ? "Échec — réessayer" : "💾 Enregistrer dans la recette"}
+        </button>
+      )}
     </div>
   );
 }

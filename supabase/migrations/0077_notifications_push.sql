@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0077_notifications_push.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-03
 -- Auteur : Claude Code · Date de rédaction : 2026-11-03
 -- Objet : notifications push façon Shein/WhatsApp/TikTok (demande
 --   explicite de Renée-Lise, suite à l'absence de notification

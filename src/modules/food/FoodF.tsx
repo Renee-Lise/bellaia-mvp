@@ -12,6 +12,7 @@ import FoodCatalogue    from "./FoodCatalogue";
 import FoodRecettes     from "./FoodRecettes";
 import FoodCommandes    from "./FoodCommandes";
 import FoodCommandesSite from "./FoodCommandesSite";
+import FoodHoraires     from "./FoodHoraires";
 import FoodStocks       from "./FoodStocks";
 import FoodMateriel     from "./FoodMateriel";
 import FoodCalculateur  from "./FoodCalculateur";
@@ -39,7 +40,7 @@ import FoodExports      from "./FoodExports";
 
 type Section =
   | "dashboard" | "catalogue" | "recettes" | "recherche"
-  | "commandes" | "commandes_site" | "devis" | "menus" | "menu_jour" | "planning"
+  | "commandes" | "commandes_site" | "horaires" | "devis" | "menus" | "menu_jour" | "planning"
   | "stocks" | "materiel" | "consommables"
   | "calculateur" | "import" | "courses" | "assistant"
   | "fournisseurs" | "achats"
@@ -56,6 +57,7 @@ const NAV = [
   {groupe:"VENTES",     items:[
     {id:"commandes"    as Section, ico:"📋", label:"Commandes"},
     {id:"commandes_site" as Section, ico:"🌐", label:"Commandes site"},
+    {id:"horaires"     as Section, ico:"⏰", label:"Horaires & quotas"},
     {id:"devis"        as Section, ico:"📄", label:"Devis"},
     {id:"menus"        as Section, ico:"🍽",  label:"Menus"},
     {id:"menu_jour"    as Section, ico:"☀️", label:"Menu du jour"},
@@ -101,7 +103,7 @@ export default function FoodF({ user }: { user?: any }) {
 
   const titres: Record<Section, string> = {
     dashboard:"Dashboard", catalogue:"Catalogue", recettes:"Recettes",
-    recherche:"Rechercher", commandes:"Commandes", commandes_site:"Commandes site", devis:"Devis",
+    recherche:"Rechercher", commandes:"Commandes", commandes_site:"Commandes site", horaires:"Horaires & quotas", devis:"Devis",
     menus:"Menus", menu_jour:"Menu du jour", planning:"Planning", stocks:"Stocks",
     materiel:"Matériel", consommables:"Consommables",
     calculateur:"Calculateur", import:"Import recette",
@@ -186,6 +188,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="recherche"     && <FoodRecherche/>}
         {section==="commandes"     && <FoodCommandes/>}
         {section==="commandes_site" && <FoodCommandesSite/>}
+        {section==="horaires" && <FoodHoraires/>}
         {section==="devis"         && <FoodDevis/>}
         {section==="menus"         && <FoodMenus/>}
         {section==="menu_jour"     && <FoodMenuJour/>}
