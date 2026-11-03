@@ -60,20 +60,29 @@ const TR = { fast:"all .15s ease", base:"all .2s ease", slow:"all .35s ease" };
 
 // ── Palette principale Bella'Studio (Hub / Fondatrice) ───────
 // Violet nuit profond · Prune élégant · Or champagne · Crème ivoire
+// Palette Bellaïa globale — remplace l'ancienne base violette
+// (#7c3aed, absente du vrai logo) par des teintes mesurées sur les
+// pixels du logo officiel (public/branding/bellaia-logo-officiel.png) :
+// fond prune ~#200010, bordeaux du ruban/cheveux ~#50140a, or du
+// texte ~#aa4614→#fad25a. Les clés "violet*" sont conservées telles
+// quelles (778 usages dans ce fichier) pour ne rien casser — seules
+// les valeurs changent, elles portent maintenant le bordeaux signature.
+// Univers avec leur propre identité déjà validée (Food, Events,
+// Odyssée, BSH) : non touchés, cf. B/EV/BSH/BO plus bas.
 const B = {
-  // Fonds
-  night:"#09070f",   // fond le plus sombre
-  deep:"#100d1a",    // fond principal app
-  surface:"#181428", // surfaces cards
-  card:"#1e1a30",    // cards élevées
-  overlay:"rgba(9,7,15,0.92)",
+  // Fonds — prune/nuit, dérivés de #200010
+  night:"#18070f",   // fond le plus sombre
+  deep:"#220c17",    // fond principal app
+  surface:"#2e1421", // surfaces cards
+  card:"#3b1c2b",    // cards élevées
+  overlay:"rgba(24,7,15,0.92)",
 
-  // Violet — couleur signature Bellaïa
-  violet:"#7c3aed",
-  violetL:"#9d6ef5",
-  violetD:"#5b21b6",
-  violetG:"rgba(124,58,237,0.18)",
-  violetGlow:"0 0 32px rgba(124,58,237,0.35), 0 0 8px rgba(124,58,237,0.2)",
+  // Bordeaux — couleur signature Bellaïa (clés "violet*" conservées)
+  violet:"#9d2539",
+  violetL:"#d03952",
+  violetD:"#651523",
+  violetG:"rgba(157,37,57,0.18)",
+  violetGlow:"0 0 32px rgba(157,37,57,0.35), 0 0 8px rgba(157,37,57,0.2)",
 
   // Or champagne — accent premium
   gold:"#c9a84c",
@@ -83,15 +92,15 @@ const B = {
   goldGlow:"0 0 24px rgba(201,168,76,0.3)",
 
   // Texte
-  cream:"#f0ebff",   // texte principal
-  muted:"#8b7fa8",   // texte secondaire
-  mutedL:"#b8aed0",  // texte tertiaire
-  placeholder:"rgba(184,174,208,0.5)",
+  cream:"#f3ece9",   // texte principal
+  muted:"#a8899a",   // texte secondaire
+  mutedL:"#cbb0bd",  // texte tertiaire
+  placeholder:"rgba(203,176,189,0.5)",
 
   // Séparateurs
-  border:"rgba(124,58,237,0.22)",
+  border:"rgba(157,37,57,0.22)",
   borderG:"rgba(201,168,76,0.25)",
-  borderHover:"rgba(124,58,237,0.45)",
+  borderHover:"rgba(157,37,57,0.45)",
 
   // États
   success:"#6ee7a0",  successG:"rgba(110,231,160,0.15)",
@@ -113,15 +122,23 @@ const EV = {
 };
 
 // ── Bella'Secret Home — Bordeaux · Noir · Or · Crème ─────────
+// Valeurs alignées sur BSH_PALETTE (src/app/bsh/bshTokens.ts), la
+// charte déjà en ligne sur les vraies pages publiques /bsh/* — cet
+// objet-ci (aperçu admin intégré) utilisait jusqu'ici des teintes
+// différentes malgré un commentaire affirmant qu'elles étaient
+// identiques. Clés locales conservées (180 usages dans ce fichier),
+// seules les valeurs changent. bord/bord2 dérivés de BSH_PALETTE.halo
+// (#5c1522), seule trace d'un accent bordeaux dans la palette
+// publique au-delà de l'or.
 const BSH = {
-  fond:"#0e0914",  prune:"#2a0d1e",
-  bord:"#6B1A2B",  bord2:"#8B2A3B",
-  rose:"#C9637A",  or:"#C9A96E",
-  creme:"#F5EEE6",
-  cremeF:"rgba(245,238,230,.75)", cremeD:"rgba(245,238,230,.4)",
+  fond:"#0b0709",  prune:"#2e1a2e",
+  bord:"#5c1522",  bord2:"#7a2030",
+  rose:"#e3b9bd",  or:"#c6a15b",
+  creme:"#f1e7e2",
+  cremeF:"rgba(241,231,226,.75)", cremeD:"rgba(241,231,226,.4)",
   verre:"rgba(255,255,255,.04)",  verre2:"rgba(255,255,255,.07)",
-  line:"rgba(201,169,110,.15)",   lineMed:"rgba(201,169,110,.3)",
-  glow:"0 0 28px rgba(107,26,43,0.45)",
+  line:"rgba(198,161,91,.15)",    lineMed:"rgba(198,161,91,.3)",
+  glow:"0 0 28px rgba(92,21,34,0.45)",
   vert:"#5aaa7a", ora:"#e88c3a", rouge:"#e84444",
 };
 
@@ -590,7 +607,7 @@ const Btn = ({onClick, children, v="primary", sz="md", full=false, disabled=fals
     lg:{padding:"13px 28px",fontSize:T.md},
   };
   const vs = {
-    primary:{background:"linear-gradient(135deg,"+B.violet+","+B.violetD+")",color:"#fff",boxShadow:loading?"none":"0 2px 12px rgba(124,58,237,0.3)"},
+    primary:{background:"linear-gradient(135deg,"+B.violet+","+B.violetD+")",color:"#fff",boxShadow:loading?"none":"0 2px 12px rgba(157,37,57,0.3)"},
     gold:{background:"linear-gradient(135deg,"+B.gold+","+B.goldD+")",color:B.night,boxShadow:"0 2px 12px rgba(201,168,76,0.25)"},
     ghost:{background:"rgba(255,255,255,0.04)",color:B.mutedL,border:"1px solid "+B.border},
     danger:{background:B.dangerG,color:B.danger,border:"1px solid rgba(248,113,113,0.3)"},
@@ -789,8 +806,8 @@ if (typeof document !== "undefined" && !document.getElementById("ds-keyframes"))
     * { -webkit-tap-highlight-color: transparent; }
     ::-webkit-scrollbar { width:4px; height:4px; }
     ::-webkit-scrollbar-track { background:transparent; }
-    ::-webkit-scrollbar-thumb { background:rgba(124,58,237,0.3); border-radius:2px; }
-    ::placeholder { color:rgba(184,174,208,0.45); }
+    ::-webkit-scrollbar-thumb { background:rgba(157,37,57,0.3); border-radius:2px; }
+    ::placeholder { color:rgba(203,176,189,0.45); }
     input,select,textarea,button { font-family:'Inter',system-ui,sans-serif; }
   `;
   document.head.appendChild(s);
@@ -4807,7 +4824,7 @@ function FinancesP1({ user }) {
   // ── Export PDF (window.print avec mise en forme)
   const exportPDF = (doc, type) => {
     const lignes = formItems.length > 0 ? formItems : [{desc:doc.objet||"—",qte:1,pu:parseFloat(doc.total_ttc)||0,tva:20}];
-    const html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\n<title>"+(type)+" "+(doc.numero||doc.id?.slice(0,8)||"")+"</title>\n<style>\n  body{font-family:Georgia,serif;padding:40px;color:#1a1a1a;max-width:700px;margin:auto}\n  h1{font-size:24px;color:#7c3aed;margin-bottom:4px}\n  .meta{font-size:12px;color:#666;margin-bottom:24px}\n  .client{background:#f5f5f5;padding:12px 16px;border-radius:8px;margin-bottom:24px}\n  table{width:100%;border-collapse:collapse;margin-bottom:16px}\n  th{background:#7c3aed;color:#fff;padding:8px 10px;text-align:left;font-size:12px}\n  td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}\n  .total{text-align:right;font-size:14px;font-weight:700;margin-top:8px}\n  .footer{margin-top:40px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}\n</style></head><body>\n<h1>Bella'Studio — "+(type)+"</h1>\n<div class=\"meta\">N° "+(doc.numero||doc.id?.slice(0,8)||"—")+" · "+(doc.date_emission||new Date().toLocaleDateString("fr-FR"))+" · Pôle : "+(doc.pole||"—")+"</div>\n<div class=\"client\"><strong>Client :</strong> "+(doc.client_nom||"—")+"<br/><strong>Objet :</strong> "+(doc.objet||"—")+"</div>\n<table>\n<thead><tr><th>Désignation</th><th>Qté</th><th>PU HT</th><th>TVA</th><th>Total TTC</th></tr></thead>\n<tbody>"+(lignes.map(i=>"<tr><td>"+(i.desc||"—")+"</td><td>"+(i.qte||1)+"</td><td>"+parseFloat(i.pu||0).toFixed(2)+"€</td><td>"+(i.tva||20)+"%</td><td>"+((parseFloat(i.qte)||1)*(parseFloat(i.pu)||0)*(1+(parseFloat(i.tva)||20)/100)).toFixed(2)+"€</td></tr>").join(""))+"</tbody>\n</table>\n<div class=\"total\">Total TTC : <span style=\"color:#7c3aed\">"+(parseFloat(doc.total_ttc||0).toFixed(2))+" €</span></div>\n"+(doc.conditions ? "<p style=\"font-size:11px;color:#666;margin-top:16px\">Conditions : "+(doc.conditions)+"</p>" : "")+"\n<div class=\"footer\">Bella'Studio · Sinnamary, Guyane française · bella.studio973@hotmail.com</div>\n</body></html>";
+    const html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\n<title>"+(type)+" "+(doc.numero||doc.id?.slice(0,8)||"")+"</title>\n<style>\n  body{font-family:Georgia,serif;padding:40px;color:#1a1a1a;max-width:700px;margin:auto}\n  h1{font-size:24px;color:#9d2539;margin-bottom:4px}\n  .meta{font-size:12px;color:#666;margin-bottom:24px}\n  .client{background:#f5f5f5;padding:12px 16px;border-radius:8px;margin-bottom:24px}\n  table{width:100%;border-collapse:collapse;margin-bottom:16px}\n  th{background:#9d2539;color:#fff;padding:8px 10px;text-align:left;font-size:12px}\n  td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}\n  .total{text-align:right;font-size:14px;font-weight:700;margin-top:8px}\n  .footer{margin-top:40px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}\n</style></head><body>\n<h1>Bella'Studio — "+(type)+"</h1>\n<div class=\"meta\">N° "+(doc.numero||doc.id?.slice(0,8)||"—")+" · "+(doc.date_emission||new Date().toLocaleDateString("fr-FR"))+" · Pôle : "+(doc.pole||"—")+"</div>\n<div class=\"client\"><strong>Client :</strong> "+(doc.client_nom||"—")+"<br/><strong>Objet :</strong> "+(doc.objet||"—")+"</div>\n<table>\n<thead><tr><th>Désignation</th><th>Qté</th><th>PU HT</th><th>TVA</th><th>Total TTC</th></tr></thead>\n<tbody>"+(lignes.map(i=>"<tr><td>"+(i.desc||"—")+"</td><td>"+(i.qte||1)+"</td><td>"+parseFloat(i.pu||0).toFixed(2)+"€</td><td>"+(i.tva||20)+"%</td><td>"+((parseFloat(i.qte)||1)*(parseFloat(i.pu)||0)*(1+(parseFloat(i.tva)||20)/100)).toFixed(2)+"€</td></tr>").join(""))+"</tbody>\n</table>\n<div class=\"total\">Total TTC : <span style=\"color:#9d2539\">"+(parseFloat(doc.total_ttc||0).toFixed(2))+" €</span></div>\n"+(doc.conditions ? "<p style=\"font-size:11px;color:#666;margin-top:16px\">Conditions : "+(doc.conditions)+"</p>" : "")+"\n<div class=\"footer\">Bella'Studio · Sinnamary, Guyane française · bella.studio973@hotmail.com</div>\n</body></html>";
     const win = window.open("","_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
@@ -7298,7 +7315,7 @@ function IAF({ user, bshCmds, bshProduits }) {
         <div style={{padding:"10px 12px",borderBottom:"1px solid "+(B.border),display:"flex",gap:7,overflowX:"auto",flexShrink:0,WebkitOverflowScrolling:"touch"}}>
           {ACTIONS_RAPIDES.map(a=>(
             <button key={a.label} onClick={()=>envoyer(a.prompt)} disabled={loading}
-              style={{padding:"6px 11px",borderRadius:20,border:"1px solid "+(B.border),background:"rgba(124,58,237,0.1)",color:B.violetL,cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:SA,whiteSpace:"nowrap",flexShrink:0}}>
+              style={{padding:"6px 11px",borderRadius:20,border:"1px solid "+(B.border),background:"rgba(157,37,57,0.1)",color:B.violetL,cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:SA,whiteSpace:"nowrap",flexShrink:0}}>
               {a.label}
             </button>
           ))}
@@ -7345,7 +7362,7 @@ function IAF({ user, bshCmds, bshProduits }) {
             <div key={t.id} style={{background:"rgba(255,255,255,0.04)",border:"1px solid "+(t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.border),borderRadius:12,padding:"10px 13px",borderLeft:"3px solid "+(t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.violetL)}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div style={{fontSize:12,fontWeight:600,color:B.cream}}>{t.titre}</div>
-                <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:t.priorite==="urgente"?"rgba(239,68,68,0.2)":t.priorite==="haute"?"rgba(245,158,11,0.2)":"rgba(124,58,237,0.2)",color:t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.violetL,fontWeight:700}}>
+                <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:t.priorite==="urgente"?"rgba(239,68,68,0.2)":t.priorite==="haute"?"rgba(245,158,11,0.2)":"rgba(157,37,57,0.2)",color:t.priorite==="urgente"?"#ef4444":t.priorite==="haute"?"#f59e0b":B.violetL,fontWeight:700}}>
                   {t.priorite}
                 </span>
               </div>
@@ -7484,7 +7501,7 @@ function EcranConnexion({ onConnecte }) {
       display:"flex", flexDirection:"column", minHeight:"100vh",
       // Fond : triple halo + dégradé nuit
       background:`
-        radial-gradient(ellipse 70% 50% at 15% 10%, rgba(124,58,237,0.28) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 50% at 15% 10%, rgba(157,37,57,0.28) 0%, transparent 60%),
         radial-gradient(ellipse 60% 40% at 85% 90%, rgba(90,20,55,0.22) 0%, transparent 55%),
         radial-gradient(ellipse 40% 30% at 60% 40%, rgba(201,168,76,0.07) 0%, transparent 50%),
         ${B.night}
@@ -7519,10 +7536,10 @@ function EcranConnexion({ onConnecte }) {
           <div style={{position:"relative",display:"inline-block",marginBottom:16}}>
             <div style={{
               position:"absolute",inset:"-12px",borderRadius:"50%",
-              background:"radial-gradient(circle, rgba(124,58,237,0.35) 0%, transparent 70%)",
+              background:"radial-gradient(circle, rgba(157,37,57,0.35) 0%, transparent 70%)",
               animation:"ds-pulse 3s ease-in-out infinite",
             }}/>
-            <div style={{position:"relative",zIndex:1,boxShadow:`0 8px 32px rgba(124,58,237,0.45), 0 2px 8px rgba(0,0,0,0.4)`,borderRadius:"50%"}}>
+            <div style={{position:"relative",zIndex:1,boxShadow:`0 8px 32px rgba(157,37,57,0.45), 0 2px 8px rgba(0,0,0,0.4)`,borderRadius:"50%"}}>
               <BellaiaLogo size={92}/>
             </div>
           </div>
@@ -7537,9 +7554,9 @@ function EcranConnexion({ onConnecte }) {
 
         {/* ── Carte principale — formulaire ── */}
         <div style={{
-          background:"rgba(30,26,48,0.75)",
+          background:"rgba(43,20,33,0.75)",
           backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)",
-          border:"1px solid rgba(124,58,237,0.25)",
+          border:"1px solid rgba(157,37,57,0.25)",
           borderRadius:R["2xl"], padding:"28px 24px",
           boxShadow:"0 24px 64px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.06) inset",
         }}>
@@ -7550,7 +7567,7 @@ function EcranConnexion({ onConnecte }) {
                 style={{flex:1,padding:"8px 0",borderRadius:7,border:"none",cursor:"pointer",fontFamily:SA,fontSize:T.sm,fontWeight:T.w.bold,transition:TR.base,
                   background:mode===m?"linear-gradient(135deg,"+B.violet+","+B.violetD+")":"transparent",
                   color:mode===m?"#fff":B.muted,
-                  boxShadow:mode===m?"0 2px 8px rgba(124,58,237,0.3)":"none",
+                  boxShadow:mode===m?"0 2px 8px rgba(157,37,57,0.3)":"none",
                 }}>
                 {m==="login" ? "Connexion" : "Créer un compte"}
               </button>
@@ -7631,10 +7648,10 @@ function EcranConnexion({ onConnecte }) {
           <button onClick={mode==="login"?connexion:inscription} disabled={loading}
             style={{
               width:"100%",border:"none",borderRadius:R.md,padding:"13px",
-              background:loading?"rgba(124,58,237,0.4)":`linear-gradient(135deg, ${B.violet} 0%, ${B.violetD} 60%, #3b0ca3 100%)`,
+              background:loading?"rgba(157,37,57,0.4)":`linear-gradient(135deg, ${B.violet} 0%, ${B.violetD} 100%)`,
               color:"#fff",fontWeight:T.w.bold,fontSize:T.md,
               cursor:loading?"not-allowed":"pointer",fontFamily:SA,
-              boxShadow:loading?"none":"0 4px 20px rgba(124,58,237,0.45), inset 0 1px 0 rgba(255,255,255,0.15)",
+              boxShadow:loading?"none":"0 4px 20px rgba(157,37,57,0.45), inset 0 1px 0 rgba(255,255,255,0.15)",
               transition:TR.base,position:"relative",overflow:"hidden",
             }}>
             {loading ? (
@@ -7813,7 +7830,7 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
         {mesNotifs.length > 0 && (
           <div style={{marginBottom:16}}>
             {mesNotifs.slice(0,3).map((n:any) => (
-              <div key={n.id} style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.25)",
+              <div key={n.id} style={{background:"rgba(157,37,57,0.08)",border:"1px solid rgba(157,37,57,0.25)",
                 borderRadius:R.md,padding:"9px 13px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start"}}>
                 <span style={{fontSize:14,flexShrink:0}}>🔔</span>
                 <div>
@@ -7934,8 +7951,8 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
                 // Ouvre la messagerie interne via l'événement global
                 window.dispatchEvent(new CustomEvent('bellaiaOpenMessaging', { detail:{ userId: user?.id } }));
               }}
-              style={{background:"transparent",border:"1px solid rgba(124,58,237,0.4)",
-                borderRadius:9,padding:"8px 16px",color:"#9d6ef5",fontWeight:700,
+              style={{background:"transparent",border:"1px solid rgba(157,37,57,0.4)",
+                borderRadius:9,padding:"8px 16px",color:"#d03952",fontWeight:700,
                 fontSize:11,cursor:"pointer",fontFamily:SA}}>
               💬 Envoyer un message
             </button>
@@ -9029,7 +9046,7 @@ function BibliothequeF({ user }) {
               </div>
 
               {tomesProjet.map(t=>(
-                <div key={t.id} style={{background:B.card,border:"1px solid "+(tomeActif?.id===t.id?"rgba(124,58,237,0.5)":B.border),borderRadius:12,padding:"11px 13px"}}>
+                <div key={t.id} style={{background:B.card,border:"1px solid "+(tomeActif?.id===t.id?"rgba(157,37,57,0.5)":B.border),borderRadius:12,padding:"11px 13px"}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                     <div style={{cursor:"pointer"}} onClick={()=>setTomeActif(tomeActif?.id===t.id?null:t)}>
                       <div style={{fontSize:12,fontWeight:700,color:B.cream}}>Tome {t.numero} — {t.titre}</div>
@@ -12128,7 +12145,7 @@ function CatalogueIAF({ user, gotoEvents }) {
       </div>
       {etape==="accueil"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <label style={{display:"block",background:"linear-gradient(135deg,"+B.violet+",#5b21b6)",borderRadius:13,padding:"16px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15,fontFamily:SA,textAlign:"center"}}>
+          <label style={{display:"block",background:"linear-gradient(135deg,"+B.violet+","+B.violetD+")",borderRadius:13,padding:"16px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15,fontFamily:SA,textAlign:"center"}}>
             📷 Prendre une photo
             <input type="file" accept="image/*" capture="environment" onChange={handleImage} style={{display:"none"}}/>
           </label>
@@ -13285,7 +13302,7 @@ export default function BellaiaApp() {
   // ── Prévisualisations fondatrice
   // ── Bandeau retour fondatrice en mode aperçu
   const BandeauApercu = () => (
-    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:"linear-gradient(90deg,#7c3aed,#c9a84c)",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:"linear-gradient(90deg,#9d2539,#c9a84c)",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
       <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>👁 Mode aperçu utilisateur</div>
       <button onClick={()=>{setPreview(null);setActiveUnivers(null);}}
         style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,padding:"4px 12px",color:"#fff",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"Inter,system-ui,sans-serif"}}>
