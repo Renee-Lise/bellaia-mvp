@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { envoyerPushFondatrice } from "@/lib/pushSend";
 
 // ══════════════════════════════════════════════════════════
 // CRÉATION DE COMMANDE — Bella'Food (ClientFood)
@@ -146,6 +147,14 @@ export async function POST(req: NextRequest) {
       source_id: cmd.id,
     });
   } catch {}
+
+  // 5. Push — best-effort, ne bloque jamais la réponse.
+  envoyerPushFondatrice({
+    titre: `Nouvelle commande Food — ${cmd.reference}`,
+    message: `${clientNom.trim()} · ${cmd.total.toFixed(2)}€`,
+    url: "/",
+    tag: "nouvelle_commande_food",
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true, commandeId: cmd.id, reference: cmd.reference, total: cmd.total, lignes: lignesVerifiees });
 }

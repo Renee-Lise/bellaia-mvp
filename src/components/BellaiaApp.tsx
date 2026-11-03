@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import BellaiaLogo from "@/components/BellaiaLogo";
+import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/modules/push/pushClient";
 import { FOOD_CATEGORIES } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic, getVariantesFoodPublic } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
@@ -13174,6 +13175,25 @@ export default function BellaiaApp() {
     return () => { actif = false; clearInterval(interval); };
   }, [user]);
 
+  // Notifications push (Web Push/VAPID, migration 0077) — jamais
+  // activées automatiquement, seulement en réponse au bouton dans
+  // l'en-tête fondatrice. On vérifie juste l'état courant pour savoir
+  // si on doit encore proposer le bouton.
+  const [pushPret, setPushPret] = useState(false);
+  const [pushActivation, setPushActivation] = useState(false);
+  useEffect(() => {
+    if (!user || (user.role !== "fondatrice" && user.role !== "assistante")) return;
+    statutPermissionPush().then(s => setPushPret(s !== "granted" && pushSupporte()));
+  }, [user]);
+  const activerPush = async () => {
+    setPushActivation(true);
+    const token = await getTokenAsync();
+    const res = await activerNotificationsPush(token);
+    setPushActivation(false);
+    if (!res.ok) { alert("Notifications push : " + (res.error || "échec d'activation.")); return; }
+    setPushPret(false);
+  };
+
   // Bloque les écritures Supabase (REST + Storage) tant que l'aperçu
   // utilisateur est actif — jamais l'auth (voir setApercuActif).
   useEffect(() => {
@@ -13367,6 +13387,12 @@ export default function BellaiaApp() {
           </div>
         </div>
         <div style={{display:"flex",gap:3,alignItems:"center"}}>
+          {pushPret && (
+            <button onClick={activerPush} disabled={pushActivation} title="Activer les notifications push sur cet appareil"
+              style={{background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:pushActivation?"wait":"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>
+              {pushActivation?"…":"🔔+ Activer"}
+            </button>
+          )}
           <button onClick={()=>setActiveF("notifications")} title="Notifications"
             style={{position:"relative",background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:notifsNonLues>0?B.gold:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
             🔔
