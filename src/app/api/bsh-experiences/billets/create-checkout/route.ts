@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SUMUP_MERCHANT_CODE as SUMUP_CODE, SUMUP_API_URL, getSumupToken, getSumupUrls as getUrls } from "@/lib/sumup";
 
 // ══════════════════════════════════════════════════════════
 // BILLETTERIE BSH EXPERIENCES — création de billet + checkout SumUp
@@ -7,12 +8,12 @@ import { NextRequest, NextResponse } from "next/server";
 // Phase 1 de "on commence à gérer billetterie et paiement" —
 // réutilise exactement la chaîne de paiement déjà en production
 // (SumUp, table payments) plutôt que d'en inventer une nouvelle.
-// Logique de checkout SumUp dupliquée depuis
-// /api/payments/sumup/create-checkout (mêmes variables d'env, même
-// provider) parce que cette route-ci a un travail supplémentaire à
-// faire avant d'appeler SumUp : vérifier l'événement côté serveur
-// (publié, places disponibles) et calculer le montant depuis le prix
-// réel en base — jamais depuis une valeur envoyée par le client.
+// Authentification/URLs SumUp désormais partagées via src/lib/sumup.ts
+// (plus de duplication avec /api/payments/sumup/create-checkout) ;
+// cette route-ci a un travail supplémentaire à faire avant d'appeler
+// SumUp : vérifier l'événement côté serveur (publié, places
+// disponibles) et calculer le montant depuis le prix réel en base —
+// jamais depuis une valeur envoyée par le client.
 //
 // Le billet est créé en statut_paiement='en_attente' et les places
 // sont réservées immédiatement (places_restantes décrémenté). Limite
@@ -21,34 +22,6 @@ import { NextRequest, NextResponse } from "next/server";
 // d'expiration automatique) — à traiter en Phase 2 si ça pose un
 // problème réel en usage, pas avant.
 // ══════════════════════════════════════════════════════════
-
-const SUMUP_CODE    = process.env.SUMUP_MERCHANT_CODE || "MEYH9QZU";
-const SUMUP_API_URL = process.env.SUMUP_API_URL || "https://api.sumup.com";
-
-async function getSumupToken(): Promise<string | null> {
-  if (process.env.SUMUP_ACCESS_TOKEN) return process.env.SUMUP_ACCESS_TOKEN;
-  const clientId = process.env.SUMUP_CLIENT_ID;
-  const clientSecret = process.env.SUMUP_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-  try {
-    const r = await fetch(`${SUMUP_API_URL}/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }).toString(),
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
-    return data.access_token || null;
-  } catch { return null; }
-}
-
-function getUrls(ref: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "";
-  return {
-    success: process.env.SUMUP_SUCCESS_URL || `${base}/paiement/retour?ref=${ref}&statut=succes`,
-    callback: process.env.SUMUP_CALLBACK_URL || `${base}/api/payments/sumup/webhook`,
-  };
-}
 
 export async function POST(req: NextRequest) {
   const { createClient } = await import("@supabase/supabase-js");

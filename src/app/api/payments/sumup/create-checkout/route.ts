@@ -1,67 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SUMUP_MERCHANT_CODE as SUMUP_CODE, getSumupToken, getSumupUrls as getUrls } from "@/lib/sumup";
 
 // ══════════════════════════════════════════════════════════
 // SUMUP CREATE-CHECKOUT — Bellaïa Hub
 // Supporte deux modes selon variables disponibles :
 //   MODE A — SUMUP_ACCESS_TOKEN (token statique, simple)
 //   MODE B — SUMUP_CLIENT_ID + SUMUP_CLIENT_SECRET (OAuth Client Credentials)
+// Authentification/URLs partagées : src/lib/sumup.ts
 // ══════════════════════════════════════════════════════════
 
-const SUMUP_CODE    = process.env.SUMUP_MERCHANT_CODE  || "MEYH9QZU";
-const SUMUP_API_URL = process.env.SUMUP_API_URL        || "https://api.sumup.com";
-const UNIVERS_OK    = ["BSH","EVENTS","ODYSSEE","FOOD","STRUCTURE","VILO","MTP","GENERAL"];
-
-// ── Obtenir un Bearer token SumUp
-// Priorité : SUMUP_ACCESS_TOKEN statique > OAuth Client Credentials
-async function getSumupToken(): Promise<string | null> {
-  // MODE A — token statique configuré directement
-  if (process.env.SUMUP_ACCESS_TOKEN) {
-    return process.env.SUMUP_ACCESS_TOKEN;
-  }
-
-  // MODE B — OAuth Client Credentials
-  const clientId     = process.env.SUMUP_CLIENT_ID;
-  const clientSecret = process.env.SUMUP_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    console.error("[sumup] Aucune variable d'authentification : ni SUMUP_ACCESS_TOKEN ni SUMUP_CLIENT_ID+SUMUP_CLIENT_SECRET");
-    return null;
-  }
-
-  try {
-    const r = await fetch(`${SUMUP_API_URL}/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type:    "client_credentials",
-        client_id:     clientId,
-        client_secret: clientSecret,
-      }).toString(),
-    });
-
-    if (!r.ok) {
-      const txt = await r.text();
-      console.error("[sumup] OAuth token error:", r.status, txt.slice(0, 200));
-      return null;
-    }
-
-    const data = await r.json();
-    return data.access_token || null;
-  } catch (err: any) {
-    console.error("[sumup] OAuth fetch error:", err.message);
-    return null;
-  }
-}
-
-// ── URLs de retour
-function getUrls(ref: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "";
-  return {
-    success:  process.env.SUMUP_SUCCESS_URL  || `${base}/paiement/retour?ref=${ref}&statut=succes`,
-    cancel:   process.env.SUMUP_CANCEL_URL   || `${base}/paiement/retour?ref=${ref}&statut=annule`,
-    callback: process.env.SUMUP_CALLBACK_URL || `${base}/api/payments/sumup/webhook`,
-  };
-}
+const UNIVERS_OK = ["BSH","EVENTS","ODYSSEE","FOOD","STRUCTURE","VILO","MTP","GENERAL"];
 
 export async function POST(req: NextRequest) {
   // Supabase — import dynamique, jamais au niveau module

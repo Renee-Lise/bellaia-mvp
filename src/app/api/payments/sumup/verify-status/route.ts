@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const SUMUP_TOKEN = process.env.SUMUP_ACCESS_TOKEN;
+import { getSumupToken } from "@/lib/sumup";
 
 const STATUT_MAP: Record<string, string> = {
   PAID: "reçu", PENDING: "en_attente",
@@ -31,16 +30,18 @@ export async function GET(req: NextRequest) {
   const { data: pmts } = await query.order("created_at", { ascending: false }).limit(1);
   const pmt = pmts?.[0] || null;
 
-  // 2. Vérifier côté SumUp si token disponible
+  // 2. Vérifier côté SumUp si un token est disponible (token statique
+  // OU OAuth Client Credentials — les deux modes, via src/lib/sumup.ts).
   let statut_sumup = "PENDING";
   let montant      = pmt?.montant || 0;
 
   const id_to_check = pmt?.provider_ref || checkout_id;
+  const sumupToken  = id_to_check ? await getSumupToken() : null;
 
-  if (SUMUP_TOKEN && id_to_check) {
+  if (sumupToken && id_to_check) {
     try {
       const r = await fetch(`https://api.sumup.com/v0.1/checkouts/${id_to_check}`, {
-        headers: { "Authorization": `Bearer ${SUMUP_TOKEN}` },
+        headers: { "Authorization": `Bearer ${sumupToken}` },
       });
       if (r.ok) {
         const d = await r.json();
