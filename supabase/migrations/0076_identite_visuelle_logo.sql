@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0076_identite_visuelle_logo.sql
--- STATUT: PROPOSITION
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-03
 -- Auteur : Claude Code · Date de rédaction : 2026-11-02
 -- Objet : "Je dois pouvoir remplacer ultérieurement le logo depuis
 --   mon espace fondatrice, sans modifier le code" (mission logo
