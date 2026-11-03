@@ -7,12 +7,19 @@
 // seule source pour "les commandes apparaissent dans l'interface
 // fondatrice avec un statut et un historique" pour ces commandes-là.
 // ═══════════════════════════════════════════════════════════
-import { sbFoodGet } from "./foodApi";
-
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+// Jeton frais, avec rafraîchissement automatique si expiré — même
+// fonction que celle exposée globalement par BellaiaApp.tsx (voir son
+// commentaire : sans ça, un module "autonome" comme celui-ci retombe
+// silencieusement sur la clé anonyme, jamais "la fondatrice" pour les
+// policies RLS, d'où des écrans qui semblent vides sans aucune erreur).
 async function getToken(): Promise<string> {
   if (typeof window === "undefined") return SB_KEY;
+  if ((window as any).getTokenAsync) {
+    try { return await (window as any).getTokenAsync(); } catch {}
+  }
   return localStorage.getItem("bellaia_token") || SB_KEY;
 }
 
@@ -66,10 +73,32 @@ function mapFromDb(row: any): CommandeSite {
 }
 
 export async function getCommandesSiteFoodAvecDiagnostic(): Promise<{ commandes: CommandeSite[]; diagnostic: string | null }> {
-  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   if (!SB_URL) return { commandes: [], diagnostic: "Configuration manquante : NEXT_PUBLIC_SUPABASE_URL absente sur ce déploiement." };
-  const rows = await sbFoodGet<any>("bellaia_commandes", "bu=eq.FOOD&order=created_at.desc&limit=200");
-  return { commandes: rows.map(mapFromDb), diagnostic: null };
+
+  const token = await getToken();
+  // Un jeton retombé sur la clé anonyme = policy RLS fondatrice jamais
+  // satisfaite (is_fondatrice() dépend de auth.uid()) : la requête
+  // réussit quand même (200, liste vide), donc sans ce contrôle
+  // explicite l'écran afficherait "Aucune commande" alors que la
+  // vraie cause est une session expirée — jamais distingué sinon.
+  if (token === SB_KEY) {
+    return { commandes: [], diagnostic: "Session expirée — reconnectez-vous pour voir les commandes du site (les commandes déjà reçues ne sont pas perdues)." };
+  }
+
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?bu=eq.FOOD&order=created_at.desc&limit=200`, {
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    if (!r.ok) {
+      const corps = await r.text().catch(() => "");
+      return { commandes: [], diagnostic: `Échec HTTP ${r.status} — ${corps.slice(0, 300) || "(réponse vide)"}` };
+    }
+    const rows = await r.json();
+    return { commandes: Array.isArray(rows) ? rows.map(mapFromDb) : [], diagnostic: null };
+  } catch (e: any) {
+    return { commandes: [], diagnostic: `Impossible de contacter Supabase : ${e?.message || "erreur réseau"}.` };
+  }
 }
 
 // PATCH dédié (pas sbFoodPatch) : ce helper générique ajoute toujours
