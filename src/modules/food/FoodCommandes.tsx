@@ -2,8 +2,10 @@ import React, { useEffect, useState, lazy, Suspense } from "react";
 import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix } from "./foodUtils";
 import { getCommandesFoodAvecDiagnostic, creerCommandeFood, majCommandeFood, majStatutCommandeFood } from "./commandesApi";
+import { getCommandesSiteFoodAvecDiagnostic, majStatutCommandeSite } from "./commandesSiteApi";
 import { getCatalogueFoodAvecDiagnostic } from "./catalogueApi";
 import type { CommandeFood, StatutCommande, Produit } from "./foodTypes";
+import type { CommandeSite } from "./commandesSiteApi";
 
 // Import dynamique du configurateur core (pas de dépendance circulaire)
 const ProductConfigurator = lazy(() =>
@@ -26,13 +28,35 @@ const FORM_INIT: Partial<CommandeFood> = {
   statut:"demande_recue", dateCommande: new Date().toISOString().split("T")[0],
 };
 
+// ── Carte unifiée pour l'affichage mélangé ──────────────────
+// Deux origines, deux tables (food_commandes / bellaia_commandes),
+// jamais fusionnées en base — seulement à l'affichage, pour que la
+// fondatrice voie tout au même endroit sans rien perdre entre deux
+// onglets (demande explicite suite à une commande site invisible
+// dans "Commandes"). Le filtre par statut (vocabulaire sur-mesure
+// uniquement) laisse naturellement les commandes site de côté dès
+// qu'un statut précis est choisi ; "Toutes" montre tout.
+type Detail =
+  | { origine: "sur_mesure"; c: CommandeFood }
+  | { origine: "site"; c: CommandeSite };
+
+function resumeLignesSite(c: CommandeSite): string {
+  if (!c.lignes.length) return "Commande site";
+  const premier = `${c.lignes[0].libelle} ×${c.lignes[0].qte}`;
+  return c.lignes.length > 1 ? `${premier} +${c.lignes.length - 1} autre${c.lignes.length > 2 ? "s" : ""}` : premier;
+}
+
 export default function FoodCommandes() {
   const [commandes, setCommandes] = useState<CommandeFood[]>([]);
+  const [commandesSite, setCommandesSite] = useState<CommandeSite[]>([]);
   const [chargement, setChargement] = useState(true);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
+  const [diagnosticSite, setDiagnosticSite] = useState<string | null>(null);
   const [modal,     setModal]     = useState<"form"|"detail"|"configurateur"|null>(null);
   const [form,      setForm]      = useState<Partial<CommandeFood>>(FORM_INIT);
-  const [detail,    setDetail]    = useState<CommandeFood|null>(null);
+  const [detail,    setDetail]    = useState<Detail|null>(null);
+  const [statutEditSite, setStatutEditSite] = useState("");
+  const [sauvegardeSite, setSauvegardeSite] = useState(false);
   const [filtre,    setFiltre]    = useState<StatutCommande|"tous">("tous");
   // Produit sélectionné pour le configurateur
   const [produitConfig, setProduitConfig] = useState<any>(null);
@@ -48,17 +72,21 @@ export default function FoodCommandes() {
 
   const charger = async () => {
     setChargement(true);
-    const [{ commandes: c, diagnostic: d }, { produits: cat }] = await Promise.all([
-      getCommandesFoodAvecDiagnostic(), getCatalogueFoodAvecDiagnostic(),
+    const [{ commandes: c, diagnostic: d }, { produits: cat }, { commandes: cs, diagnostic: ds }] = await Promise.all([
+      getCommandesFoodAvecDiagnostic(), getCatalogueFoodAvecDiagnostic(), getCommandesSiteFoodAvecDiagnostic(),
     ]);
     setCommandes(c);
     setCatalogue(cat);
     setDiagnostic(d);
+    setCommandesSite(cs);
+    setDiagnosticSite(ds);
     setChargement(false);
   };
   useEffect(() => { charger(); }, []);
 
-  const visibles = commandes.filter(c => filtre === "tous" || c.statut === filtre);
+  const surMesureVisibles = commandes.filter(c => filtre === "tous" || c.statut === filtre);
+  const siteVisibles = filtre === "tous" ? commandesSite : [];
+  const nbVisibles = surMesureVisibles.length + siteVisibles.length;
 
   // Quand le configurateur valide — créer la commande avec les données configurées
   const onConfigValide = async (config: any) => {
@@ -108,7 +136,17 @@ export default function FoodCommandes() {
     const res = await majStatutCommandeFood(id, statut);
     if (!res.ok) { alert("Échec de l'enregistrement du statut."); return; }
     setCommandes(cs => cs.map(c => c.id === id ? { ...c, statut } : c));
-    if (detail?.id === id) setDetail(d => d ? { ...d, statut } : null);
+    if (detail?.origine === "sur_mesure" && detail.c.id === id) setDetail(d => d && d.origine === "sur_mesure" ? { ...d, c: { ...d.c, statut } } : d);
+  };
+
+  const enregistrerStatutSite = async () => {
+    if (!detail || detail.origine !== "site" || statutEditSite === detail.c.statut) return;
+    setSauvegardeSite(true);
+    const res = await majStatutCommandeSite(detail.c.id, statutEditSite);
+    setSauvegardeSite(false);
+    if (!res.ok) { alert("Échec de l'enregistrement du statut.\n" + (res.error || "")); return; }
+    setCommandesSite(cs => cs.map(c => c.id === detail.c.id ? { ...c, statut: statutEditSite } : c));
+    setDetail(d => d && d.origine === "site" ? { ...d, c: { ...d.c, statut: statutEditSite } } : d);
   };
 
   const inp = (label: string, key: keyof CommandeFood, type = "text", ph = "") => (
@@ -123,14 +161,55 @@ export default function FoodCommandes() {
     </div>
   );
 
-  if (detail) return (
+  // ── Détail commande SITE (bellaia_commandes) — lecture + statut seulement,
+  // jamais le formulaire d'édition sur-mesure (désynchroniserait du vrai
+  // panier/prix du catalogue au moment de la commande).
+  if (detail?.origine === "site") {
+    const c = detail.c;
+    return (
+      <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{c.reference || c.id.slice(0, 8)}</div>
+          <button onClick={() => setDetail(null)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "5px 12px", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 11 }}>‹ Retour</button>
+        </div>
+        <div style={{ background: FC.card, border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8, fontSize: 12 }}>
+          <div><strong>Cliente :</strong> {c.clientNom}{c.clientTel ? ` · ${c.clientTel}` : ""}</div>
+          {c.dateLivraison && <div><strong>Livraison souhaitée :</strong> {c.dateLivraison}</div>}
+          {c.notes && <div><strong>Message :</strong> {c.notes}</div>}
+          <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid ${FC.line}` }}>
+            {c.lignes.map((l, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                <span>{l.libelle} ×{l.qte}</span>
+                <span>{fmtPrix(l.total)}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, paddingTop: 6, borderTop: `1px solid ${FC.line}` }}>
+            <span>Total</span><span style={{ color: FC.or }}>{fmtPrix(c.total)}</span>
+          </div>
+        </div>
+        <div style={{ background: FC.card, border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>STATUT (commande site)</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={statutEditSite} onChange={e => setStatutEditSite(e.target.value)} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"6px 9px", color:"#fff", fontSize:11, fontFamily:"sans-serif", outline:"none", flex: 1 }} />
+            <button onClick={enregistrerStatutSite} disabled={sauvegardeSite || statutEditSite === c.statut}
+              style={{ background: FC.vert, border: "none", borderRadius: 8, padding: "6px 12px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: sauvegardeSite || statutEditSite === c.statut ? 0.5 : 1 }}>
+              {sauvegardeSite ? "…" : "Enregistrer"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (detail?.origine === "sur_mesure") { const dC = detail.c; return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between" }}>
         <button onClick={() => setDetail(null)}
           style={{ background:"none", border:"1px solid rgba(255,255,255,0.15)",
             borderRadius:8, padding:"5px 12px", color:"rgba(255,255,255,0.6)",
             cursor:"pointer", fontSize:11, fontFamily:"sans-serif" }}>‹ Retour</button>
-        <button onClick={() => { setForm(detail); setLignesForm(detail.lignes || []); setErreur(null); setModal("form"); setDetail(null); }}
+        <button onClick={() => { setForm(dC); setLignesForm(dC.lignes || []); setErreur(null); setModal("form"); setDetail(null); }}
           style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)",
             borderRadius:8, padding:"5px 12px", color:FC.creamD,
             cursor:"pointer", fontSize:11, fontFamily:"sans-serif" }}>✎ Modifier</button>
@@ -140,21 +219,21 @@ export default function FoodCommandes() {
         borderRadius:14, padding:"16px" }}>
         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
           <div>
-            <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>{detail.produit}</div>
-            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{detail.client} · {detail.tel}</div>
+            <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>{dC.produit}</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{dC.client} · {dC.tel}</div>
           </div>
           <span style={{ fontSize:9, background:"rgba(255,255,255,0.06)",
-            color: statutInfo(detail.statut).col, borderRadius:4, padding:"2px 8px", fontWeight:700 }}>
-            {statutInfo(detail.statut).label}
+            color: statutInfo(dC.statut).col, borderRadius:4, padding:"2px 8px", fontWeight:700 }}>
+            {statutInfo(dC.statut).label}
           </span>
         </div>
         {[
-          ["Date commande",  detail.dateCommande],
-          ["Date livraison", detail.dateLivraison || "À définir"],
-          ["Thème",          detail.theme || "—"],
-          ["Saveur",         detail.saveur || "—"],
-          ["Nb parts",       detail.nbParts ? String(detail.nbParts) : "—"],
-          ["Allergies",      detail.allergies || "Aucune"],
+          ["Date commande",  dC.dateCommande],
+          ["Date livraison", dC.dateLivraison || "À définir"],
+          ["Thème",          dC.theme || "—"],
+          ["Saveur",         dC.saveur || "—"],
+          ["Nb parts",       dC.nbParts ? String(dC.nbParts) : "—"],
+          ["Allergies",      dC.allergies || "Aucune"],
         ].map(([l, v]) => v && (
           <div key={l} style={{ display:"flex", justifyContent:"space-between",
             padding:"5px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
@@ -162,14 +241,14 @@ export default function FoodCommandes() {
             <span style={{ fontSize:11, color:"#fff" }}>{v}</span>
           </div>
         ))}
-        {detail.prixCalcule && (
+        {dC.prixCalcule && (
           <div style={{ marginTop:10, display:"flex", justifyContent:"space-between" }}>
             <span style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>Prix</span>
-            <span style={{ fontSize:16, fontWeight:700, color: FC.or }}>{fmtPrix(detail.prixCalcule)}</span>
+            <span style={{ fontSize:16, fontWeight:700, color: FC.or }}>{fmtPrix(dC.prixCalcule)}</span>
           </div>
         )}
-        {detail.notes && (
-          <div style={{ marginTop:8, fontSize:11, color:"rgba(255,255,255,0.4)", fontStyle:"italic" }}>{detail.notes}</div>
+        {dC.notes && (
+          <div style={{ marginTop:8, fontSize:11, color:"rgba(255,255,255,0.4)", fontStyle:"italic" }}>{dC.notes}</div>
         )}
       </div>
 
@@ -177,18 +256,18 @@ export default function FoodCommandes() {
         <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", letterSpacing:1 }}>CHANGER LE STATUT</div>
         <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
           {STATUTS.map(s => (
-            <button key={s.id} onClick={() => changerStatut(detail.id, s.id)}
+            <button key={s.id} onClick={() => changerStatut(dC.id, s.id)}
               style={{ fontSize:9, padding:"4px 10px", borderRadius:6, cursor:"pointer",
-                fontFamily:"sans-serif", border:`1px solid ${s.id === detail.statut ? s.col : "rgba(255,255,255,0.1)"}`,
-                background: s.id === detail.statut ? `rgba(255,255,255,0.08)` : "transparent",
-                color: s.id === detail.statut ? s.col : "rgba(255,255,255,0.4)" }}>
+                fontFamily:"sans-serif", border:`1px solid ${s.id === dC.statut ? s.col : "rgba(255,255,255,0.1)"}`,
+                background: s.id === dC.statut ? `rgba(255,255,255,0.08)` : "transparent",
+                color: s.id === dC.statut ? s.col : "rgba(255,255,255,0.4)" }}>
               {s.label}
             </button>
           ))}
         </div>
       </div>
     </div>
-  );
+  ); }
 
   // ── Mode configurateur guidé ──────────────────────────
   if (modal === "configurateur") {
@@ -274,7 +353,7 @@ export default function FoodCommandes() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{chargement ? "Chargement…" : `${visibles.length} commande${visibles.length>1?"s":""}`}</div>
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{chargement ? "Chargement…" : `${nbVisibles} commande${nbVisibles>1?"s":""}`}</div>
         <div style={{ display:"flex", gap:6 }}>
           <button onClick={() => setModal("configurateur")}
             style={{ background:"rgba(21,128,61,0.15)", border:`1px solid ${FC.vert}`,
@@ -295,8 +374,15 @@ export default function FoodCommandes() {
           {diagnostic}
         </div>
       )}
+      {diagnosticSite && (
+        <div style={{ fontSize:10, color:"#f87171", fontFamily:"monospace", background:"rgba(248,113,113,0.08)", borderRadius:8, padding:"8px 10px" }}>
+          {diagnosticSite}
+        </div>
+      )}
 
-      {/* Filtres statut */}
+      {/* Filtres statut — vocabulaire sur-mesure uniquement ; "Toutes"
+          mélange les deux origines, un statut précis ne montre que les
+          commandes sur-mesure (les commandes site n'ont pas ce vocabulaire). */}
       <div style={{ display:"flex", gap:4, overflowX:"auto", paddingBottom:2 }}>
         <button onClick={() => setFiltre("tous")}
           style={{ padding:"4px 10px", borderRadius:99, border:"none", cursor:"pointer",
@@ -314,31 +400,56 @@ export default function FoodCommandes() {
         ))}
       </div>
 
-      {!chargement && commandes.length === 0 && !diagnostic && (
+      {!chargement && nbVisibles === 0 && !diagnostic && !diagnosticSite && (
         <div style={{ textAlign:"center", padding:"32px", color:"rgba(255,255,255,0.3)", fontSize:13 }}>
           Aucune commande. Créez la première !
         </div>
       )}
 
-      {visibles.map(c => (
-        <div key={c.id} onClick={() => setDetail(c)}
+      {surMesureVisibles.map(c => (
+        <div key={"sm-"+c.id} onClick={() => setDetail({ origine:"sur_mesure", c })}
           style={{ background:"rgba(255,255,255,0.04)", border:`1px solid ${FC.line}`,
             borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, gap:8 }}>
             <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{c.produit}</div>
             <span style={{ fontSize:9, background:"rgba(255,255,255,0.06)",
-              color: statutInfo(c.statut).col, borderRadius:4, padding:"2px 7px", fontWeight:700 }}>
+              color: statutInfo(c.statut).col, borderRadius:4, padding:"2px 7px", fontWeight:700, flexShrink:0 }}>
               {statutInfo(c.statut).label}
             </span>
           </div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>
-            {c.client} · {c.dateLivraison || "Livraison à définir"}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>
+              {c.client} · {c.dateLivraison || "Livraison à définir"}
+            </div>
+            <span style={{ fontSize:8, color:FC.creamD, background:"rgba(201,168,76,0.12)", borderRadius:4, padding:"2px 6px", fontWeight:700, letterSpacing:0.3 }}>SUR-MESURE</span>
           </div>
           {c.prixCalcule && (
             <div style={{ fontSize:12, color: FC.or, fontWeight:700, marginTop:4 }}>
               {fmtPrix(c.prixCalcule)}
             </div>
           )}
+        </div>
+      ))}
+
+      {siteVisibles.map(c => (
+        <div key={"site-"+c.id} onClick={() => { setDetail({ origine:"site", c }); setStatutEditSite(c.statut); }}
+          style={{ background:"rgba(255,255,255,0.04)", border:`1px solid ${FC.line}`,
+            borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, gap:8 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{resumeLignesSite(c)}</div>
+            <span style={{ fontSize:9, background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.6)", borderRadius:4, padding:"2px 7px", fontWeight:700, flexShrink:0 }}>
+              {c.statut}
+            </span>
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>
+              {c.clientNom || "Cliente"} · {c.dateLivraison || "Livraison à définir"}
+            </div>
+            <span style={{ fontSize:8, color:"#60a5fa", background:"rgba(96,165,250,0.12)", borderRadius:4, padding:"2px 6px", fontWeight:700, letterSpacing:0.3 }}>SITE</span>
+          </div>
+          <div style={{ fontSize:12, color: FC.or, fontWeight:700, marginTop:4 }}>
+            {fmtPrix(c.total)}
+          </div>
         </div>
       ))}
 
