@@ -12,9 +12,11 @@ export interface HorairesConfig {
   id?: string;
   actif: boolean;
   joursFermes: number[]; // 0=dimanche .. 6=samedi
-  heureOuverture?: string | null; // "HH:MM"
+  heureOuverture?: string | null; // "HH:MM" — fait aussi office d'"heure limite des commandes" quand heureOuverture=00:00
   heureFermeture?: string | null;
   quotaCommandesJour?: number | null;
+  heureRetrait?: string | null; // informative uniquement (migration 0079) — jamais une restriction
+  commandesSuspendues?: boolean; // pause d'urgence (migration 0079) — bloque tout, actif ou non
 }
 
 const mapFromDb = (r: any): HorairesConfig => ({
@@ -22,6 +24,8 @@ const mapFromDb = (r: any): HorairesConfig => ({
   heureOuverture: r.heure_ouverture ? String(r.heure_ouverture).slice(0,5) : null,
   heureFermeture: r.heure_fermeture ? String(r.heure_fermeture).slice(0,5) : null,
   quotaCommandesJour: r.quota_commandes_jour ?? null,
+  heureRetrait: r.heure_retrait ? String(r.heure_retrait).slice(0,5) : null,
+  commandesSuspendues: !!r.commandes_suspendues,
 });
 
 export async function getHorairesConfig(): Promise<HorairesConfig | null> {
@@ -34,6 +38,8 @@ export async function sauvegarderHorairesConfig(c: HorairesConfig): Promise<{ ok
     actif: c.actif, jours_fermes: c.joursFermes,
     heure_ouverture: c.heureOuverture || null, heure_fermeture: c.heureFermeture || null,
     quota_commandes_jour: c.quotaCommandesJour ?? null,
+    heure_retrait: c.heureRetrait || null,
+    commandes_suspendues: !!c.commandesSuspendues,
   };
   if (c.id) return sbFoodPatch("food_horaires_config", c.id, payload);
   const res = await sbFoodPost<any>("food_horaires_config", payload);

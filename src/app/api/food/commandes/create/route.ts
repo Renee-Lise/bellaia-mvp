@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { envoyerPushFondatrice } from "@/lib/pushSend";
 import {
   MAX_QTE_LIGNE, MAX_LIGNES, BASES_FRITES_VALIDES, BASES_LABELS,
-  verifierHorairesEtJour,
+  verifierHorairesEtJour, verifierSuspension,
 } from "@/lib/foodCommandeRegles";
 
 // ══════════════════════════════════════════════════════════
@@ -91,11 +91,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Panier trop long (${MAX_LIGNES} lignes maximum).` }, { status: 400 });
   }
 
-  // ── 5. Jours fermés / horaires / quotas — migration 0078. Tant
-  // que la fondatrice n'a rien configuré (actif=false, ou aucune
-  // ligne), aucune commande n'est bloquée : rien n'est inventé ici.
-  const { data: horaires } = await SB.from("food_horaires_config").select("*").eq("actif", true).maybeSingle();
-  if (horaires) {
+  // ── 5. Pause d'urgence / jours fermés / horaires / quotas —
+  // migrations 0078 et 0079. La pause d'urgence (commandes_suspendues)
+  // s'applique qu'elle soit "actif" ou non ; le reste (jours/horaires/
+  // quota) ne s'applique que si la fondatrice a activé le planning.
+  // Tant que rien n'est configuré, aucune commande n'est bloquée :
+  // rien n'est inventé ici.
+  const { data: horaires } = await SB.from("food_horaires_config").select("*").maybeSingle();
+
+  const erreurSuspension = verifierSuspension(horaires);
+  if (erreurSuspension) return NextResponse.json({ error: erreurSuspension }, { status: 409 });
+
+  if (horaires?.actif) {
     const erreurHoraires = verifierHorairesEtJour(horaires, dateLivraison);
     if (erreurHoraires) return NextResponse.json({ error: erreurHoraires }, { status: 409 });
 

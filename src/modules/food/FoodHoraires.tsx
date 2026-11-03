@@ -19,7 +19,7 @@ const inpBase: React.CSSProperties = {
 };
 
 export default function FoodHoraires() {
-  const [config, setConfig] = useState<HorairesConfig>({ actif: false, joursFermes: [] });
+  const [config, setConfig] = useState<HorairesConfig>({ actif: false, joursFermes: [], commandesSuspendues: false });
   const [chargement, setChargement] = useState(true);
   const [sauvegarde, setSauvegarde] = useState<"idle"|"en_cours"|"ok"|"erreur">("idle");
 
@@ -46,9 +46,22 @@ export default function FoodHoraires() {
         Tant que c'est désactivé, les commandes en ligne sont acceptées à tout moment, tous les jours — rien n'est restreint par défaut. Une fois activé, toute commande hors jours/horaires/quota est refusée automatiquement, avant même d'arriver jusqu'à vous.
       </div>
 
+      {/* Pause d'urgence — volontairement séparée du planning normal
+          ci-dessous : elle bloque tout immédiatement, que les
+          restrictions horaires soient activées ou non. */}
+      <div style={{ background: config.commandesSuspendues ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${config.commandesSuspendues ? "#ef4444" : FC.line}`, borderRadius: 12, padding: 14 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", color: config.commandesSuspendues ? "#f87171" : "#fff" }}>
+          <input type="checkbox" checked={!!config.commandesSuspendues} onChange={e => setConfig(c => ({ ...c, commandesSuspendues: e.target.checked }))} />
+          ⏸ Suspendre immédiatement les commandes en ligne
+        </label>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
+          Bloque toute nouvelle commande sur-le-champ, quels que soient les réglages ci-dessous — utile en cas d'imprévu (rupture, absence, surcharge). Pensez à la désactiver quand vous reprenez.
+        </div>
+      </div>
+
       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
         <input type="checkbox" checked={config.actif} onChange={e => setConfig(c => ({ ...c, actif: e.target.checked }))} />
-        Activer les restrictions de commande en ligne
+        Activer le planning (jours fermés, horaires, quota)
       </label>
 
       <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, opacity: config.actif ? 1 : 0.5 }}>
@@ -69,14 +82,14 @@ export default function FoodHoraires() {
 
       <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, opacity: config.actif ? 1 : 0.5 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, marginBottom: 10, letterSpacing: 1 }}>HORAIRES DE PRISE DE COMMANDE</div>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Heure de Guyane (America/Cayenne). Laissez vide pour ne pas restreindre.</div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Heure de Guyane (America/Cayenne). Laissez vide pour ne pas restreindre. Pour une simple "heure limite" (ex. commandes jusqu'à midi), laissez Ouverture à 00:00 et mettez l'heure limite en Fermeture.</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <div>
             <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Ouverture</label>
             <input type="time" disabled={!config.actif} value={config.heureOuverture || ""} onChange={e => setConfig(c => ({ ...c, heureOuverture: e.target.value || null }))} style={inpBase} />
           </div>
           <div>
-            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Fermeture</label>
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Fermeture (= heure limite des commandes)</label>
             <input type="time" disabled={!config.actif} value={config.heureFermeture || ""} onChange={e => setConfig(c => ({ ...c, heureFermeture: e.target.value || null }))} style={inpBase} />
           </div>
         </div>
@@ -88,6 +101,12 @@ export default function FoodHoraires() {
         <input type="number" min={1} disabled={!config.actif} value={config.quotaCommandesJour ?? ""}
           onChange={e => setConfig(c => ({ ...c, quotaCommandesJour: e.target.value === "" ? null : parseInt(e.target.value, 10) }))}
           style={inpBase} />
+      </div>
+
+      <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: FC.or, marginBottom: 10, letterSpacing: 1 }}>HEURE DE RETRAIT</div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Informative uniquement — affichée à la cliente, ne bloque aucune commande.</div>
+        <input type="time" value={config.heureRetrait || ""} onChange={e => setConfig(c => ({ ...c, heureRetrait: e.target.value || null }))} style={inpBase} />
       </div>
 
       <button onClick={enregistrer} disabled={sauvegarde === "en_cours"}

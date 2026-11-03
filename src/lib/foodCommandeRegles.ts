@@ -38,6 +38,18 @@ export interface VerifHoraires {
   jours_fermes?: number[];
   heure_ouverture?: string | null;
   heure_fermeture?: string | null;
+  commandes_suspendues?: boolean;
+}
+
+// Pause d'urgence — distincte du planning normal (jours fermés/
+// horaires) : bloque toute commande immédiatement, qu'elle soit
+// activée ou non (actif) et quel que soit le jour/l'heure. Jamais
+// activée par défaut (default false en base, migration 0079).
+export function verifierSuspension(horaires: VerifHoraires | null): string | null {
+  if (horaires?.commandes_suspendues) {
+    return "Les commandes sont temporairement suspendues. Réessayez plus tard.";
+  }
+  return null;
 }
 
 // Renvoie un message d'erreur si la commande doit être refusée sur la
