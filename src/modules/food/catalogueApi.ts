@@ -165,3 +165,33 @@ export async function getCatalogueFoodPublic(): Promise<{ produits: ProduitPubli
     return { produits: [], diagnostic: `Requête impossible : ${e?.message || String(e)}` };
   }
 }
+
+// ── Variantes publiques (tailles/formats à prix différents — ex.
+//    Colombo de poulet Petit/Moyen/Grand) — même principe que
+//    getCatalogueFoodPublic : clé anonyme, RLS + GRANT restreignent
+//    déjà colonnes et lignes (catalogue_variantes, migrations
+//    0050/0067). Un produit sans variante continue d'utiliser son
+//    prix unique — aucun changement pour les produits existants.
+export interface VariantePublicFood {
+  id: string;
+  produitId: string;
+  nom: string;
+  prix: number | null;
+}
+
+export async function getVariantesFoodPublic(produitIds: string[]): Promise<VariantePublicFood[]> {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!SB_URL || !SB_KEY || produitIds.length === 0) return [];
+  try {
+    const ids = produitIds.join(",");
+    const r = await fetch(`${SB_URL}/rest/v1/catalogue_variantes?produit_id=in.(${ids})&disponible=eq.true&order=prix.asc`, {
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      cache: "no-store",
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    const rows = Array.isArray(d) ? d : [];
+    return rows.map((row: any) => ({ id: row.id, produitId: row.produit_id, nom: row.nom, prix: row.prix ?? null }));
+  } catch { return []; }
+}

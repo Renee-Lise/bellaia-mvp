@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import BellaiaLogo from "@/components/BellaiaLogo";
 import { FOOD_CATEGORIES } from "@/modules/food/foodConsts";
-import { getCatalogueFoodPublic } from "@/modules/food/catalogueApi";
+import { getCatalogueFoodPublic, getVariantesFoodPublic } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
@@ -2915,11 +2915,18 @@ function ClientFood({ user, onBack }) {
       if (!actif) return;
       const mapped = produits.map(p => {
         const catInfo = FOOD_CATEGORIES.find(c => c.id === p.categorie);
-        return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [], photo: p.photo || null };
+        return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [], photo: p.photo || null, variantes: [] };
       });
       setCatalogueFood(mapped);
       setCatalogueDiag(diagnostic);
       setCatalogueCharge(false);
+      // Variantes (tailles/formats à prix différents) — requête séparée
+      // pour ne jamais bloquer l'affichage du catalogue si elle échoue.
+      if (mapped.length > 0) {
+        const variantes = await getVariantesFoodPublic(mapped.map(p => p.id));
+        if (!actif || variantes.length === 0) return;
+        setCatalogueFood(prev => prev.map(p => ({ ...p, variantes: variantes.filter(v => v.produitId === p.id) })));
+      }
     })();
     (async () => {
       const { menusJour: m } = await getMenuJourPublicAujourdhui();
@@ -2954,6 +2961,15 @@ function ClientFood({ user, onBack }) {
     const idx = prev.findIndex(x=>x.id===p.id);
     if (idx>=0) return prev.map((x,i)=>i===idx?{...x,qte:x.qte+1}:x);
     return [...prev, {...p, qte:1}];
+  });
+
+  // Produit avec variantes (tailles/formats à prix différents, ex.
+  // Colombo de poulet Petit/Moyen/Grand) : chaque variante devient sa
+  // propre ligne de panier (id composite, pour ne jamais fusionner
+  // deux tailles différentes du même produit).
+  const ajouterPanierVariante = (p, v) => ajouterPanier({
+    id: p.id+"::"+v.id, ico: p.ico, nom: p.nom+" — "+v.nom, cat: p.cat,
+    desc: p.desc, prix: v.prix, photo: p.photo,
   });
 
   const totalPanier = panier.reduce((s,p)=>s+(p.prix||0)*p.qte,0);
@@ -3081,7 +3097,7 @@ function ClientFood({ user, onBack }) {
                 <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontWeight:700,letterSpacing:1,marginBottom:6,marginTop:10}}>{cat.toUpperCase()}</div>
                 {CATALOGUE_FOOD.filter(p=>p.cat===cat).map(p=>(
                   <div key={p.id} style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.18)",borderRadius:12,padding:"11px 13px",marginBottom:7}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:p.variantes?.length?8:5}}>
                       <div style={{display:"flex",gap:9}}>
                         {p.photo ? (
                           <img src={p.photo} alt={p.nom} style={{width:40,height:40,borderRadius:9,objectFit:"cover",flexShrink:0}}/>
@@ -3093,13 +3109,26 @@ function ClientFood({ user, onBack }) {
                           <div style={{fontSize:11,color:"rgba(245,240,232,0.6)",lineHeight:1.4,marginTop:2}}>{p.desc}</div>
                         </div>
                       </div>
-                      <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontSize:13,fontWeight:700,color:"#c9a96e",marginBottom:4}}>{fmtPx(p.prix)}</div>
-                        <button onClick={()=>ajouterPanier(p)} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:8,padding:"5px 11px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>
-                          + Ajouter
-                        </button>
-                      </div>
+                      {!p.variantes?.length && (
+                        <div style={{textAlign:"right",flexShrink:0}}>
+                          <div style={{fontSize:13,fontWeight:700,color:"#c9a96e",marginBottom:4}}>{fmtPx(p.prix)}</div>
+                          <button onClick={()=>ajouterPanier(p)} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:8,padding:"5px 11px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>
+                            + Ajouter
+                          </button>
+                        </div>
+                      )}
                     </div>
+                    {/* Produit à tailles/formats multiples — un bouton par variante, chacun avec son propre prix */}
+                    {p.variantes?.length > 0 && (
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                        {p.variantes.map(v=>(
+                          <button key={v.id} onClick={()=>ajouterPanierVariante(p,v)} style={{background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.35)",borderRadius:8,padding:"6px 10px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+                            <span>{v.nom}</span>
+                            <span style={{color:"#c9a96e"}}>{fmtPx(v.prix)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
