@@ -40,6 +40,22 @@ type Detail =
   | { origine: "sur_mesure"; c: CommandeFood }
   | { origine: "site"; c: CommandeSite };
 
+// Vocabulaire réel observé pour bellaia_commandes (pas de CHECK en
+// base, mais ces valeurs sont déjà utilisées ailleurs dans l'app pour
+// CE même statut : colSt() dans ClientFood — "Mes commandes" les
+// affiche telles quelles à la cliente. Rien d'inventé.
+const STATUTS_SITE: { id: string; label: string }[] = [
+  { id: "BROUILLON",     label: "Brouillon" },
+  { id: "COMMANDE",      label: "Commande confirmée" },
+  { id: "ACOMPTE_RECU",  label: "Acompte reçu" },
+  { id: "PRODUCTION",    label: "En production" },
+  { id: "PRET",          label: "Prête" },
+  { id: "LIVRE",         label: "Livrée" },
+  { id: "SOLDE_RECU",    label: "Solde reçu" },
+  { id: "FACTURE",       label: "Facturée" },
+  { id: "ANNULE",        label: "Annulée" },
+];
+
 function resumeLignesSite(c: CommandeSite): string {
   if (!c.lignes.length) return "Commande site";
   const premier = `${c.lignes[0].libelle} ×${c.lignes[0].qte}`;
@@ -191,7 +207,13 @@ export default function FoodCommandes() {
         <div style={{ background: FC.card, border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>STATUT (commande site)</div>
           <div style={{ display: "flex", gap: 6 }}>
-            <input value={statutEditSite} onChange={e => setStatutEditSite(e.target.value)} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"6px 9px", color:"#fff", fontSize:11, fontFamily:"sans-serif", outline:"none", flex: 1 }} />
+            <select value={statutEditSite} onChange={e => setStatutEditSite(e.target.value)}
+              style={{ background:"#1a1a2e", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"6px 9px", color:"#fff", fontSize:11, fontFamily:"sans-serif", outline:"none", flex: 1 }}>
+              {!STATUTS_SITE.some(s => s.id === statutEditSite) && statutEditSite && (
+                <option value={statutEditSite}>{statutEditSite} (valeur existante non standard)</option>
+              )}
+              {STATUTS_SITE.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
             <button onClick={enregistrerStatutSite} disabled={sauvegardeSite || statutEditSite === c.statut}
               style={{ background: FC.vert, border: "none", borderRadius: 8, padding: "6px 12px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: sauvegardeSite || statutEditSite === c.statut ? 0.5 : 1 }}>
               {sauvegardeSite ? "…" : "Enregistrer"}
