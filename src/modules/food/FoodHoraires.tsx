@@ -22,6 +22,7 @@ export default function FoodHoraires() {
   const [config, setConfig] = useState<HorairesConfig>({ actif: false, joursFermes: [], commandesSuspendues: false });
   const [chargement, setChargement] = useState(true);
   const [sauvegarde, setSauvegarde] = useState<"idle"|"en_cours"|"ok"|"erreur">("idle");
+  const [erreurSauvegarde, setErreurSauvegarde] = useState<string | null>(null);
 
   useEffect(() => {
     getHorairesConfig().then(c => { if (c) setConfig(c); setChargement(false); });
@@ -33,9 +34,15 @@ export default function FoodHoraires() {
 
   const enregistrer = async () => {
     setSauvegarde("en_cours");
+    setErreurSauvegarde(null);
     const res = await sauvegarderHorairesConfig(config);
     setSauvegarde(res.ok ? "ok" : "erreur");
-    if (res.ok) { setTimeout(() => setSauvegarde("idle"), 2500); getHorairesConfig().then(c => c && setConfig(c)); }
+    if (res.ok) {
+      setTimeout(() => setSauvegarde("idle"), 2500);
+      getHorairesConfig().then(c => c && setConfig(c));
+    } else {
+      setErreurSauvegarde(res.error || "Erreur inconnue (aucun détail renvoyé par le serveur).");
+    }
   };
 
   if (chargement) return <div style={{ textAlign: "center", padding: 30, color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Chargement…</div>;
@@ -115,6 +122,11 @@ export default function FoodHoraires() {
           background: sauvegarde === "ok" ? "rgba(21,128,61,0.3)" : `linear-gradient(135deg,${FC.vert},${FC.vertL})`, color: "#fff" }}>
         {sauvegarde === "en_cours" ? "Enregistrement…" : sauvegarde === "ok" ? "✓ Enregistré" : sauvegarde === "erreur" ? "Échec — réessayer" : "Enregistrer"}
       </button>
+      {sauvegarde === "erreur" && erreurSauvegarde && (
+        <div style={{ fontSize: 10, color: "#f87171", fontFamily: "monospace", background: "rgba(248,113,113,0.08)", borderRadius: 8, padding: "8px 10px" }}>
+          {erreurSauvegarde}
+        </div>
+      )}
     </div>
   );
 }

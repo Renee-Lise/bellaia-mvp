@@ -146,8 +146,8 @@ export async function sbFoodPost<T = any>(
 
 export async function sbFoodPatch(
   table: string, id: string, data: object
-): Promise<{ ok: boolean }> {
-  if (!SB_URL) return { ok:false };
+): Promise<{ ok: boolean; error?: string }> {
+  if (!SB_URL) return { ok:false, error:"SB_URL non configuré" };
   try {
     const token = await getFoodToken();
     const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
@@ -156,8 +156,10 @@ export async function sbFoodPatch(
         "Content-Type":"application/json", Prefer:"return=minimal" },
       body: JSON.stringify({ ...data, updated_at:new Date().toISOString() }),
     });
-    return { ok:r.ok };
-  } catch { return { ok:false }; }
+    if (r.ok) return { ok:true };
+    const corps = await r.text().catch(() => "");
+    return { ok:false, error:`HTTP ${r.status} — ${corps.slice(0,300) || "(réponse vide)"}` };
+  } catch (e:any) { return { ok:false, error:e?.message || "Erreur réseau" }; }
 }
 
 export async function sbFoodDelete(table: string, id: string): Promise<{ ok: boolean }> {
