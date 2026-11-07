@@ -13404,26 +13404,30 @@ export default function BellaiaApp() {
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream,overflowX:"hidden"}}>
 
-      {/* Header Fondatrice */}
-      <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:9}}>
+      {/* Header Fondatrice — padding haut tenant compte de l'encoche/Dynamic
+          Island (sinon l'horloge du téléphone chevauche le logo), et
+          groupe de boutons défilable horizontalement (sinon, avec le
+          bouton "Activer" push en plus, certains boutons sortaient de
+          l'écran et devenaient inatteignables sur iPhone). */}
+      <div style={{padding:"calc(10px + env(safe-area-inset-top,0px)) 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0,gap:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,minWidth:0,flexShrink:1}}>
           <BellaiaLogo size={32}/>
-          <div>
-            <div style={{fontSize:13,fontWeight:900,color:B.cream,fontFamily:FS}}>Bellaïa</div>
-            <div style={{fontSize:7,color:B.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
+          <div style={{minWidth:0,overflow:"hidden"}}>
+            <div style={{fontSize:13,fontWeight:900,color:B.cream,fontFamily:FS,whiteSpace:"nowrap"}}>Bellaïa</div>
+            <div style={{fontSize:7,color:B.muted,letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
               {role==="assistante"?"Assistante":"Fondatrice"} · {user.prenom||user.nom||user.email}
             </div>
           </div>
         </div>
-        <div style={{display:"flex",gap:3,alignItems:"center"}}>
+        <div style={{display:"flex",gap:3,alignItems:"center",overflowX:"auto",WebkitOverflowScrolling:"touch",flexShrink:0,maxWidth:"62%",paddingBottom:2}}>
           {pushPret && (
             <button onClick={activerPush} disabled={pushActivation} title="Activer les notifications push sur cet appareil"
-              style={{background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:pushActivation?"wait":"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>
+              style={{flexShrink:0,background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:pushActivation?"wait":"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>
               {pushActivation?"…":"🔔+ Activer"}
             </button>
           )}
           <button onClick={()=>setActiveF("notifications")} title="Notifications"
-            style={{position:"relative",background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:notifsNonLues>0?B.gold:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
+            style={{flexShrink:0,position:"relative",background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:notifsNonLues>0?B.gold:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
             🔔
             {notifsNonLues>0 && (
               <span style={{position:"absolute",top:-5,right:-5,background:"#ef4444",color:"#fff",borderRadius:99,minWidth:15,height:15,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>
@@ -13432,11 +13436,11 @@ export default function BellaiaApp() {
             )}
           </button>
           <button onClick={()=>{setPreview("client");setActiveUnivers(null);}} title="Prévisualiser espace client"
-            style={{background:"rgba(107,26,43,0.2)",border:"1px solid rgba(107,26,43,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>👁 Client</button>
+            style={{flexShrink:0,background:"rgba(107,26,43,0.2)",border:"1px solid rgba(107,26,43,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>👁 Client</button>
           <button onClick={()=>{setPreview("hote");setActiveUnivers("bsh");}} title="Prévisualiser espace hôte BSH"
-            style={{background:"rgba(13,148,136,0.15)",border:"1px solid rgba(13,148,136,0.35)",borderRadius:6,padding:"4px 7px",color:"#0d9488",cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>Hôte</button>
+            style={{flexShrink:0,background:"rgba(13,148,136,0.15)",border:"1px solid rgba(13,148,136,0.35)",borderRadius:6,padding:"4px 7px",color:"#0d9488",cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>Hôte</button>
           <button onClick={deconnexion} title="Déconnexion"
-            style={{background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:B.muted,cursor:"pointer",fontSize:9,fontFamily:SA}}>✕</button>
+            style={{flexShrink:0,background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:B.muted,cursor:"pointer",fontSize:9,fontFamily:SA}}>✕</button>
         </div>
       </div>
 
