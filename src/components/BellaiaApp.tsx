@@ -652,10 +652,18 @@ const Inp = ({value, onChange, placeholder, type="text", rows, icon, error}) => 
 };
 
 // ── Sel — Select universel ───────────────────────────────────
+// Accepte un tableau de chaînes (usage historique, inchangé partout
+// ailleurs) OU un tableau d'objets {value,label} (nécessaire quand la
+// valeur stockée et le texte affiché doivent différer, ex. un id de
+// modèle vs son libellé).
 const Sel = ({value, onChange, options}) => (
   <select value={value} onChange={onChange}
     style={{width:"100%",background:B.surface,border:"1px solid "+B.border,borderRadius:R.md,padding:"9px 12px",color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
-    {options.map(o=><option key={o} value={o}>{o}</option>)}
+    {options.map(o=>{
+      const v = (o && typeof o==="object") ? o.value : o;
+      const l = (o && typeof o==="object") ? o.label : o;
+      return <option key={v} value={v}>{l}</option>;
+    })}
   </select>
 );
 
@@ -3697,7 +3705,33 @@ const NOTIF_TYPES = [
   "demande_paiement",
   "rappel_prestation",
   "message_post_prestation",
+  "commande_prete",
+  "anniversaire_client",
+  "fete_noel",
+  "fete_saint_valentin",
+  "fete_meres",
+  "fete_peres",
+  "fete_grands_meres",
+  "fete_grands_peres",
   "autre",
+];
+
+// Modèles de message proposés dans "+ Créer" (Notifications) — demande
+// explicite de Renée-Lise ("menu déroulant pour me faire des
+// propositions"). {prenom}/{nom} sont substitués automatiquement si
+// une cliente est sélectionnée dans le même formulaire ; sinon ils
+// restent tels quels, modifiables à la main avant envoi. Textes
+// indicatifs, à ajuster librement : pas un ton officiel imposé.
+const MODELES_NOTIF = [
+  { id:"",                    label:"— Message libre —" },
+  { id:"commande_prete",      label:"🍽 Commande prête",           titre:"Votre commande est prête !",        message:"Bonjour {prenom}, votre commande Bella'Food est prête. Vous pouvez venir la récupérer quand vous voulez. Merci et à bientôt !" },
+  { id:"anniversaire_client", label:"🎂 Anniversaire cliente",     titre:"Joyeux anniversaire !",              message:"Bonjour {prenom}, toute l'équipe Bella'Studio vous souhaite un très joyeux anniversaire ! 🎉" },
+  { id:"fete_noel",           label:"🎄 Noël",                     titre:"Joyeux Noël !",                      message:"Bonjour {prenom}, nous vous souhaitons un joyeux Noël entouré(e) de vos proches ! 🎄" },
+  { id:"fete_saint_valentin", label:"💝 Saint-Valentin",           titre:"Joyeuse Saint-Valentin",             message:"Bonjour {prenom}, joyeuse Saint-Valentin ! 💝" },
+  { id:"fete_meres",          label:"💐 Fête des Mères",           titre:"Bonne fête des Mères",               message:"Bonjour {prenom}, toute l'équipe vous souhaite une très bonne fête des Mères ! 💐" },
+  { id:"fete_peres",          label:"🎁 Fête des Pères",           titre:"Bonne fête des Pères",               message:"Bonjour {prenom}, bonne fête des Pères ! 🎁" },
+  { id:"fete_grands_meres",   label:"🌸 Fête des Grands-Mères",    titre:"Bonne fête des Grands-Mères",        message:"Bonjour {prenom}, bonne fête des Grands-Mères ! 🌸" },
+  { id:"fete_grands_peres",   label:"🎩 Fête des Grands-Pères",    titre:"Bonne fête des Grands-Pères",        message:"Bonjour {prenom}, bonne fête des Grands-Pères ! 🎩" },
 ];
 
 // Crée une notification interne (et future email/SMS/WhatsApp)
@@ -4565,6 +4599,8 @@ function CrmF({ user }) {
                   </div>
                   {c.tel&&<div style={{fontSize:11,color:B.muted}}>{c.tel}</div>}
                   {c.ville&&<div style={{fontSize:11,color:B.muted}}>📍 {c.ville}{c.pole ? " · "+(c.pole) : ""}</div>}
+                  {c.adresse&&<div style={{fontSize:11,color:B.muted}}>🏠 {c.adresse}</div>}
+                  {c.date_naissance&&<div style={{fontSize:11,color:B.muted}}>🎂 {fmt(c.date_naissance)}</div>}
                   {c.preferences&&<div style={{fontSize:11,color:B.muted,marginTop:2}}>💫 {c.preferences}</div>}
                 </div>
                 <div style={{textAlign:"right",flexShrink:0}}>
@@ -4644,6 +4680,8 @@ function CrmF({ user }) {
           <Fld label="Téléphone"><Inp value={form.tel||""} onChange={e=>setForm({...form,tel:e.target.value})} placeholder="+594..."/></Fld>
           <Fld label="Email"><Inp type="email" value={form.email||""} onChange={e=>setForm({...form,email:e.target.value})} placeholder="email@..."/></Fld>
           <Fld label="Ville"><Inp value={form.ville||""} onChange={e=>setForm({...form,ville:e.target.value})} placeholder={ENV.VILLE||"Ville"}/></Fld>
+          <Fld label="Adresse"><Inp value={form.adresse||""} onChange={e=>setForm({...form,adresse:e.target.value})} placeholder="Adresse complète" rows={2}/></Fld>
+          <Fld label="Date de naissance"><Inp type="date" value={form.date_naissance||""} onChange={e=>setForm({...form,date_naissance:e.target.value||null})}/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Pôle"><Sel value={form.pole||""} onChange={e=>setForm({...form,pole:e.target.value})} options={["", ...poles.map(p=>p.code)]}/></Fld>
             <Fld label="Fidélité"><Sel value={form.niveau_fidelite||"standard"} onChange={e=>setForm({...form,niveau_fidelite:e.target.value})} options={FIDELITES}/></Fld>
@@ -5097,6 +5135,7 @@ function FinancesP1({ user }) {
 // ═══════════════════════════════════════════════════════════
 function NotificationsF({ user }) {
   const { data: notifs, loading, reload } = useP1Data("notifications", { select:"*", order:"created_at.desc", limit:100 }, []);
+  const { data: clientsNotif } = useP1Data("clients", { select:"id,nom,prenom,tel,email", order:"nom.asc", limit:500 }, []);
   const CANAUX = ["tous","interne","email","whatsapp","sms"];
   const STATUTS_NOTIF = ["brouillon","a_envoyer","envoye","echoue","lu"];
   const COL_STATUT_N = {
@@ -5117,6 +5156,36 @@ function NotificationsF({ user }) {
   const marquerLu = async (n) => {
     await sbPatch("notifications", n.id, { statut:"lu", date_envoi: new Date().toISOString() });
     reload();
+  };
+
+  // Substitue {prenom}/{nom} par ceux de la cliente choisie — ou les
+  // laisse tels quels (visibles, pas d'erreur silencieuse) si aucune
+  // cliente n'est sélectionnée.
+  const substituer = (texte, cli) => !texte ? texte : texte
+    .split("{prenom}").join(cli?.prenom || "{prenom}")
+    .split("{nom}").join(cli?.nom || "{nom}");
+
+  const appliquerModele = (id) => {
+    const m = MODELES_NOTIF.find(x => x.id === id);
+    const cli = clientsNotif.find(c => c.id === form.client_id);
+    setForm(f => ({
+      ...f, modele: id,
+      titre:   m?.id ? substituer(m.titre, cli)   : f.titre,
+      message: m?.id ? substituer(m.message, cli) : f.message,
+      type:    m?.id || f.type,
+    }));
+  };
+
+  const appliquerClient = (id) => {
+    const cli = clientsNotif.find(c => c.id === id);
+    const m = MODELES_NOTIF.find(x => x.id === form.modele);
+    setForm(f => ({
+      ...f, client_id: id,
+      client_tel:   cli?.tel   || f.client_tel,
+      client_email: cli?.email || f.client_email,
+      titre:   m?.id ? substituer(m.titre, cli)   : f.titre,
+      message: m?.id ? substituer(m.message, cli) : f.message,
+    }));
   };
 
   const creerManuelle = async () => {
@@ -5169,15 +5238,26 @@ function NotificationsF({ user }) {
       ))}
       {modal && (
         <Mdl title="Nouvelle notification" onClose={()=>setModal(false)}>
+          <Fld label="Modèle (optionnel — pré-remplit titre/message)">
+            <Sel value={form.modele||""} onChange={e=>appliquerModele(e.target.value)} options={MODELES_NOTIF.map(m=>({value:m.id,label:m.label}))}/>
+          </Fld>
+          <Fld label="Cliente (optionnel — remplit tél/email, et {prenom} dans le modèle)">
+            <Sel value={form.client_id||""} onChange={e=>appliquerClient(e.target.value)} options={[{value:"",label:"— Aucune —"}, ...clientsNotif.map(c=>({value:c.id,label:(c.nom||"")+" "+(c.prenom||"")}))]}/>
+          </Fld>
           <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})}/></Fld>
-          <Fld label="Message *"><Inp value={form.message||""} onChange={e=>setForm({...form,message:e.target.value})}/></Fld>
+          <Fld label="Message *"><Inp value={form.message||""} onChange={e=>setForm({...form,message:e.target.value})} rows={3}/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Fld label="Canal"><Sel value={form.canal||"interne"} onChange={e=>setForm({...form,canal:e.target.value})} options={["interne","email","whatsapp","sms"]}/></Fld>
             <Fld label="Type"><Sel value={form.type||"autre"} onChange={e=>setForm({...form,type:e.target.value})} options={NOTIF_TYPES}/></Fld>
           </div>
+          {form.canal && form.canal!=="interne" && (
+            <div style={{fontSize:10,color:B.warning,background:"rgba(201,168,76,0.1)",borderRadius:8,padding:"8px 10px",marginBottom:4}}>
+              ⚠ L'envoi réel par {form.canal} n'est pas encore branché (Phase 2) — ceci reste une note interne tant que ce n'est pas construit. Pour prévenir la cliente aujourd'hui, envoyez-lui le message vous-même (WhatsApp, etc.) une fois le texte prêt ci-dessus.
+            </div>
+          )}
           <Fld label="Email client"><Inp type="email" value={form.client_email||""} onChange={e=>setForm({...form,client_email:e.target.value})}/></Fld>
           <Fld label="Tél client"><Inp value={form.client_tel||""} onChange={e=>setForm({...form,client_tel:e.target.value})}/></Fld>
-          <Fld label="Date prévue (optionnel)"><Inp type="datetime-local" value={form.date_prevue||""} onChange={e=>setForm({...form,date_prevue:e.target.value})}/></Fld>
+          <Fld label="Date prévue (optionnel — informatif, ne déclenche rien automatiquement)"><Inp type="datetime-local" value={form.date_prevue||""} onChange={e=>setForm({...form,date_prevue:e.target.value})}/></Fld>
           <div style={{display:"flex",gap:8}}>
             <Btn onClick={creerManuelle} full v="gold">Créer</Btn>
             <Btn onClick={()=>setModal(false)} v="ghost">Annuler</Btn>
