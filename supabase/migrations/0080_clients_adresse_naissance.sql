@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0080_clients_adresse_naissance.sql
--- STATUT: PROPOSITION — à exécuter et vérifier par Renée-Lise
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-08
 -- Auteur : Claude Code · Date de rédaction : 2026-11-07
 -- Objet : demande explicite de Renée-Lise — pouvoir enregistrer
 --   l'adresse et la date de naissance de ses clientes (CRM), pour
