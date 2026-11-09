@@ -24,6 +24,14 @@ export const FOOD_COLORS = {
 };
 
 // ── 38 catégories du catalogue ─────────────────────────────
+// Services d'un programme d'événement (migration 0081) — "Thème &
+// décoration" n'est pas une recette, donc absent ici ; utilisé par
+// FoodRecettes.tsx (tag par recette) et le compositeur Bella'Events
+// "Programme à thème".
+export const SERVICES_EVENEMENT = [
+  "Cocktail / Mocktail", "Hors d'œuvre", "Entrée", "Plat", "Dessert", "Boissons",
+] as const;
+
 export const FOOD_CATEGORIES: { id: CategorieRecette; nom: string; ico: string; groupe: string }[] = [
   // Cuisine salée
   {id:"entree",         nom:"Entrées",           ico:"🥗", groupe:"cuisine"},

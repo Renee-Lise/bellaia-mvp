@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import BellaiaLogo from "@/components/BellaiaLogo";
 import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/modules/push/pushClient";
-import { FOOD_CATEGORIES } from "@/modules/food/foodConsts";
+import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic, getVariantesFoodPublic } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
 import type { MenuJour } from "@/modules/food/foodTypes";
@@ -9715,6 +9715,214 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME À THÈME — Bella'Events × Bella'Food
+// src/components/BellaiaApp.tsx — EventsProgrammeF
+//
+// Demande explicite de Renée-Lise : composer un programme complet
+// (thème/décoration + menu par service) pour un événement à thème,
+// en piochant dans le catalogue Bella'Food réel (jamais inventé —
+// seules les recettes taguées "service_evenement", migration 0081,
+// apparaissent en suggestion). Chaque service accepte aussi une ligne
+// libre (prix et libellé saisis à la main) : une cliente peut proposer
+// ce qu'elle veut, pas seulement les recettes déjà classées.
+//
+// Traçabilité demandée : chaque programme enregistré reste consultable
+// (table events_programmes) — rien n'est envoyé/imprimé sans être
+// d'abord sauvegardé.
+// ═══════════════════════════════════════════════════════════
+const SERVICES_PROGRAMME = ["Thème & décoration", ...SERVICES_EVENEMENT];
+
+function EventsProgrammeF({ user }) {
+  const [vue, setVue] = useState("liste"); // "liste" | "compositeur"
+  const [programmes, setProgrammes] = useState([]);
+  const [lProg, setLProg] = useState(true);
+  const [recettes, setRecettes] = useState([]);
+  const [detailProg, setDetailProg] = useState(null);
+  const FORM_INIT_PROG = { client_nom:"", client_tel:"", occasion:"", theme_nom:"", theme_description:"", decoration_notes:"", date_evenement:"" };
+  const [form, setForm] = useState(FORM_INIT_PROG);
+  const [lignes, setLignes] = useState([]); // {service, libelle, prix, origine:"catalogue"|"libre"}
+  const [enregistrement, setEnregistrement] = useState("idle");
+
+  const charger = useCallback(async () => {
+    setLProg(true);
+    const token = await getTokenAsync();
+    try {
+      const [rProg, rRec] = await Promise.all([
+        fetch(SB_URL+"/rest/v1/events_programmes?select=*&order=created_at.desc&limit=100", { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }),
+        fetch(SB_URL+"/rest/v1/food_recettes?select=id,nom,prix_conseille,service_evenement&service_evenement=not.is.null&order=nom.asc&limit=300", { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }),
+      ]);
+      setProgrammes(rProg.ok ? await rProg.json() : []);
+      setRecettes(rRec.ok ? await rRec.json() : []);
+    } catch { setProgrammes([]); setRecettes([]); }
+    setLProg(false);
+  }, []);
+  useEffect(() => { charger(); }, [charger]);
+
+  const ajouterLigneCatalogue = (service, recetteId) => {
+    if (!recetteId) return;
+    const r = recettes.find(x => x.id === recetteId);
+    if (!r) return;
+    setLignes(ls => [...ls, { service, libelle: r.nom, prix: r.prix_conseille != null ? parseFloat(r.prix_conseille) : 0, origine: "catalogue" }]);
+  };
+  const ajouterLigneLibre = (service) => setLignes(ls => [...ls, { service, libelle: "", prix: 0, origine: "libre" }]);
+  const majLigne = (i, champ, val) => setLignes(ls => ls.map((l, idx) => idx === i ? { ...l, [champ]: val } : l));
+  const supprimerLigne = (i) => setLignes(ls => ls.filter((_, idx) => idx !== i));
+  const totalProgramme = lignes.reduce((s, l) => s + (parseFloat(l.prix) || 0), 0);
+
+  const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setVue("compositeur"); };
+
+  const enregistrerProgramme = async () => {
+    if (!form.client_nom?.trim()) { alert("Nom de la cliente requis."); return; }
+    setEnregistrement("en_cours");
+    let reference = "PROG-"+Date.now();
+    try { reference = await genererReference("PROG"); } catch {}
+    const payload = {
+      reference, client_nom: form.client_nom.trim(), client_tel: form.client_tel || null,
+      occasion: form.occasion || null, theme_nom: form.theme_nom || null,
+      theme_description: form.theme_description || null, decoration_notes: form.decoration_notes || null,
+      date_evenement: form.date_evenement || null, lignes: JSON.stringify(lignes), total: totalProgramme,
+      statut: "brouillon",
+    };
+    const res = await sbPost("events_programmes", payload);
+    setEnregistrement(res.ok ? "ok" : "erreur");
+    if (res.ok) { setVue("liste"); charger(); }
+    else alert("Échec de l'enregistrement.\n"+(res.error||""));
+  };
+
+  const imprimerProgramme = (p) => {
+    const lignesP = typeof p.lignes === "string" ? JSON.parse(p.lignes) : (p.lignes || []);
+    const parService = {};
+    lignesP.forEach(l => { (parService[l.service] = parService[l.service] || []).push(l); });
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Programme ${p.reference||""}</title><style>
+      body{font-family:Georgia,serif;margin:0;padding:24px;color:#1a1a1a}
+      h1{color:#6b1a2b;font-size:22px;margin:0 0 4px}
+      .sub{color:#6b7280;font-size:12px;margin-bottom:20px}
+      .bloc{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:14px}
+      h2{font-size:14px;color:#6b1a2b;margin:0 0 6px}
+      table{width:100%;border-collapse:collapse}
+      td{padding:5px 8px;border-bottom:1px solid #f3f4f6;font-size:13px}
+      .total{font-weight:700;font-size:16px;color:#6b1a2b;text-align:right;margin-top:14px}
+      @media print{body{padding:10px}}
+      </style></head><body>
+      <h1>Programme — ${p.occasion||p.theme_nom||"Événement"}</h1>
+      <div class="sub">${p.client_nom||""}${p.date_evenement?" · "+p.date_evenement:""} · Réf. ${p.reference||""}</div>
+      ${p.theme_nom ? `<div class="bloc"><h2>Thème</h2><div>${p.theme_nom}</div>${p.theme_description?`<div style="margin-top:4px;font-size:12px;color:#555">${p.theme_description}</div>`:""}</div>` : ""}
+      ${p.decoration_notes ? `<div class="bloc"><h2>Décoration</h2><div style="font-size:12px">${p.decoration_notes}</div></div>` : ""}
+      ${Object.entries(parService).map(([service,ls])=>`<div class="bloc"><h2>${service}</h2><table>${ls.map(l=>`<tr><td>${l.libelle}</td><td style="text-align:right">${l.prix?parseFloat(l.prix).toFixed(2)+"€":"—"}</td></tr>`).join("")}</table></div>`).join("")}
+      <div class="total">Total : ${parseFloat(p.total||0).toFixed(2)}€</div>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+  };
+
+  if (lProg && vue === "liste") return <div style={{textAlign:"center",padding:20,color:B.muted,fontSize:12}}>Chargement…</div>;
+
+  if (vue === "compositeur") return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontSize:13,fontWeight:800,color:B.cream}}>Nouveau programme</div>
+        <Btn sm v="ghost" onClick={()=>setVue("liste")}>‹ Retour</Btn>
+      </div>
+      <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
+        <Fld label="Cliente *"><Inp value={form.client_nom} onChange={e=>setForm({...form,client_nom:e.target.value})} placeholder="Nom de la cliente"/></Fld>
+        <Fld label="Téléphone"><Inp value={form.client_tel} onChange={e=>setForm({...form,client_tel:e.target.value})} placeholder="+594..."/></Fld>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <Fld label="Occasion"><Inp value={form.occasion} onChange={e=>setForm({...form,occasion:e.target.value})} placeholder="Noël, anniversaire..."/></Fld>
+          <Fld label="Date"><Inp type="date" value={form.date_evenement} onChange={e=>setForm({...form,date_evenement:e.target.value})}/></Fld>
+        </div>
+        <Fld label="Thème"><Inp value={form.theme_nom} onChange={e=>setForm({...form,theme_nom:e.target.value})} placeholder="Nom du thème"/></Fld>
+        <Fld label="Description du thème"><Inp value={form.theme_description} onChange={e=>setForm({...form,theme_description:e.target.value})} rows={2}/></Fld>
+        <Fld label="Décoration"><Inp value={form.decoration_notes} onChange={e=>setForm({...form,decoration_notes:e.target.value})} rows={2} placeholder="Éléments de décoration prévus"/></Fld>
+      </div>
+
+      {SERVICES_PROGRAMME.map(service => {
+        const recettesService = recettes.filter(r => r.service_evenement === service);
+        const lignesService = lignes.map((l,i)=>({...l,_idx:i})).filter(l => l.service === service);
+        if (service === "Thème & décoration") return null; // déjà couvert par le bloc ci-dessus
+        return (
+          <div key={service} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#065f46",letterSpacing:0.5,textTransform:"uppercase"}}>{service}</div>
+            {lignesService.map(l => (
+              <div key={l._idx} style={{display:"flex",gap:6,alignItems:"center"}}>
+                <input value={l.libelle} onChange={e=>majLigne(l._idx,"libelle",e.target.value)} disabled={l.origine==="catalogue"}
+                  style={{flex:2,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
+                <input type="number" value={l.prix} onChange={e=>majLigne(l._idx,"prix",parseFloat(e.target.value)||0)}
+                  style={{width:80,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
+                <button onClick={()=>supprimerLigne(l._idx)} style={{background:"rgba(248,113,113,0.12)",border:"none",borderRadius:8,padding:"6px 9px",color:"#f87171",cursor:"pointer"}}>✕</button>
+              </div>
+            ))}
+            <div style={{display:"flex",gap:6}}>
+              <select onChange={e=>{ajouterLigneCatalogue(service,e.target.value);e.target.value="";}} defaultValue=""
+                style={{flex:1,background:"#1a1a2e",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:11,fontFamily:SA}}>
+                <option value="">+ Depuis le catalogue Food…</option>
+                {recettesService.map(r=><option key={r.id} value={r.id}>{r.nom}{r.prix_conseille!=null?" — "+parseFloat(r.prix_conseille).toFixed(2)+"€":""}</option>)}
+              </select>
+              <Btn sm v="ghost" onClick={()=>ajouterLigneLibre(service)}>+ Libre</Btn>
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{display:"flex",justifyContent:"space-between",padding:"10px 4px",fontSize:14,fontWeight:800,color:B.gold}}>
+        <span>Total</span><span>{totalProgramme.toFixed(2)}€</span>
+      </div>
+      <Btn onClick={enregistrerProgramme} full v="gold" disabled={enregistrement==="en_cours"}>
+        {enregistrement==="en_cours"?"Enregistrement…":"💾 Enregistrer le programme"}
+      </Btn>
+    </div>
+  );
+
+  if (detailProg) {
+    const lignesP = typeof detailProg.lignes === "string" ? JSON.parse(detailProg.lignes) : (detailProg.lignes||[]);
+    return (
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          <div style={{fontSize:13,fontWeight:800,color:B.cream}}>{detailProg.reference}</div>
+          <Btn sm v="ghost" onClick={()=>setDetailProg(null)}>‹ Retour</Btn>
+        </div>
+        <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,fontSize:12,color:B.cream}}>
+          <div><strong>{detailProg.client_nom}</strong>{detailProg.client_tel?" · "+detailProg.client_tel:""}</div>
+          {detailProg.occasion && <div style={{color:B.muted,marginTop:3}}>{detailProg.occasion}{detailProg.date_evenement?" · "+detailProg.date_evenement:""}</div>}
+          {detailProg.theme_nom && <div style={{marginTop:6}}>🎨 {detailProg.theme_nom}</div>}
+          <div style={{marginTop:8,borderTop:"1px solid "+B.border,paddingTop:8}}>
+            {lignesP.map((l,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
+                <span>{l.service} — {l.libelle}</span><span>{l.prix?parseFloat(l.prix).toFixed(2)+"€":"—"}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontWeight:800,color:B.gold}}>
+            <span>Total</span><span>{parseFloat(detailProg.total||0).toFixed(2)}€</span>
+          </div>
+        </div>
+        <Btn onClick={()=>imprimerProgramme(detailProg)} full v="gold">🖨 Imprimer / Version cliente</Btn>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontSize:13,fontWeight:800,color:B.cream}}>Programmes ({programmes.length})</div>
+        <Btn sm v="gold" onClick={nouveauProgramme}>+ Nouveau programme</Btn>
+      </div>
+      {programmes.length===0 && <div style={{textAlign:"center",padding:24,color:B.muted,fontSize:13}}>Aucun programme enregistré pour l'instant.</div>}
+      {programmes.map(p=>(
+        <div key={p.id} onClick={()=>setDetailProg(p)} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:B.cream}}>{p.client_nom}</div>
+              <div style={{fontSize:10,color:B.muted}}>{p.occasion||p.theme_nom||"Programme"}{p.date_evenement?" · "+p.date_evenement:""}</div>
+            </div>
+            <div style={{fontSize:13,fontWeight:700,color:B.gold}}>{parseFloat(p.total||0).toFixed(2)}€</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BellaEventsF({ user }) {
   const [ong, setOng] = useState("demandes");
   const [modalDevis, setModalDevis] = useState(false);
@@ -9893,10 +10101,13 @@ function BellaEventsF({ user }) {
       </div>
       {/* Onglets */}
       <div style={{display:"flex",gap:5,overflowX:"auto"}}>
-        {[["demandes","📋 Demandes"+(nbNouvelles>0 ? " ("+(nbNouvelles)+")" : "")],["catalogue","🛍 Catalogue"],["commandes","📦 Commandes"],["documents","📄 Documents"]].map(([id,l])=>(
+        {[["demandes","📋 Demandes"+(nbNouvelles>0 ? " ("+(nbNouvelles)+")" : "")],["catalogue","🛍 Catalogue"],["commandes","📦 Commandes"],["documents","📄 Documents"],["programme","🎉 Programme à thème"]].map(([id,l])=>(
           <button key={id} onClick={()=>setOng(id)} style={{padding:"6px 12px",borderRadius:99,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:ong===id?"#065f46":B.card,color:ong===id?"#fff":B.muted,fontFamily:SA,flexShrink:0,position:"relative"}}>{l}</button>
         ))}
       </div>
+
+      {/* Onglet Programme à thème */}
+      {ong==="programme" && <EventsProgrammeF user={user}/>}
 
       {/* Onglet Demandes */}
       {ong==="demandes" && (

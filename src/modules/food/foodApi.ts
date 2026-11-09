@@ -20,6 +20,7 @@ function mapRecetteFromDb(row: any): Recette {
     video: row.video ?? undefined,
     categorie: row.categorie,
     sousCat: row.sous_cat ?? undefined,
+    serviceEvenement: row.service_evenement ?? undefined,
     tags: row.tags ?? undefined,
     couleurDominante: row.couleur_dominante ?? undefined,
     saison: row.saison ?? undefined,
@@ -66,6 +67,7 @@ function mapRecetteToDb(r: Partial<Recette>): Record<string, any> {
   if (r.video !== undefined) d.video = r.video;
   if (r.categorie !== undefined) d.categorie = r.categorie;
   if (r.sousCat !== undefined) d.sous_cat = r.sousCat;
+  if (r.serviceEvenement !== undefined) d.service_evenement = r.serviceEvenement;
   if (r.tags !== undefined) d.tags = r.tags;
   if (r.couleurDominante !== undefined) d.couleur_dominante = r.couleurDominante;
   if (r.saison !== undefined) d.saison = r.saison;

@@ -84,6 +84,10 @@ export interface Recette {
   // Classification
   categorie: CategorieRecette;
   sousCat?: string;
+  // Service d'un programme d'événement (migration 0081) — ex.
+  // "Hors d'œuvre", "Plat", "Dessert"... non lié à "categorie"
+  // (classification propre à Bella'Food), texte libre, nullable.
+  serviceEvenement?: string;
   tags?: string[];
   couleurDominante?: string;  // ex: "#c9a96e"
   saison?: Saison;

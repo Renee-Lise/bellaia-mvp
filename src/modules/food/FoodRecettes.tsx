@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FOOD_CATEGORIES, FOOD_COLORS as FC } from "./foodConsts";
+import { FOOD_CATEGORIES, FOOD_COLORS as FC, SERVICES_EVENEMENT } from "./foodConsts";
 import { fmtDuree, fmtPrix, calculerCoutRecette } from "./foodUtils";
 import { getRecettesFoodAvecDiagnostic, creerRecette, majRecette, uploadMediaRecette, getStockGlobalFood } from "./foodApi";
 import { creerProduitCatalogue, getProduitCatalogueParRecette } from "./catalogueApi";
@@ -313,6 +313,14 @@ export default function FoodRecettes() {
                 {STATUTS_FORM.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
               </select>
             </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Service dans un programme d'événement (optionnel)</label>
+            <select value={form.serviceEvenement || ""} onChange={e => majForm("serviceEvenement", e.target.value || undefined)} style={{ ...inp, background: "#1a1a2e" }}>
+              <option value="">— Non classée —</option>
+              {SERVICES_EVENEMENT.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
