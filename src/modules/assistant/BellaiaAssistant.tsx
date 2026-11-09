@@ -46,7 +46,14 @@ async function sbFetch(path: string, opts: RequestInit = {}) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `Erreur ${res.status}`);
+    const msg = err.message || `Erreur ${res.status}`;
+    // Session Supabase expirée (ex. "JWT expired", PGRST301) — message
+    // brut Postgrest, peu exploitable pour Renée-Lise. Même pattern que
+    // activerPush() : message clair et actionnable à la place.
+    if (res.status === 401 || /jwt|expired/i.test(msg)) {
+      throw new Error('Votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez.');
+    }
+    throw new Error(msg);
   }
   const text = await res.text();
   return text ? JSON.parse(text) : null;
@@ -193,6 +200,9 @@ Si tu génères un document (devis, contrat, email, analyse), indique-le clairem
       if (!response.ok) {
         // Fallback si la route IA n'existe pas encore
         const errData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error('Votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez.');
+        }
         throw new Error(errData.error || `Erreur IA ${response.status}`);
       }
 
