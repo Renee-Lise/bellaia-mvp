@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0081_programme_evenement.sql
--- STATUT: PROPOSITION — à exécuter et vérifier par Renée-Lise
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-09
 -- Auteur : Claude Code · Date de rédaction : 2026-11-09
 -- Objet : demande explicite de Renée-Lise — un compositeur de
 --   "programme à thème" (menu par service + thème + décoration) pour

@@ -13508,6 +13508,17 @@ export default function BellaiaApp() {
   const activerPush = async () => {
     setPushActivation(true);
     const token = await getTokenAsync();
+    // getTokenAsync() retombe silencieusement sur la clé anonyme si le
+    // rafraîchissement de session a échoué (même cause que le bug
+    // déjà corrigé sur Commandes site) — jamais utilisable pour
+    // s'abonner aux notifications, jamais envoyée au serveur : message
+    // clair et actionnable plutôt que le "Session invalide" opaque
+    // renvoyé sinon par /api/push/subscribe.
+    if (token === SB_KEY) {
+      setPushActivation(false);
+      alert("Notifications push : votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez.");
+      return;
+    }
     const res = await activerNotificationsPush(token);
     setPushActivation(false);
     if (!res.ok) { alert("Notifications push : " + (res.error || "échec d'activation.")); return; }
