@@ -9770,7 +9770,52 @@ function EventsProgrammeF({ user }) {
   const supprimerLigne = (i) => setLignes(ls => ls.filter((_, idx) => idx !== i));
   const totalProgramme = lignes.reduce((s, l) => s + (parseFloat(l.prix) || 0), 0);
 
-  const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setVue("compositeur"); };
+  const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setIaIdees([]); setIaErreur(null); setVue("compositeur"); };
+
+  // ── Idées depuis une photo (décoration ou menu) — demande de
+  // Renée-Lise. Les prix renvoyés sont des estimations IA, jamais des
+  // prix réels de catalogue — affichés comme tels, jamais insérés
+  // comme un prix validé.
+  const [iaCharge, setIaCharge] = useState(false);
+  const [iaIdees, setIaIdees] = useState([]);
+  const [iaErreur, setIaErreur] = useState(null);
+
+  const analyserPhoto = async (file, type) => {
+    setIaErreur(null); setIaCharge(true); setIaIdees([]);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const [meta, b64] = String(dataUrl).split(",");
+      const mediaType = (meta.match(/data:([^;]+);/) || [])[1] || file.type || "image/jpeg";
+      const token = await getTokenAsync();
+      const r = await fetch("/api/ia/decoration-menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer "+token },
+        body: JSON.stringify({ imageBase64: b64, mediaType, type, occasion: form.occasion || form.theme_nom || "" }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setIaErreur(d.error || "Échec de l'analyse."); setIaCharge(false); return; }
+      setIaIdees((d.idees || []).map(i => ({ ...i, _type: type })));
+      if ((d.idees || []).length === 0 && d.texteBrut) setIaErreur("Réponse inattendue de l'IA — réessayez avec une autre photo.");
+    } catch (e) {
+      setIaErreur(e?.message || "Erreur réseau.");
+    }
+    setIaCharge(false);
+  };
+
+  const ajouterIdeeDecoration = (idee) => {
+    setForm(f => ({ ...f, decoration_notes: (f.decoration_notes ? f.decoration_notes + "\n" : "") + "• " + idee.nom + (idee.description ? " — "+idee.description : "") + (idee.estimation_prix != null ? " (≈"+idee.estimation_prix+"€, estimation IA)" : "") }));
+    setIaIdees(ls => ls.filter(i => i !== idee));
+  };
+  const ajouterIdeeMenu = (idee) => {
+    const service = SERVICES_EVENEMENT.includes(idee.service) ? idee.service : SERVICES_EVENEMENT[0];
+    setLignes(ls => [...ls, { service, libelle: idee.plat + (idee.description ? " — "+idee.description : "") + " (estimation IA)", prix: idee.estimation_prix != null ? parseFloat(idee.estimation_prix) : 0, origine: "ia" }]);
+    setIaIdees(ls => ls.filter(i => i !== idee));
+  };
 
   const enregistrerProgramme = async () => {
     if (!form.client_nom?.trim()) { alert("Nom de la cliente requis."); return; }
@@ -9834,6 +9879,34 @@ function EventsProgrammeF({ user }) {
         <Fld label="Thème"><Inp value={form.theme_nom} onChange={e=>setForm({...form,theme_nom:e.target.value})} placeholder="Nom du thème"/></Fld>
         <Fld label="Description du thème"><Inp value={form.theme_description} onChange={e=>setForm({...form,theme_description:e.target.value})} rows={2}/></Fld>
         <Fld label="Décoration"><Inp value={form.decoration_notes} onChange={e=>setForm({...form,decoration_notes:e.target.value})} rows={2} placeholder="Éléments de décoration prévus"/></Fld>
+      </div>
+
+      {/* Idées depuis une photo — décoration ou menu, estimations IA
+          jamais confondues avec un prix réel de catalogue. */}
+      <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#065f46",letterSpacing:0.5,textTransform:"uppercase"}}>📷 Idées depuis une photo</div>
+        <div style={{fontSize:10,color:B.muted}}>Photographiez un article de décoration ou une fiche menu — l'IA propose des idées avec une estimation de prix (indicative, jamais un prix réel du catalogue).</div>
+        <div style={{display:"flex",gap:8}}>
+          <label style={{flex:1,textAlign:"center",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:8,padding:"8px",color:B.gold,fontSize:11,fontWeight:700,cursor:iaCharge?"wait":"pointer",fontFamily:SA}}>
+            {iaCharge?"Analyse…":"🎨 Photo décoration"}
+            <input type="file" accept="image/*" capture="environment" disabled={iaCharge} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) analyserPhoto(f,"decoration"); e.target.value="";}}/>
+          </label>
+          <label style={{flex:1,textAlign:"center",background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:8,padding:"8px",color:"#4ade80",fontSize:11,fontWeight:700,cursor:iaCharge?"wait":"pointer",fontFamily:SA}}>
+            {iaCharge?"Analyse…":"🍽 Photo menu"}
+            <input type="file" accept="image/*" capture="environment" disabled={iaCharge} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) analyserPhoto(f,"menu"); e.target.value="";}}/>
+          </label>
+        </div>
+        {iaErreur && <div style={{fontSize:10,color:"#f87171",background:"rgba(248,113,113,0.08)",borderRadius:8,padding:"8px 10px"}}>{iaErreur}</div>}
+        {iaIdees.map((idee,i)=>(
+          <div key={i} style={{background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"8px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+            <div style={{fontSize:11,color:"#fff"}}>
+              <strong>{idee._type==="decoration"?idee.nom:(idee.service+" — "+idee.plat)}</strong>
+              {idee.description && <div style={{color:B.muted,fontSize:10,marginTop:2}}>{idee.description}</div>}
+              {idee.estimation_prix!=null && <div style={{color:B.gold,fontSize:10,marginTop:2}}>≈ {idee.estimation_prix}€ (estimation IA)</div>}
+            </div>
+            <Btn sm v="gold" onClick={()=>idee._type==="decoration"?ajouterIdeeDecoration(idee):ajouterIdeeMenu(idee)}>+ Ajouter</Btn>
+          </div>
+        ))}
       </div>
 
       {SERVICES_PROGRAMME.map(service => {
