@@ -7812,6 +7812,7 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
   const [mesNotifs, setMesNotifs]           = useState<any[]>([]);
   const [mesDocs, setMesDocs]               = useState<any[]>([]);
   const [loadingData, setLoadingData]       = useState(true);
+  const [notifsOuvert, setNotifsOuvert]     = useState(false);
 
   // Univers disponibles — déclaré ICI pour éviter le bug "used before declare"
   const UNIVERS_CLIENT = [
@@ -7851,6 +7852,25 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
     };
     charger();
   }, [user?.id]);
+
+  // Demande explicite de Renée-Lise : les notifications ne doivent pas
+  // juste s'afficher et rester là indéfiniment — une fois traitée, elle
+  // disparaît du bandeau (lu=true côté serveur, retirée de la liste
+  // locale immédiatement pour un retour visuel instantané).
+  const marquerNotifTraitee = async (n: any) => {
+    setMesNotifs(ls => ls.filter(x => x.id !== n.id));
+    try {
+      const token  = typeof window !== "undefined" ? localStorage.getItem("bellaia_token") : null;
+      const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const sbUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      if (!token) return;
+      await fetch(`${sbUrl}/rest/v1/bellaia_notifications?id=eq.${n.id}`, {
+        method: "PATCH",
+        headers: { "Authorization": `Bearer ${token}`, "apikey": apiKey, "Content-Type": "application/json", "Prefer": "return=minimal" },
+        body: JSON.stringify({ lu: true }),
+      });
+    } catch(e) { console.error("[PortailClient] marquerNotifTraitee:", e); }
+  };
 
   // ── Garde RBAC : bloque TOUT module non autorisé (mineur, accès direct URL inclus)
   if (activeUnivers && !moduleAutorise(activeUnivers, user)) {
@@ -7906,19 +7926,35 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
           <div style={{fontSize:12,color:B.muted}}>Bienvenue dans votre espace Bella'Studio</div>
         </div>
 
-        {/* Notifications non lues */}
+        {/* Notifications — centralisées sous un seul bandeau repliable
+            (demande explicite : regroupées, pas éparpillées à chaque
+            visite) et traitables une par une plutôt que figées là. */}
         {mesNotifs.length > 0 && (
-          <div style={{marginBottom:16}}>
-            {mesNotifs.slice(0,3).map((n:any) => (
-              <div key={n.id} style={{background:"rgba(157,37,57,0.08)",border:"1px solid rgba(157,37,57,0.25)",
-                borderRadius:R.md,padding:"9px 13px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start"}}>
-                <span style={{fontSize:14,flexShrink:0}}>🔔</span>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{n.titre}</div>
-                  {n.contenu && <div style={{fontSize:11,color:B.muted,marginTop:2}}>{n.contenu}</div>}
-                </div>
+          <div style={{marginBottom:16,background:"rgba(157,37,57,0.08)",border:"1px solid rgba(157,37,57,0.25)",borderRadius:R.md,overflow:"hidden"}}>
+            <button onClick={()=>setNotifsOuvert(o=>!o)}
+              style={{width:"100%",background:"none",border:"none",padding:"10px 13px",display:"flex",alignItems:"center",gap:8,cursor:"pointer",textAlign:"left"}}>
+              <span style={{fontSize:14,flexShrink:0}}>🔔</span>
+              <span style={{fontSize:12,fontWeight:700,color:B.cream,flex:1}}>
+                {mesNotifs.length} notification{mesNotifs.length>1?"s":""} à traiter
+              </span>
+              <span style={{fontSize:11,color:B.muted}}>{notifsOuvert ? "▲ Réduire" : "▼ Voir"}</span>
+            </button>
+            {notifsOuvert && (
+              <div style={{padding:"0 13px 11px"}}>
+                {mesNotifs.map((n:any) => (
+                  <div key={n.id} style={{background:"rgba(0,0,0,0.15)",borderRadius:10,padding:"9px 11px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",justifyContent:"space-between"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:700,color:B.cream}}>{n.titre}</div>
+                      {n.contenu && <div style={{fontSize:11,color:B.muted,marginTop:2}}>{n.contenu}</div>}
+                    </div>
+                    <button onClick={()=>marquerNotifTraitee(n)}
+                      style={{flexShrink:0,background:"rgba(255,255,255,0.07)",border:"1px solid "+B.border,borderRadius:8,padding:"5px 9px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>
+                      ✓ Traité
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
 
@@ -11908,6 +11944,12 @@ function ClientEvents({ onBack, onNewCommande }) {
   const [suivi, setSuivi] = useState(false);
   const [modal, setModal] = useState(null);   // {prestation, type} → ouvre le formulaire
   const [succes, setSucces] = useState(null); // référence après soumission
+  // Instantané de la demande au moment de l'envoi — form/modal sont
+  // remis à zéro juste après soumission, donc sans cette copie l'écran
+  // de confirmation et l'imprimable n'avaient plus accès au détail
+  // (demande explicite : l'imprimable doit montrer le détail réel de
+  // la commande, pas juste un message de confirmation).
+  const [derniereDemande, setDerniereDemande] = useState(null);
   const FORM_INIT = {prenom:"",nom:"",tel:"",email:"",date:"",heure:"",typeEvt:"",invites:"",theme:"",couleurs:"",budget:"",message:""};
   const [form, setForm] = useState(FORM_INIT);
   const [envoi, setEnvoi] = useState(false);
@@ -12034,6 +12076,18 @@ function ClientEvents({ onBack, onNewCommande }) {
       sourceTable: "events_demandes",
       sourceId: ref,
     });
+    // Instantané complet pour l'écran de confirmation + l'imprimable
+    // (voir note sur derniereDemande) — capturé avant la remise à zéro
+    // de form/modal juste en dessous.
+    setDerniereDemande({
+      reference, type, prestation: p.nom, prix: prixAff(p),
+      client: (form.prenom+" "+form.nom).trim(), tel: form.tel, email: form.email,
+      date: form.date, heure: form.heure, typeEvt: form.typeEvt,
+      invites: form.invites, theme: form.theme, couleurs: form.couleurs,
+      budget: form.budget, message: form.message,
+      lignes: lignesEstimees, total: montantEstimeFinal,
+      acompte: acompteNum, solde: soldeNum,
+    });
     // setSucces en premier — garantit que le re-render affiche l'écran de confirmation
     // avant que modal soit remis à null (évite le flash vers la vue catégorie)
     setSucces(reference);
@@ -12050,6 +12104,7 @@ function ClientEvents({ onBack, onNewCommande }) {
     setModal({prestation:p, type});
     setForm({...FORM_INIT, typeEvt: typeEvtInit});
     setSucces(null);
+    setDerniereDemande(null);
   };
 
   // Portail suivi de demande
@@ -12242,6 +12297,54 @@ function ClientEvents({ onBack, onNewCommande }) {
             Nous reviendrons vers vous sous 24 à 48 heures ouvrées afin de confirmer les détails de votre projet.
           </div>
 
+          {/* Détail de la demande — pas juste une confirmation vide */}
+          {derniereDemande && (
+            <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px",marginBottom:20}}>
+              <div style={{fontSize:10,color:EV.cremeD,fontWeight:700,letterSpacing:1,marginBottom:12}}>DÉTAIL DE VOTRE DEMANDE</div>
+              <div style={{fontSize:13,color:EV.creme,fontWeight:700,marginBottom:4}}>{derniereDemande.prestation}</div>
+              <div style={{fontSize:11,color:EV.or,marginBottom:10}}>{derniereDemande.prix}{derniereDemande.type ? " · "+derniereDemande.type : ""}</div>
+              {[
+                ["Date souhaitée", derniereDemande.date && (derniereDemande.date + (derniereDemande.heure ? " à "+derniereDemande.heure : ""))],
+                ["Type d'événement", derniereDemande.typeEvt],
+                ["Invités", derniereDemande.invites],
+                ["Thème", derniereDemande.theme],
+                ["Couleurs", derniereDemande.couleurs],
+                ["Budget estimé", derniereDemande.budget && derniereDemande.budget+"€"],
+              ].filter(([,v])=>v).map(([l,v])=>(
+                <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid "+EV.line,fontSize:12}}>
+                  <span style={{color:EV.cremeD}}>{l}</span><span style={{color:EV.creme}}>{v}</span>
+                </div>
+              ))}
+              {derniereDemande.message && (
+                <div style={{marginTop:10,fontSize:11,color:EV.cremeD,lineHeight:1.6}}>
+                  <span style={{color:EV.or,fontWeight:700}}>Message : </span>{derniereDemande.message}
+                </div>
+              )}
+              {derniereDemande.lignes?.length > 0 && (
+                <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid "+EV.line}}>
+                  {derniereDemande.lignes.map((l,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"3px 0"}}>
+                      <span style={{color:EV.cremeD}}>{l.libelle}</span>
+                      <span style={{color:l.total?EV.or:B.muted}}>{l.total ? l.total+"€" : "À confirmer"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {derniereDemande.total > 0 && (
+                <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid "+EV.line}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700}}>
+                    <span style={{color:EV.cremeD}}>Total estimé</span><span style={{color:EV.or}}>{derniereDemande.total}€</span>
+                  </div>
+                  {derniereDemande.acompte > 0 && (
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:3}}>
+                      <span style={{color:EV.cremeD}}>Acompte (30%)</span><span style={{color:B.warning}}>{derniereDemande.acompte}€</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Timeline des prochaines étapes */}
           <div style={{background:B.card,border:"1px solid "+EV.line,borderRadius:14,padding:"16px",marginBottom:20}}>
             <div style={{fontSize:10,color:EV.cremeD,fontWeight:700,letterSpacing:1,marginBottom:14}}>PROCHAINES ÉTAPES</div>
@@ -12254,10 +12357,34 @@ function ClientEvents({ onBack, onNewCommande }) {
             <button onClick={()=>{setSucces(null);setModal(null);}} style={{background:"transparent",border:"1px solid "+EV.or+"66",borderRadius:10,padding:"12px 24px",color:EV.or,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:SA}}>+ Faire une autre demande</button>
             <button onClick={()=>window.open(WA("Bonjour, ma référence est "+succes+". Je souhaite des informations sur mon dossier."),"_blank")} style={{background:"rgba(37,211,102,0.1)",border:"1px solid rgba(37,211,102,0.3)",borderRadius:10,padding:"12px 24px",color:"#25d366",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:SA}}>💬 Contacter Bella'Events</button>
             <button onClick={() => {
+              const d = derniereDemande;
+              const ligneDetail = (label, val) => val ? `<tr><td style="color:#6b7280">${label}</td><td style="text-align:right">${val}</td></tr>` : "";
+              const lignesPrestationsHtml = (d?.lignes||[]).map(l =>
+                `<tr><td>${l.libelle}</td><td style="text-align:right;font-weight:600">${l.total?l.total+"€":"À confirmer"}</td></tr>`
+              ).join("");
               const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Devis Bella'Events</title>
-<style>body{font-family:Arial,sans-serif;padding:30px;max-width:680px;margin:0 auto;color:#111}h1{color:#0d6e3f;border-bottom:2px solid #0d6e3f;padding-bottom:6px}p{font-size:13px}.muted{color:#6b7280;font-size:11px}@media print{button{display:none}}</style></head><body>
+<style>body{font-family:Arial,sans-serif;padding:30px;max-width:680px;margin:0 auto;color:#111;font-size:13px}
+h1{color:#0d6e3f;border-bottom:2px solid #0d6e3f;padding-bottom:6px;font-size:20px}
+table{width:100%;border-collapse:collapse;margin:14px 0}td{padding:6px 4px;border-bottom:1px solid #e5e7eb}
+.total{font-size:15px;font-weight:700;color:#0d6e3f}.muted{color:#6b7280;font-size:11px}
+.acompte{background:#fef9ec;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin:12px 0}
+@media print{button{display:none}}</style></head><body>
 <h1>🌿 Bella'Events — Devis</h1>
 <p><strong>Référence :</strong> ${succes||"—"}</p>
+<p><strong>Prestation :</strong> ${d?.prestation||"—"} (${d?.type||"—"}) — ${d?.prix||""}</p>
+<p><strong>Client :</strong> ${d?.client||"—"} · ${d?.tel||""}${d?.email?" · "+d.email:""}</p>
+<table><tbody>
+${ligneDetail("Date souhaitée", d?.date ? d.date+(d.heure?" à "+d.heure:"") : "")}
+${ligneDetail("Type d'événement", d?.typeEvt)}
+${ligneDetail("Nombre d'invités", d?.invites)}
+${ligneDetail("Thème", d?.theme)}
+${ligneDetail("Couleurs", d?.couleurs)}
+${ligneDetail("Budget estimé", d?.budget ? d.budget+"€" : "")}
+</tbody></table>
+${d?.message ? `<p><strong>Message :</strong> ${d.message}</p>` : ""}
+${lignesPrestationsHtml ? `<table><thead><tr><th style="text-align:left">Prestation</th><th style="text-align:right">Montant</th></tr></thead><tbody>${lignesPrestationsHtml}</tbody></table>` : ""}
+${d?.total ? `<div style="text-align:right"><span class="total">Total estimé : ${d.total}€</span></div>
+<div class="acompte"><strong>Acompte (30%) :</strong> ${d.acompte}€ — <strong>Solde :</strong> ${d.solde}€</div>` : ""}
 <p>Votre demande a bien été enregistrée. Bella'Events vous contactera sous 48h pour finaliser votre devis.</p>
 <p class="muted">Bella'Studio · Sinnamary, Guyane</p></body></html>`;
               const w = window.open("","_blank");
