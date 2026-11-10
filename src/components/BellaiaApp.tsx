@@ -9934,6 +9934,29 @@ function EventsProgrammeF({ user }) {
   const ajouterVisuelAuxNotes = (v) => {
     setForm(f => ({ ...f, decoration_notes: (f.decoration_notes ? f.decoration_notes + "\n" : "") + "📸 "+v.titre+" — "+v.image_url }));
   };
+
+  // Génération d'un visuel par IA (OpenAI gpt-image-1, choix confirmé
+  // par Renée-Lise) — distincte des photos qu'elle fournit elle-même ;
+  // le résultat porte toujours la mention "Généré par IA" dans ses notes.
+  const [iaVisuelCharge, setIaVisuelCharge] = useState(false);
+  const [iaVisuelErreur, setIaVisuelErreur] = useState(null);
+  const genererVisuelIA = async () => {
+    if (!visuelForm.titre.trim()) { alert("Donnez un titre à ce visuel avant de le générer."); return; }
+    setIaVisuelErreur(null); setIaVisuelCharge(true);
+    try {
+      const token = await getTokenAsync();
+      const r = await fetch("/api/ia/generer-visuel-decoration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer "+token },
+        body: JSON.stringify({ titre: visuelForm.titre.trim(), occasion: visuelForm.occasion || form.occasion, theme: visuelForm.theme || form.theme_nom, description: form.theme_description }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setIaVisuelErreur(d.error || "Échec de la génération."); setIaVisuelCharge(false); return; }
+      if (d.visuel) setVisuelsDecoration(vs => [d.visuel, ...vs]);
+      setVisuelForm({ titre:"", occasion:"", theme:"" });
+    } catch (e) { setIaVisuelErreur(e?.message || "Erreur réseau."); }
+    setIaVisuelCharge(false);
+  };
   const visuelsPertinents = visuelsDecoration.filter(v =>
     (!form.occasion || !v.occasion || v.occasion === form.occasion) && (!form.theme_nom || !v.theme || v.theme === form.theme_nom)
   );
@@ -10039,15 +10062,26 @@ function EventsProgrammeF({ user }) {
           <div style={{flex:"1 1 120px"}}><Inp value={visuelForm.occasion} onChange={e=>setVisuelForm(f=>({...f,occasion:e.target.value}))} placeholder="Occasion (optionnel)"/></div>
           <div style={{flex:"1 1 120px"}}><Inp value={visuelForm.theme} onChange={e=>setVisuelForm(f=>({...f,theme:e.target.value}))} placeholder="Thème (optionnel)"/></div>
         </div>
-        <label style={{textAlign:"center",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:8,padding:"8px",color:B.gold,fontSize:11,fontWeight:700,cursor:visuelUpload?"wait":"pointer",fontFamily:SA}}>
-          {visuelUpload?"Envoi…":"+ Ajouter une photo"}
-          <input type="file" accept="image/*" disabled={visuelUpload} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) uploaderVisuel(f); e.target.value="";}}/>
-        </label>
+        <div style={{display:"flex",gap:8}}>
+          <label style={{flex:1,textAlign:"center",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:8,padding:"8px",color:B.gold,fontSize:11,fontWeight:700,cursor:visuelUpload?"wait":"pointer",fontFamily:SA}}>
+            {visuelUpload?"Envoi…":"+ Ajouter une photo"}
+            <input type="file" accept="image/*" disabled={visuelUpload} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) uploaderVisuel(f); e.target.value="";}}/>
+          </label>
+          <button onClick={genererVisuelIA} disabled={iaVisuelCharge} style={{flex:1,background:"rgba(124,58,237,0.15)",border:"1px solid rgba(124,58,237,0.4)",borderRadius:8,padding:"8px",color:"#a78bfa",fontSize:11,fontWeight:700,fontFamily:SA,cursor:iaVisuelCharge?"wait":"pointer"}}>
+            {iaVisuelCharge?"Génération…":"✨ Générer avec l'IA"}
+          </button>
+        </div>
+        {iaVisuelErreur && <div style={{fontSize:10,color:"#f87171"}}>{iaVisuelErreur}</div>}
         {visuelsPertinents.length>0 && (
           <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
             {visuelsPertinents.map(v=>(
               <div key={v.id} style={{flexShrink:0,width:100,display:"flex",flexDirection:"column",gap:4}}>
-                <img src={v.image_url} alt={v.titre} style={{width:100,height:100,objectFit:"cover",borderRadius:8,border:"1px solid "+B.border}}/>
+                <div style={{position:"relative"}}>
+                  <img src={v.image_url} alt={v.titre} style={{width:100,height:100,objectFit:"cover",borderRadius:8,border:"1px solid "+B.border}}/>
+                  {v.notes?.includes("Généré par IA") && (
+                    <span style={{position:"absolute",top:3,left:3,background:"rgba(124,58,237,0.85)",color:"#fff",fontSize:8,fontWeight:700,borderRadius:4,padding:"1px 4px"}}>IA</span>
+                  )}
+                </div>
                 <div style={{fontSize:9,color:B.cream,textAlign:"center"}}>{v.titre}</div>
                 <Btn sm v="ghost" onClick={()=>ajouterVisuelAuxNotes(v)}>+ Utiliser</Btn>
               </div>
