@@ -6442,12 +6442,22 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   const [jeuxThemes, setJeuxThemes] = useState([]);
   const [jeuxCharges, setJeuxCharges] = useState(false);
   const [jeuOuvert, setJeuOuvert] = useState(null);
+  // Vraies parties multijoueurs (migration 0082) — demande explicite :
+  // la fondatrice doit savoir s'il y a des parties en cours et avoir
+  // les identifiants des participant·e·s, même sans accès au contenu
+  // du jeu lui-même. Policy RLS dédiée (bsh_parties/bsh_parties_participants
+  // en lecture seule) ; bsh_parties_tirages (le contenu) n'a aucune
+  // policy et n'est donc jamais lisible ici.
+  const [partiesListe, setPartiesListe] = useState([]);
+  const [partiesParticipants, setPartiesParticipants] = useState([]);
   useEffect(() => {
     if (sec !== "jeux" || jeuxCharges) return;
     setJeuxCharges(true);
     sbGet("bsh_jeux", { order: "ordre.asc", limit: 200 }).then(setJeuxListe).catch(()=>{});
     sbGet("bsh_jeux_cartes", { order: "ordre.asc", limit: 500 }).then(setJeuxCartes).catch(()=>{});
     sbGet("bsh_jeux_themes", { order: "created_at.desc", limit: 200 }).then(setJeuxThemes).catch(()=>{});
+    sbGet("bsh_parties", { order: "created_at.desc", limit: 100 }).then(setPartiesListe).catch(()=>{});
+    sbGet("bsh_parties_participants", { order: "rejoint_le.asc", limit: 500 }).then(setPartiesParticipants).catch(()=>{});
   }, [sec, jeuxCharges]);
 
   const sauvegarderJeu = async () => {
@@ -6733,7 +6743,41 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}>
               <BBtn v="gold" sz="sm" onClick={()=>{setForm({icone:"🎴",type_jeu:"cartes_defis",intensite:"audace",statut:"brouillon",ordre:jeuxListe.length+1});setModal("jeu_bsh");}}>+ Jeu</BBtn>
             </div>
-            <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:4}}>Jeux ({jeuxListe.length})</div>
+            <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:4}}>
+              🎲 Parties en cours ({partiesListe.filter(p=>p.statut==="en_cours").length})
+            </div>
+            <div style={{fontSize:9,color:BSH.cremeD,fontStyle:"italic",marginBottom:2}}>
+              Qui joue, depuis quand, avec quel code — le contenu de la partie (cartes tirées) reste privé aux participant·e·s.
+            </div>
+            {partiesListe.filter(p=>p.statut==="en_cours").length===0 && (
+              <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucune partie en cours.</div>
+            )}
+            {partiesListe.filter(p=>p.statut==="en_cours").map(p=>{
+              const jeu = jeuxListe.find(j=>j.id===p.jeu_id);
+              const participants = partiesParticipants.filter(x=>x.partie_id===p.id);
+              return (
+                <div key={p.id} style={{background:BSH.verre,border:"1px solid "+(BSH.line),borderRadius:12,padding:"11px 13px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:BSH.creme}}>{jeu ? jeu.icone+" "+jeu.nom : "Jeu inconnu"} — code {p.code}</div>
+                      <div style={{fontSize:10,color:BSH.cremeD,marginTop:2}}>
+                        {participants.length} participant{participants.length>1?"s":""} · depuis le {new Date(p.created_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · tour {p.tour_actuel||0}
+                      </div>
+                    </div>
+                  </div>
+                  {participants.length>0 && (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:7}}>
+                      {participants.map(x=>(
+                        <span key={x.id} style={{fontSize:9,color:BSH.cremeD,background:"rgba(255,255,255,0.05)",borderRadius:20,padding:"3px 9px"}}>
+                          {x.pseudo || "Compte connecté"} · {new Date(x.rejoint_le).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <div style={{fontSize:11,fontWeight:700,color:BSH.or,marginTop:10}}>Jeux ({jeuxListe.length})</div>
             {jeuxListe.length===0 && <div style={{fontSize:11,color:BSH.cremeD,fontStyle:"italic",padding:"8px 0"}}>Aucun jeu pour l'instant.</div>}
             {jeuxListe.map(j=>{
               const nbCartes = jeuxCartes.filter(c=>c.jeu_id===j.id).length;
@@ -9780,17 +9824,21 @@ function EventsProgrammeF({ user }) {
   const [lignes, setLignes] = useState([]); // {service, libelle, prix, origine:"catalogue"|"libre"}
   const [enregistrement, setEnregistrement] = useState("idle");
 
+  const [visuelsDecoration, setVisuelsDecoration] = useState([]);
+
   const charger = useCallback(async () => {
     setLProg(true);
     const token = await getTokenAsync();
     try {
-      const [rProg, rRec] = await Promise.all([
+      const [rProg, rRec, rVis] = await Promise.all([
         fetch(SB_URL+"/rest/v1/events_programmes?select=*&order=created_at.desc&limit=100", { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }),
         fetch(SB_URL+"/rest/v1/food_recettes?select=id,nom,prix_conseille,service_evenement&service_evenement=not.is.null&order=nom.asc&limit=300", { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }),
+        fetch(SB_URL+"/rest/v1/events_visuels_decoration?select=*&order=created_at.desc&limit=200", { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }),
       ]);
       setProgrammes(rProg.ok ? await rProg.json() : []);
       setRecettes(rRec.ok ? await rRec.json() : []);
-    } catch { setProgrammes([]); setRecettes([]); }
+      setVisuelsDecoration(rVis.ok ? await rVis.json() : []);
+    } catch { setProgrammes([]); setRecettes([]); setVisuelsDecoration([]); }
     setLProg(false);
   }, []);
   useEffect(() => { charger(); }, [charger]);
@@ -9852,6 +9900,43 @@ function EventsProgrammeF({ user }) {
     setLignes(ls => [...ls, { service, libelle: idee.plat + (idee.description ? " — "+idee.description : "") + " (estimation IA)", prix: idee.estimation_prix != null ? parseFloat(idee.estimation_prix) : 0, origine: "ia" }]);
     setIaIdees(ls => ls.filter(i => i !== idee));
   };
+
+  // ── Bibliothèque de ses propres photos de décoration (migration
+  // 0083) — demande explicite "les deux" (ses photos + IA en
+  // complément) pour l'item "visuels de décoration". Réutilise le
+  // bucket stocks-images déjà en place (StocksF) plutôt que d'en créer
+  // un nouveau — pas d'action Supabase supplémentaire à lui demander.
+  const [visuelForm, setVisuelForm] = useState({ titre:"", occasion:"", theme:"" });
+  const [visuelUpload, setVisuelUpload] = useState(false);
+  const uploaderVisuel = async (file) => {
+    if (!visuelForm.titre.trim()) { alert("Donnez un titre à ce visuel avant de l'envoyer."); return; }
+    setVisuelUpload(true);
+    try {
+      const token = await getTokenAsync();
+      const chemin = `decoration/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_")}`;
+      const r = await fetch(`${SB_URL}/storage/v1/object/stocks-images/${chemin}`, {
+        method: "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!r.ok) { alert("Échec de l'envoi de la photo."); setVisuelUpload(false); return; }
+      const imageUrl = `${SB_URL}/storage/v1/object/public/stocks-images/${chemin}`;
+      const res = await sbPost("events_visuels_decoration", {
+        titre: visuelForm.titre.trim(), occasion: visuelForm.occasion || null, theme: visuelForm.theme || null, image_url: imageUrl,
+      });
+      if (!res.ok) { alert("Erreur enregistrement : "+(res.error||"inconnue")); setVisuelUpload(false); return; }
+      const row = Array.isArray(res.data) ? res.data[0] : res.data;
+      if (row) setVisuelsDecoration(vs => [row, ...vs]);
+      setVisuelForm({ titre:"", occasion:"", theme:"" });
+    } catch { alert("Erreur lors de l'envoi."); }
+    setVisuelUpload(false);
+  };
+  const ajouterVisuelAuxNotes = (v) => {
+    setForm(f => ({ ...f, decoration_notes: (f.decoration_notes ? f.decoration_notes + "\n" : "") + "📸 "+v.titre+" — "+v.image_url }));
+  };
+  const visuelsPertinents = visuelsDecoration.filter(v =>
+    (!form.occasion || !v.occasion || v.occasion === form.occasion) && (!form.theme_nom || !v.theme || v.theme === form.theme_nom)
+  );
 
   const enregistrerProgramme = async () => {
     if (!form.client_nom?.trim()) { alert("Nom de la cliente requis."); return; }
@@ -9943,6 +10028,33 @@ function EventsProgrammeF({ user }) {
             <Btn sm v="gold" onClick={()=>idee._type==="decoration"?ajouterIdeeDecoration(idee):ajouterIdeeMenu(idee)}>+ Ajouter</Btn>
           </div>
         ))}
+      </div>
+
+      {/* Vos propres photos de décoration — bibliothèque taguée par
+          occasion/thème, proposée au bon moment dans le compositeur. */}
+      <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#065f46",letterSpacing:0.5,textTransform:"uppercase"}}>📸 Vos visuels de décoration</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{flex:"1 1 140px"}}><Inp value={visuelForm.titre} onChange={e=>setVisuelForm(f=>({...f,titre:e.target.value}))} placeholder="Titre du visuel"/></div>
+          <div style={{flex:"1 1 120px"}}><Inp value={visuelForm.occasion} onChange={e=>setVisuelForm(f=>({...f,occasion:e.target.value}))} placeholder="Occasion (optionnel)"/></div>
+          <div style={{flex:"1 1 120px"}}><Inp value={visuelForm.theme} onChange={e=>setVisuelForm(f=>({...f,theme:e.target.value}))} placeholder="Thème (optionnel)"/></div>
+        </div>
+        <label style={{textAlign:"center",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:8,padding:"8px",color:B.gold,fontSize:11,fontWeight:700,cursor:visuelUpload?"wait":"pointer",fontFamily:SA}}>
+          {visuelUpload?"Envoi…":"+ Ajouter une photo"}
+          <input type="file" accept="image/*" disabled={visuelUpload} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) uploaderVisuel(f); e.target.value="";}}/>
+        </label>
+        {visuelsPertinents.length>0 && (
+          <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
+            {visuelsPertinents.map(v=>(
+              <div key={v.id} style={{flexShrink:0,width:100,display:"flex",flexDirection:"column",gap:4}}>
+                <img src={v.image_url} alt={v.titre} style={{width:100,height:100,objectFit:"cover",borderRadius:8,border:"1px solid "+B.border}}/>
+                <div style={{fontSize:9,color:B.cream,textAlign:"center"}}>{v.titre}</div>
+                <Btn sm v="ghost" onClick={()=>ajouterVisuelAuxNotes(v)}>+ Utiliser</Btn>
+              </div>
+            ))}
+          </div>
+        )}
+        {visuelsDecoration.length===0 && <div style={{fontSize:10,color:B.muted,fontStyle:"italic"}}>Aucun visuel ajouté pour l'instant.</div>}
       </div>
 
       {SERVICES_PROGRAMME.map(service => {
