@@ -9881,16 +9881,21 @@ function EventsProgrammeF({ user }) {
   }, []);
   useEffect(() => { charger(); }, [charger]);
 
+  // Accepte la virgule décimale française ("4,50") aussi bien que le
+  // point — demande explicite de Renée-Lise, les claviers numériques
+  // affichent souvent une virgule et parseFloat seul la rejette.
+  const nombreFr = (v) => { const n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? 0 : n; };
+
   const ajouterLigneCatalogue = (service, recetteId) => {
     if (!recetteId) return;
     const r = recettes.find(x => x.id === recetteId);
     if (!r) return;
-    setLignes(ls => [...ls, { service, libelle: r.nom, prix: r.prix_conseille != null ? parseFloat(r.prix_conseille) : 0, qte: 1, origine: "catalogue" }]);
+    setLignes(ls => [...ls, { service, libelle: r.nom, prix: r.prix_conseille != null ? parseFloat(r.prix_conseille) : 0, qte: 1, unite: "", origine: "catalogue" }]);
   };
-  const ajouterLigneLibre = (service) => setLignes(ls => [...ls, { service, libelle: "", prix: 0, qte: 1, origine: "libre" }]);
+  const ajouterLigneLibre = (service) => setLignes(ls => [...ls, { service, libelle: "", prix: 0, qte: 1, unite: "", origine: "libre" }]);
   const majLigne = (i, champ, val) => setLignes(ls => ls.map((l, idx) => idx === i ? { ...l, [champ]: val } : l));
   const supprimerLigne = (i) => setLignes(ls => ls.filter((_, idx) => idx !== i));
-  const totalLigne = (l) => (parseFloat(l.prix) || 0) * (parseInt(l.qte, 10) || 1);
+  const totalLigne = (l) => (parseFloat(l.prix) || 0) * (parseFloat(l.qte) || 1);
   const totalProgramme = lignes.reduce((s, l) => s + totalLigne(l), 0);
 
   const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setIaIdees([]); setIaErreur(null); setEditingId(null); setVue("compositeur"); };
@@ -9907,7 +9912,7 @@ function EventsProgrammeF({ user }) {
       theme_description: p.theme_description || "", decoration_notes: p.decoration_notes || "",
       date_evenement: p.date_evenement || "", nb_personnes: p.nb_personnes != null ? String(p.nb_personnes) : "",
     });
-    setLignes(lignesP.map(l => ({ ...l, qte: l.qte || 1 })));
+    setLignes(lignesP.map(l => ({ ...l, qte: l.qte || 1, unite: l.unite || "" })));
     setEditingId(dupliquer ? null : p.id);
     setIaIdees([]); setIaErreur(null);
     setDetailProg(null);
@@ -10021,6 +10026,38 @@ function EventsProgrammeF({ user }) {
     (!form.occasion || !v.occasion || v.occasion === form.occasion) && (!form.theme_nom || !v.theme || v.theme === form.theme_nom)
   );
 
+  // Les lignes "libres" (hors catalogue Food) demandées explicitement
+  // par Renée-Lise doivent alimenter le catalogue plutôt que rester
+  // invisibles : nouveau plat → créé en brouillon avec son prix ;
+  // plat déjà connu mais sans prix → prix comblé. Un prix déjà présent
+  // dans le catalogue n'est JAMAIS écrasé (même garde "is.null" que la
+  // validation des prix pâtisserie) — une ligne de programme reste
+  // toujours modifiable pour elle sans toucher au catalogue si elle le
+  // souhaite simplement ponctuellement.
+  const synchroniserCatalogue = async (lignesAEnregistrer) => {
+    const token = await getTokenAsync();
+    for (const l of lignesAEnregistrer) {
+      if (l.origine !== "libre" || !l.libelle?.trim()) continue;
+      try {
+        const rExist = await fetch(`${SB_URL}/rest/v1/food_recettes?nom=ilike.${encodeURIComponent(l.libelle.trim())}&select=id,prix_conseille&limit=1`, { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } });
+        const existants = rExist.ok ? await rExist.json() : [];
+        if (existants.length === 0) {
+          await fetch(`${SB_URL}/rest/v1/food_recettes`, {
+            method: "POST",
+            headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json", Prefer:"return=minimal" },
+            body: JSON.stringify({ nom: l.libelle.trim(), prix_conseille: l.prix ? parseFloat(l.prix) : null, service_evenement: l.service, statut: "brouillon" }),
+          });
+        } else if (existants[0].prix_conseille == null && l.prix) {
+          await fetch(`${SB_URL}/rest/v1/food_recettes?id=eq.${existants[0].id}&prix_conseille=is.null`, {
+            method: "PATCH",
+            headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json", Prefer:"return=minimal" },
+            body: JSON.stringify({ prix_conseille: parseFloat(l.prix) }),
+          });
+        }
+      } catch (e) { console.error("[EventsProgrammeF] synchroniserCatalogue:", e); }
+    }
+  };
+
   const enregistrerProgramme = async () => {
     if (!form.client_nom?.trim()) { alert("Nom de la cliente requis."); return; }
     setEnregistrement("en_cours");
@@ -10035,7 +10072,7 @@ function EventsProgrammeF({ user }) {
     if (editingId) {
       const res = await sbPatch("events_programmes", editingId, payloadCommun);
       setEnregistrement(res.ok ? "ok" : "erreur");
-      if (res.ok) { setVue("liste"); setEditingId(null); charger(); }
+      if (res.ok) { await synchroniserCatalogue(lignes); setVue("liste"); setEditingId(null); charger(); }
       else alert("Échec de l'enregistrement.\n"+(res.error||""));
       return;
     }
@@ -10043,7 +10080,7 @@ function EventsProgrammeF({ user }) {
     try { reference = await genererReference("PROG"); } catch {}
     const res = await sbPost("events_programmes", { ...payloadCommun, reference, statut: "brouillon" });
     setEnregistrement(res.ok ? "ok" : "erreur");
-    if (res.ok) { setVue("liste"); charger(); }
+    if (res.ok) { await synchroniserCatalogue(lignes); setVue("liste"); charger(); }
     else alert("Échec de l'enregistrement.\n"+(res.error||""));
   };
 
@@ -10066,7 +10103,7 @@ function EventsProgrammeF({ user }) {
       <div class="sub">${p.client_nom||""}${p.date_evenement?" · "+p.date_evenement:""}${p.nb_personnes?" · "+p.nb_personnes+" personnes":""} · Réf. ${p.reference||""}</div>
       ${p.theme_nom ? `<div class="bloc"><h2>Thème</h2><div>${p.theme_nom}</div>${p.theme_description?`<div style="margin-top:4px;font-size:12px;color:#555">${p.theme_description}</div>`:""}</div>` : ""}
       ${p.decoration_notes ? `<div class="bloc"><h2>Décoration</h2><div style="font-size:12px">${p.decoration_notes}</div></div>` : ""}
-      ${Object.entries(parService).map(([service,ls])=>`<div class="bloc"><h2>${service}</h2><table>${ls.map(l=>{const qte=parseInt(l.qte,10)||1;const total=(parseFloat(l.prix)||0)*qte;return `<tr><td>${qte>1?qte+" × ":""}${l.libelle}</td><td style="text-align:right">${l.prix?total.toFixed(2)+"€":"—"}</td></tr>`;}).join("")}</table></div>`).join("")}
+      ${Object.entries(parService).map(([service,ls])=>`<div class="bloc"><h2>${service}</h2><table>${ls.map(l=>{const qte=parseFloat(l.qte)||1;const total=(parseFloat(l.prix)||0)*qte;const prefixe=(qte>1||l.unite)?qte+(l.unite?" "+l.unite:"")+" × ":"";return `<tr><td>${prefixe}${l.libelle}</td><td style="text-align:right">${l.prix?total.toFixed(2)+"€":"—"}</td></tr>`;}).join("")}</table></div>`).join("")}
       <div class="total">Total : ${parseFloat(p.total||0).toFixed(2)}€</div>
       </body></html>`;
     const w = window.open("", "_blank");
@@ -10102,11 +10139,11 @@ function EventsProgrammeF({ user }) {
         <div style={{display:"flex",gap:8}}>
           <label style={{flex:1,textAlign:"center",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:8,padding:"8px",color:B.gold,fontSize:11,fontWeight:700,cursor:iaCharge?"wait":"pointer",fontFamily:SA}}>
             {iaCharge?"Analyse…":"🎨 Photo décoration"}
-            <input type="file" accept="image/*" capture="environment" disabled={iaCharge} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) analyserPhoto(f,"decoration"); e.target.value="";}}/>
+            <input type="file" accept="image/*" disabled={iaCharge} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) analyserPhoto(f,"decoration"); e.target.value="";}}/>
           </label>
           <label style={{flex:1,textAlign:"center",background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:8,padding:"8px",color:"#4ade80",fontSize:11,fontWeight:700,cursor:iaCharge?"wait":"pointer",fontFamily:SA}}>
             {iaCharge?"Analyse…":"🍽 Photo menu"}
-            <input type="file" accept="image/*" capture="environment" disabled={iaCharge} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) analyserPhoto(f,"menu"); e.target.value="";}}/>
+            <input type="file" accept="image/*" disabled={iaCharge} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) analyserPhoto(f,"menu"); e.target.value="";}}/>
           </label>
         </div>
         {iaErreur && <div style={{fontSize:10,color:"#f87171",background:"rgba(248,113,113,0.08)",borderRadius:8,padding:"8px 10px"}}>{iaErreur}</div>}
@@ -10172,13 +10209,15 @@ function EventsProgrammeF({ user }) {
                 <div style={{display:"flex",gap:6,alignItems:"center"}}>
                   <input value={l.libelle} onChange={e=>majLigne(l._idx,"libelle",e.target.value)} disabled={l.origine==="catalogue"}
                     style={{flex:2,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
-                  <input type="number" title="Parts / quantité" value={l.qte||1} min={1} onChange={e=>majLigne(l._idx,"qte",parseInt(e.target.value,10)||1)}
-                    style={{width:48,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 5px",color:"#fff",fontSize:12,fontFamily:SA,textAlign:"center"}}/>
-                  <input type="number" title="Prix unitaire" value={l.prix} onChange={e=>majLigne(l._idx,"prix",parseFloat(e.target.value)||0)}
-                    style={{width:70,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
+                  <input type="text" inputMode="decimal" title="Quantité" value={l.qte ?? 1} onChange={e=>majLigne(l._idx,"qte",nombreFr(e.target.value)||1)}
+                    style={{width:42,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 5px",color:"#fff",fontSize:12,fontFamily:SA,textAlign:"center"}}/>
+                  <input value={l.unite||""} onChange={e=>majLigne(l._idx,"unite",e.target.value)} placeholder="unité, lot, L…"
+                    style={{width:72,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 7px",color:"#fff",fontSize:11,fontFamily:SA}}/>
+                  <input type="text" inputMode="decimal" title="Prix pour cette unité" value={l.prix} onChange={e=>majLigne(l._idx,"prix",nombreFr(e.target.value))}
+                    style={{width:64,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 7px",color:"#fff",fontSize:12,fontFamily:SA}}/>
                   <button onClick={()=>supprimerLigne(l._idx)} style={{background:"rgba(248,113,113,0.12)",border:"none",borderRadius:8,padding:"6px 9px",color:"#f87171",cursor:"pointer"}}>✕</button>
                 </div>
-                {(parseInt(l.qte,10)||1) > 1 && <div style={{fontSize:9,color:B.muted,paddingLeft:2}}>{l.qte} parts × {(parseFloat(l.prix)||0).toFixed(2)}€ = {totalLigne(l).toFixed(2)}€</div>}
+                {((parseFloat(l.qte)||1) > 1 || l.unite) && <div style={{fontSize:9,color:B.muted,paddingLeft:2}}>{l.qte||1}{l.unite?" "+l.unite:""} × {(parseFloat(l.prix)||0).toFixed(2)}€ = {totalLigne(l).toFixed(2)}€</div>}
               </div>
             ))}
             <div style={{display:"flex",gap:6}}>
@@ -10217,10 +10256,11 @@ function EventsProgrammeF({ user }) {
           {detailProg.theme_nom && <div style={{marginTop:6}}>🎨 {detailProg.theme_nom}</div>}
           <div style={{marginTop:8,borderTop:"1px solid "+B.border,paddingTop:8}}>
             {lignesP.map((l,i)=>{
-              const qte = parseInt(l.qte,10)||1;
+              const qte = parseFloat(l.qte)||1;
+              const prefixe = (qte>1||l.unite) ? qte+(l.unite?" "+l.unite:"")+" × " : "";
               return (
                 <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
-                  <span>{l.service} — {qte>1?qte+"× ":""}{l.libelle}</span><span>{l.prix?((parseFloat(l.prix)||0)*qte).toFixed(2)+"€":"—"}</span>
+                  <span>{l.service} — {prefixe}{l.libelle}</span><span>{l.prix?((parseFloat(l.prix)||0)*qte).toFixed(2)+"€":"—"}</span>
                 </div>
               );
             })}

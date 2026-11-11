@@ -56,16 +56,39 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join(" ");
 
   try {
-    const genRes = await fetch("https://api.openai.com/v1/images/generations", {
+    // gpt-image-1 exige une organisation OpenAI "vérifiée" (pièce
+    // d'identité) — tant que ce n'est pas fait, l'API répond "model
+    // does not exist" bien que la clé soit valide. On retombe alors
+    // automatiquement sur dall-e-3 (pas de vérification requise) pour
+    // que la fonctionnalité marche dès maintenant ; le modèle réel
+    // utilisé est conservé dans les notes du visuel, jamais présenté
+    // comme gpt-image-1 s'il ne l'est pas.
+    let modeleUtilise = "gpt-image-1";
+    let genRes = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ model: "gpt-image-1", prompt, size: "1024x1024", n: 1 }),
     });
     if (!genRes.ok) {
       const errData = await genRes.json().catch(() => ({}));
-      const errMsg = errData.error?.message || `Erreur OpenAI ${genRes.status}`;
-      console.error("[ia/generer-visuel-decoration] OpenAI error:", errMsg);
-      return NextResponse.json({ error: errMsg }, { status: genRes.status });
+      const errMsg: string = errData.error?.message || `Erreur OpenAI ${genRes.status}`;
+      const modeleIndisponible = genRes.status === 400 && /does not exist|model_not_found|not have access/i.test(errMsg);
+      if (!modeleIndisponible) {
+        console.error("[ia/generer-visuel-decoration] OpenAI error:", errMsg);
+        return NextResponse.json({ error: errMsg }, { status: genRes.status });
+      }
+      modeleUtilise = "dall-e-3";
+      genRes = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: "dall-e-3", prompt, size: "1024x1024", quality: "standard", n: 1, response_format: "b64_json" }),
+      });
+      if (!genRes.ok) {
+        const errData2 = await genRes.json().catch(() => ({}));
+        const errMsg2 = errData2.error?.message || `Erreur OpenAI ${genRes.status}`;
+        console.error("[ia/generer-visuel-decoration] OpenAI error (dall-e-3):", errMsg2);
+        return NextResponse.json({ error: errMsg2 }, { status: genRes.status });
+      }
     }
     const genData = await genRes.json();
     let b64 = genData.data?.[0]?.b64_json as string | undefined;
@@ -88,7 +111,7 @@ export async function POST(req: NextRequest) {
 
     const { data: row, error: errInsert } = await sb.from("events_visuels_decoration").insert({
       titre: titre.trim(), occasion: occasion || null, theme: theme || null, image_url: imageUrl,
-      notes: "Généré par IA (OpenAI gpt-image-1) — estimation visuelle, pas une photo réelle.",
+      notes: `Généré par IA (OpenAI ${modeleUtilise}) — estimation visuelle, pas une photo réelle.`,
       created_by: user.id,
     }).select("*").single();
     if (errInsert) return NextResponse.json({ error: errInsert.message }, { status: 500 });
