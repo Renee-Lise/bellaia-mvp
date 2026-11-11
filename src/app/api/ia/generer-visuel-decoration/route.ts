@@ -78,10 +78,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: errMsg }, { status: genRes.status });
       }
       modeleUtilise = "dall-e-3";
+      // Ce compte refuse "response_format" (paramètre retiré/non
+      // supporté selon le compte) — on prend donc la réponse par
+      // défaut (une URL) et on la télécharge nous-mêmes juste après.
       genRes = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: "dall-e-3", prompt, size: "1024x1024", quality: "standard", n: 1, response_format: "b64_json" }),
+        body: JSON.stringify({ model: "dall-e-3", prompt, size: "1024x1024", quality: "standard", n: 1 }),
       });
       if (!genRes.ok) {
         const errData2 = await genRes.json().catch(() => ({}));
