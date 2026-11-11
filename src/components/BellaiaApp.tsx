@@ -9876,9 +9876,10 @@ function EventsProgrammeF({ user }) {
   const [editingId, setEditingId] = useState(null);
 
   const [visuelsDecoration, setVisuelsDecoration] = useState([]);
+  const [erreurProg, setErreurProg] = useState(null);
 
   const charger = useCallback(async () => {
-    setLProg(true);
+    setLProg(true); setErreurProg(null);
     const token = await getTokenAsync();
     try {
       const [rProg, rRec, rVis] = await Promise.all([
@@ -9886,10 +9887,23 @@ function EventsProgrammeF({ user }) {
         fetch(SB_URL+"/rest/v1/food_recettes?select=id,nom,prix_conseille,service_evenement&service_evenement=not.is.null&order=nom.asc&limit=300", { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }),
         fetch(SB_URL+"/rest/v1/events_visuels_decoration?select=*&order=created_at.desc&limit=200", { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }),
       ]);
+      // Un 401 (ou le jeton anonyme faute de session) ne doit jamais se
+      // traduire par une liste silencieusement vide — demande explicite
+      // de Renée-Lise après plusieurs incidents du même genre.
+      if (!rProg.ok || token === SB_KEY) {
+        setErreurProg(
+          rProg.status === 401 || token === SB_KEY
+            ? "Votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez."
+            : "Impossible de charger les programmes (erreur "+rProg.status+")."
+        );
+      }
       setProgrammes(rProg.ok ? await rProg.json() : []);
       setRecettes(rRec.ok ? await rRec.json() : []);
       setVisuelsDecoration(rVis.ok ? await rVis.json() : []);
-    } catch { setProgrammes([]); setRecettes([]); setVisuelsDecoration([]); }
+    } catch (e) {
+      setErreurProg(e?.message || "Connexion impossible au serveur.");
+      setProgrammes([]); setRecettes([]); setVisuelsDecoration([]);
+    }
     setLProg(false);
   }, []);
   useEffect(() => { charger(); }, [charger]);
@@ -10300,7 +10314,12 @@ function EventsProgrammeF({ user }) {
         <div style={{fontSize:13,fontWeight:800,color:B.cream}}>Programmes ({programmes.length})</div>
         <Btn sm v="gold" onClick={nouveauProgramme}>+ Nouveau programme</Btn>
       </div>
-      {programmes.length===0 && <div style={{textAlign:"center",padding:24,color:B.muted,fontSize:13}}>Aucun programme enregistré pour l'instant.</div>}
+      {erreurProg && (
+        <div style={{background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:10,padding:"10px 13px",fontSize:12,color:"#f87171"}}>
+          ⚠ {erreurProg}
+        </div>
+      )}
+      {!erreurProg && programmes.length===0 && <div style={{textAlign:"center",padding:24,color:B.muted,fontSize:13}}>Aucun programme enregistré pour l'instant.</div>}
       {programmes.map(p=>(
         <div key={p.id} onClick={()=>setDetailProg(p)} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
           <div style={{display:"flex",justifyContent:"space-between"}}>
@@ -10340,7 +10359,11 @@ function BellaEventsF({ user }) {
       if (!r.ok) {
         const errBody = await r.text();
         console.error("[Bellaïa][events_demandes] Erreur lecture HTTP "+r.status+":", errBody);
-        setErreurDem("Impossible de charger les demandes (erreur "+r.status+"). Vérifiez la connexion ou la configuration Supabase.");
+        setErreurDem(
+          r.status === 401 || token === SB_KEY
+            ? "Votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez."
+            : "Impossible de charger les demandes (erreur "+r.status+"). Vérifiez la connexion ou la configuration Supabase."
+        );
         setDemandesEvents([]);
       } else {
         const rows = await r.json();
