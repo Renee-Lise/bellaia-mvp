@@ -9977,6 +9977,28 @@ function EventsProgrammeF({ user }) {
       if (!r.ok) { setIaErreur(d.error || "Échec de l'analyse."); setIaCharge(false); return; }
       setIaIdees((d.idees || []).map(i => ({ ...i, _type: type })));
       if ((d.idees || []).length === 0 && d.texteBrut) setIaErreur("Réponse inattendue de l'IA — réessayez avec une autre photo.");
+
+      // Toute photo utilisée doit rester enregistrée, pas seulement
+      // analysée puis perdue — demande explicite de Renée-Lise.
+      // Échec d'enregistrement : jamais bloquant pour l'analyse elle-même.
+      try {
+        const chemin = `decoration/analyse-${Date.now()}.${(mediaType.split("/")[1]||"jpg")}`;
+        const upload = await fetch(`${SB_URL}/storage/v1/object/stocks-images/${chemin}`, {
+          method: "POST",
+          headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": mediaType },
+          body: Uint8Array.from(atob(b64), c => c.charCodeAt(0)),
+        });
+        if (upload.ok) {
+          const imageUrl = `${SB_URL}/storage/v1/object/public/stocks-images/${chemin}`;
+          const res = await sbPost("events_visuels_decoration", {
+            titre: (type === "decoration" ? "Photo décoration analysée" : "Photo menu analysée") + " — " + new Date().toLocaleDateString("fr-FR"),
+            occasion: form.occasion || null, theme: form.theme_nom || null, image_url: imageUrl,
+            notes: "Photo source d'une analyse IA (idées "+(type==="decoration"?"décoration":"menu")+").",
+          });
+          const row = Array.isArray(res?.data) ? res.data[0] : res?.data;
+          if (res?.ok && row) setVisuelsDecoration(vs => [row, ...vs]);
+        }
+      } catch {}
     } catch (e) {
       setIaErreur(e?.message || "Erreur réseau.");
     }
