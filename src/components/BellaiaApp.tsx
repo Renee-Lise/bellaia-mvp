@@ -9841,6 +9841,17 @@ function useSwipeBack(onBack) {
       if (!t || t.clientX > 24) { actif = false; return; }
       startX = t.clientX; startY = t.clientY; actif = true;
     };
+    // Supprime le geste de retour natif du navigateur/PWA dans la
+    // même zone de bord — les deux gestes se déclenchant ensemble
+    // produisaient un affichage cassé (chevron natif + notre propre
+    // retour qui se chevauchent). touchmove non-passif, uniquement
+    // dans la zone de bord concernée, pour ne jamais gêner le
+    // défilement normal ailleurs sur l'écran.
+    const deplacement = (e) => {
+      if (!actif) return;
+      const t = e.touches[0];
+      if (t && Math.abs(t.clientX - startX) > Math.abs(t.clientY - startY)) e.preventDefault();
+    };
     const fin = (e) => {
       if (!actif || startX == null) return;
       const t = e.changedTouches[0];
@@ -9851,9 +9862,11 @@ function useSwipeBack(onBack) {
       actif = false; startX = null; startY = null;
     };
     window.addEventListener("touchstart", debut, { passive: true });
+    window.addEventListener("touchmove", deplacement, { passive: false });
     window.addEventListener("touchend", fin, { passive: true });
     return () => {
       window.removeEventListener("touchstart", debut);
+      window.removeEventListener("touchmove", deplacement);
       window.removeEventListener("touchend", fin);
     };
   }, [onBack]);
@@ -10045,8 +10058,13 @@ function EventsProgrammeF({ user }) {
     } catch { alert("Erreur lors de l'envoi."); }
     setVisuelUpload(false);
   };
+  // Juste le titre, jamais l'URL brute de l'image : une longue URL
+  // insérée telle quelle dans un simple champ texte cassait l'affichage
+  // (débordement visuel) et n'a rien à faire dans un texte imprimable
+  // envoyé à une cliente. Le visuel reste de toute façon consultable
+  // dans la bibliothèque juste au-dessus.
   const ajouterVisuelAuxNotes = (v) => {
-    setForm(f => ({ ...f, decoration_notes: (f.decoration_notes ? f.decoration_notes + "\n" : "") + "📸 "+v.titre+" — "+v.image_url }));
+    setForm(f => ({ ...f, decoration_notes: (f.decoration_notes ? f.decoration_notes + "\n" : "") + "📸 "+v.titre+" (visuel joint)" }));
   };
 
   // Génération d'un visuel par IA (OpenAI gpt-image-1, choix confirmé
@@ -10054,20 +10072,36 @@ function EventsProgrammeF({ user }) {
   // le résultat porte toujours la mention "Généré par IA" dans ses notes.
   const [iaVisuelCharge, setIaVisuelCharge] = useState(false);
   const [iaVisuelErreur, setIaVisuelErreur] = useState(null);
+  // Photo de référence optionnelle pour la génération — demande
+  // explicite de Renée-Lise : pouvoir partir d'une de ses photos déjà
+  // importées, tout en gardant la génération texte-seul possible sans
+  // en sélectionner aucune.
+  const [visuelReference, setVisuelReference] = useState(null);
   const genererVisuelIA = async () => {
     if (!visuelForm.titre.trim()) { alert("Donnez un titre à ce visuel avant de le générer."); return; }
     setIaVisuelErreur(null); setIaVisuelCharge(true);
     try {
       const token = await getTokenAsync();
+      let imageReferenceBase64 = null, imageReferenceMediaType = null;
+      if (visuelReference) {
+        const rImg = await fetch(visuelReference.image_url);
+        if (!rImg.ok) { setIaVisuelErreur("Impossible de récupérer la photo de référence."); setIaVisuelCharge(false); return; }
+        const buf = await rImg.arrayBuffer();
+        imageReferenceMediaType = rImg.headers.get("content-type") || "image/png";
+        let binaire = ""; const octets = new Uint8Array(buf);
+        for (let i = 0; i < octets.length; i += 0x8000) binaire += String.fromCharCode.apply(null, octets.subarray(i, i+0x8000));
+        imageReferenceBase64 = btoa(binaire);
+      }
       const r = await fetch("/api/ia/generer-visuel-decoration", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer "+token },
-        body: JSON.stringify({ titre: visuelForm.titre.trim(), occasion: visuelForm.occasion || form.occasion, theme: visuelForm.theme || form.theme_nom, description: form.theme_description }),
+        body: JSON.stringify({ titre: visuelForm.titre.trim(), occasion: visuelForm.occasion || form.occasion, theme: visuelForm.theme || form.theme_nom, description: form.theme_description, imageReferenceBase64, imageReferenceMediaType }),
       });
       const d = await r.json();
       if (!r.ok) { setIaVisuelErreur(d.error || "Échec de la génération."); setIaVisuelCharge(false); return; }
       if (d.visuel) setVisuelsDecoration(vs => [d.visuel, ...vs]);
       setVisuelForm({ titre:"", occasion:"", theme:"" });
+      setVisuelReference(null);
     } catch (e) { setIaVisuelErreur(e?.message || "Erreur réseau."); }
     setIaVisuelCharge(false);
   };
@@ -10226,15 +10260,27 @@ function EventsProgrammeF({ user }) {
             {iaVisuelCharge?"Génération…":"✨ Générer avec l'IA"}
           </button>
         </div>
+        {visuelReference ? (
+          <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.3)",borderRadius:8,padding:"5px 9px"}}>
+            <img src={visuelReference.image_url} alt="" style={{width:28,height:28,objectFit:"cover",borderRadius:5}}/>
+            <span style={{fontSize:10,color:"#a78bfa",flex:1}}>Référence : {visuelReference.titre}</span>
+            <button onClick={()=>setVisuelReference(null)} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",fontSize:13}}>✕</button>
+          </div>
+        ) : visuelsDecoration.length>0 && (
+          <div style={{fontSize:9,color:B.muted,fontStyle:"italic"}}>Astuce : touchez une photo ci-dessous pour vous en servir de référence pour la génération.</div>
+        )}
         {iaVisuelErreur && <div style={{fontSize:10,color:"#f87171"}}>{iaVisuelErreur}</div>}
         {visuelsPertinents.length>0 && (
           <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
             {visuelsPertinents.map(v=>(
               <div key={v.id} style={{flexShrink:0,width:100,display:"flex",flexDirection:"column",gap:4}}>
-                <div style={{position:"relative"}}>
-                  <img src={v.image_url} alt={v.titre} style={{width:100,height:100,objectFit:"cover",borderRadius:8,border:"1px solid "+B.border}}/>
+                <div onClick={()=>setVisuelReference(r=>r?.id===v.id?null:v)} style={{position:"relative",cursor:"pointer"}} title="Toucher pour utiliser comme référence">
+                  <img src={v.image_url} alt={v.titre} style={{width:100,height:100,objectFit:"cover",borderRadius:8,border:"2px solid "+(visuelReference?.id===v.id?"#a78bfa":B.border)}}/>
                   {v.notes?.includes("Généré par IA") && (
                     <span style={{position:"absolute",top:3,left:3,background:"rgba(124,58,237,0.85)",color:"#fff",fontSize:8,fontWeight:700,borderRadius:4,padding:"1px 4px"}}>IA</span>
+                  )}
+                  {visuelReference?.id===v.id && (
+                    <span style={{position:"absolute",bottom:3,right:3,background:"#a78bfa",color:"#fff",fontSize:8,fontWeight:700,borderRadius:4,padding:"1px 4px"}}>📎 Réf.</span>
                   )}
                 </div>
                 <div style={{fontSize:9,color:B.cream,textAlign:"center"}}>{v.titre}</div>

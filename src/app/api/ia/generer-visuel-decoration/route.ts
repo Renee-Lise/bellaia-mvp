@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Payload invalide." }, { status: 400 }); }
 
-  const { titre, occasion, theme, description } = body;
+  const { titre, occasion, theme, description, imageReferenceBase64, imageReferenceMediaType } = body;
   if (!titre || typeof titre !== "string" || !titre.trim()) {
     return NextResponse.json({ error: "Titre requis." }, { status: 400 });
   }
@@ -47,13 +47,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "OPENAI_API_KEY non configurée dans Vercel → Settings → Environment Variables" }, { status: 500 });
   }
 
+  const avecReference = typeof imageReferenceBase64 === "string" && imageReferenceBase64.length > 0;
+
   const prompt = [
-    "Photographie professionnelle d'une décoration d'événement élégante,",
+    avecReference
+      ? "À partir de cette photo de référence, propose une variation/déclinaison en décoration d'événement élégante,"
+      : "Photographie professionnelle d'une décoration d'événement élégante,",
     occasion ? `occasion : ${occasion},` : "",
     theme ? `thème : ${theme},` : "",
     description ? `détails : ${description},` : "",
     "lumière naturelle, mise en scène soignée, style Bella'Studio (Guyane française), sans texte ni logo sur l'image.",
   ].filter(Boolean).join(" ");
+
+  // Appelle /v1/images/edits (avec une photo de référence comme base)
+  // ou /v1/images/generations (texte seul) selon ce que la fondatrice
+  // a choisi dans le compositeur — demande explicite : la génération
+  // doit marcher dans les deux cas, avec ou sans photo sélectionnée.
+  const appelerOpenAI = async (model: string) => {
+    if (avecReference) {
+      const form = new FormData();
+      const bytes = Buffer.from(imageReferenceBase64, "base64");
+      form.append("image", new Blob([bytes], { type: imageReferenceMediaType || "image/png" }), "reference.png");
+      form.append("prompt", prompt);
+      form.append("model", model);
+      form.append("size", "1024x1024");
+      form.append("n", "1");
+      return fetch("https://api.openai.com/v1/images/edits", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+      });
+    }
+    return fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, prompt, size: "1024x1024", n: 1 }),
+    });
+  };
 
   try {
     // Noms de modèles confirmés le 11/11 depuis le compte OpenAI réel
@@ -66,11 +96,7 @@ export async function POST(req: NextRequest) {
     const MODELE_PRINCIPAL = "gpt-image-2.6-sunburst";
     const MODELE_REPLI = "gpt-image-2.6-flare";
     let modeleUtilise = MODELE_PRINCIPAL;
-    let genRes = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: MODELE_PRINCIPAL, prompt, size: "1024x1024", n: 1 }),
-    });
+    let genRes = await appelerOpenAI(MODELE_PRINCIPAL);
     if (!genRes.ok) {
       const errData = await genRes.json().catch(() => ({}));
       const errMsg: string = errData.error?.message || `Erreur OpenAI ${genRes.status}`;
@@ -80,11 +106,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: errMsg }, { status: genRes.status });
       }
       modeleUtilise = MODELE_REPLI;
-      genRes = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: MODELE_REPLI, prompt, size: "1024x1024", n: 1 }),
-      });
+      genRes = await appelerOpenAI(MODELE_REPLI);
       if (!genRes.ok) {
         const errData2 = await genRes.json().catch(() => ({}));
         const errMsg2 = errData2.error?.message || `Erreur OpenAI ${genRes.status}`;
@@ -113,7 +135,7 @@ export async function POST(req: NextRequest) {
 
     const { data: row, error: errInsert } = await sb.from("events_visuels_decoration").insert({
       titre: titre.trim(), occasion: occasion || null, theme: theme || null, image_url: imageUrl,
-      notes: `Généré par IA (OpenAI ${modeleUtilise}) — estimation visuelle, pas une photo réelle.`,
+      notes: `Généré par IA (OpenAI ${modeleUtilise}${avecReference ? ", à partir d'une photo de référence" : ""}) — estimation visuelle, pas une photo réelle.`,
       created_by: user.id,
     }).select("*").single();
     if (errInsert) return NextResponse.json({ error: errInsert.message }, { status: 500 });
