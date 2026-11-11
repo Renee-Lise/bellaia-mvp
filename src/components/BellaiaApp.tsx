@@ -9852,10 +9852,15 @@ function EventsProgrammeF({ user }) {
   const [lProg, setLProg] = useState(true);
   const [recettes, setRecettes] = useState([]);
   const [detailProg, setDetailProg] = useState(null);
-  const FORM_INIT_PROG = { client_nom:"", client_tel:"", occasion:"", theme_nom:"", theme_description:"", decoration_notes:"", date_evenement:"" };
+  const FORM_INIT_PROG = { client_nom:"", client_tel:"", occasion:"", theme_nom:"", theme_description:"", decoration_notes:"", date_evenement:"", nb_personnes:"" };
   const [form, setForm] = useState(FORM_INIT_PROG);
-  const [lignes, setLignes] = useState([]); // {service, libelle, prix, origine:"catalogue"|"libre"}
+  const [lignes, setLignes] = useState([]); // {service, libelle, prix, qte, origine:"catalogue"|"libre"}
   const [enregistrement, setEnregistrement] = useState("idle");
+  // Id du programme en cours de modification — null quand on crée un
+  // nouveau programme (y compris via "Dupliquer", qui part d'une copie
+  // mais n'a pas encore d'id propre). Demande explicite de Renée-Lise :
+  // modifier, remanier, dupliquer un programme existant.
+  const [editingId, setEditingId] = useState(null);
 
   const [visuelsDecoration, setVisuelsDecoration] = useState([]);
 
@@ -9880,14 +9885,34 @@ function EventsProgrammeF({ user }) {
     if (!recetteId) return;
     const r = recettes.find(x => x.id === recetteId);
     if (!r) return;
-    setLignes(ls => [...ls, { service, libelle: r.nom, prix: r.prix_conseille != null ? parseFloat(r.prix_conseille) : 0, origine: "catalogue" }]);
+    setLignes(ls => [...ls, { service, libelle: r.nom, prix: r.prix_conseille != null ? parseFloat(r.prix_conseille) : 0, qte: 1, origine: "catalogue" }]);
   };
-  const ajouterLigneLibre = (service) => setLignes(ls => [...ls, { service, libelle: "", prix: 0, origine: "libre" }]);
+  const ajouterLigneLibre = (service) => setLignes(ls => [...ls, { service, libelle: "", prix: 0, qte: 1, origine: "libre" }]);
   const majLigne = (i, champ, val) => setLignes(ls => ls.map((l, idx) => idx === i ? { ...l, [champ]: val } : l));
   const supprimerLigne = (i) => setLignes(ls => ls.filter((_, idx) => idx !== i));
-  const totalProgramme = lignes.reduce((s, l) => s + (parseFloat(l.prix) || 0), 0);
+  const totalLigne = (l) => (parseFloat(l.prix) || 0) * (parseInt(l.qte, 10) || 1);
+  const totalProgramme = lignes.reduce((s, l) => s + totalLigne(l), 0);
 
-  const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setIaIdees([]); setIaErreur(null); setVue("compositeur"); };
+  const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setIaIdees([]); setIaErreur(null); setEditingId(null); setVue("compositeur"); };
+
+  // Charge un programme existant dans le compositeur — pour le
+  // modifier (editingId = son id, enregistrer fera un PATCH) ou le
+  // dupliquer (editingId = null, enregistrer créera un nouveau
+  // programme avec sa propre référence).
+  const chargerProgrammeDansForm = (p, { dupliquer = false } = {}) => {
+    const lignesP = typeof p.lignes === "string" ? JSON.parse(p.lignes) : (p.lignes || []);
+    setForm({
+      client_nom: p.client_nom || "", client_tel: p.client_tel || "",
+      occasion: p.occasion || "", theme_nom: p.theme_nom || "",
+      theme_description: p.theme_description || "", decoration_notes: p.decoration_notes || "",
+      date_evenement: p.date_evenement || "", nb_personnes: p.nb_personnes != null ? String(p.nb_personnes) : "",
+    });
+    setLignes(lignesP.map(l => ({ ...l, qte: l.qte || 1 })));
+    setEditingId(dupliquer ? null : p.id);
+    setIaIdees([]); setIaErreur(null);
+    setDetailProg(null);
+    setVue("compositeur");
+  };
 
   useSwipeBack(vue === "compositeur" ? () => setVue("liste") : detailProg ? () => setDetailProg(null) : null);
 
@@ -9999,16 +10024,24 @@ function EventsProgrammeF({ user }) {
   const enregistrerProgramme = async () => {
     if (!form.client_nom?.trim()) { alert("Nom de la cliente requis."); return; }
     setEnregistrement("en_cours");
-    let reference = "PROG-"+Date.now();
-    try { reference = await genererReference("PROG"); } catch {}
-    const payload = {
-      reference, client_nom: form.client_nom.trim(), client_tel: form.client_tel || null,
+    const payloadCommun = {
+      client_nom: form.client_nom.trim(), client_tel: form.client_tel || null,
       occasion: form.occasion || null, theme_nom: form.theme_nom || null,
       theme_description: form.theme_description || null, decoration_notes: form.decoration_notes || null,
-      date_evenement: form.date_evenement || null, lignes: JSON.stringify(lignes), total: totalProgramme,
-      statut: "brouillon",
+      date_evenement: form.date_evenement || null,
+      nb_personnes: form.nb_personnes ? parseInt(form.nb_personnes, 10) || null : null,
+      lignes: JSON.stringify(lignes), total: totalProgramme,
     };
-    const res = await sbPost("events_programmes", payload);
+    if (editingId) {
+      const res = await sbPatch("events_programmes", editingId, payloadCommun);
+      setEnregistrement(res.ok ? "ok" : "erreur");
+      if (res.ok) { setVue("liste"); setEditingId(null); charger(); }
+      else alert("Échec de l'enregistrement.\n"+(res.error||""));
+      return;
+    }
+    let reference = "PROG-"+Date.now();
+    try { reference = await genererReference("PROG"); } catch {}
+    const res = await sbPost("events_programmes", { ...payloadCommun, reference, statut: "brouillon" });
     setEnregistrement(res.ok ? "ok" : "erreur");
     if (res.ok) { setVue("liste"); charger(); }
     else alert("Échec de l'enregistrement.\n"+(res.error||""));
@@ -10030,10 +10063,10 @@ function EventsProgrammeF({ user }) {
       @media print{body{padding:10px}}
       </style></head><body>
       <h1>Programme — ${p.occasion||p.theme_nom||"Événement"}</h1>
-      <div class="sub">${p.client_nom||""}${p.date_evenement?" · "+p.date_evenement:""} · Réf. ${p.reference||""}</div>
+      <div class="sub">${p.client_nom||""}${p.date_evenement?" · "+p.date_evenement:""}${p.nb_personnes?" · "+p.nb_personnes+" personnes":""} · Réf. ${p.reference||""}</div>
       ${p.theme_nom ? `<div class="bloc"><h2>Thème</h2><div>${p.theme_nom}</div>${p.theme_description?`<div style="margin-top:4px;font-size:12px;color:#555">${p.theme_description}</div>`:""}</div>` : ""}
       ${p.decoration_notes ? `<div class="bloc"><h2>Décoration</h2><div style="font-size:12px">${p.decoration_notes}</div></div>` : ""}
-      ${Object.entries(parService).map(([service,ls])=>`<div class="bloc"><h2>${service}</h2><table>${ls.map(l=>`<tr><td>${l.libelle}</td><td style="text-align:right">${l.prix?parseFloat(l.prix).toFixed(2)+"€":"—"}</td></tr>`).join("")}</table></div>`).join("")}
+      ${Object.entries(parService).map(([service,ls])=>`<div class="bloc"><h2>${service}</h2><table>${ls.map(l=>{const qte=parseInt(l.qte,10)||1;const total=(parseFloat(l.prix)||0)*qte;return `<tr><td>${qte>1?qte+" × ":""}${l.libelle}</td><td style="text-align:right">${l.prix?total.toFixed(2)+"€":"—"}</td></tr>`;}).join("")}</table></div>`).join("")}
       <div class="total">Total : ${parseFloat(p.total||0).toFixed(2)}€</div>
       </body></html>`;
     const w = window.open("", "_blank");
@@ -10045,8 +10078,8 @@ function EventsProgrammeF({ user }) {
   if (vue === "compositeur") return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:5,background:B.night,padding:"6px 0"}}>
-        <div style={{fontSize:13,fontWeight:800,color:B.cream}}>Nouveau programme</div>
-        <Btn sm v="ghost" onClick={()=>setVue("liste")}>‹ Retour</Btn>
+        <div style={{fontSize:13,fontWeight:800,color:B.cream}}>{editingId?"Modifier le programme":"Nouveau programme"}</div>
+        <Btn sm v="ghost" onClick={()=>{setVue("liste");setEditingId(null);}}>‹ Retour</Btn>
       </div>
       <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
         <Fld label="Cliente *"><Inp value={form.client_nom} onChange={e=>setForm({...form,client_nom:e.target.value})} placeholder="Nom de la cliente"/></Fld>
@@ -10055,6 +10088,7 @@ function EventsProgrammeF({ user }) {
           <Fld label="Occasion"><Inp value={form.occasion} onChange={e=>setForm({...form,occasion:e.target.value})} placeholder="Noël, anniversaire..."/></Fld>
           <Fld label="Date"><Inp type="date" value={form.date_evenement} onChange={e=>setForm({...form,date_evenement:e.target.value})}/></Fld>
         </div>
+        <Fld label="Nombre de personnes"><Inp type="number" value={form.nb_personnes} onChange={e=>setForm({...form,nb_personnes:e.target.value})} placeholder="Ex. 20"/></Fld>
         <Fld label="Thème"><Inp value={form.theme_nom} onChange={e=>setForm({...form,theme_nom:e.target.value})} placeholder="Nom du thème"/></Fld>
         <Fld label="Description du thème"><Inp value={form.theme_description} onChange={e=>setForm({...form,theme_description:e.target.value})} rows={2}/></Fld>
         <Fld label="Décoration"><Inp value={form.decoration_notes} onChange={e=>setForm({...form,decoration_notes:e.target.value})} rows={2} placeholder="Éléments de décoration prévus"/></Fld>
@@ -10134,12 +10168,17 @@ function EventsProgrammeF({ user }) {
           <div key={service} style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:6}}>
             <div style={{fontSize:11,fontWeight:700,color:"#065f46",letterSpacing:0.5,textTransform:"uppercase"}}>{service}</div>
             {lignesService.map(l => (
-              <div key={l._idx} style={{display:"flex",gap:6,alignItems:"center"}}>
-                <input value={l.libelle} onChange={e=>majLigne(l._idx,"libelle",e.target.value)} disabled={l.origine==="catalogue"}
-                  style={{flex:2,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
-                <input type="number" value={l.prix} onChange={e=>majLigne(l._idx,"prix",parseFloat(e.target.value)||0)}
-                  style={{width:80,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
-                <button onClick={()=>supprimerLigne(l._idx)} style={{background:"rgba(248,113,113,0.12)",border:"none",borderRadius:8,padding:"6px 9px",color:"#f87171",cursor:"pointer"}}>✕</button>
+              <div key={l._idx} style={{display:"flex",flexDirection:"column",gap:3}}>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <input value={l.libelle} onChange={e=>majLigne(l._idx,"libelle",e.target.value)} disabled={l.origine==="catalogue"}
+                    style={{flex:2,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
+                  <input type="number" title="Parts / quantité" value={l.qte||1} min={1} onChange={e=>majLigne(l._idx,"qte",parseInt(e.target.value,10)||1)}
+                    style={{width:48,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 5px",color:"#fff",fontSize:12,fontFamily:SA,textAlign:"center"}}/>
+                  <input type="number" title="Prix unitaire" value={l.prix} onChange={e=>majLigne(l._idx,"prix",parseFloat(e.target.value)||0)}
+                    style={{width:70,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
+                  <button onClick={()=>supprimerLigne(l._idx)} style={{background:"rgba(248,113,113,0.12)",border:"none",borderRadius:8,padding:"6px 9px",color:"#f87171",cursor:"pointer"}}>✕</button>
+                </div>
+                {(parseInt(l.qte,10)||1) > 1 && <div style={{fontSize:9,color:B.muted,paddingLeft:2}}>{l.qte} parts × {(parseFloat(l.prix)||0).toFixed(2)}€ = {totalLigne(l).toFixed(2)}€</div>}
               </div>
             ))}
             <div style={{display:"flex",gap:6}}>
@@ -10174,17 +10213,25 @@ function EventsProgrammeF({ user }) {
         <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,fontSize:12,color:B.cream}}>
           <div><strong>{detailProg.client_nom}</strong>{detailProg.client_tel?" · "+detailProg.client_tel:""}</div>
           {detailProg.occasion && <div style={{color:B.muted,marginTop:3}}>{detailProg.occasion}{detailProg.date_evenement?" · "+detailProg.date_evenement:""}</div>}
+          {detailProg.nb_personnes && <div style={{color:B.muted,marginTop:3}}>👥 {detailProg.nb_personnes} personnes</div>}
           {detailProg.theme_nom && <div style={{marginTop:6}}>🎨 {detailProg.theme_nom}</div>}
           <div style={{marginTop:8,borderTop:"1px solid "+B.border,paddingTop:8}}>
-            {lignesP.map((l,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
-                <span>{l.service} — {l.libelle}</span><span>{l.prix?parseFloat(l.prix).toFixed(2)+"€":"—"}</span>
-              </div>
-            ))}
+            {lignesP.map((l,i)=>{
+              const qte = parseInt(l.qte,10)||1;
+              return (
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
+                  <span>{l.service} — {qte>1?qte+"× ":""}{l.libelle}</span><span>{l.prix?((parseFloat(l.prix)||0)*qte).toFixed(2)+"€":"—"}</span>
+                </div>
+              );
+            })}
           </div>
           <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontWeight:800,color:B.gold}}>
             <span>Total</span><span>{parseFloat(detailProg.total||0).toFixed(2)}€</span>
           </div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn v="ghost" onClick={()=>chargerProgrammeDansForm(detailProg)}>✏ Modifier</Btn>
+          <Btn v="ghost" onClick={()=>chargerProgrammeDansForm(detailProg,{dupliquer:true})}>⎘ Dupliquer</Btn>
         </div>
         <Btn onClick={()=>imprimerProgramme(detailProg)} full v="gold">🖨 Imprimer / Version cliente</Btn>
       </div>
@@ -10203,9 +10250,13 @@ function EventsProgrammeF({ user }) {
           <div style={{display:"flex",justifyContent:"space-between"}}>
             <div>
               <div style={{fontSize:13,fontWeight:700,color:B.cream}}>{p.client_nom}</div>
-              <div style={{fontSize:10,color:B.muted}}>{p.occasion||p.theme_nom||"Programme"}{p.date_evenement?" · "+p.date_evenement:""}</div>
+              <div style={{fontSize:10,color:B.muted}}>{p.occasion||p.theme_nom||"Programme"}{p.date_evenement?" · "+p.date_evenement:""}{p.nb_personnes?" · 👥 "+p.nb_personnes:""}</div>
             </div>
-            <div style={{fontSize:13,fontWeight:700,color:B.gold}}>{parseFloat(p.total||0).toFixed(2)}€</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{fontSize:13,fontWeight:700,color:B.gold}}>{parseFloat(p.total||0).toFixed(2)}€</div>
+              <button onClick={(e)=>{e.stopPropagation();chargerProgrammeDansForm(p,{dupliquer:true});}} title="Dupliquer"
+                style={{background:"rgba(255,255,255,0.07)",border:"1px solid "+B.border,borderRadius:8,padding:"4px 7px",color:B.muted,cursor:"pointer",fontSize:11}}>⎘</button>
+            </div>
           </div>
         </div>
       ))}
