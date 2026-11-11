@@ -9813,6 +9813,39 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }) {
 // ═══════════════════════════════════════════════════════════
 const SERVICES_PROGRAMME = ["Thème & décoration", ...SERVICES_EVENEMENT];
 
+// Geste "glisser depuis le bord gauche vers la droite" pour revenir en
+// arrière — demande explicite de Renée-Lise, en plus des flèches de
+// retour existantes. Ne se déclenche que pour un doigt posé près du
+// bord gauche de l'écran (comme le swipe natif iOS), jamais pour un
+// geste commencé au milieu du contenu — pour ne jamais interférer
+// avec le défilement ou la sélection de texte.
+function useSwipeBack(onBack) {
+  useEffect(() => {
+    if (!onBack) return;
+    let startX = null, startY = null, actif = false;
+    const debut = (e) => {
+      const t = e.touches[0];
+      if (!t || t.clientX > 24) { actif = false; return; }
+      startX = t.clientX; startY = t.clientY; actif = true;
+    };
+    const fin = (e) => {
+      if (!actif || startX == null) return;
+      const t = e.changedTouches[0];
+      if (t) {
+        const dx = t.clientX - startX, dy = t.clientY - startY;
+        if (dx > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) onBack();
+      }
+      actif = false; startX = null; startY = null;
+    };
+    window.addEventListener("touchstart", debut, { passive: true });
+    window.addEventListener("touchend", fin, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", debut);
+      window.removeEventListener("touchend", fin);
+    };
+  }, [onBack]);
+}
+
 function EventsProgrammeF({ user }) {
   const [vue, setVue] = useState("liste"); // "liste" | "compositeur"
   const [programmes, setProgrammes] = useState([]);
@@ -9855,6 +9888,8 @@ function EventsProgrammeF({ user }) {
   const totalProgramme = lignes.reduce((s, l) => s + (parseFloat(l.prix) || 0), 0);
 
   const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setIaIdees([]); setIaErreur(null); setVue("compositeur"); };
+
+  useSwipeBack(vue === "compositeur" ? () => setVue("liste") : detailProg ? () => setDetailProg(null) : null);
 
   // ── Idées depuis une photo (décoration ou menu) — demande de
   // Renée-Lise. Les prix renvoyés sont des estimations IA, jamais des
@@ -10009,7 +10044,7 @@ function EventsProgrammeF({ user }) {
 
   if (vue === "compositeur") return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:5,background:B.night,padding:"6px 0"}}>
         <div style={{fontSize:13,fontWeight:800,color:B.cream}}>Nouveau programme</div>
         <Btn sm v="ghost" onClick={()=>setVue("liste")}>‹ Retour</Btn>
       </div>
@@ -10132,7 +10167,7 @@ function EventsProgrammeF({ user }) {
     const lignesP = typeof detailProg.lignes === "string" ? JSON.parse(detailProg.lignes) : (detailProg.lignes||[]);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",justifyContent:"space-between"}}>
+        <div style={{display:"flex",justifyContent:"space-between",position:"sticky",top:0,zIndex:5,background:B.night,padding:"6px 0"}}>
           <div style={{fontSize:13,fontWeight:800,color:B.cream}}>{detailProg.reference}</div>
           <Btn sm v="ghost" onClick={()=>setDetailProg(null)}>‹ Retour</Btn>
         </div>
