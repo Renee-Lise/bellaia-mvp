@@ -56,18 +56,20 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join(" ");
 
   try {
-    // gpt-image-1 exige une organisation OpenAI "vérifiée" (pièce
-    // d'identité) — tant que ce n'est pas fait, l'API répond "model
-    // does not exist" bien que la clé soit valide. On retombe alors
-    // automatiquement sur dall-e-3 (pas de vérification requise) pour
-    // que la fonctionnalité marche dès maintenant ; le modèle réel
-    // utilisé est conservé dans les notes du visuel, jamais présenté
-    // comme gpt-image-1 s'il ne l'est pas.
-    let modeleUtilise = "gpt-image-1";
+    // Noms de modèles confirmés le 11/11 depuis le compte OpenAI réel
+    // de Renée-Lise (Project Settings → Limits → modèles "Image") —
+    // gpt-image-1 et dall-e-3 n'existaient plus ("model does not
+    // exist"), remplacés par la famille gpt-image-2.6. "sunburst" en
+    // modèle principal, repli automatique sur "flare" si jamais
+    // indisponible (ex. restriction spécifique) ; le modèle réel
+    // utilisé est conservé dans les notes du visuel.
+    const MODELE_PRINCIPAL = "gpt-image-2.6-sunburst";
+    const MODELE_REPLI = "gpt-image-2.6-flare";
+    let modeleUtilise = MODELE_PRINCIPAL;
     let genRes = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "gpt-image-1", prompt, size: "1024x1024", n: 1 }),
+      body: JSON.stringify({ model: MODELE_PRINCIPAL, prompt, size: "1024x1024", n: 1 }),
     });
     if (!genRes.ok) {
       const errData = await genRes.json().catch(() => ({}));
@@ -77,19 +79,16 @@ export async function POST(req: NextRequest) {
         console.error("[ia/generer-visuel-decoration] OpenAI error:", errMsg);
         return NextResponse.json({ error: errMsg }, { status: genRes.status });
       }
-      modeleUtilise = "dall-e-3";
-      // Ce compte refuse "response_format" (paramètre retiré/non
-      // supporté selon le compte) — on prend donc la réponse par
-      // défaut (une URL) et on la télécharge nous-mêmes juste après.
+      modeleUtilise = MODELE_REPLI;
       genRes = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: "dall-e-3", prompt, size: "1024x1024", quality: "standard", n: 1 }),
+        body: JSON.stringify({ model: MODELE_REPLI, prompt, size: "1024x1024", n: 1 }),
       });
       if (!genRes.ok) {
         const errData2 = await genRes.json().catch(() => ({}));
         const errMsg2 = errData2.error?.message || `Erreur OpenAI ${genRes.status}`;
-        console.error("[ia/generer-visuel-decoration] OpenAI error (dall-e-3):", errMsg2);
+        console.error("[ia/generer-visuel-decoration] OpenAI error (repli):", errMsg2);
         return NextResponse.json({ error: errMsg2 }, { status: genRes.status });
       }
     }
