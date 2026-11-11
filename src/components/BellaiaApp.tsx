@@ -9813,6 +9813,19 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }) {
 // ═══════════════════════════════════════════════════════════
 const SERVICES_PROGRAMME = ["Thème & décoration", ...SERVICES_EVENEMENT];
 
+// Unités de prix standardisées — demande explicite de Renée-Lise,
+// plutôt qu'un champ libre : pièce, assortiment (tailles usuelles
+// 10 à 50, au-delà sur devis — affiché en aide sous le champ), L,
+// cl, part.
+const UNITES_PRIX = [
+  { v:"", l:"—" },
+  { v:"pièce", l:"pièce" },
+  { v:"assortiment", l:"assortiment" },
+  { v:"L", l:"L" },
+  { v:"cl", l:"cl" },
+  { v:"part", l:"part" },
+];
+
 // Geste "glisser depuis le bord gauche vers la droite" pour revenir en
 // arrière — demande explicite de Renée-Lise, en plus des flèches de
 // retour existantes. Ne se déclenche que pour un doigt posé près du
@@ -10211,13 +10224,16 @@ function EventsProgrammeF({ user }) {
                     style={{flex:2,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:12,fontFamily:SA}}/>
                   <input type="text" inputMode="decimal" title="Quantité" value={l.qte ?? 1} onChange={e=>majLigne(l._idx,"qte",nombreFr(e.target.value)||1)}
                     style={{width:42,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 5px",color:"#fff",fontSize:12,fontFamily:SA,textAlign:"center"}}/>
-                  <input value={l.unite||""} onChange={e=>majLigne(l._idx,"unite",e.target.value)} placeholder="unité, lot, L…"
-                    style={{width:72,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 7px",color:"#fff",fontSize:11,fontFamily:SA}}/>
+                  <select value={l.unite||""} onChange={e=>majLigne(l._idx,"unite",e.target.value)}
+                    style={{width:88,background:"#1a1a2e",border:"1px solid "+B.border,borderRadius:8,padding:"6px 3px",color:"#fff",fontSize:10,fontFamily:SA}}>
+                    {UNITES_PRIX.map(u=><option key={u.v} value={u.v}>{u.l}</option>)}
+                  </select>
                   <input type="text" inputMode="decimal" title="Prix pour cette unité" value={l.prix} onChange={e=>majLigne(l._idx,"prix",nombreFr(e.target.value))}
                     style={{width:64,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"6px 7px",color:"#fff",fontSize:12,fontFamily:SA}}/>
                   <button onClick={()=>supprimerLigne(l._idx)} style={{background:"rgba(248,113,113,0.12)",border:"none",borderRadius:8,padding:"6px 9px",color:"#f87171",cursor:"pointer"}}>✕</button>
                 </div>
                 {((parseFloat(l.qte)||1) > 1 || l.unite) && <div style={{fontSize:9,color:B.muted,paddingLeft:2}}>{l.qte||1}{l.unite?" "+l.unite:""} × {(parseFloat(l.prix)||0).toFixed(2)}€ = {totalLigne(l).toFixed(2)}€</div>}
+                {l.unite==="assortiment" && <div style={{fontSize:9,color:B.muted,paddingLeft:2,fontStyle:"italic"}}>Tailles courantes : 10, 15, 20, 30, 40, 50 — au-delà, sur devis.</div>}
               </div>
             ))}
             <div style={{display:"flex",gap:6}}>
