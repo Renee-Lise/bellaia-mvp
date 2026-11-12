@@ -5094,7 +5094,7 @@ function FinancesP1({ user }) {
       {/* ── FACTURES ── */}
       {ong==="factures"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setouvrirModalInv();}}>+ Facture</Btn></div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setModal("inv");}}>+ Facture</Btn></div>
           {lInv&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {invoices.map(inv=>(
             <div key={inv.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
@@ -5128,7 +5128,7 @@ function FinancesP1({ user }) {
       {/* ── DEVIS ── */}
       {ong==="devis"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setouvrirModalDev();}}>+ Devis</Btn></div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}><Btn sm onClick={()=>{setForm({statut:"brouillon",date_emission:today(),total_ht:0,total_ttc:0,tva_pct:0,remise_pct:0});setModal("dev");}}>+ Devis</Btn></div>
           {lQuo&&<div style={{textAlign:"center",padding:"16px",color:B.muted,fontSize:12}}>Chargement…</div>}
           {quotes.map(q=>(
             <div key={q.id} style={{background:B.card,border:"1px solid "+(B.border),borderRadius:13,padding:"13px 14px"}}>
@@ -8150,7 +8150,7 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) 
     );
   }
   if (activeUnivers === "bsh") return <ClientBSH produits={produits} evenements={evenements} onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande} user={user}/>;
-  if (activeUnivers === "bo")  return <ClientOdyssee user={user} rdvs={mesReservations} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "bo")  return <ClientOdyssee user={user} rdvs={[]} onBack={() => setActiveUnivers(null)}/>;
   if (activeUnivers === "bev") return <ClientEvents onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
   if (activeUnivers === "bfd")   return <ClientFood user={user} onBack={() => setActiveUnivers(null)}/>;
   if (activeUnivers === "vilo")  return <ClientVilo user={user} onBack={() => setActiveUnivers(null)}/>;
