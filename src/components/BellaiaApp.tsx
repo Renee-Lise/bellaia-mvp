@@ -217,7 +217,7 @@ const POLES = ["Bella'Odyssée","Bella'Events","Bella'Food","Bella'Secret Home",
 const STATUTS_CMD = ["Demande reçue","Validation fondatrice","Paiement en attente","Acompte reçu","Paiement complet reçu","Confirmée","Préparation","Expédiée","Terminée","Annulée"];
 const VIP_C = {Bronze:"#8B6030",Argent:"#8a9ab0",Or:BSH.or,Diamant:"#90d0f0"};
 const CMD_C = {"Paiement complet reçu":BSH.vert,Terminée:BSH.vert,Expédiée:BSH.rose,Préparation:BSH.bord,"Acompte reçu":BSH.or,"Paiement en attente":BSH.ora,Annulée:BSH.rouge,Confirmée:BSH.vert,"Demande reçue":BSH.or};
-const PRESTATIONS_BO = ["Extensions de cils","Blanchiment dentaire","Strass dentaires","Browlift","Lashlift","Soin visage","Autre"];
+const PRESTATIONS_BO = ["Extensions de cils","Blanchiment dentaire","Strass dentaires","Browlift","Lashlift","Soin visage","Beauté des mains & des pieds","Autre"];
 // ── Prestations Bella'Odyssée détaillées (client + fondatrice)
 // prix:null + affichage "Sur devis" tant que le tarif n'est pas validé
 const PRESTATIONS_BO_DETAIL = [
@@ -234,6 +234,45 @@ const PRESTATIONS_BO_DETAIL = [
   {ico:"🎨",nom:"Teinture sourcils",desc:"Teinture professionnelle des sourcils pour un regard défini.",duree:"20min",prix:null,affichage:"Sur devis",formules:[]},
   {ico:"🖌",nom:"Teinture cils",desc:"Teinture des cils pour intensifier le regard sans maquillage.",duree:"20min",prix:null,affichage:"Sur devis",formules:[]},
   {ico:"🧵",nom:"Épilation au fil",desc:"Épilation précise au fil, technique douce et nette.",duree:"15–30min",prix:null,affichage:"Sur devis",formules:[]},
+  // Prix de caisse SumUp réels (export du 12/11) — jamais catalogués avant.
+  {ico:"💅",nom:"Beauté des mains & des pieds",desc:"Manucure, pédicure, pose et dépose de vernis, gel ou résine, au choix ou en formule combinée.",duree:"30min–2h30",prix:5,affichage:"À partir de 5€",
+    formules:[
+      {l:"Manucure simple",p:15},
+      {l:"Manucure + vernis simple",p:22},
+      {l:"Manucure + vernis semi permanent",p:35},
+      {l:"Manucure + vernis semi permanent french",p:35},
+      {l:"Manucure + Pédicure",p:45},
+      {l:"Beauté des pieds",p:30},
+      {l:"Beauté des pieds + vernis simple",p:35},
+      {l:"Beauté des pieds + vernis simple french",p:40},
+      {l:"Beauté des pieds + vernis semi permanent",p:50},
+      {l:"Beauté des pieds + vernis semi permanent french",p:50},
+      {l:"Manucure + beauté des pieds + vernis simple",p:50},
+      {l:"Manucure + beauté des pieds + vernis semi permanent",p:55},
+      {l:"Manucure + beauté des pieds + vernis simple french",p:55},
+      {l:"Manucure + beauté des pieds + vernis semi permanent french",p:70},
+      {l:"Baby boomer",p:53},
+      {l:"Pose de vernis simple",p:12},
+      {l:"Pose de vernis simple french",p:15},
+      {l:"Pose de vernis semi permanent",p:25},
+      {l:"Pose de vernis semi permanent french",p:30},
+      {l:"Pose de vernis simple pieds et mains",p:35},
+      {l:"Pose de vernis semi permanent pieds et mains",p:60},
+      {l:"Pose de vernis simple pieds et mains french",p:70},
+      {l:"Pose de vernis semi permanent pieds et mains french",p:75},
+      {l:"Pose résine sans vernis",p:30},
+      {l:"Pose résine + vernis simple",p:40},
+      {l:"Pose résine french",p:45},
+      {l:"Pose résine + vernis semi permanent",p:50},
+      {l:"Pose gel + vernis simple",p:40},
+      {l:"Pose gel ou pose gel semi permanent",p:50},
+      {l:"Pose gel semi permanent french",p:55},
+      {l:"Remplissage résine au choix",p:35},
+      {l:"Remplissage gel au choix",p:45},
+      {l:"Dépose de vernis semi permanent",p:10},
+      {l:"Dépose ongles résine ou gel",p:5},
+      {l:"Dépose faux ongles",p:15},
+    ]},
 ];
 
 // ═══════════════════════════════════════════════════════════
