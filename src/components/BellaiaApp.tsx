@@ -9881,6 +9881,10 @@ function EventsProgrammeF({ user }) {
   const FORM_INIT_PROG = { client_nom:"", client_tel:"", occasion:"", theme_nom:"", theme_description:"", decoration_notes:"", date_evenement:"", nb_personnes:"" };
   const [form, setForm] = useState(FORM_INIT_PROG);
   const [lignes, setLignes] = useState([]); // {service, libelle, prix, qte, origine:"catalogue"|"libre"}
+  // Images réellement attachées au programme — demande explicite :
+  // "+ Utiliser" doit illustrer la proposition, pas juste citer un
+  // titre en texte ; le devis imprimé doit pouvoir montrer les photos.
+  const [images, setImages] = useState([]); // [{titre, image_url}]
   const [enregistrement, setEnregistrement] = useState("idle");
   // Id du programme en cours de modification — null quand on crée un
   // nouveau programme (y compris via "Dupliquer", qui part d'une copie
@@ -9938,7 +9942,7 @@ function EventsProgrammeF({ user }) {
   const totalLigne = (l) => (parseFloat(l.prix) || 0) * (parseFloat(l.qte) || 1);
   const totalProgramme = lignes.reduce((s, l) => s + totalLigne(l), 0);
 
-  const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setIaIdees([]); setIaErreur(null); setEditingId(null); setVue("compositeur"); };
+  const nouveauProgramme = () => { setForm(FORM_INIT_PROG); setLignes([]); setImages([]); setIaIdees([]); setIaErreur(null); setEditingId(null); setVue("compositeur"); };
 
   // Charge un programme existant dans le compositeur — pour le
   // modifier (editingId = son id, enregistrer fera un PATCH) ou le
@@ -9953,6 +9957,8 @@ function EventsProgrammeF({ user }) {
       date_evenement: p.date_evenement || "", nb_personnes: p.nb_personnes != null ? String(p.nb_personnes) : "",
     });
     setLignes(lignesP.map(l => ({ ...l, qte: l.qte || 1, unite: l.unite || "" })));
+    const imagesP = typeof p.images === "string" ? JSON.parse(p.images) : (p.images || []);
+    setImages(imagesP);
     setEditingId(dupliquer ? null : p.id);
     setIaIdees([]); setIaErreur(null);
     setDetailProg(null);
@@ -10058,14 +10064,16 @@ function EventsProgrammeF({ user }) {
     } catch { alert("Erreur lors de l'envoi."); }
     setVisuelUpload(false);
   };
-  // Juste le titre, jamais l'URL brute de l'image : une longue URL
-  // insérée telle quelle dans un simple champ texte cassait l'affichage
-  // (débordement visuel) et n'a rien à faire dans un texte imprimable
-  // envoyé à une cliente. Le visuel reste de toute façon consultable
-  // dans la bibliothèque juste au-dessus.
+  // Attache réellement l'image au programme (pas juste son titre en
+  // texte) — demande explicite : "+ Utiliser" doit illustrer la
+  // proposition, et le devis imprimé doit pouvoir montrer les photos.
+  // Note texte courte en plus (jamais l'URL brute : une longue URL
+  // dans un champ texte cassait l'affichage).
   const ajouterVisuelAuxNotes = (v) => {
     setForm(f => ({ ...f, decoration_notes: (f.decoration_notes ? f.decoration_notes + "\n" : "") + "📸 "+v.titre+" (visuel joint)" }));
+    setImages(ims => ims.some(im => im.image_url === v.image_url) ? ims : [...ims, { titre: v.titre, image_url: v.image_url }]);
   };
+  const retirerImage = (image_url) => setImages(ims => ims.filter(im => im.image_url !== image_url));
 
   // Génération d'un visuel par IA (OpenAI gpt-image-1, choix confirmé
   // par Renée-Lise) — distincte des photos qu'elle fournit elle-même ;
@@ -10150,7 +10158,7 @@ function EventsProgrammeF({ user }) {
       theme_description: form.theme_description || null, decoration_notes: form.decoration_notes || null,
       date_evenement: form.date_evenement || null,
       nb_personnes: form.nb_personnes ? parseInt(form.nb_personnes, 10) || null : null,
-      lignes: JSON.stringify(lignes), total: totalProgramme,
+      lignes: JSON.stringify(lignes), images: JSON.stringify(images), total: totalProgramme,
     };
     if (editingId) {
       const res = await sbPatch("events_programmes", editingId, payloadCommun);
@@ -10169,6 +10177,7 @@ function EventsProgrammeF({ user }) {
 
   const imprimerProgramme = (p) => {
     const lignesP = typeof p.lignes === "string" ? JSON.parse(p.lignes) : (p.lignes || []);
+    const imagesP = typeof p.images === "string" ? JSON.parse(p.images) : (p.images || []);
     const parService = {};
     lignesP.forEach(l => { (parService[l.service] = parService[l.service] || []).push(l); });
     const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Programme ${p.reference||""}</title><style>
@@ -10180,12 +10189,17 @@ function EventsProgrammeF({ user }) {
       table{width:100%;border-collapse:collapse}
       td{padding:5px 8px;border-bottom:1px solid #f3f4f6;font-size:13px}
       .total{font-weight:700;font-size:16px;color:#6b1a2b;text-align:right;margin-top:14px}
+      .galerie{display:flex;flex-wrap:wrap;gap:8px}
+      .galerie figure{margin:0;width:130px}
+      .galerie img{width:130px;height:130px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb}
+      .galerie figcaption{font-size:10px;color:#6b7280;text-align:center;margin-top:3px}
       @media print{body{padding:10px}}
       </style></head><body>
       <h1>Programme — ${p.occasion||p.theme_nom||"Événement"}</h1>
       <div class="sub">${p.client_nom||""}${p.date_evenement?" · "+p.date_evenement:""}${p.nb_personnes?" · "+p.nb_personnes+" personnes":""} · Réf. ${p.reference||""}</div>
       ${p.theme_nom ? `<div class="bloc"><h2>Thème</h2><div>${p.theme_nom}</div>${p.theme_description?`<div style="margin-top:4px;font-size:12px;color:#555">${p.theme_description}</div>`:""}</div>` : ""}
       ${p.decoration_notes ? `<div class="bloc"><h2>Décoration</h2><div style="font-size:12px">${p.decoration_notes}</div></div>` : ""}
+      ${imagesP.length > 0 ? `<div class="bloc"><h2>Visuels</h2><div class="galerie">${imagesP.map(im=>`<figure><img src="${im.image_url}" alt="${im.titre||""}"/><figcaption>${im.titre||""}</figcaption></figure>`).join("")}</div></div>` : ""}
       ${Object.entries(parService).map(([service,ls])=>`<div class="bloc"><h2>${service}</h2><table>${ls.map(l=>{const qte=parseFloat(l.qte)||1;const total=(parseFloat(l.prix)||0)*qte;const prefixe=(qte>1||l.unite)?qte+(l.unite?" "+l.unite:"")+" × ":"";return `<tr><td>${prefixe}${l.libelle}</td><td style="text-align:right">${l.prix?total.toFixed(2)+"€":"—"}</td></tr>`;}).join("")}</table></div>`).join("")}
       <div class="total">Total : ${parseFloat(p.total||0).toFixed(2)}€</div>
       </body></html>`;
@@ -10292,6 +10306,23 @@ function EventsProgrammeF({ user }) {
         {visuelsDecoration.length===0 && <div style={{fontSize:10,color:B.muted,fontStyle:"italic"}}>Aucun visuel ajouté pour l'instant.</div>}
       </div>
 
+      {/* Images réellement jointes à CE programme — s'affichent dans
+          le détail et sur l'imprimable/devis. */}
+      {images.length > 0 && (
+        <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#065f46",letterSpacing:0.5,textTransform:"uppercase"}}>🖼 Images jointes à ce programme ({images.length})</div>
+          <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
+            {images.map(im=>(
+              <div key={im.image_url} style={{flexShrink:0,width:90,display:"flex",flexDirection:"column",gap:4}}>
+                <img src={im.image_url} alt={im.titre} style={{width:90,height:90,objectFit:"cover",borderRadius:8,border:"1px solid "+B.border}}/>
+                <div style={{fontSize:9,color:B.cream,textAlign:"center"}}>{im.titre}</div>
+                <Btn sm v="ghost" onClick={()=>retirerImage(im.image_url)}>✕ Retirer</Btn>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {SERVICES_PROGRAMME.map(service => {
         const recettesService = recettes.filter(r => r.service_evenement === service);
         const lignesService = lignes.map((l,i)=>({...l,_idx:i})).filter(l => l.service === service);
@@ -10352,6 +10383,16 @@ function EventsProgrammeF({ user }) {
           {detailProg.occasion && <div style={{color:B.muted,marginTop:3}}>{detailProg.occasion}{detailProg.date_evenement?" · "+detailProg.date_evenement:""}</div>}
           {detailProg.nb_personnes && <div style={{color:B.muted,marginTop:3}}>👥 {detailProg.nb_personnes} personnes</div>}
           {detailProg.theme_nom && <div style={{marginTop:6}}>🎨 {detailProg.theme_nom}</div>}
+          {(() => {
+            const imagesP = typeof detailProg.images === "string" ? JSON.parse(detailProg.images) : (detailProg.images || []);
+            return imagesP.length > 0 && (
+              <div style={{display:"flex",gap:8,overflowX:"auto",marginTop:8,paddingBottom:2}}>
+                {imagesP.map(im=>(
+                  <img key={im.image_url} src={im.image_url} alt={im.titre} title={im.titre} style={{flexShrink:0,width:70,height:70,objectFit:"cover",borderRadius:8,border:"1px solid "+B.border}}/>
+                ))}
+              </div>
+            );
+          })()}
           <div style={{marginTop:8,borderTop:"1px solid "+B.border,paddingTop:8}}>
             {lignesP.map((l,i)=>{
               const qte = parseFloat(l.qte)||1;

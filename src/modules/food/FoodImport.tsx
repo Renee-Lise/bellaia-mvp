@@ -27,6 +27,7 @@ async function sbSauvegarderRecette(r: Partial<Recette>): Promise<string | null>
       temps_repos:    r.tempsRepos,
       cout_matiere:   r.coutMatiere,
       prix_conseille: r.prixConseille,
+      fete_associee:  r.feteAssociee || null,
       allergenes:     r.allergenes || [],
       ingredients:    r.ingredients || [],
       etapes:         r.etapes || [],
@@ -61,8 +62,8 @@ const Badge = ({ txt, col }: { txt: string; col: string }) => (
 const SOURCES: { id: SourceImport; nom: string; ico: string; disponible: boolean; note?: string }[] = [
   {id:"texte",       nom:"Texte libre",      ico:"📝", disponible:true},
   {id:"lien",        nom:"Lien internet",    ico:"🔗", disponible:true,   note:"Extraction automatique préparée"},
-  {id:"photo",       nom:"Photo",            ico:"📷", disponible:false,  note:"OCR — disponible avec IA"},
-  {id:"capture_ecran",nom:"Capture écran",   ico:"🖼",  disponible:false,  note:"OCR — disponible avec IA"},
+  {id:"photo",       nom:"Photo",            ico:"📷", disponible:true},
+  {id:"capture_ecran",nom:"Capture écran",   ico:"🖼",  disponible:true},
   {id:"pdf",         nom:"PDF",              ico:"📄", disponible:false,  note:"Extraction texte — disponible avec IA"},
   {id:"document",    nom:"Document Word",    ico:"📃", disponible:false,  note:"Disponible avec IA"},
   {id:"pinterest",   nom:"Pinterest",        ico:"📌", disponible:false,  note:"API — disponible ultérieurement"},
@@ -84,14 +85,69 @@ export default function FoodImport({ onImporter }: Props) {
   const [source,       setSource]       = useState<SourceImport>("texte");
   const [contenu,      setContenu]      = useState("");
   const [url,          setUrl]          = useState("");
+  const [photoFile,    setPhotoFile]    = useState<File|null>(null);
+  const [photoApercu,  setPhotoApercu]  = useState<string|null>(null);
   const [analyse,      setAnalyse]      = useState(false);
+  const [erreurAnalyse,setErreurAnalyse]= useState<string|null>(null);
   const [resultat,     setResultat]     = useState<Partial<Recette> | null>(null);
   const [etape,        setEtape]        = useState<"source"|"saisie"|"resultat">("source");
   const [saving,       setSaving]       = useState(false);
   const [savedId,      setSavedId]      = useState<string|null>(null);
   const [historiqueImports] = useState<ImportRecette[]>([]);
 
+  // Import depuis une photo/capture d'écran — demande explicite de
+  // Renée-Lise ("je ne peux pas rajouter de recettes depuis une
+  // image"), jusqu'ici volontairement désactivé. Appelle Claude en
+  // vision (même pattern que /api/ia/decoration-menu).
+  const analyserPhotoRecette = async () => {
+    if (!photoFile) return;
+    setErreurAnalyse(null); setAnalyse(true); setResultat(null);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(photoFile);
+      });
+      const [meta, b64] = dataUrl.split(",");
+      const mediaType = (meta.match(/data:([^;]+);/) || [])[1] || photoFile.type || "image/jpeg";
+      const token = await (window as any).getTokenAsync?.() ?? SB_KEY;
+      const r = await fetch("/api/ia/importer-recette-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer "+token },
+        body: JSON.stringify({ imageBase64: b64, mediaType }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setErreurAnalyse(d.error || "Échec de l'analyse."); setAnalyse(false); return; }
+      const rec = d.recette || {};
+      const detected: Partial<Recette> = {
+        nom: rec.nom || undefined,
+        categorie: rec.categorie || "patisserie",
+        feteAssociee: rec.feteAssociee || undefined,
+        nbParts: rec.nbParts ?? undefined,
+        difficulte: (rec.difficulte ?? 3) as 1|2|3|4|5,
+        tempsPrepa: rec.tempsPrepa ?? 0,
+        tempsCuisson: rec.tempsCuisson ?? 0,
+        tempsRepos: rec.tempsRepos ?? undefined,
+        ingredients: Array.isArray(rec.ingredients) ? rec.ingredients.map((ing: any, i: number) => ({
+          id: "ing"+i, nom: ing.nom || "", quantite: Number(ing.quantite) || 0, unite: ing.unite || "piece",
+        })) : [],
+        etapes: Array.isArray(rec.etapes) ? rec.etapes : [],
+        allergenes: Array.isArray(rec.allergenes) ? rec.allergenes : [],
+        astuces: Array.isArray(rec.astuces) ? rec.astuces : [],
+        sourceType: source,
+        source: source === "photo" ? "Photo" : "Capture d'écran",
+      };
+      setResultat(detected);
+      setEtape("resultat");
+    } catch (e: any) {
+      setErreurAnalyse(e?.message || "Erreur réseau.");
+    }
+    setAnalyse(false);
+  };
+
   const lancer = () => {
+    if (source === "photo" || source === "capture_ecran") { analyserPhotoRecette(); return; }
     setAnalyse(true);
     setResultat(null);
 
@@ -206,11 +262,37 @@ export default function FoodImport({ onImporter }: Props) {
         </>
       )}
 
+      {(source === "photo" || source === "capture_ecran") && (
+        <>
+          <div style={{ fontSize:11, color:FC.creamD, lineHeight:1.6 }}>
+            {source === "photo"
+              ? "Photographiez une fiche recette (livre, carte manuscrite, affichette). Bellaïa détecte automatiquement : nom, ingrédients, étapes, temps, occasion…"
+              : "Importez une capture d'écran de recette (réseau social, site). Bellaïa détecte automatiquement : nom, ingrédients, étapes, temps, occasion…"}
+          </div>
+          <label style={{ display:"block", background: photoApercu ? "transparent" : "rgba(21,128,61,0.12)",
+            border:`1px dashed ${FC.line}`, borderRadius:12, padding: photoApercu ? 0 : "28px 14px",
+            textAlign:"center", cursor:"pointer" }}>
+            {photoApercu
+              ? <img src={photoApercu} alt="" style={{ width:"100%", maxHeight:220, objectFit:"cover", borderRadius:12 }}/>
+              : <span style={{ fontSize:12, color:FC.vertL, fontWeight:700 }}>{source === "photo" ? "📷 Choisir une photo" : "🖼 Choisir une capture d'écran"}</span>}
+            <input type="file" accept="image/*" style={{ display:"none" }} onChange={e => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              setPhotoFile(f);
+              const reader = new FileReader();
+              reader.onload = () => setPhotoApercu(reader.result as string);
+              reader.readAsDataURL(f);
+            }}/>
+          </label>
+          {erreurAnalyse && <div style={{ fontSize:11, color:"#f87171" }}>{erreurAnalyse}</div>}
+        </>
+      )}
+
       <button onClick={lancer}
-        disabled={(!contenu.trim() && !url.trim()) || analyse}
+        disabled={(!contenu.trim() && !url.trim() && !photoFile) || analyse}
         style={{ background:FC.vert, border:"none", borderRadius:10, padding:"11px",
           color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:SA,
-          opacity:(!contenu.trim() && !url.trim()) || analyse ? 0.5 : 1 }}>
+          opacity:(!contenu.trim() && !url.trim() && !photoFile) || analyse ? 0.5 : 1 }}>
         {analyse ? "Analyse en cours…" : "🔍 Analyser la recette"}
       </button>
     </div>
@@ -282,6 +364,14 @@ export default function FoodImport({ onImporter }: Props) {
               {FOOD_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.ico} {c.nom}</option>)}
             </select>
           </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+            <label style={{ fontSize:10, color:FC.creamD }}>Occasion associée (optionnel)</label>
+            <select value={resultat.feteAssociee||""} onChange={e=>corriger("feteAssociee",e.target.value||undefined)}
+              style={{ ...inpStyle, background:"#1a1a2e" }}>
+              <option value="">— Aucune —</option>
+              {["Noël","Nouvel an","Pâques","Toussaint"].map(f=><option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
           {resultat.allergenes && resultat.allergenes.length > 0 && (
             <div>
               <div style={{ fontSize:10, color:FC.creamD, marginBottom:4 }}>Allergènes détectés</div>
@@ -310,6 +400,8 @@ export default function FoodImport({ onImporter }: Props) {
             setEtape("source");
             setContenu("");
             setUrl("");
+            setPhotoFile(null);
+            setPhotoApercu(null);
             setResultat(null);
           }}
             disabled={saving}
