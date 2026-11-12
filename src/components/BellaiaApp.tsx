@@ -1554,6 +1554,13 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
       notes: "Commande web — "+(new Date().toLocaleString("fr-FR")),
     };
     if (onNewCommande) await onNewCommande(cmd);
+    // Notification interne → fondatrice alertée d'une nouvelle commande
+    creerNotification({
+      pole:"BSH", type:"nouvelle_demande",
+      titre:"Nouvelle commande BSH — "+id,
+      message:"Client : "+(nomClient||"Client web")+"\nArticles : "+produitStr+"\nMontant : "+totalSel.toFixed(2)+"€\nRéférence : "+id,
+      canal:"interne", sourceTable:"bellaia_commandes", sourceId:id, pushFondatrice:true,
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
 
     // ── STRIPE — paiement sécurisé principal (mode test)
     if (pmtChoisi === "Stripe") {
@@ -2047,6 +2054,12 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
               notes: "Réservation événement web — "+(new Date().toLocaleString("fr-FR")),
             };
             if (onNewCommande) await onNewCommande(cmd);
+            creerNotification({
+              pole:"BSH", type:"nouvelle_demande",
+              titre:"Nouvelle réservation événement BSH — "+(modal.e.nom),
+              message:"Date : "+fmt(modal.e.date)+"\nLieu : "+modal.e.lieu+"\nTarif : "+modal.e.prix+"€/pers.\nRéférence : "+id,
+              canal:"interne", sourceTable:"bellaia_commandes", sourceId:id, pushFondatrice:true,
+            }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
             const msg = "🌹 *RÉSERVATION "+(id)+"*\\n\\nÉvénement : "+(modal.e.nom)+"\\nDate : "+(fmt(modal.e.date))+"\\nLieu : "+(modal.e.lieu)+"\\nTarif : "+(modal.e.prix)+"€/pers.\\nDate réservation : "+(new Date().toLocaleString("fr-FR"))+"\\n\\nMerci de confirmer ma réservation.";
             setModal(null);
             window.open(WA(msg), "_blank");
@@ -2070,6 +2083,7 @@ function ClientOdyssee({user, rdvs, onBack}) {
   const [rdvSucces, setRdvSucces] = useState(null); // référence RDV créé
   const [paiementOd,setPaiementOd]= useState(null); // {dossier, facRef, cmdRef}
   const [produitsVente, setProduitsVente] = useState([]); // espace vente — stocks univers=ODYSSEE
+  const [commandeVenteLoading, setCommandeVenteLoading] = useState(null); // id du produit en cours de commande
 
   const PAGES = [{id:"accueil",l:"🏠"},{id:"prestations",l:"💅"},{id:"boutique",l:"🛍"},{id:"rdv",l:"📅"},{id:"galerie",l:"📸"},{id:"contact",l:"📞"}];
 
@@ -2088,6 +2102,33 @@ function ClientOdyssee({user, rdvs, onBack}) {
       .catch(() => {});
     return () => { actif = false; };
   }, []);
+
+  // Commande boutique — paiement SumUp si le produit a un prix réel,
+  // sinon demande par WhatsApp ("Prix à venir"). Dans les deux cas,
+  // la fondatrice est notifiée (badge + push) d'une nouvelle commande.
+  const commanderProduitVente = async (p) => {
+    setCommandeVenteLoading(p.id);
+    creerNotification({
+      pole:"ODYSSEE", type:"nouvelle_demande",
+      titre:"Nouvelle commande boutique Odyssée — "+p.nom,
+      message:"Produit : "+p.nom+(p.prix_vente != null ? " · "+Number(p.prix_vente).toFixed(2).replace(".",",")+" €" : " · Prix à venir"),
+      canal:"interne", sourceTable:"stocks", sourceId:p.id, pushFondatrice:true,
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
+
+    if (p.prix_vente != null) {
+      try {
+        const r = await fetch("/api/payments/sumup/create-checkout", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ montant:p.prix_vente, description:p.nom, univers:"ODYSSEE" }),
+        });
+        const d = await r.json();
+        if (r.ok && d.url) { window.open(d.url, "_blank"); setCommandeVenteLoading(null); return; }
+      } catch {}
+    }
+    // Repli WhatsApp — prix à venir, ou SumUp indisponible
+    window.open(WA(`Bonjour 🤝\n\nJe souhaite commander : ${p.nom}${p.prix_vente != null ? " ("+Number(p.prix_vente).toFixed(2).replace(".",",")+" €)" : ""} — Bella'Odyssée\n\nMerci`),"_blank");
+    setCommandeVenteLoading(null);
+  };
 
   // Écran paiement si demandé
   if (paiementOd) return <EcranPaiement paiement={paiementOd} onBack={()=>setPaiementOd(null)} bu="ODYSSEE"/>;
@@ -2247,6 +2288,13 @@ function ClientOdyssee({user, rdvs, onBack}) {
                   gedAutoSave({titre:"RDV "+rdvRef+" — "+form.nom, module:"ODYSSEE",
                     categorie:"bon_commande", reference:rdvRef, clientNom:form.nom,
                   }).catch(e=>console.warn('[Bellaïa][GED]',e.message));
+                  // Notification interne → fondatrice alertée d'une nouvelle demande
+                  creerNotification({
+                    pole:"ODYSSEE", type:"nouvelle_demande",
+                    titre:"Nouveau RDV Odyssée — "+form.prestation,
+                    message:"Client : "+form.nom+(form.tel?" · Tél : "+form.tel:"")+"\nSoin : "+form.prestation+"\nDate : "+fmt(form.date)+" à "+form.heure+"\nRéférence : "+rdvRef,
+                    canal:"interne", sourceTable:"bellaia_commandes", sourceId:rdvRef, pushFondatrice:true,
+                  }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
                   // WA avec référence
                   const msg="Bonjour, je souhaite prendre rendez-vous 💅\nRéf : "+rdvRef+"\nSoin : "+form.prestation+"\nDate : "+fmt(form.date)+" à "+form.heure+"\nPrénom : "+form.nom+(form.tel?"\nTél : "+form.tel:"");
                   window.open(WA(msg),"_blank");
@@ -2309,7 +2357,7 @@ function ClientOdyssee({user, rdvs, onBack}) {
                     {p.categorie && <div style={{fontSize:10,color:BO.cremeD,marginBottom:6}}>{p.categorie}</div>}
                     <div style={{fontSize:13,fontWeight:700,color:BO.or}}>{p.prix_vente != null ? Number(p.prix_vente).toFixed(2).replace(".",",")+" €" : "Prix à venir"}</div>
                   </div>
-                  <OBtn v="primary" sz="sm" onClick={() => window.open(WA(`Bonjour 🤝\n\nJe souhaite commander : ${p.nom}${p.prix_vente != null ? " ("+Number(p.prix_vente).toFixed(2).replace(".",",")+" €)" : ""} — Bella'Odyssée\n\nMerci`),"_blank")}>Commander</OBtn>
+                  <OBtn v="primary" sz="sm" disabled={commandeVenteLoading===p.id} onClick={() => commanderProduitVente(p)}>{commandeVenteLoading===p.id ? "…" : "Commander"}</OBtn>
                 </div>
               </OCard>
             ))}
@@ -2417,11 +2465,13 @@ function ClientVilo({ user, onBack }) {
         }).catch(e=>console.warn('[Bellaïa][GED]',e.message));
       }
     } catch {}
-    // Toujours ouvrir WhatsApp en complément
-    // GED auto-save — non bloquant
-    gedAutoSave({titre:"Demande "+ref+" — "+form.nom, module:"VILO",
-      categorie:"bon_commande", reference:ref, clientNom:form.nom,
-    }).catch(e=>console.warn("[GED]",e.message));
+    // Notification interne → fondatrice alertée d'une nouvelle demande
+    creerNotification({
+      pole:"VILO", type:"nouvelle_demande",
+      titre:"Nouvelle demande Vilo'Assistance — "+form.type,
+      message:"Client : "+([user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client")+"\nService : "+form.type+"\nDate : "+form.date+(form.heure?" à "+form.heure:"")+(fmtPrixVilo(form.type)?"\nTarif indicatif : "+fmtPrixVilo(form.type):"")+"\nRéférence : "+ref,
+      canal:"interne", sourceTable:"bellaia_commandes", sourceId:ref, pushFondatrice:true,
+    }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
     const msg = `Bonjour 🤝\n\nDemande Vilo'Assistance (Réf: ${ref})\nService : ${form.type}\nDate : ${form.date}${form.heure?" à "+form.heure:""}${form.adresse?"\nAdresse : "+form.adresse:""}${form.detail?"\nDétail : "+form.detail:""}\n\nMerci`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
     setSucces(ref);
@@ -2943,7 +2993,7 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
     await creerNotification({
       pole:bu, type:"paiement_recu", titre:"Paiement "+payRef,
       message:"Mode: "+payMode+" · "+montant.toFixed(2)+"€ · "+dos.reference+" — en attente de confirmation",
-      canal:"interne", sourceTable:bu==="FOOD"?"bellaia_commandes":"events_demandes", sourceId:dos.id,
+      canal:"interne", sourceTable:bu==="FOOD"?"bellaia_commandes":"events_demandes", sourceId:dos.id, pushFondatrice:true,
     }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
     setPayLoading(false);
     setPaySucces(payRef);
@@ -3855,7 +3905,7 @@ const MODELES_NOTIF = [
 ];
 
 // Crée une notification interne (et future email/SMS/WhatsApp)
-async function creerNotification({ pole, type, titre, message, canal, userId, clientEmail, clientTel, datePrevue, sourceTable, sourceId }) {
+async function creerNotification({ pole, type, titre, message, canal, userId, clientEmail, clientTel, datePrevue, sourceTable, sourceId, pushFondatrice }) {
   try {
     const reference = await genererReference("NOTIF");
     const payload = {
@@ -3876,6 +3926,16 @@ async function creerNotification({ pole, type, titre, message, canal, userId, cl
     const res = await sbPost("notifications", payload);
     if (!res.ok) {
       console.error("[Bellaïa][creerNotification] Échec:", res.error);
+    }
+    // Vraie notification push (téléphone) en plus du badge interne —
+    // uniquement pour les alertes "nouvelle commande/demande" destinées
+    // à la fondatrice (pushFondatrice:true explicite à l'appel), jamais
+    // pour les envois manuels/ciblés clientes (anniversaires, etc.).
+    if (pushFondatrice) {
+      fetch("/api/notifications/push", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({titre, message, tag:pole||"notification"}),
+      }).catch(()=>{});
     }
     return res;
   } catch (e) {
@@ -9818,7 +9878,7 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }) {
       pole:"EVENTS", type:"validation_devis",
       titre: "Devis "+numDevis+" généré",
       message: "Client : "+(demande.client_prenom||"")+" "+( demande.client_nom||"")+"\nMontant : "+montantFinal+"€\nRéférence : "+demande.reference,
-      canal:"interne", user,
+      canal:"interne", user, pushFondatrice:true,
       sourceTable:"events_demandes", sourceId: demande.id,
     });
     // Message WhatsApp prérempli
@@ -11963,7 +12023,7 @@ function PortailSuiviClient({ onBack, user }) {
       pole:"EVENTS", type:"devis_accepte",
       titre:"Devis accepté — "+dos.reference,
       message:"Le client a accepté le devis "+dos.numero_devis+". CMD "+cmdRef+" · FAC "+facRef+" créés.",
-      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id,
+      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id, pushFondatrice:true,
     }).catch(e=>console.warn("[Bellaïa][notif]",e.message));
 
     // ── Étape 5 : Mettre à jour l'état local + ouvrir le paiement ─────────
@@ -12029,7 +12089,7 @@ function PortailSuiviClient({ onBack, user }) {
       pole:"EVENTS", type:"paiement_recu",
       titre:"Paiement "+payRef+" — "+dos.reference,
       message:"Mode: "+mode+" · Montant: "+montant.toFixed(2)+"€ · Statut: en_attente de confirmation.",
-      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id,
+      canal:"interne", sourceTable:"events_demandes", sourceId:dos.id, pushFondatrice:true,
     }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
 
     setPayLoading(false);
@@ -12445,12 +12505,12 @@ function PortailSuiviClient({ onBack, user }) {
               <DevisClientView dossier={dossier} onAccepte={async()=>{
                 const rAcc = await sbPatch("events_demandes", dossier.id, {statut:"accepte", client_reponse:"accepte", client_reponse_at:new Date().toISOString()});
                 if(!rAcc.ok) { alert("Erreur acceptation.\n"+(rAcc.error||"")); return; }
-                await creerNotification({pole:"EVENTS",type:"confirmation_commande",titre:"Devis accepté — "+dossier.reference,message:"Le client a accepté le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
+                await creerNotification({pole:"EVENTS",type:"confirmation_commande",titre:"Devis accepté — "+dossier.reference,message:"Le client a accepté le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id,pushFondatrice:true});
                 setDossier({...dossier, statut:"accepte", client_reponse:"accepte"});
               }} onRefuse={async()=>{
                 const rRef2 = await sbPatch("events_demandes", dossier.id, {statut:"refuse", client_reponse:"refuse", client_reponse_at:new Date().toISOString()});
                 if(!rRef2.ok) { alert("Erreur refus.\n"+(rRef2.error||"")); return; }
-                await creerNotification({pole:"EVENTS",type:"refus_devis",titre:"Devis refusé — "+dossier.reference,message:"Le client a refusé le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id});
+                await creerNotification({pole:"EVENTS",type:"refus_devis",titre:"Devis refusé — "+dossier.reference,message:"Le client a refusé le devis.",canal:"interne",sourceTable:"events_demandes",sourceId:dossier.id,pushFondatrice:true});
                 setDossier({...dossier, statut:"refuse", client_reponse:"refuse"});
               }}/>
             ) : null}
@@ -12650,7 +12710,7 @@ function ClientEvents({ onBack, onNewCommande }) {
       type: "validation_devis",
       titre: "Nouvelle demande Events — "+p.nom,
       message: "Client : "+(form.prenom||"")+" "+(form.nom||"").trim()+"\nTél : "+(form.tel||"")+"\nPrestation : "+p.nom+"\nRéférence : "+reference,
-      canal: "interne",
+      canal: "interne", pushFondatrice:true,
       clientEmail: form.email || null,
       clientTel: form.tel || null,
       sourceTable: "events_demandes",
@@ -14399,7 +14459,7 @@ export default function BellaiaApp() {
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
       onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/></div></>;
     if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}} user={user}/></div></>;
-    if (activeUnivers==="bo")     return <ClientOdyssee rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
+    if (activeUnivers==="bo")     return <ClientOdyssee user={{...user,role:"cliente"}} rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
     if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:36}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
     if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
     return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SUMUP_MERCHANT_CODE as SUMUP_CODE, getSumupToken, getSumupUrls as getUrls } from "@/lib/sumup";
+import { SUMUP_MERCHANT_CODE as SUMUP_CODE, SUMUP_API_URL, getSumupToken, getSumupUrls as getUrls } from "@/lib/sumup";
 
 // ══════════════════════════════════════════════════════════
 // SUMUP CREATE-CHECKOUT — Bellaïa Hub
