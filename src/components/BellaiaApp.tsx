@@ -2335,7 +2335,24 @@ function ClientVilo({ user, onBack }) {
     return () => { actif = false; };
   }, []);
 
-  const TYPES = ["Aide ménagère","Garde d'enfants","Assistance administrative","Courses","Accompagnement médical","Autre"];
+  const TYPES = ["Aide ménagère","Garde d'enfants","Assistance administrative","Courses","Accompagnement médical","Carte numérique simple","Carte personnalisée premium","Classement & organisation de documents","Modification / correction de document","Service express (moins de 24h)","Faire-part / invitation digitale","Flyer / carte de visite","Suivi de dossier simple","Prestation sur mesure","Autre"];
+  // Prix de caisse SumUp réels (export du 12/11) — null = variable, toujours sur devis.
+  const PRIX_VILO = {
+    "Carte numérique simple": 15,
+    "Carte personnalisée premium": 25,
+    "Classement & organisation de documents": 25,
+    "Modification / correction de document": 10,
+    "Service express (moins de 24h)": 10,
+    "Faire-part / invitation digitale": null,
+    "Flyer / carte de visite": null,
+    "Suivi de dossier simple": null,
+    "Prestation sur mesure": null,
+  };
+  const fmtPrixVilo = (nom) => {
+    const p = PRIX_VILO[nom];
+    if (p === undefined) return null;
+    return p === null ? "Sur devis" : (nom === "Classement & organisation de documents" ? p+"€/h" : p+"€");
+  };
   const STATUTS_COL = { BROUILLON:"#60a5fa", COMMANDE:"#22c55e", PRODUCTION:"#fb923c", LIVRE:"#a855f7", ANNULE:"#f87171" };
 
   const envoyerDemande = async () => {
@@ -2409,6 +2426,28 @@ function ClientVilo({ user, onBack }) {
                 <span style={{marginLeft:"auto",color:"rgba(147,197,253,0.5)",fontSize:16}}>›</span>
               </div>
             ))}
+
+            <div style={{fontSize:11,color:"#93c5fd",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginTop:10,marginBottom:2}}>Aide administrative</div>
+            {[
+              {ico:"💳",nom:"Carte numérique simple",desc:"Carte digitale anniversaire, invitation, message personnalisé"},
+              {ico:"✨",nom:"Carte personnalisée premium",desc:"Design sur mesure, personnalisation avancée"},
+              {ico:"🗂",nom:"Classement & organisation de documents",desc:"Tri et organisation de vos documents"},
+              {ico:"✏️",nom:"Modification / correction de document",desc:"Correction ou modification d'un document existant"},
+              {ico:"⚡",nom:"Service express (moins de 24h)",desc:"Traitement prioritaire de votre demande"},
+              {ico:"💌",nom:"Faire-part / invitation digitale",desc:"Mariage, naissance, événement"},
+              {ico:"📇",nom:"Flyer / carte de visite",desc:"Supports de communication professionnels"},
+              {ico:"📁",nom:"Suivi de dossier simple",desc:"CAF, Pôle emploi, logement, etc."},
+              {ico:"🎯",nom:"Prestation sur mesure",desc:"Service adapté à vos besoins spécifiques"},
+            ].map(s=>(
+              <div key={s.nom} onClick={()=>{setForm(f=>({...f,type:s.nom}));setPage("demande");}} style={{background:"rgba(29,78,216,0.08)",border:"1px solid rgba(29,78,216,0.2)",borderRadius:12,padding:"12px 14px",cursor:"pointer",display:"flex",gap:12,alignItems:"center"}}>
+                <span style={{fontSize:22,flexShrink:0}}>{s.ico}</span>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{s.nom}</div>
+                  <div style={{fontSize:11,color:B.muted}}>{s.desc}</div>
+                </div>
+                <span style={{marginLeft:"auto",flexShrink:0,fontSize:11,fontWeight:700,color:PRIX_VILO[s.nom]?"#93c5fd":B.muted}}>{fmtPrixVilo(s.nom)}</span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -2420,6 +2459,7 @@ function ClientVilo({ user, onBack }) {
               <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={{...inp2,background:"#0d1a3a"}}>
                 {TYPES.map(t=><option key={t} value={t}>{t}</option>)}
               </select>
+              {fmtPrixVilo(form.type) && <div style={{fontSize:11,color:"#93c5fd",fontWeight:700}}>Tarif indicatif : {fmtPrixVilo(form.type)}</div>}
             </div>
             {[["Adresse","adresse","text","Ex: 12 rue des Flamboyants, Sinnamary"],["Date souhaitée","date","date",""],["Heure","heure","time",""]].map(([l,k,t,ph])=>(
               <div key={k} style={{display:"flex",flexDirection:"column",gap:4}}>
