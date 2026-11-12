@@ -2108,11 +2108,23 @@ function ClientOdyssee({user, rdvs, onBack}) {
   // la fondatrice est notifiée (badge + push) d'une nouvelle commande.
   const commanderProduitVente = async (p) => {
     setCommandeVenteLoading(p.id);
+    let bouRef = "";
+    try {
+      bouRef = await genererReference("BOU");
+      await sbPost("bellaia_commandes", {
+        bu:"ODYSSEE", reference:bouRef,
+        client_nom:[user?.prenom,user?.nom].filter(Boolean).join(" ")||"Client",
+        statut:"BROUILLON", total:p.prix_vente||0,
+        date_commande:new Date().toISOString().split("T")[0],
+        notes:"Commande boutique — "+p.nom,
+        lignes:JSON.stringify([{libelle:p.nom,qte:1,prixUnitaire:p.prix_vente||0,total:p.prix_vente||0}]),
+      });
+    } catch {}
     creerNotification({
       pole:"ODYSSEE", type:"nouvelle_demande",
       titre:"Nouvelle commande boutique Odyssée — "+p.nom,
-      message:"Produit : "+p.nom+(p.prix_vente != null ? " · "+Number(p.prix_vente).toFixed(2).replace(".",",")+" €" : " · Prix à venir"),
-      canal:"interne", sourceTable:"stocks", sourceId:p.id, pushFondatrice:true,
+      message:"Produit : "+p.nom+(p.prix_vente != null ? " · "+Number(p.prix_vente).toFixed(2).replace(".",",")+" €" : " · Prix à venir")+(bouRef?"\nRéférence : "+bouRef:""),
+      canal:"interne", sourceTable:"bellaia_commandes", sourceId:p.id, pushFondatrice:true,
     }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
 
     if (p.prix_vente != null) {
@@ -6470,12 +6482,14 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
       };
       const SB_URL_local = process.env.NEXT_PUBLIC_SUPABASE_URL || SB_URL;
       const token = await getTokenAsync();
+      if (token === SB_KEY) throw new Error("Votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez.");
       const url = form._edit ? SB_URL_local+"/rest/v1/bsh_evenements?id=eq."+form._edit : SB_URL_local+"/rest/v1/bsh_evenements";
       const r = await fetch(url, {
         method: form._edit ? "PATCH" : "POST",
         headers: { apikey: SB_KEY, Authorization: "Bearer "+token, "Content-Type": "application/json", Prefer: "return=representation" },
         body: JSON.stringify(form._edit ? {...payload, updated_at:new Date().toISOString()} : payload),
       });
+      if (r.status === 401) throw new Error("Votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez.");
       if (!r.ok) { const d = await r.json().catch(()=>null); throw new Error(d?.message || d?.hint || "Échec HTTP "+r.status); }
       const rAll = await fetch(SB_URL_local+"/rest/v1/bsh_evenements?order=date_evenement.asc&limit=200", {
         headers: { apikey: SB_KEY, Authorization: "Bearer "+token },

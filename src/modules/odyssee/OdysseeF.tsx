@@ -124,13 +124,26 @@ const FORM0: Partial<RDV> = {
 const ONGLETS = [
   {id:"agenda",    ico:"📅", label:"Agenda"},
   {id:"catalogue", ico:"💅", label:"Prestations"},
+  {id:"boutique",  ico:"🛍", label:"Boutique"},
   {id:"stats",     ico:"📊", label:"Stats"},
 ];
+
+interface CommandeBoutique {
+  id: string;
+  reference?: string;
+  clientNom: string;
+  clientTel?: string;
+  produit: string;
+  prix?: number;
+  statut: string;
+  date: string;
+}
 
 // ══════════════════════════════════════════════════════════
 export default function OdysseeF({ user }: { user?: any }) {
   const [rdvs,    setRdvs]    = useState<RDV[]>([]);
-  const [onglet,  setOnglet]  = useState<"agenda"|"catalogue"|"stats">("agenda");
+  const [commandesBoutique, setCommandesBoutique] = useState<CommandeBoutique[]>([]);
+  const [onglet,  setOnglet]  = useState<"agenda"|"catalogue"|"boutique"|"stats">("agenda");
   const [modal,   setModal]   = useState<"form"|"detail"|null>(null);
   const [editing, setEditing] = useState<RDV|null>(null);
   const [form,    setForm]    = useState<Partial<RDV>>({ ...FORM0 });
@@ -138,13 +151,16 @@ export default function OdysseeF({ user }: { user?: any }) {
   const [saving,  setSaving]  = useState(false);
   const [filtreDate, setFiltreDate] = useState<"tous"|"aujourd_hui"|"semaine">("tous");
 
-  // Chargement RDV depuis Supabase
+  // Chargement RDV + commandes boutique depuis Supabase — même table
+  // bellaia_commandes (bu=ODYSSEE), distinguées par leur référence
+  // (RDV via genererReference("BO"), commandes boutique via "BOU").
   useEffect(() => {
     sbGet("bellaia_commandes",
       "bu=eq.ODYSSEE&order=date_commande.desc&limit=100&select=id,reference,client_nom,client_tel,statut,total,acompte,acompte_paye,date_livraison,notes,lignes"
     ).then(rows => {
       if (rows.length > 0) {
-        const mapped: RDV[] = rows.map(r => {
+        const estBoutique = (r: any) => (r.notes || "").startsWith("Commande boutique");
+        const mapped: RDV[] = rows.filter(r => !estBoutique(r)).map(r => {
           const lignes = r.lignes ? (typeof r.lignes === "string" ? JSON.parse(r.lignes) : r.lignes) : [];
           const presta = lignes[0]?.libelle || "Prestation Odyssée";
           const heure  = r.notes?.match(/(\d+h\d*)/)?.[1] || "10h00";
@@ -165,7 +181,16 @@ export default function OdysseeF({ user }: { user?: any }) {
             notes:       r.notes,
           };
         });
+        const mappedBoutique: CommandeBoutique[] = rows.filter(estBoutique).map(r => {
+          const lignes = r.lignes ? (typeof r.lignes === "string" ? JSON.parse(r.lignes) : r.lignes) : [];
+          return {
+            id: r.id, reference: r.reference, clientNom: r.client_nom, clientTel: r.client_tel,
+            produit: lignes[0]?.libelle || r.notes?.replace("Commande boutique — ", "") || "Produit",
+            prix: r.total, statut: r.statut, date: r.date_commande || today(),
+          };
+        });
         setRdvs(mapped);
+        setCommandesBoutique(mappedBoutique);
         setSource("supabase");
       }
     }).catch(() => {});
@@ -233,6 +258,11 @@ export default function OdysseeF({ user }: { user?: any }) {
     setRdvs(rs => rs.map(r => r.id === id ? {...r, statut} : r));
     const sbStatut = statut==="realise"?"LIVRE":statut==="confirme"?"COMMANDE":statut==="annule"?"ANNULE":"BROUILLON";
     await sbPatch("bellaia_commandes", id, { statut:sbStatut }).catch(() => {});
+  };
+
+  const changerStatutBoutique = async (id: string, sbStatut: string) => {
+    setCommandesBoutique(cs => cs.map(c => c.id === id ? {...c, statut: sbStatut} : c));
+    await sbPatch("bellaia_commandes", id, { statut: sbStatut }).catch(() => {});
   };
 
   const ouvrirWA = (rdv: RDV) => {
@@ -387,6 +417,52 @@ export default function OdysseeF({ user }: { user?: any }) {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── BOUTIQUE (commandes produits) ── */}
+      {onglet === "boutique" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+          {commandesBoutique.length === 0 && (
+            <div style={{ textAlign:"center", padding:"28px", color:BO.cremeD, fontStyle:"italic" }}>
+              Aucune commande boutique pour le moment.
+            </div>
+          )}
+          {commandesBoutique.map(c => (
+            <div key={c.id} style={{ background:BO.verre, border:`1px solid ${BO.line}`,
+              borderRadius:12, padding:"12px 14px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{c.clientNom}</div>
+                  <div style={{ fontSize:11, color:BO.cremeD }}>🛍 {c.produit}</div>
+                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginTop:2 }}>
+                    📅 {fmtDate(c.date)}{c.prix ? ` · ${fmtPrix(c.prix)}` : ""}{c.reference ? ` · ${c.reference}` : ""}
+                  </div>
+                </div>
+                <span style={{ fontSize:9, background:"rgba(155,89,182,0.2)", color:BO.or,
+                  borderRadius:99, padding:"3px 9px", fontWeight:700, height:"fit-content" }}>
+                  {c.statut}
+                </span>
+              </div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                {c.statut !== "COMMANDE" && <button onClick={() => changerStatutBoutique(c.id, "COMMANDE")}
+                  style={{ fontSize:10, background:"rgba(34,197,94,0.15)", border:"1px solid rgba(34,197,94,0.3)",
+                    color:"#22c55e", borderRadius:8, padding:"4px 10px", cursor:"pointer", fontFamily:SA }}>
+                  Confirmer
+                </button>}
+                {c.statut !== "LIVRE" && <button onClick={() => changerStatutBoutique(c.id, "LIVRE")}
+                  style={{ fontSize:10, background:"rgba(155,89,182,0.15)", border:"1px solid rgba(155,89,182,0.3)",
+                    color:BO.or, borderRadius:8, padding:"4px 10px", cursor:"pointer", fontFamily:SA }}>
+                  Marquer livrée
+                </button>}
+                {c.clientTel && <button onClick={() => window.open(`https://wa.me/${c.clientTel!.replace(/\D/g,"")}`, "_blank")}
+                  style={{ fontSize:10, background:"rgba(255,255,255,0.06)", border:`1px solid ${BO.line}`,
+                    color:"#fff", borderRadius:8, padding:"4px 10px", cursor:"pointer", fontFamily:SA }}>
+                  💬 WhatsApp
+                </button>}
               </div>
             </div>
           ))}
