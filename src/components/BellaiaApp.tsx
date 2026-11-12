@@ -5188,15 +5188,36 @@ function NotificationsF({ user }) {
     }));
   };
 
+  // Plusieurs destinataires en une fois — demande explicite : pouvoir
+  // sélectionner plusieurs clientes et leur envoyer, chacune, une
+  // notification personnalisée (titre/message gardent {prenom}/{nom}
+  // comme gabarit tant qu'aucune cliente unique n'est choisie ;
+  // chaque destinataire reçoit sa propre substitution).
+  const [modeDestinataires, setModeDestinataires] = useState("un"); // "un" | "plusieurs"
+  const [destinataires, setDestinataires] = useState([]); // [clientId,...]
+  const basculerDestinataire = (id) => setDestinataires(ds => ds.includes(id) ? ds.filter(x=>x!==id) : [...ds, id]);
+
   const creerManuelle = async () => {
     if (!form.titre?.trim() || !form.message?.trim()) { alert("Titre et message requis."); return; }
-    await creerNotification({
-      pole: form.pole || null, type: form.type || "autre",
-      titre: form.titre, message: form.message, canal: form.canal || "interne",
-      clientEmail: form.client_email || null, clientTel: form.client_tel || null,
-      datePrevue: form.date_prevue || null,
-    });
-    setModal(false); setForm({}); reload();
+    if (modeDestinataires === "plusieurs" && destinataires.length > 0) {
+      for (const id of destinataires) {
+        const cli = clientsNotif.find(c => c.id === id);
+        await creerNotification({
+          pole: form.pole || null, type: form.type || "autre",
+          titre: substituer(form.titre, cli), message: substituer(form.message, cli), canal: form.canal || "interne",
+          clientEmail: cli?.email || null, clientTel: cli?.tel || null,
+          datePrevue: form.date_prevue || null,
+        });
+      }
+    } else {
+      await creerNotification({
+        pole: form.pole || null, type: form.type || "autre",
+        titre: form.titre, message: form.message, canal: form.canal || "interne",
+        clientEmail: form.client_email || null, clientTel: form.client_tel || null,
+        datePrevue: form.date_prevue || null,
+      });
+    }
+    setModal(false); setForm({}); setDestinataires([]); setModeDestinataires("un"); reload();
   };
 
   return (
@@ -5241,9 +5262,28 @@ function NotificationsF({ user }) {
           <Fld label="Modèle (optionnel — pré-remplit titre/message)">
             <Sel value={form.modele||""} onChange={e=>appliquerModele(e.target.value)} options={MODELES_NOTIF.map(m=>({value:m.id,label:m.label}))}/>
           </Fld>
-          <Fld label="Cliente (optionnel — remplit tél/email, et {prenom} dans le modèle)">
-            <Sel value={form.client_id||""} onChange={e=>appliquerClient(e.target.value)} options={[{value:"",label:"— Aucune —"}, ...clientsNotif.map(c=>({value:c.id,label:(c.nom||"")+" "+(c.prenom||"")}))]}/>
-          </Fld>
+          <div style={{display:"flex",gap:6,marginBottom:8}}>
+            {[{id:"un",l:"Une cliente"},{id:"plusieurs",l:"Plusieurs clientes"}].map(o=>(
+              <button key={o.id} onClick={()=>{setModeDestinataires(o.id); setDestinataires([]);}} style={{flex:1,padding:"7px",borderRadius:8,border:"1px solid "+(modeDestinataires===o.id?B.gold:B.border),background:modeDestinataires===o.id?B.gold+"20":"transparent",color:modeDestinataires===o.id?B.gold:B.muted,cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:SA}}>{o.l}</button>
+            ))}
+          </div>
+          {modeDestinataires==="un" ? (
+            <Fld label="Cliente (optionnel — remplit tél/email, et {prenom} dans le modèle)">
+              <Sel value={form.client_id||""} onChange={e=>appliquerClient(e.target.value)} options={[{value:"",label:"— Aucune —"}, ...clientsNotif.map(c=>({value:c.id,label:(c.nom||"")+" "+(c.prenom||"")}))]}/>
+            </Fld>
+          ) : (
+            <Fld label={"Destinataires — "+destinataires.length+" sélectionnée(s). {prenom}/{nom} seront remplacés individuellement pour chacune."}>
+              <div style={{maxHeight:160,overflowY:"auto",display:"flex",flexDirection:"column",gap:4,background:"rgba(255,255,255,0.03)",borderRadius:8,padding:8}}>
+                {clientsNotif.map(c=>(
+                  <label key={c.id} style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:B.cream,cursor:"pointer"}}>
+                    <input type="checkbox" checked={destinataires.includes(c.id)} onChange={()=>basculerDestinataire(c.id)}/>
+                    {(c.nom||"")+" "+(c.prenom||"")}
+                  </label>
+                ))}
+                {clientsNotif.length===0 && <div style={{fontSize:10,color:B.muted,fontStyle:"italic"}}>Aucune cliente enregistrée.</div>}
+              </div>
+            </Fld>
+          )}
           <Fld label="Titre *"><Inp value={form.titre||""} onChange={e=>setForm({...form,titre:e.target.value})}/></Fld>
           <Fld label="Message *"><Inp value={form.message||""} onChange={e=>setForm({...form,message:e.target.value})} rows={3}/></Fld>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
