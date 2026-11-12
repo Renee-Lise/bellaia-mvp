@@ -2069,8 +2069,25 @@ function ClientOdyssee({user, rdvs, onBack}) {
   const [rdvEnvoi,  setRdvEnvoi]  = useState(false);
   const [rdvSucces, setRdvSucces] = useState(null); // référence RDV créé
   const [paiementOd,setPaiementOd]= useState(null); // {dossier, facRef, cmdRef}
+  const [produitsVente, setProduitsVente] = useState([]); // espace vente — stocks univers=ODYSSEE
 
-  const PAGES = [{id:"accueil",l:"🏠"},{id:"prestations",l:"💅"},{id:"rdv",l:"📅"},{id:"galerie",l:"📸"},{id:"contact",l:"📞"}];
+  const PAGES = [{id:"accueil",l:"🏠"},{id:"prestations",l:"💅"},{id:"boutique",l:"🛍"},{id:"rdv",l:"📅"},{id:"galerie",l:"📸"},{id:"contact",l:"📞"}];
+
+  // Espace vente — produits physiques Bella'Odyssée (parfums, etc.), lus
+  // depuis `stocks` (univers=ODYSSEE, statut=actif), même table/source
+  // unique que la boutique BSH.
+  useEffect(() => {
+    const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!sbUrl || !sbKey) return;
+    let actif = true;
+    fetch(`${sbUrl}/rest/v1/stocks?univers=eq.ODYSSEE&statut=eq.actif&select=id,nom,categorie,notes,prix_vente,image_url&order=categorie.asc,nom.asc&limit=100`, {
+      headers: { apikey: sbKey, Authorization: "Bearer " + sbKey },
+    }).then(r => r.ok ? r.json() : [])
+      .then(d => { if (actif) setProduitsVente(Array.isArray(d) ? d : []); })
+      .catch(() => {});
+    return () => { actif = false; };
+  }, []);
 
   // Écran paiement si demandé
   if (paiementOd) return <EcranPaiement paiement={paiementOd} onBack={()=>setPaiementOd(null)} bu="ODYSSEE"/>;
@@ -2112,12 +2129,12 @@ function ClientOdyssee({user, rdvs, onBack}) {
               <div style={{fontSize:12,color:BO.cremeD,marginBottom:14,lineHeight:1.7}}>Réservez votre soin en quelques secondes.<br/>Confirmation immédiate par WhatsApp.</div>
               <OBtn v="primary" sz="md" full onClick={() => setPage("rdv")}>📅 Réserver un rendez-vous</OBtn>
             </OCard>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-              {[{ico:"💅",t:"Nos prestations",sub:"5 soins signature",p:"prestations"},{ico:"📸",t:"Galerie",sub:"Avant / Après",p:"galerie"}].map(c => (
-                <OCard key={c.t} style={{textAlign:"center",padding:"14px 10px",cursor:"pointer"}} onClick={() => setPage(c.p)}>
-                  <div style={{fontSize:26,marginBottom:5}}>{c.ico}</div>
-                  <div style={{fontFamily:FS,fontSize:12,fontWeight:700,color:BO.creme}}>{c.t}</div>
-                  <div style={{fontSize:10,color:BO.cremeD,marginTop:2}}>{c.sub}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9}}>
+              {[{ico:"💅",t:"Nos prestations",sub:"5 soins signature",p:"prestations"},{ico:"🛍",t:"Boutique",sub:"Nos produits",p:"boutique"},{ico:"📸",t:"Galerie",sub:"Avant / Après",p:"galerie"}].map(c => (
+                <OCard key={c.t} style={{textAlign:"center",padding:"14px 8px",cursor:"pointer"}} onClick={() => setPage(c.p)}>
+                  <div style={{fontSize:24,marginBottom:5}}>{c.ico}</div>
+                  <div style={{fontFamily:FS,fontSize:11,fontWeight:700,color:BO.creme}}>{c.t}</div>
+                  <div style={{fontSize:9,color:BO.cremeD,marginTop:2}}>{c.sub}</div>
                 </OCard>
               ))}
             </div>
@@ -2272,6 +2289,30 @@ function ClientOdyssee({user, rdvs, onBack}) {
               </OCard>
             ))}
             <OBtn v="primary" sz="md" full onClick={() => setPage("rdv")}>📅 Réserver mon soin →</OBtn>
+          </div>
+        )}
+
+        {/* ── BOUTIQUE (espace vente) ── */}
+        {page === "boutique" && (
+          <div style={{display:"flex",flexDirection:"column",gap:11}}>
+            <h2 style={{fontFamily:FS,fontSize:18,color:BO.or,margin:0}}>Notre Boutique</h2>
+            <p style={{fontSize:12,color:BO.cremeD,margin:0,lineHeight:1.7}}>Parfums et produits sélectionnés par Bella'Odyssée.</p>
+            {produitsVente.length === 0 && (
+              <div style={{textAlign:"center",padding:"32px 16px",color:BO.cremeD,fontSize:12,fontStyle:"italic"}}>La boutique se prépare — les premiers articles arrivent bientôt.</div>
+            )}
+            {produitsVente.map(p => (
+              <OCard key={p.id} accent style={{padding:"12px 14px"}}>
+                <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                  <div style={{fontSize:28,flexShrink:0}}>🌸</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:FS,fontSize:14,fontWeight:700,color:BO.creme,marginBottom:2}}>{p.nom}</div>
+                    {p.categorie && <div style={{fontSize:10,color:BO.cremeD,marginBottom:6}}>{p.categorie}</div>}
+                    <div style={{fontSize:13,fontWeight:700,color:BO.or}}>{p.prix_vente != null ? Number(p.prix_vente).toFixed(2).replace(".",",")+" €" : "Prix à venir"}</div>
+                  </div>
+                  <OBtn v="primary" sz="sm" onClick={() => window.open(WA(`Bonjour 🤝\n\nJe souhaite commander : ${p.nom}${p.prix_vente != null ? " ("+Number(p.prix_vente).toFixed(2).replace(".",",")+" €)" : ""} — Bella'Odyssée\n\nMerci`),"_blank")}>Commander</OBtn>
+                </div>
+              </OCard>
+            ))}
           </div>
         )}
 
