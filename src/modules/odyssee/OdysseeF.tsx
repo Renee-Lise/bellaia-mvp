@@ -277,12 +277,15 @@ export default function OdysseeF({ user }: { user?: any }) {
 
       {/* En-tête */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div>
-          <div style={{ fontFamily:FS, fontSize:15, color:BO.or, letterSpacing:1 }}>
-            💅 Bella'Odyssée
-          </div>
-          <div style={{ fontSize:10, color:source==="supabase"?BO.vert:"rgba(255,255,255,0.35)" }}>
-            {source==="supabase"?"✅ Connecté":"📦 Local"} · {rdvs.length} rendez-vous
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <img src="/branding/bella-odyssee-logo-400.webp" alt="" style={{ width:28, height:28, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}/>
+          <div>
+            <div style={{ fontFamily:FS, fontSize:15, color:BO.or, letterSpacing:1 }}>
+              Bella'Odyssée
+            </div>
+            <div style={{ fontSize:10, color:source==="supabase"?BO.vert:"rgba(255,255,255,0.35)" }}>
+              {source==="supabase"?"✅ Connecté":"📦 Local"} · {rdvs.length} rendez-vous
+            </div>
           </div>
         </div>
         <button onClick={() => { setForm({ ...FORM0 }); setEditing(null); setModal("form"); }}

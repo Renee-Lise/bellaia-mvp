@@ -2149,9 +2149,12 @@ function ClientOdyssee({user, rdvs, onBack}) {
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(BO.prune)+","+(BO.fond)+" 65%)",fontFamily:SA}}>
       {/* Header */}
       <div style={{padding:"10px 14px",borderBottom:"1px solid "+(BO.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.35)",flexShrink:0}}>
-        <div>
-          <div style={{fontFamily:FS,fontSize:14,color:BO.or,letterSpacing:2}}>💅 Bella'Odyssée</div>
-          <div style={{fontSize:8,color:BO.cremeD,letterSpacing:3}}>BEAUTÉ · SOINS · ÉLÉGANCE</div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <img src="/branding/bella-odyssee-logo-400.webp" alt="" style={{width:30,height:30,borderRadius:"50%",objectFit:"cover"}}/>
+          <div>
+            <div style={{fontFamily:FS,fontSize:14,color:BO.or,letterSpacing:2}}>Bella'Odyssée</div>
+            <div style={{fontSize:8,color:BO.cremeD,letterSpacing:3}}>BEAUTÉ · SOINS · ÉLÉGANCE</div>
+          </div>
         </div>
         <button onClick={onBack} style={{background:"none",border:"1px solid "+(BO.line),borderRadius:8,padding:"5px 9px",color:BO.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
       </div>
@@ -2496,7 +2499,10 @@ function ClientVilo({ user, onBack }) {
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a3a,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(29,78,216,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
-        <div style={{fontFamily:FS,fontSize:14,color:"#93c5fd"}}>🤝 Vilo'Assistance</div>
+        <div style={{display:"flex",alignItems:"center",gap:7}}>
+          <img src="/branding/vilo-assistance-logo-400.webp" alt="" style={{width:26,height:26,borderRadius:"50%",objectFit:"cover"}}/>
+          <div style={{fontFamily:FS,fontSize:14,color:"#93c5fd"}}>Vilo'Assistance</div>
+        </div>
         <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
       </div>
       <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(29,78,216,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
@@ -3262,7 +3268,10 @@ function ClientFood({ user, onBack }) {
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a0d,#070d0a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(21,128,61,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
-        <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>🍃 Bella'Food</div>
+        <div style={{display:"flex",alignItems:"center",gap:7}}>
+          <img src="/branding/bellafood-logo-400.webp" alt="" style={{width:26,height:26,borderRadius:"50%",objectFit:"cover"}}/>
+          <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>Bella'Food</div>
+        </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {panier.length>0&&<span style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:99,padding:"2px 8px",fontSize:10,color:"#4ade80",fontWeight:700}}>🛒 {panier.length}</span>}
           <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>

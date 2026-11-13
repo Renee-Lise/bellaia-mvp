@@ -220,12 +220,15 @@ ${m.notes?`<p><strong>Notes :</strong> ${m.notes}</p>`:""}
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12, fontFamily:SA }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div>
-          <div style={{ fontFamily:FS, fontSize:15, color:CV.accL, letterSpacing:1 }}>
-            🤝 Vilo'Assistance
-          </div>
-          <div style={{ fontSize:10, color:source==="supabase"?CV.vert:"rgba(255,255,255,0.35)" }}>
-            {source==="supabase"?"✅ Connecté":"📦 Local"} · {missions.length} mission{missions.length>1?"s":""}
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <img src="/branding/vilo-assistance-logo-400.webp" alt="" style={{ width:28, height:28, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}/>
+          <div>
+            <div style={{ fontFamily:FS, fontSize:15, color:CV.accL, letterSpacing:1 }}>
+              Vilo'Assistance
+            </div>
+            <div style={{ fontSize:10, color:source==="supabase"?CV.vert:"rgba(255,255,255,0.35)" }}>
+              {source==="supabase"?"✅ Connecté":"📦 Local"} · {missions.length} mission{missions.length>1?"s":""}
+            </div>
           </div>
         </div>
         <button onClick={() => { setForm({...FORM0}); setEditing(null); setModal("form"); }}
