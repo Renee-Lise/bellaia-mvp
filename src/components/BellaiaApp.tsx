@@ -13640,6 +13640,7 @@ function StocksF({ user }) {
   const [stocks, setStocks] = useState([]);
   const [filtreUnivers, setFiltreUnivers] = useState("tous");
   const [loading, setLoading] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState("");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
   const [uploadEnCours, setUploadEnCours] = useState(false);
@@ -13674,7 +13675,19 @@ function StocksF({ user }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setErreurChargement("");
       try {
+        // getTokenAsync() retombe silencieusement sur la clé anonyme si
+        // le rafraîchissement de session a échoué (même bug déjà corrigé
+        // ailleurs ce chantier) — sbGet renvoie alors [] sans distinguer
+        // "vraiment aucun article" de "session expirée", ce qui a déjà
+        // affiché à tort "0 articles" alors que des lignes existaient.
+        const token = await getTokenAsync();
+        if (token === SB_KEY) {
+          setErreurChargement("Votre session a expiré. Déconnectez-vous puis reconnectez-vous, et réessayez.");
+          setLoading(false);
+          return;
+        }
         const data = await sbGet("stocks", {
           select: "*",
           order: "quantite.asc",
@@ -13802,9 +13815,14 @@ function StocksF({ user }) {
       </div>
 
       {/* Liste stocks */}
+      {erreurChargement && (
+        <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"10px 14px",marginBottom:10,fontSize:12,color:"#ef4444"}}>
+          ⚠ {erreurChargement}
+        </div>
+      )}
       {loading ? (
         <div style={{textAlign:"center",color:B.muted,padding:20}}>Chargement…</div>
-      ) : stocksFiltres.length === 0 ? (
+      ) : stocksFiltres.length === 0 && !erreurChargement ? (
         <div style={{textAlign:"center",color:B.muted,padding:20,fontSize:13}}>
           Aucun article{filtreUnivers!=="tous" ? " pour "+(filtreUnivers) : ""}.
         </div>
