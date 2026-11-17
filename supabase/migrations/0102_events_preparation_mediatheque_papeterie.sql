@@ -1,5 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0102_events_preparation_mediatheque_papeterie.sql
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-17 (3 tables, RLS actif,
+--   bucket events-medias public, 7 policies, 20 patrons / 111 calques)
 -- Auteur : Claude Code · Date de rédaction : 2026-11-17
 -- Objet : Bella'Event "de A à Z" (demande de Renée-Lise du 17/11) :
 --   1. events_budget_lignes — liste de courses + dépenses / gains
