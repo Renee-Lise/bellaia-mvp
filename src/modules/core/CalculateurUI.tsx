@@ -26,8 +26,8 @@ const Inp = ({ label, value, onChange, placeholder = "0", suffix = "€", type =
   </div>
 );
 
-export default function CalculateurUI({ pole = "GENERAL", onPrixRetenu }: { pole?: string; onPrixRetenu?: (prix: number) => void }) {
-  const [form, setForm] = useState<Partial<EntreeCalcul>>({ quantite:1, marge_souhaitee:40, tva:20, frais_bancaires:2.5 });
+export default function CalculateurUI({ pole = "GENERAL", onPrixRetenu, prixFournisseurInitial }: { pole?: string; onPrixRetenu?: (prix: number) => void; prixFournisseurInitial?: number }) {
+  const [form, setForm] = useState<Partial<EntreeCalcul>>({ quantite:1, marge_souhaitee:40, tva:20, frais_bancaires:2.5, prix_fournisseur:prixFournisseurInitial });
   const [resultat, setResultat] = useState<ReturnType<typeof calculerPrix>|null>(null);
   const f = (k: keyof EntreeCalcul) => (e: any) => setForm(x => ({ ...x, [k]: parseFloat(e.target.value)||0 }));
 

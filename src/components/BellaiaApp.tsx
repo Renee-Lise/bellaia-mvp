@@ -13646,6 +13646,7 @@ function StocksF({ user }) {
   const [uploadEnCours, setUploadEnCours] = useState(false);
   const [erreurSauvegarde, setErreurSauvegarde] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
+  const [calcOuvert, setCalcOuvert] = useState(false);
 
   // Envoie la photo dans le bucket stocks-images (migration 0007) et
   // stocke son URL publique dans le formulaire — pas d'écriture en
@@ -13839,6 +13840,7 @@ function StocksF({ user }) {
                     <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
                       {s.prix_vente>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:B.gold+"15",color:B.gold,fontWeight:700}}>Vente {s.prix_vente}€</span>}
                       {s.prix_achat>0&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(255,255,255,0.07)",color:B.muted}}>Achat {s.prix_achat}€</span>}
+                      {s.prix_vente>0&&s.prix_achat>0&&(()=>{const m=Math.round(((s.prix_vente-s.prix_achat)/s.prix_vente)*1000)/10;return <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:(m>=0?"rgba(74,222,128,0.15)":"rgba(239,68,68,0.15)"),color:(m>=0?B.success:"#ef4444"),fontWeight:700}}>Marge {m}%</span>;})()}
                     </div>
                   </div>
                   <div style={{textAlign:"right",flexShrink:0,marginLeft:10}}>
@@ -13873,6 +13875,15 @@ function StocksF({ user }) {
             <Fld label="Prix vente €"><Inp type="number" value={form.prix_vente||0} onChange={e=>setForm({...form,prix_vente:parseFloat(e.target.value)||0})}/></Fld>
             <Fld label="Prix achat €"><Inp type="number" value={form.prix_achat||0} onChange={e=>setForm({...form,prix_achat:parseFloat(e.target.value)||0})}/></Fld>
           </div>
+          {form.prix_vente>0&&form.prix_achat>0&&(
+            <div style={{fontSize:10,color:B.muted,marginTop:-4}}>
+              Marge actuelle : <span style={{color:B.gold,fontWeight:700}}>{Math.round(((form.prix_vente-form.prix_achat)/form.prix_vente)*1000)/10}%</span>
+            </div>
+          )}
+          <button type="button" onClick={()=>setCalcOuvert(true)}
+            style={{background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.4)",borderRadius:9,padding:"8px 12px",color:"#a78bfa",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:SA,textAlign:"left"}}>
+            🧮 Calculer la marge / le prix conseillé…
+          </button>
           <Fld label="Notes"><Inp value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Notes" rows={2}/></Fld>
           <Fld label="Photo produit">
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
@@ -13904,6 +13915,17 @@ function StocksF({ user }) {
             <Btn onClick={sauvegarder} full v="gold" disabled={enregistrement}>{enregistrement?"Enregistrement…":"Enregistrer"}</Btn>
             <Btn onClick={()=>setModal(null)} v="ghost">Annuler</Btn>
           </div>
+        </Mdl>
+      )}
+
+      {/* Modal calculateur de marge — pré-rempli avec le prix d'achat du formulaire */}
+      {calcOuvert && (
+        <Mdl title="Calculateur de marge" onClose={()=>setCalcOuvert(false)}>
+          <CalculateurWrapper
+            pole={form.univers || "GENERAL"}
+            prixFournisseurInitial={form.prix_achat || undefined}
+            onPrixRetenu={(prix) => { setForm(f => ({...f, prix_vente: prix})); setCalcOuvert(false); }}
+          />
         </Mdl>
       )}
     </div>
@@ -14208,13 +14230,13 @@ function StudioIAWrapper({ user }: any) {
 }
 
 // ── Wrapper Calculateur
-function CalculateurWrapper({ pole, onPrixRetenu }: any) {
+function CalculateurWrapper({ pole, onPrixRetenu, prixFournisseurInitial }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
     import("../modules/core/CalculateurUI").then(m => setComp(()=>m.default));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement calculateur…</div>;
-  return <Comp pole={pole} onPrixRetenu={onPrixRetenu}/>;
+  return <Comp pole={pole} onPrixRetenu={onPrixRetenu} prixFournisseurInitial={prixFournisseurInitial}/>;
 }
 
 // ── Wrapper Bella'Food
