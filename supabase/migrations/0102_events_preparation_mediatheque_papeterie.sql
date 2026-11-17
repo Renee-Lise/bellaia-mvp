@@ -22,7 +22,8 @@
 --   _visuels_decoration existent).
 -- Sécurité : RLS is_fondatrice() en ALL, comme les autres tables
 --   events_* ; storage : lecture publique, écriture fondatrice.
--- Idempotent : create if not exists, drop policy if exists, seed
+-- Idempotent et sans aucune instruction destructive : create if not
+--   exists, policies créées seulement si absentes (bloc DO), seed
 --   protégé par "where not exists" sur le nom du patron.
 -- ═══════════════════════════════════════════════════════════
 
@@ -48,29 +49,44 @@ create table if not exists public.events_budget_lignes (
 );
 create index if not exists events_budget_lignes_programme_idx on public.events_budget_lignes(programme_id);
 alter table public.events_budget_lignes enable row level security;
-drop policy if exists events_budget_lignes_fondatrice on public.events_budget_lignes;
-create policy events_budget_lignes_fondatrice on public.events_budget_lignes
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'events_budget_lignes' and policyname = 'events_budget_lignes_fondatrice') then
+    create policy events_budget_lignes_fondatrice on public.events_budget_lignes
   for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice());
+  end if;
+end $$;
 
 -- 2. Médiathèque ─────────────────────────────────────────────
 insert into storage.buckets (id, name, public)
 values ('events-medias', 'events-medias', true)
 on conflict (id) do nothing;
 
-drop policy if exists events_medias_lecture_publique on storage.objects;
-create policy events_medias_lecture_publique on storage.objects
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'events_medias_lecture_publique') then
+    create policy events_medias_lecture_publique on storage.objects
   for select to anon, authenticated using (bucket_id = 'events-medias');
-drop policy if exists events_medias_fondatrice_insert on storage.objects;
-create policy events_medias_fondatrice_insert on storage.objects
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'events_medias_fondatrice_insert') then
+    create policy events_medias_fondatrice_insert on storage.objects
   for insert to authenticated with check (bucket_id = 'events-medias' and public.is_fondatrice());
-drop policy if exists events_medias_fondatrice_update on storage.objects;
-create policy events_medias_fondatrice_update on storage.objects
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'events_medias_fondatrice_update') then
+    create policy events_medias_fondatrice_update on storage.objects
   for update to authenticated
   using (bucket_id = 'events-medias' and public.is_fondatrice())
   with check (bucket_id = 'events-medias' and public.is_fondatrice());
-drop policy if exists events_medias_fondatrice_delete on storage.objects;
-create policy events_medias_fondatrice_delete on storage.objects
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'events_medias_fondatrice_delete') then
+    create policy events_medias_fondatrice_delete on storage.objects
   for delete to authenticated using (bucket_id = 'events-medias' and public.is_fondatrice());
+  end if;
+end $$;
 
 create table if not exists public.events_medias (
   id uuid primary key default gen_random_uuid(),
@@ -92,9 +108,12 @@ create table if not exists public.events_medias (
 );
 create index if not exists events_medias_dossier_idx on public.events_medias(dossier);
 alter table public.events_medias enable row level security;
-drop policy if exists events_medias_fondatrice on public.events_medias;
-create policy events_medias_fondatrice on public.events_medias
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'events_medias' and policyname = 'events_medias_fondatrice') then
+    create policy events_medias_fondatrice on public.events_medias
   for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice());
+  end if;
+end $$;
 
 -- 3. Atelier papeterie ───────────────────────────────────────
 create table if not exists public.events_papeterie (
@@ -120,9 +139,12 @@ create table if not exists public.events_papeterie (
 create index if not exists events_papeterie_modele_idx on public.events_papeterie(est_modele);
 create index if not exists events_papeterie_programme_idx on public.events_papeterie(programme_id);
 alter table public.events_papeterie enable row level security;
-drop policy if exists events_papeterie_fondatrice on public.events_papeterie;
-create policy events_papeterie_fondatrice on public.events_papeterie
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'events_papeterie' and policyname = 'events_papeterie_fondatrice') then
+    create policy events_papeterie_fondatrice on public.events_papeterie
   for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice());
+  end if;
+end $$;
 
 -- Seed : 20 patrons BELLA_EVENS Pack Anniversaire (formats du Guide Patrons, en mm)
 insert into public.events_papeterie (nom, type_support, largeur_mm, hauteur_mm, contenu, est_modele, collection, occasion, statut)
