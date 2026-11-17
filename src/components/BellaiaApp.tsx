@@ -10873,13 +10873,16 @@ function BellaEventsF({ user }) {
       </div>
       {/* Onglets */}
       <div style={{display:"flex",gap:5,overflowX:"auto"}}>
-        {[["demandes","📋 Demandes"+(nbNouvelles>0 ? " ("+(nbNouvelles)+")" : "")],["catalogue","🛍 Catalogue"],["commandes","📦 Commandes"],["documents","📄 Documents"],["programme","🎉 Programme à thème"]].map(([id,l])=>(
+        {[["demandes","📋 Demandes"+(nbNouvelles>0 ? " ("+(nbNouvelles)+")" : "")],["catalogue","🛍 Catalogue"],["commandes","📦 Commandes"],["documents","📄 Documents"],["programme","🎉 Programme à thème"],["preparation","🛒 Préparation & budget"],["papeterie","✂️ Atelier papeterie"],["mediatheque","🖼️ Médiathèque"]].map(([id,l])=>(
           <button key={id} onClick={()=>setOng(id)} style={{padding:"6px 12px",borderRadius:99,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:ong===id?"#065f46":B.card,color:ong===id?"#fff":B.muted,fontFamily:SA,flexShrink:0,position:"relative"}}>{l}</button>
         ))}
       </div>
 
       {/* Onglet Programme à thème */}
       {ong==="programme" && <EventsProgrammeF user={user}/>}
+      {ong==="preparation" && <EventsModuleLazy nom="preparation"/>}
+      {ong==="papeterie" && <EventsModuleLazy nom="papeterie"/>}
+      {ong==="mediatheque" && <EventsModuleLazy nom="mediatheque"/>}
 
       {/* Onglet Demandes */}
       {ong==="demandes" && (
@@ -14237,6 +14240,23 @@ function CalculateurWrapper({ pole, onPrixRetenu, prixFournisseurInitial }: any)
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement calculateur…</div>;
   return <Comp pole={pole} onPrixRetenu={onPrixRetenu} prixFournisseurInitial={prixFournisseurInitial}/>;
+}
+
+// ── Bella'Event : Préparation & budget, Atelier papeterie, Médiathèque
+// (chargés à la demande pour ne pas alourdir l'application)
+function EventsModuleLazy({ nom }: { nom: "preparation" | "papeterie" | "mediatheque" }) {
+  const [Comp, setComp] = React.useState<any>(null);
+  const [err, setErr] = React.useState("");
+  React.useEffect(() => {
+    setComp(null);
+    const imp = nom === "preparation" ? import("../modules/events/EventsPreparation")
+      : nom === "papeterie" ? import("../modules/events/EventsAtelierPapeterie")
+      : import("../modules/events/EventsMediatheque");
+    imp.then(m => setComp(() => m.default)).catch(e => setErr(String(e?.message || e)));
+  }, [nom]);
+  if (err) return <div style={{color:"#f87171",fontSize:12,padding:16}}>⚠️ Chargement impossible : {err}</div>;
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement…</div>;
+  return <Comp/>;
 }
 
 // ── Wrapper Bella'Food
