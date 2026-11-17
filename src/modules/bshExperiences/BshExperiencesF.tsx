@@ -127,7 +127,7 @@ export default function BshExperiencesF() {
           {onglet === "evts" && <Evenements evenements={evenements} recharger={charger} />}
           {onglet === "lieux" && <Lieux lieux={lieux} recharger={charger} />}
           {onglet === "budget" && <Budget budget={budget} evenements={evenements} recharger={charger} />}
-          {onglet === "check" && <Checklist checklist={checklist} recharger={charger} />}
+          {onglet === "check" && <Checklist checklist={checklist} evenements={evenements} recharger={charger} />}
           {onglet === "preins" && <Preinscriptions preins={preins} evenements={evenements} recharger={charger} />}
           {onglet === "invit" && <Invitations invitations={invitations} evenements={evenements} recharger={charger} />}
           {onglet === "billets" && <Billetterie billets={billets} evenements={evenements} recharger={charger} />}
@@ -418,7 +418,7 @@ function Budget({ budget, evenements, recharger }: { budget: BudgetLigneBSH[]; e
 }
 
 // ── Check-list ──────────────────────────────────────────────
-function Checklist({ checklist, recharger }: { checklist: ChecklistItemBSH[]; recharger: () => void }) {
+function Checklist({ checklist, evenements, recharger }: { checklist: ChecklistItemBSH[]; evenements: EvenementBSH[]; recharger: () => void }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<Partial<ChecklistItemBSH>>({ cibleType: "evenement", priorite: "normale" });
   const [hotes, setHotes] = useState<{ id: string; nom: string }[]>([]);
@@ -462,7 +462,7 @@ function Checklist({ checklist, recharger }: { checklist: ChecklistItemBSH[]; re
           <Champ label="Titre *"><input style={inp} value={form.titre || ""} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))} /></Champ>
           <Champ label="Rattachée à">
             <select style={{ ...inp, background: C.plumD }} value={form.cibleType} onChange={e => setForm(f => ({ ...f, cibleType: e.target.value as any, cibleId: undefined }))}>
-              <option value="evenement">Un événement (UUID libre pour l'instant)</option>
+              <option value="evenement">Un événement</option>
               <option value="hote">Une hôtesse</option>
             </select>
           </Champ>
@@ -474,7 +474,12 @@ function Checklist({ checklist, recharger }: { checklist: ChecklistItemBSH[]; re
               </select>
             </Champ>
           ) : (
-            <Champ label="Identifiant événement *"><input style={inp} value={form.cibleId || ""} onChange={e => setForm(f => ({ ...f, cibleId: e.target.value }))} placeholder="Collez l'id depuis l'onglet Événements" /></Champ>
+            <Champ label="Événement *">
+              <select style={{ ...inp, background: C.plumD }} value={form.cibleId || ""} onChange={e => setForm(f => ({ ...f, cibleId: e.target.value }))}>
+                <option value="">— Choisir —</option>
+                {evenements.map(ev => <option key={ev.id} value={ev.id}>{ev.nom}</option>)}
+              </select>
+            </Champ>
           )}
           <Champ label="Responsable"><input style={inp} value={form.responsable || ""} onChange={e => setForm(f => ({ ...f, responsable: e.target.value }))} /></Champ>
           <Champ label="Échéance"><input type="date" style={inp} value={form.echeance || ""} onChange={e => setForm(f => ({ ...f, echeance: e.target.value }))} /></Champ>

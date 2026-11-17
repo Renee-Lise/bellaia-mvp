@@ -308,3 +308,21 @@ grant execute on function public.bsh_sondage_resultats(uuid) to authenticated;
 alter table public.bsh_communications drop constraint if exists bsh_communications_statut_check,
   add constraint bsh_communications_statut_check
   check (statut in ('brouillon','en_attente','valide','programme','pret','publie','reporte','annule','archive'));
+
+-- 10. Bucket des visuels de publications / campagnes ─────────
+-- (exécuté et vérifié le 2026-11-17 : bucket public, 4 policies)
+insert into storage.buckets (id, name, public) values ('bsh-visuels', 'bsh-visuels', true) on conflict (id) do nothing;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='bsh_visuels_lecture_publique') then
+    create policy bsh_visuels_lecture_publique on storage.objects for select to anon, authenticated using (bucket_id = 'bsh-visuels');
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='bsh_visuels_fondatrice_insert') then
+    create policy bsh_visuels_fondatrice_insert on storage.objects for insert to authenticated with check (bucket_id = 'bsh-visuels' and public.is_fondatrice());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='bsh_visuels_fondatrice_update') then
+    create policy bsh_visuels_fondatrice_update on storage.objects for update to authenticated using (bucket_id = 'bsh-visuels' and public.is_fondatrice()) with check (bucket_id = 'bsh-visuels' and public.is_fondatrice());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='bsh_visuels_fondatrice_delete') then
+    create policy bsh_visuels_fondatrice_delete on storage.objects for delete to authenticated using (bucket_id = 'bsh-visuels' and public.is_fondatrice());
+  end if;
+end $$;

@@ -6240,7 +6240,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
-  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"experiences",l:"💎",t:"Experiences"},{id:"params",l:"⚙",t:"Réglages"}];
+  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"agenda",l:"🗓",t:"Secret Agenda"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"experiences",l:"💎",t:"Experiences"},{id:"params",l:"⚙",t:"Réglages"}];
 
   // ── Communication BSH (annonces, notifications, publications) ──
   // Phase 1 de la mission "BSH Communications & Automatisations" :
@@ -7109,6 +7109,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             </>);
           })()}
         </div>}
+        {sec==="agenda"&&<BshAgendaWrapper/>}
         {sec==="experiences"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <ExperiencesBSHWrapper/>
         </div>}
@@ -7533,6 +7534,18 @@ function DocumentsBSHWrapper() {
 }
 
 // ── Wrapper BSH Secret Circle & Experiences
+// ── BSH Secret Agenda & Rewards (cahier des charges du 17/11) — chargé à la demande
+function BshAgendaWrapper() {
+  const [Comp, setComp] = React.useState<any>(null);
+  const [err, setErr] = React.useState("");
+  React.useEffect(() => {
+    import("../modules/bshAgenda/BshAgendaHub").then(m => setComp(()=>m.default)).catch(e => setErr(String(e?.message||e)));
+  }, []);
+  if (err) return <div style={{color:"#f87171",fontSize:12,padding:16}}>⚠️ Chargement impossible : {err}</div>;
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du Secret Agenda…</div>;
+  return <Comp experiences={<ExperiencesBSHWrapper/>}/>;
+}
+
 function ExperiencesBSHWrapper() {
   const [Comp, setComp] = React.useState(null);
   React.useEffect(() => {

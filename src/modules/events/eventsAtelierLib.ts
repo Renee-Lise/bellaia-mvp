@@ -47,25 +47,31 @@ export async function sbUpdate<T = any>(table: string, id: string, patch: any): 
   return r.json();
 }
 
+export async function sbRpc<T = any>(fn: string, args: any): Promise<T> {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: await entetes(), body: JSON.stringify(args) });
+  if (!r.ok) throw new Error(await lireErreur(r));
+  return r.json();
+}
+
 export async function sbDelete(table: string, id: string) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers: await entetes() });
   if (!r.ok) throw new Error(await lireErreur(r));
 }
 
-export async function uploadStorage(chemin: string, blob: Blob, contentType: string) {
+export async function uploadStorage(chemin: string, blob: Blob, contentType: string, bucket: string = BUCKET_MEDIAS) {
   const t = await jeton();
-  const r = await fetch(`${SB_URL}/storage/v1/object/${BUCKET_MEDIAS}/${chemin}`, {
+  const r = await fetch(`${SB_URL}/storage/v1/object/${bucket}/${chemin}`, {
     method: "POST",
     headers: { apikey: SB_KEY, Authorization: `Bearer ${t}`, "Content-Type": contentType, "x-upsert": "true" },
     body: blob,
   });
   if (!r.ok) throw new Error(await lireErreur(r));
-  return `${SB_URL}/storage/v1/object/public/${BUCKET_MEDIAS}/${chemin}`;
+  return `${SB_URL}/storage/v1/object/public/${bucket}/${chemin}`;
 }
 
-export async function supprimerStorage(chemin: string) {
+export async function supprimerStorage(chemin: string, bucket: string = BUCKET_MEDIAS) {
   const t = await jeton();
-  await fetch(`${SB_URL}/storage/v1/object/${BUCKET_MEDIAS}/${chemin}`, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${t}` } });
+  await fetch(`${SB_URL}/storage/v1/object/${bucket}/${chemin}`, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${t}` } });
 }
 
 export function slug(s: string) {
