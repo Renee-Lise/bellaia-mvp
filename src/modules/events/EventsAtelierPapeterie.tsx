@@ -15,7 +15,7 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import EventsMediatheque from "./EventsMediatheque";
-import { composerPieces, type BriefKit } from "./kitComposer";
+import { composerPieces, ageTexte, type BriefKit } from "./kitComposer";
 import { patronPopcorn, patronGable } from "./patronsBoites";
 import { SUPPORTS, THEMES, COULEURS, PRESTATIONS, proposerPack, supportDuPatron, supportDe, themeDe, nommerCouleur, type Proposition } from "./classement";
 import {
@@ -73,12 +73,12 @@ function CalqueSvg({ k, editeur }: { k: Calque; editeur: boolean }) {
   return <g transform={k.rotation ? `rotate(${k.rotation} ${cx} ${cy})` : undefined} opacity={k.opacite ?? 1}>{el}</g>;
 }
 
-function Apercu({ c, largeurPx }: { c: Creation; largeurPx: number }) {
+function Apercu({ c, largeurPx, zones = true }: { c: Creation; largeurPx: number; zones?: boolean }) {
   const L = Number(c.largeur_mm), H = Number(c.hauteur_mm);
   const k = Math.min(largeurPx / L, (largeurPx * 1.2) / H);
   return (
     <svg viewBox={`0 0 ${L} ${H}`} width={L * k} height={H * k} style={{ display: "block", background: c.contenu?.fond || "#fff", borderRadius: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.35)" }}>
-      {(c.contenu?.calques || []).map(x => <CalqueSvg key={x.id} k={x} editeur />)}
+      {(c.contenu?.calques || []).map(x => <CalqueSvg key={x.id} k={x} editeur={zones} />)}
       {(c.contenu?.reperes?.traits || []).filter(t => t.type !== "collage").map((t, i) => <polyline key={i} points={(t.ferme ? [...t.points, t.points[0]] : t.points).map(p => p.join(",")).join(" ")} fill="none" stroke={t.type === "coupe" ? "#000" : "#999"} strokeWidth={t.type === "coupe" ? 0.6 : 0.4} strokeDasharray={t.type === "pli" ? "2 1.5" : undefined} />)}
     </svg>
   );
@@ -126,7 +126,7 @@ export default function EventsAtelierPapeterie() {
 
   const remplirZones = (contenu: ContenuPapeterie, v: any) => {
     const d = copie(contenu);
-    const val: Record<string, string> = { PRENOM: v.prenom, AGE: v.age ? `${v.age} ans` : "", BADGE: v.age || "", DATE: v.date, LIEU: v.lieu, RSVP: v.rsvp, TITRE: v.titre, MESSAGE: v.message };
+    const val: Record<string, string> = { PRENOM: v.prenom, AGE: ageTexte(v.age) || "", BADGE: v.age || "", DATE: v.date, LIEU: v.lieu, RSVP: v.rsvp, TITRE: v.titre, MESSAGE: v.message };
     d.calques.forEach(k => {
       if (k.type === "texte" && k.zone && val[k.zone]) k.texte!.contenu = val[k.zone];
       if (k.type === "image" && k.zone === "IMAGE" && v.image) k.image = { url: v.image, ajustement: k.image?.ajustement || "cover" };
@@ -198,7 +198,12 @@ export default function EventsAtelierPapeterie() {
       const L = Number(nouveau.l) || 210, H = Math.round((L / (nouveau.ratio || 1)) * 10) / 10;
       // L'image du modèle est figée ; seules les zones ajoutées ensuite (textes, images) se modifient.
       ligne = { ...base, nom: nouveau.nom?.trim() || "Patron importé", type_support: "patron_importe", largeur_mm: L, hauteur_mm: H,
-        contenu: { fond: "#ffffff", remplissage: true, reperes: { zone_sure_mm: 3, pliage: [] }, calques: [{ id: nouvelId(), type: "image", zone: null, x: 0, y: 0, w: L, h: H, rotation: 0, verrou: true, image: { url: nouveau.imageUrl, ajustement: "cover" } }] } };
+        contenu: { fond: "#ffffff", remplissage: false, reperes: { zone_sure_mm: 3, pliage: [] }, calques: [
+          { id: nouvelId(), type: "image", zone: null, x: 0, y: 0, w: L, h: H, rotation: 0, verrou: true, image: { url: nouveau.imageUrl, ajustement: "cover" } },
+          // Zones prêtes à placer : il suffit de les déplacer sur l'emplacement du modèle
+          { id: nouvelId(), type: "texte", zone: "PRENOM", x: r1(L * 0.1), y: r1(H * 0.4), w: r1(L * 0.8), h: r1(H * 0.14), rotation: 0, texte: { contenu: "Prénom", taille: r1(Math.min(L, H) * 0.1), couleur: "#2d2424", police: "Playfair Display", gras: true, italique: false, align: "center" } },
+          { id: nouvelId(), type: "texte", zone: "AGE", x: r1(L * 0.25), y: r1(H * 0.56), w: r1(L * 0.5), h: r1(H * 0.08), rotation: 0, texte: { contenu: "X ans", taille: r1(Math.min(L, H) * 0.06), couleur: "#c9a84c", police: "Inter", gras: true, italique: false, align: "center" } },
+        ] } };
     } else {
       const L = Number(nouveau.l), H = Number(nouveau.h);
       if (!nouveau.nom?.trim() || !(L > 0) || !(H > 0)) return;
@@ -210,18 +215,39 @@ export default function EventsAtelierPapeterie() {
 
   if (ouverte) return <Editeur creation={ouverte} onFermer={() => { setOuverte(null); charger(); }} onDupliquer={async (c, v) => { const r = await dupliquer(c, v); await charger(); if (r) setOuverte(r); }} />;
 
+  const petit: React.CSSProperties = { ...bouton(), padding: "7px 10px", fontSize: 14, minWidth: 40 };
   const Carte = ({ c }: { c: Creation }) => (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 8, display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
-      <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={() => setOuverte(c)}><Apercu c={c} largeurPx={110} /></div>
-      <div style={{ fontSize: 11, color: C.cream, fontWeight: 700, textAlign: "center", lineHeight: 1.25, cursor: "pointer" }} onClick={() => setOuverte(c)}>{nomCourt(c.nom)}</div>
-      <div style={{ fontSize: 10, color: C.muted }}>{Number(c.largeur_mm)} × {Number(c.hauteur_mm)} mm{!c.est_modele ? ` · ${c.statut}` : ""}</div>
-      <div style={{ display: "flex", gap: 4 }}>
-        <button style={{ ...bouton(), padding: "4px 8px", fontSize: 11 }} onClick={() => setOuverte(c)}>✏️</button>
-        <button style={{ ...bouton(), padding: "4px 8px", fontSize: 11 }} title="Dupliquer" onClick={async () => { const client = c.est_modele ? prompt("Nom du client pour cette copie :") : c.client_nom; if (client === null) return; await dupliquer(c, { client: client || undefined }); await charger(); setOnglet("mes"); }}>⧉</button>
-        {!c.est_modele && <button style={{ ...bouton(), padding: "4px 8px", fontSize: 11 }} title="Supprimer" onClick={async () => { if (!confirm(`Supprimer « ${c.nom} » ?`)) return; await sbDelete("events_papeterie", c.id); charger(); }}>🗑</button>}
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 10, display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+      <div style={{ height: 160, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={() => setOuverte(c)}><Apercu c={c} largeurPx={132} zones={c.est_modele} /></div>
+      <div style={{ fontSize: 13, color: C.cream, fontWeight: 700, textAlign: "center", lineHeight: 1.3, cursor: "pointer" }} onClick={() => setOuverte(c)}>{nomCourt(c.nom)}</div>
+      <div style={{ fontSize: 11, color: C.muted }}>{Number(c.largeur_mm)} × {Number(c.hauteur_mm)} mm{!c.est_modele ? ` · ${c.statut}` : ""}</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+        <button style={petit} title={c.est_modele ? "Modifier le patron" : "Modifier"} onClick={() => setOuverte(c)}>✏️</button>
+        {c.est_modele && <button style={petit} title="Utiliser pour un client" onClick={async () => { const client = prompt("Nom du client pour cette copie :"); if (!client) return; await dupliquer(c, { client }); await charger(); setOnglet("mes"); }}>👤</button>}
+        <button style={petit} title={c.est_modele ? "Dupliquer le patron (variante)" : "Dupliquer"} onClick={async () => { if (c.est_modele) { await copierEnPatron(c); return; } await dupliquer(c, { client: c.client_nom || undefined }); await charger(); }}>⧉</button>
+        {!c.est_modele && <button style={petit} title="Enregistrer comme patron réutilisable" onClick={() => copierEnPatron(c)}>📐</button>}
+        <button style={petit} title={c.est_modele ? "Retirer le patron" : "Supprimer"} onClick={async () => {
+          if (c.est_modele) { if (!confirm(`Retirer le patron « ${nomCourt(c.nom)} » de la bibliothèque ?\n(Il est archivé, pas effacé : les créations déjà faites ne changent pas.)`)) return; await sbUpdate("events_papeterie", c.id, { statut: "archive", updated_at: new Date().toISOString() }); }
+          else { if (!confirm(`Supprimer « ${c.nom} » ?`)) return; await sbDelete("events_papeterie", c.id); }
+          charger();
+        }}>🗑</button>
       </div>
     </div>
   );
+
+  // Patron réutilisable à partir d'un patron ou d'une création : nouvelle
+  // entrée de la bibliothèque, rangée dans le pack (collection) choisi.
+  const copierEnPatron = async (c: Creation) => {
+    const nom = prompt("Nom du nouveau patron :", c.est_modele ? `${nomCourt(c.nom)} (variante)` : nomCourt(c.nom).replace(/ — .*$/, ""));
+    if (!nom) return;
+    const collection = prompt(`Pack de patrons (collection) :\nexistants : ${collections.join(" · ")}`, c.collection || collections[0] || "Mes patrons");
+    if (collection === null) return;
+    try {
+      await sbInsert("events_papeterie", { nom: nom.trim(), type_support: c.type_support, largeur_mm: c.largeur_mm, hauteur_mm: c.hauteur_mm, contenu: c.contenu, est_modele: true, modele_source_id: c.est_modele ? c.id : c.modele_source_id,
+        collection: collection.trim() || "Mes patrons", occasion: c.occasion, theme: c.theme, couleurs: (c as any).couleurs || null, client_nom: null, statut: "brouillon" }, "return=minimal");
+      await charger(); setOnglet("patrons");
+    } catch (e: any) { setErreur(e.message); }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, fontFamily: SA }}>
@@ -232,7 +258,8 @@ export default function EventsAtelierPapeterie() {
         <button style={bouton(onglet === "packs")} onClick={() => setOnglet("packs")}>📚 Packs achetés</button>
         <div style={{ flex: 1 }} />
         <button style={bouton(true)} onClick={() => setAssistant({ demande: "", prenom: "", age: "", prestation: "", client: "" })} disabled={!patrons.length}>🪄 Proposer un pack</button>
-        <button style={bouton()} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", titre: "Joyeux anniversaire", message: "", banderoleTexte: "", banderoleMode: "lettres", police: "Playfair Display", couleurs: { fond: "#fdf6f0", principale: "#b5838d", accent: "#c9a84c", texte: "#2d2424" }, ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id), collection: collections[0] })} disabled={!patrons.length}>🎁 Créer mon kit</button>
+        <button style={bouton()} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", titre: "Joyeux anniversaire", message: "", banderoleTexte: "", banderoleMode: "lettres", police: "Playfair Display", motif: "confettis", couleurs: { fond: "#fdf6f0", principale: "#b5838d", accent: "#c9a84c", texte: "#2d2424" }, ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id) })} disabled={!patrons.length}>🎁 Créer mon kit</button>
+        <button style={bouton()} onClick={() => setNouveau({ nom: "", l: 210, h: 297, type: "image", modele: true, collection: "Patrons achetés" })}>📥 Ajouter un patron acheté</button>
         <button style={bouton()} onClick={() => setNouveau({ nom: "", l: 210, h: 297, type: "libre" })}>+ Nouvelle création / patron</button>
       </div>
       {occupe && <div style={{ fontSize: 12, color: C.gold }}>⏳ {occupe}</div>}
@@ -251,7 +278,7 @@ export default function EventsAtelierPapeterie() {
         if (!items.length) return null;
         return <div key={sp} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: C.gold }}>{sp === "autre" ? "Autres supports" : `${supportDe(sp)?.ico} ${supportDe(sp)?.libelle}`} ({items.length})</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 8 }}>{items.map(c => <Carte key={c.id} c={c} />)}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(158px,1fr))", gap: 10 }}>{items.map(c => <Carte key={c.id} c={c} />)}</div>
         </div>;
       })}
       {!charge && onglet === "mes" && (mes.length === 0
@@ -262,7 +289,7 @@ export default function EventsAtelierPapeterie() {
               <div style={{ fontSize: 12, fontWeight: 800, color: C.gold, flex: 1 }}>{client} ({items.length})</div>
               <button style={{ ...bouton(), fontSize: 11 }} onClick={() => exporterPack(client, items)}>📄 PDF du pack / partager</button>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 8 }}>{items.map(c => <Carte key={c.id} c={c} />)}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(158px,1fr))", gap: 10 }}>{items.map(c => <Carte key={c.id} c={c} />)}</div>
           </div>
         )))}
 
@@ -270,14 +297,13 @@ export default function EventsAtelierPapeterie() {
       {assistant && <AssistantPack etat={assistant} setEtat={setAssistant} patrons={tousPatrons} onPreparer={(prop: Proposition, ids: string[]) => {
         setPack({ client: assistant.client || assistant.prenom || "", prenom: assistant.prenom, age: assistant.age, date: "", lieu: "", rsvp: "", titre: prop.titre, message: prop.message, theme: prop.theme?.libelle || "", themeId: prop.theme?.id || null,
           banderoleTexte: "", banderoleMode: "lettres", police: prop.police, couleurs: prop.couleurs, motif: prop.fond ? null : prop.motif, imageFond: prop.fond?.url || null, image: prop.personnage?.url || null,
-          ids, collection: collections[0] });
+          ids });
         setAssistant(null);
       }} />}
 
       {pack && (
         <Feuille titre="🎁 Créer mon kit" onFermer={() => setPack(null)}>
           <div style={{ fontSize: 11, color: C.muted }}>Chaque support est recomposé selon sa forme avec le même univers (couleurs, police, fond, personnage). Les patrons d'origine restent intacts. Tout reste modifiable ensuite.</div>
-          <select style={champ} value={pack.collection} onChange={e => setPack({ ...pack, collection: e.target.value, ids: patrons.filter(p => p.collection === e.target.value).map(p => p.id) })}>{collections.map(c => <option key={c}>{c}</option>)}</select>
           <input style={champ} placeholder="Nom du client *" value={pack.client} onChange={e => setPack({ ...pack, client: e.target.value })} />
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 6 }}>
             <input style={champ} placeholder="Prénom (enfant / fêté·e)" value={pack.prenom} onChange={e => setPack({ ...pack, prenom: e.target.value })} />
@@ -289,15 +315,26 @@ export default function EventsAtelierPapeterie() {
           <input style={champ} placeholder="Thème (ex. Pat'Patrouille, Bal masqué, Safari…)" value={pack.theme || ""} onChange={e => setPack({ ...pack, theme: e.target.value })} />
           <input style={champ} placeholder="Titre (ex. Joyeux anniversaire)" value={pack.titre || ""} onChange={e => setPack({ ...pack, titre: e.target.value })} />
           <input style={champ} placeholder="Message (cartes de remerciement, toppers sachets…)" value={pack.message || ""} onChange={e => setPack({ ...pack, message: e.target.value })} />
+          <button style={bouton()} disabled={!(pack.theme || "").trim() || !!occupe} onClick={async () => {
+            setOccupe("Recherche des visuels du thème…");
+            try {
+              const medias = await sbSelect("events_medias", "select=id,url,theme,type_support,couleurs,nature,largeur,hauteur&limit=5000");
+              const p = proposerPack({ demande: `${pack.theme} ${pack.titre || ""}`, prenom: pack.prenom, age: pack.age }, medias);
+              setPack((x: any) => ({ ...x, couleurs: p.couleurs, police: p.police, motif: p.motif || x.motif, themeId: p.theme?.id || x.themeId, imageFond: x.imageFond || p.fond?.url || null, image: x.image || p.personnage?.url || null }));
+              setErreur(p.theme ? "" : "Thème non reconnu : palette par défaut. Choisis les couleurs et les images à la main.");
+            } catch (e: any) { setErreur(e.message); }
+            setOccupe("");
+          }}>✨ Compléter d'après le thème (couleurs, police, images de ta médiathèque)</button>
           <div style={lbl}>Univers du kit</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
             {([["fond", "Fond"], ["principale", "Principale"], ["accent", "Accent"], ["texte", "Texte"]] as const).map(([k, l]) => (
-              <label key={k} style={{ fontSize: 10, color: C.muted, display: "flex", flexDirection: "column", gap: 3 }}>{l}<input type="color" value={pack.couleurs[k]} onChange={e => setPack({ ...pack, couleurs: { ...pack.couleurs, [k]: e.target.value } })} style={{ width: "100%", height: 32, border: "none", background: "none" }} /></label>
+              <label key={k} style={{ fontSize: 11, color: C.muted, display: "flex", flexDirection: "column", gap: 4 }}>{l}<input type="color" value={pack.couleurs[k]} onChange={e => setPack({ ...pack, couleurs: { ...pack.couleurs, [k]: e.target.value } })} style={{ width: "100%", height: 40, minHeight: 40, padding: 0, border: `1px solid ${C.border}`, borderRadius: 10, background: "none" }} /></label>
             ))}
           </div>
           <select style={champ} value={pack.police} onChange={e => setPack({ ...pack, police: e.target.value })}>{POLICES.map(p => <option key={p} value={p}>Police des titres : {p}</option>)}</select>
-          <select style={champ} value={pack.motif || ""} onChange={e => setPack({ ...pack, motif: e.target.value || null })}><option value="">Décor généré (si pas d'image de fond) : aucun</option>{([["confettis", "Confettis"], ["etoiles", "Étoiles"], ["pois", "Pois"], ["coeurs", "Cœurs"], ["vagues", "Vagues"], ["triangles", "Géométrique"]] as const).map(([v, l]) => <option key={v} value={v}>Décor généré : {l}</option>)}</select>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <select style={champ} value={pack.motif || ""} onChange={e => setPack({ ...pack, motif: e.target.value || null })}><option value="">Décor (sans image de fond) : aucun</option>{([["confettis", "Confettis"], ["etoiles", "Étoiles"], ["pois", "Pois"], ["coeurs", "Cœurs"], ["vagues", "Vagues"], ["triangles", "Géométrique"]] as const).map(([v, l]) => <option key={v} value={v}>Décor (sans image de fond) : {l}</option>)}</select>
+          <div style={{ fontSize: 11, color: C.muted }}>L'image de fond recouvre chaque pièce entière (sur les boîtes : toute la surface imprimée). Le personnage va dans les zones image des patrons ; sans personnage, ces zones sont retirées et les textes recentrés.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 8 }}>
             {([["imageFond", "choixFond", "🌄 Image de fond / motif"], ["image", "choixImage", "🧸 Personnage / photo"]] as const).map(([k, choix, l]) => (
               <div key={k} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 {pack[k] ? <img src={pack[k]} alt="" style={{ width: 44, height: 44, objectFit: "contain", borderRadius: 6, background: "#fff" }} /> : null}
@@ -310,13 +347,20 @@ export default function EventsAtelierPapeterie() {
             <input style={champ} placeholder="Texte de la banderole (par défaut : le prénom)" value={pack.banderoleTexte || ""} onChange={e => setPack({ ...pack, banderoleTexte: e.target.value })} />
             <select style={champ} value={pack.banderoleMode} onChange={e => setPack({ ...pack, banderoleMode: e.target.value })}><option value="lettres">1 fanion / lettre</option><option value="mots">1 fanion / mot</option></select>
           </div>
-          <div style={lbl}>Supports ({pack.ids.length})</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 180, overflowY: "auto" }}>
-            {patrons.filter(p => p.collection === pack.collection).map(p => (
-              <label key={p.id} style={{ fontSize: 12, color: C.cream, display: "flex", gap: 6 }}>
-                <input type="checkbox" checked={pack.ids.includes(p.id)} onChange={e => setPack({ ...pack, ids: e.target.checked ? [...pack.ids, p.id] : pack.ids.filter((x: string) => x !== p.id) })} />{nomCourt(p.nom)}
-              </label>
-            ))}
+          <div style={lbl}>Patrons du kit ({pack.ids.length}) — tous tes packs de patrons, y compris les patrons achetés importés</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", border: `1px solid ${C.border}`, borderRadius: 10, padding: 10 }}>
+            {collections.map(col => { const ps = patrons.filter(p => (p.collection || "Sans collection") === col); const tous = ps.every(p => pack.ids.includes(p.id)); return (
+              <div key={col} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.gold, flex: 1 }}>{col} ({ps.filter(p => pack.ids.includes(p.id)).length}/{ps.length})</div>
+                  <button style={{ ...bouton(), padding: "5px 10px" }} onClick={() => setPack({ ...pack, ids: tous ? pack.ids.filter((x: string) => !ps.some(p => p.id === x)) : [...new Set([...pack.ids, ...ps.map(p => p.id)])] })}>{tous ? "Aucun" : "Tous"}</button>
+                </div>
+                {ps.map(p => (
+                  <label key={p.id} style={{ fontSize: 14, color: C.cream, display: "flex", gap: 10, alignItems: "center", minHeight: 32 }}>
+                    <input type="checkbox" style={{ width: 20, height: 20 }} checked={pack.ids.includes(p.id)} onChange={e => setPack({ ...pack, ids: e.target.checked ? [...pack.ids, p.id] : pack.ids.filter((x: string) => x !== p.id) })} />{nomCourt(p.nom)}
+                  </label>
+                ))}
+              </div>); })}
           </div>
           <button style={{ ...bouton(true), opacity: occupe ? 0.5 : 1 }} onClick={creerPack} disabled={!pack.client?.trim() || !!occupe}>{occupe ? "⏳ Création en cours…" : "Créer le kit"}</button>
           {pack.choixImage && <Feuille titre="Choisir le personnage / la photo" onFermer={() => setPack({ ...pack, choixImage: false })}><EventsMediatheque mode="choisir" onChoisir={m => setPack({ ...pack, image: m.url, choixImage: false })} /></Feuille>}
@@ -342,7 +386,7 @@ export default function EventsAtelierPapeterie() {
               return <div style={{ fontSize: 11, color: a4 ? C.ok : C.gold }}>Patron à plat : {g.largeur_mm} × {g.hauteur_mm} mm → {a4 ? "tient sur une feuille A4" : a3 ? "nécessite une feuille A3 (ou réduis les dimensions)" : "plus grand qu'un A3 : réduis les dimensions ou imprime chez un imprimeur"}.</div>; })()}
           </>}
           {nouveau.type === "image" && <>
-            <div style={{ fontSize: 11, color: C.muted }}>Importe d'abord ton modèle (export PNG/JPG de Canva, scan…) dans la Médiathèque. Il devient le fond figé ; tu ajoutes ensuite par-dessus les zones de texte et d'image à remplir, puis tu l'enregistres comme patron.</div>
+            <div style={{ fontSize: 11, color: C.muted }}>Importe d'abord ton modèle (export PNG/JPG de Canva, scan…) dans la Médiathèque. Il devient le fond figé (jamais recouvert dans les kits). Deux zones « Prénom » et « Âge » sont déjà posées : glisse-les à leur place sur le modèle, ajoute si besoin d'autres zones (date, lieu, photo…), puis 💾 Enregistrer. Le patron apparaît ensuite dans « Créer mon kit ».</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {nouveau.imageUrl && <img src={nouveau.imageUrl} alt="" style={{ width: 56, height: 56, objectFit: "contain", background: "#fff", borderRadius: 6 }} />}
               <button style={bouton()} onClick={() => setNouveau({ ...nouveau, choixFond: true })}>{nouveau.imageUrl ? "Changer l'image" : "🖼️ Choisir l'image du modèle"}</button>
@@ -486,10 +530,19 @@ function PacksAchetes() {
   );
 }
 
+// Dans une colonne flex à hauteur limitée, les champs étaient COMPRIMÉS
+// (sélecteurs coupés en deux, pastilles de couleur écrasées sur iPhone) :
+// aucun enfant ne rétrécit, et les champs ont une taille tactile (16 px
+// évite aussi le zoom automatique de Safari).
+const STYLE_FEUILLE = `.bl-feuille>*{flex-shrink:0}
+.bl-feuille input:not([type=checkbox]):not([type=color]):not([type=range]),.bl-feuille select{min-height:42px}
+.bl-feuille textarea{min-height:64px}
+@media (pointer:coarse){.bl-feuille input:not([type=checkbox]):not([type=color]):not([type=range]),.bl-feuille select,.bl-feuille textarea{font-size:16px!important}}`;
 function Feuille({ titre, onFermer, children }: { titre: string; onFermer: () => void; children: React.ReactNode }) {
   return (
     <div onClick={onFermer} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#16131c", border: `1px solid ${C.border}`, borderRadius: "16px 16px 0 0", padding: 16, width: "100%", maxWidth: 640, display: "flex", flexDirection: "column", gap: 8, maxHeight: "88vh", overflowY: "auto", fontFamily: SA }}>
+      <div className="bl-feuille" onClick={e => e.stopPropagation()} style={{ background: "#16131c", border: `1px solid ${C.border}`, borderRadius: "16px 16px 0 0", padding: "16px 16px calc(16px + env(safe-area-inset-bottom))", width: "100%", maxWidth: 640, display: "flex", flexDirection: "column", gap: 10, maxHeight: "90vh", overflowY: "auto", WebkitOverflowScrolling: "touch", fontFamily: SA, boxSizing: "border-box" }}>
+        <style>{STYLE_FEUILLE}</style>
         <div style={{ display: "flex", alignItems: "center" }}><div style={{ fontSize: 14, fontWeight: 800, color: C.cream, flex: 1 }}>{titre}</div><button style={{ ...bouton(), padding: "3px 9px" }} onClick={onFermer}>✕</button></div>
         {children}
       </div>
@@ -501,7 +554,7 @@ function Feuille({ titre, onFermer, children }: { titre: string; onFermer: () =>
 function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFermer: () => void; onDupliquer: (c: Creation, v: any) => Promise<void> }) {
   const L = Number(creation.largeur_mm), H = Number(creation.hauteur_mm);
   const [doc, setDoc] = useState<ContenuPapeterie>(() => ({ fond: "#ffffff", calques: [], reperes: { zone_sure_mm: 3, pliage: [] }, ...copie(creation.contenu || {}) }));
-  const [meta, setMeta] = useState({ nom: creation.nom, client_nom: creation.client_nom || "", statut: creation.statut });
+  const [meta, setMeta] = useState({ nom: creation.nom, client_nom: creation.client_nom || "", statut: creation.statut, collection: creation.collection || "" });
   const [sel, setSel] = useState<string | null>(null);
   const [histo, setHisto] = useState<ContenuPapeterie[]>([]);
   const [futur, setFutur] = useState<ContenuPapeterie[]>([]);
@@ -615,7 +668,7 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
   const enregistrer = async () => {
     if (creation.est_modele && !confirm("C'est un patron d'origine. Enregistrer les modifications DANS LE PATRON lui-même ?\n(Pour un client, utilise plutôt « Dupliquer pour un client ».)")) return;
     try {
-      await sbUpdate("events_papeterie", creation.id, { contenu: doc, nom: meta.nom, client_nom: meta.client_nom || null, statut: meta.statut, updated_at: new Date().toISOString() });
+      await sbUpdate("events_papeterie", creation.id, { contenu: doc, nom: meta.nom, client_nom: meta.client_nom || null, statut: meta.statut, ...(creation.est_modele ? { collection: meta.collection.trim() || "Mes patrons" } : {}), updated_at: new Date().toISOString() });
       setModifie(false); setMessage("✅ Enregistré"); setTimeout(() => setMessage(""), 2000);
     } catch (e: any) { setMessage("⚠️ " + e.message); }
   };
@@ -660,13 +713,20 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
         <button style={bouton()} onClick={fermer}>← Retour</button>
         <div style={{ flex: 1, minWidth: 140 }}>
           <input style={{ ...champ, fontWeight: 800, fontSize: 13 }} value={meta.nom} onChange={e => { setMeta({ ...meta, nom: e.target.value }); setModifie(true); }} />
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{L} × {H} mm{creation.est_modele ? " · PATRON D'ORIGINE" : ""}{sauvegarde === "en_cours" ? " · enregistrement…" : modifie ? (creation.est_modele ? " · non enregistré" : " · modifications en attente") : sauvegarde === "ok" ? " · ✓ enregistré automatiquement" : ""}</div>
+          {creation.est_modele && <input style={{ ...champ, marginTop: 4, fontSize: 12 }} placeholder="Pack de patrons (collection)" value={meta.collection} onChange={e => { setMeta({ ...meta, collection: e.target.value }); setModifie(true); }} />}
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{L} × {H} mm{creation.est_modele ? " · PATRON" : ""}{sauvegarde === "en_cours" ? " · enregistrement…" : modifie ? (creation.est_modele ? " · non enregistré" : " · modifications en attente") : sauvegarde === "ok" ? " · ✓ enregistré automatiquement" : ""}</div>
         </div>
         <button style={bouton()} onClick={annuler} disabled={!histo.length} title="Annuler">↶</button>
         <button style={bouton()} onClick={retablir} disabled={!futur.length} title="Rétablir">↷</button>
         <button style={bouton(remplissage)} title="Mode remplissage : seules les zones (textes et images nommés) se modifient" onClick={() => { changerDoc(d => { d.remplissage = !d.remplissage; }); setSel(null); }}>{remplissage ? "🔒 Remplissage" : "🔓 Édition libre"}</button>
         <button style={bouton(true)} onClick={enregistrer}>💾 Enregistrer</button>
-        {creation.est_modele && <button style={bouton(true)} onClick={async () => { const client = prompt("Nom du client :"); if (!client) return; await onDupliquer({ ...creation, contenu: doc }, { client }); }}>⧉ Dupliquer pour un client</button>}
+        {creation.est_modele && <button style={bouton(true)} onClick={async () => { const client = prompt("Nom du client :"); if (!client) return; await onDupliquer({ ...creation, contenu: doc }, { client }); }}>👤 Utiliser pour un client</button>}
+        <button style={bouton()} title="Enregistrer une copie comme nouveau patron réutilisable" onClick={async () => {
+          const nom = prompt("Nom du nouveau patron :", nomCourt(meta.nom).replace(/ — .*$/, "") + (creation.est_modele ? " (variante)" : "")); if (!nom) return;
+          const collection = prompt("Pack de patrons (collection) :", creation.collection || "Mes patrons"); if (collection === null) return;
+          try { await sbInsert("events_papeterie", { nom: nom.trim(), type_support: creation.type_support, largeur_mm: L, hauteur_mm: H, contenu: doc, est_modele: true, modele_source_id: creation.est_modele ? creation.id : creation.modele_source_id, collection: collection.trim() || "Mes patrons", occasion: creation.occasion, theme: creation.theme, client_nom: null, statut: "brouillon" }, "return=minimal"); setMessage("✅ Nouveau patron enregistré dans « " + (collection.trim() || "Mes patrons") + " »"); }
+          catch (e: any) { setMessage("⚠️ " + e.message); }
+        }}>📐 Enregistrer comme patron</button>
       </div>
       {message && <div style={{ fontSize: 12, color: message.startsWith("⚠️") ? C.rouge : C.ok }}>{message}</div>}
 

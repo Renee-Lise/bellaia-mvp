@@ -54,45 +54,98 @@ export function motifCalques(L: number, H: number, b: BriefKit, graine = 1): Cal
   return out;
 }
 
-/** Application de l'univers sur un support existant (étiquettes, faces, cartes…). */
-function habiller(src: Source, b: BriefKit): ContenuPapeterie {
+/** « 1 an », « 6 ans » ; un âge déjà rédigé (« 6 mois », « 18 ans ») est gardé tel quel. */
+export const ageTexte = (a?: string) => { const t = (a || "").trim(); if (!t) return undefined; return /^\d+$/.test(t) ? `${t} ${t === "1" ? "an" : "ans"}` : t; };
+
+/** Application de l'univers sur un patron existant. La MISE EN PAGE DU
+ *  PATRON EST CONSERVÉE : on remplit ses zones et on habille. L'image de
+ *  fond couvre toute la pièce (ou toute la surface imprimée d'un patron de
+ *  boîte), comme les modèles achetés ; sans image, fond plein aux couleurs
+ *  du thème + cadre + décor. Un patron importé (modèle figé) ne reçoit que
+ *  ses zones : son visuel d'origine n'est jamais recouvert. */
+export function habiller(src: Source, b: BriefKit): ContenuPapeterie {
   const d = copie(src.contenu);
   const L = Number(src.largeur_mm), H = Number(src.hauteur_mm);
-  const val: Record<string, string | undefined> = { PRENOM: b.prenom, AGE: b.age ? `${b.age} ans` : undefined, BADGE: b.age, DATE: b.date, LIEU: b.lieu, RSVP: b.rsvp, TITRE: b.titre, MESSAGE: b.message };
+  const val: Record<string, string | undefined> = { PRENOM: b.prenom, AGE: ageTexte(b.age), BADGE: b.age, DATE: b.date, LIEU: b.lieu, RSVP: b.rsvp, TITRE: b.titre, MESSAGE: b.message };
+  const fige = !!d.remplissage || d.calques.some(k => k.verrou && k.type === "image" && k.w >= L * 0.9 && k.h >= H * 0.9);
+  const boite = d.calques.some(k => k.zone === "FOND_COULEUR") || !!d.reperes?.traits?.length;
+  // 1. Zones remplies
+  d.calques.forEach(k => {
+    if (k.type === "texte" && k.texte && k.zone && val[k.zone]) k.texte.contenu = val[k.zone]!;
+    if (k.type === "image" && k.zone === "IMAGE" && b.personnage) k.image = { ...(k.image || {}), url: b.personnage, ajustement: "contain" } as any;
+  });
+  // Zone image restée vide : retirée, et le bloc de textes recentré
+  const vides = d.calques.filter(k => k.type === "image" && k.zone === "IMAGE" && !k.image?.url);
+  if (vides.length) {
+    d.calques = d.calques.filter(k => !vides.includes(k));
+    if (!boite && !fige) {
+      const t = d.calques.filter(k => k.type === "texte" && k.zone && k.zone !== "DECOR");
+      if (t.length) {
+        const y1 = Math.min(...t.map(k => k.y)), y2 = Math.max(...t.map(k => k.y + k.h));
+        const dy = (H - (y2 - y1)) / 2 - y1;
+        d.calques.forEach(k => { if (k.type === "texte" && k.zone && k.zone !== "DECOR") k.y = r1(k.y + dy); });
+        d.calques.filter(k => k.id === "badge_rond").forEach(k => { k.y = r1(k.y + dy); });
+      }
+    }
+  }
+  if (fige) return d;
+
+  // 2. Univers : couleurs et police
   d.fond = b.couleurs.fond;
   const cadre = d.calques.find(k => k.id === "fond_cadre" && k.type === "forme");
-  if (cadre?.forme) {
-    cadre.forme.remplissage = b.imageFond ? "#ffffff00" : b.couleurs.fond;
-    cadre.forme.contour = b.couleurs.accent; cadre.forme.epaisseur = 0.8;
-  }
+  const rond = cadre?.forme?.forme === "ellipse";
   d.calques.forEach(k => {
-    if (k.type === "texte" && k.texte) {
-      if (k.zone && val[k.zone]) k.texte.contenu = val[k.zone]!;
+    if (k.type === "texte" && k.texte && k.zone !== "DECOR") {
       if (k.zone === "PRENOM") { k.texte.police = b.police; k.texte.couleur = b.couleurs.texte; }
-      if (k.zone === "TITRE") { k.texte.police = b.police; k.texte.couleur = b.couleurs.principale; }
-      if (k.zone === "AGE") k.texte.couleur = b.couleurs.accent;
-      if (["DATE", "LIEU", "RSVP", "MESSAGE"].includes(k.zone || "")) k.texte.couleur = b.couleurs.texte;
-      // Texte posé sur une image : contour de la couleur du fond pour rester lisible
-      if ((b.imageFond || b.motif) && ["PRENOM", "TITRE", "AGE"].includes(k.zone || "")) { k.texte.contour = b.couleurs.fond; k.texte.contourEpaisseur = r1(Math.max(0.4, k.texte.taille * 0.08)); }
+      else if (k.zone === "TITRE") { k.texte.police = b.police; k.texte.couleur = b.couleurs.principale; }
+      else if (k.zone === "AGE") k.texte.couleur = b.couleurs.accent;
+      else if (k.zone === "BADGE") k.texte.couleur = "#ffffff";
+      else k.texte.couleur = b.couleurs.texte;
     }
     if (k.type === "forme" && k.id === "badge_rond" && k.forme) k.forme.remplissage = b.couleurs.principale;
-    if (k.type === "image" && k.zone === "IMAGE" && b.personnage) k.image = { url: b.personnage, ajustement: "contain" }; // personnage entier, proportions préservées
-  });
-  if (b.imageFond || b.motif) {
-    const masque = cadre?.forme?.forme === "ellipse" ? "ellipse" : "rect";
-    // Cartouche clair derrière le bloc de textes : lisibilité des petits
-    // textes (date, RSVP, message) sur un fond chargé.
-    const textes = d.calques.filter(k => k.type === "texte" && k.zone && k.zone !== "BADGE");
-    if (textes.length) {
-      const pad = 2.5;
-      const x1 = Math.max(4, Math.min(...textes.map(k => k.x)) - pad), y1 = Math.max(4, Math.min(...textes.map(k => k.y)) - pad);
-      const x2 = Math.min(L - 4, Math.max(...textes.map(k => k.x + k.w)) + pad), y2 = Math.min(H - 4, Math.max(...textes.map(k => k.y + k.h)) + pad);
-      const i = d.calques.findIndex(k => k.type === "texte");
-      d.calques.splice(i, 0, { id: id(), type: "forme", zone: "CARTOUCHE", x: r1(x1), y: r1(y1), w: r1(x2 - x1), h: r1(y2 - y1), rotation: 0, opacite: 0.9,
-        forme: { forme: masque === "ellipse" ? "ellipse" : "rect", remplissage: b.couleurs.fond, contour: b.couleurs.accent, epaisseur: 0.5, rayon: 4 } });
+    if (k.zone === "FOND_COULEUR" && k.forme) k.forme.remplissage = b.couleurs.fond;
+    // Autres formes du patron (pastilles de stickers, encadrés…) aux couleurs du kit
+    if (k.type === "forme" && k.forme && !k.zone && k.id !== "fond_cadre" && k.id !== "badge_rond" && k.forme.forme !== "ligne" && k.forme.remplissage && !/^#?[fF]{6}00$/.test(k.forme.remplissage)) {
+      k.forme.remplissage = b.couleurs.fond; k.forme.contour = b.couleurs.accent; k.forme.epaisseur = Math.max(0.5, k.forme.epaisseur || 0);
     }
-    if (b.imageFond) d.calques.unshift({ id: id(), type: "image", zone: "FOND", x: 0, y: 0, w: L, h: H, rotation: 0, image: { url: b.imageFond, ajustement: "cover", masque } });
-    else { const i = d.calques.findIndex(k => k.zone === "CARTOUCHE"); d.calques.splice(i < 0 ? 1 : i, 0, ...motifCalques(L, H, b, Math.round(L * 7 + H))); }
+  });
+  const titres = d.calques.filter(k => k.type === "texte" && ["PRENOM", "TITRE", "AGE"].includes(k.zone || ""));
+  const petits = d.calques.filter(k => k.type === "texte" && ["DATE", "LIEU", "RSVP", "MESSAGE"].includes(k.zone || ""));
+  const premierTexte = () => { const i = d.calques.findIndex(k => k.type === "texte" && k.zone !== "DECOR"); return i < 0 ? d.calques.length : i; };
+
+  if (b.imageFond) {
+    // 3a. Image de fond pleine page
+    if (cadre?.forme) { cadre.forme.remplissage = "#ffffff00"; cadre.forme.contour = b.couleurs.accent; cadre.forme.epaisseur = 0.8; }
+    const zonesFond = d.calques.filter(k => k.zone === "FOND_COULEUR");
+    if (zonesFond.length) zonesFond.forEach(z => { d.calques.splice(d.calques.indexOf(z) + 1, 0, { id: id(), type: "image", zone: "FOND", x: z.x, y: z.y, w: z.w, h: z.h, rotation: 0, image: { url: b.imageFond!, ajustement: "cover" } }); });
+    else d.calques.unshift({ id: id(), type: "image", zone: "FOND", x: 0, y: 0, w: L, h: H, rotation: 0, image: { url: b.imageFond, ajustement: "cover", masque: rond ? "ellipse" : "rect" } });
+    // Lisibilité : contour épais sur les titres, bandeau translucide derrière les petits textes seulement
+    titres.forEach(k => { k.texte!.contour = b.couleurs.fond; k.texte!.contourEpaisseur = r1(Math.max(0.5, Math.min(k.h, 40) * 0.07)); });
+    if (petits.length) {
+      const pad = 2;
+      const x1 = Math.max(2, Math.min(...petits.map(k => k.x)) - pad), y1 = Math.max(2, Math.min(...petits.map(k => k.y)) - pad);
+      const x2 = Math.min(L - 2, Math.max(...petits.map(k => k.x + k.w)) + pad), y2 = Math.min(H - 2, Math.max(...petits.map(k => k.y + k.h)) + pad);
+      d.calques.splice(d.calques.indexOf(petits[0]), 0, { id: id(), type: "forme", zone: "CARTOUCHE", x: r1(x1), y: r1(y1), w: r1(x2 - x1), h: r1(y2 - y1), rotation: 0, opacite: 0.8,
+        forme: { forme: "rect", remplissage: b.couleurs.fond, contour: "", epaisseur: 0, rayon: 3 } });
+    }
+  } else {
+    // 3b. Sans image : fond plein, cadre aux couleurs du thème, décor sur les bords
+    const ep = r1(Math.max(1, Math.min(L, H) * 0.03));
+    if (!boite) {
+      if (cadre?.forme) { cadre.forme.remplissage = b.couleurs.fond; cadre.forme.contour = b.couleurs.principale; cadre.forme.epaisseur = ep; }
+      else d.calques.unshift({ id: "fond_cadre", type: "forme", zone: null, x: r1(ep), y: r1(ep), w: r1(L - 2 * ep), h: r1(H - 2 * ep), rotation: 0, forme: { forme: "rect", remplissage: b.couleurs.fond, contour: b.couleurs.principale, epaisseur: ep, rayon: 3 } });
+    }
+    const motif = b.motif === undefined ? "confettis" : b.motif;
+    if (motif) {
+      const deco = boite
+        ? d.calques.filter(k => k.zone === "FOND_COULEUR").flatMap((z, i) => motifCalques(z.w, z.h, { ...b, motif }, i + 2).map(k => ({ ...k, x: r1(k.x + z.x), y: r1(k.y + z.y) })))
+        : motifCalques(L, H, { ...b, motif }, Math.round(L * 7 + H));
+      // Aucun élément de décor ne chevauche un texte
+      const textes = d.calques.filter(k => k.type === "texte" && k.zone !== "DECOR");
+      const libre = (k: Calque) => !textes.some(t => k.x < t.x + t.w + 1 && k.x + k.w > t.x - 1 && k.y < t.y + t.h + 1 && k.y + k.h > t.y - 1);
+      d.calques.splice(premierTexte(), 0, ...deco.filter(libre));
+    }
+    titres.forEach(k => { if (motif) { k.texte!.contour = b.couleurs.fond; k.texte!.contourEpaisseur = r1(Math.max(0.4, Math.min(k.h, 40) * 0.05)); } });
   }
   return d;
 }
@@ -133,7 +186,7 @@ function topper(L: number, H: number, b: BriefKit, x0 = 0): Calque[] {
     const dBadge = Math.min(H - y - marge, L * 0.4);
     c.push({ id: id(), type: "forme", zone: null, x: r1(x0 + (L - dBadge) / 2), y: r1(y), w: r1(dBadge), h: r1(dBadge), rotation: 0, forme: { forme: "ellipse", remplissage: b.couleurs.accent, contour: "#ffffff", epaisseur: r1(Math.max(0.8, dBadge * 0.05)) } });
     c.push(texte("AGE", `${b.age}`, x0 + (L - dBadge) / 2, y + dBadge * 0.12, dBadge, dBadge * 0.62, dBadge * 0.5, "#ffffff", b.police));
-    c.push(texte("AGE", "ans", x0 + (L - dBadge) / 2, y + dBadge * 0.66, dBadge, dBadge * 0.22, dBadge * 0.18, "#ffffff", "Inter"));
+    c.push(texte("AGE", b.age.trim() === "1" ? "an" : "ans", x0 + (L - dBadge) / 2, y + dBadge * 0.66, dBadge, dBadge * 0.22, dBadge * 0.18, "#ffffff", "Inter"));
   }
   return c;
 }
