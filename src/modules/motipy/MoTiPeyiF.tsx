@@ -110,12 +110,20 @@ const ONGLETS = [
   {id:"catalogue", ico:"🃏", label:"Cartes"},
   {id:"commandes", ico:"📦", label:"Commandes"},
   {id:"stats",     ico:"📊", label:"Stats"},
+  {id:"histoires", ico:"🌙", label:"Histoires du soir"},
 ];
+
+// Gestion « Histoires du soir » chargée à la demande (module séparé)
+function HistoiresGestionLazy() {
+  const [Comp, setComp] = useState<any>(null);
+  useEffect(() => { import("../histoires/HistoiresGestion").then(m => setComp(() => m.default)).catch(() => {}); }, []);
+  return Comp ? <Comp /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
+}
 
 export default function MoTiPeyiF({ user }: { user?: any }) {
   const [cartes,   setCartes]   = useState<Carte[]>([]);
   const [commandes,setCommandes]= useState<Commande[]>([]);
-  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats">("catalogue");
+  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires">("catalogue");
   const [modal,    setModal]    = useState<"carte"|"commande"|null>(null);
   const [formCarte, setFormCarte] = useState<Partial<Carte>>({famille:"deplacements",niveau:"PS",statut:"brouillon"});
   const [formCmd,   setFormCmd]   = useState<Partial<Commande>>({clientNom:"",produit:PRODUITS[0].nom,qte:1,prix:PRODUITS[0].prix,statut:"en_attente",date:today()});
@@ -281,6 +289,8 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
           </button>
         ))}
       </div>
+
+      {onglet==="histoires" && <HistoiresGestionLazy/>}
 
       {/* ── Catalogue cartes ── */}
       {onglet==="catalogue" && (

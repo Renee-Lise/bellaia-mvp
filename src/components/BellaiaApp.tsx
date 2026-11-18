@@ -2759,6 +2759,13 @@ function ClientEditions({ user, onBack }) {
 // ═══════════════════════════════════════════════════════════
 // PORTAIL CLIENT MO TI-PÉYI
 // ═══════════════════════════════════════════════════════════
+// Histoires du soir (espace familles) — module chargé à la demande
+function HistoiresClientLazy() {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/histoires/HistoiresClient").then(m => setComp(() => m.default)).catch(rechargerSiVersionObsolete); }, []);
+  return Comp ? <Comp/> : <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:30,fontSize:12}}>Chargement…</div>;
+}
+
 function ClientMoTiPeyi({ user, onBack }) {
   const [page,     setPage]     = React.useState("catalogue");
   const [commandes,setCommandes]= React.useState([]);
@@ -2827,7 +2834,7 @@ function ClientMoTiPeyi({ user, onBack }) {
         <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
       </div>
       <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(34,197,94,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
-        {[["catalogue","🃏","Catalogue"],["commandes","📦","Mes commandes"],["projet","🌿","Le projet"],["contact","💬","Contact"]].map(([id,ico,l])=>(
+        {[["catalogue","🃏","Catalogue"],["histoires","🌙","Histoires"],["commandes","📦","Mes commandes"],["projet","🌿","Le projet"],["contact","💬","Contact"]].map(([id,ico,l])=>(
           <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #4ade80":"2px solid transparent"}}>
             <span style={{fontSize:15}}>{ico}</span>
             <span style={{fontSize:8,color:page===id?"#4ade80":B.muted,fontWeight:700}}>{l}</span>
@@ -2836,6 +2843,7 @@ function ClientMoTiPeyi({ user, onBack }) {
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"14px 14px 24px"}}>
 
+        {page==="histoires" && <HistoiresClientLazy/>}
         {page==="catalogue" && !succes && (
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <div style={{fontFamily:FS,fontSize:16,color:"#fff",marginBottom:6}}>Nos produits</div>
