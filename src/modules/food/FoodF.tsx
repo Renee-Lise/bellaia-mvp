@@ -37,6 +37,7 @@ import FoodEtiquettes   from "./FoodEtiquettes";
 import FoodPredictif    from "./FoodPredictif";
 import FoodExports      from "./FoodExports";
 import ReventeCollection from "./ReventeCollection";
+import AllergenesTableau from "./AllergenesTableau";
 
 type Section =
   | "dashboard" | "catalogue" | "recettes" | "recherche"
@@ -45,7 +46,7 @@ type Section =
   | "calculateur" | "import" | "courses" | "assistant"
   | "fournisseurs" | "achats"
   | "inventaire" | "production" | "haccp" | "alertes"
-  | "versions" | "pertes" | "etiquettes" | "predictif" | "exports" | "revente";
+  | "versions" | "pertes" | "etiquettes" | "predictif" | "exports" | "revente" | "allergenes";
 
 const NAV = [
   {groupe:"PILOTAGE",   items:[
@@ -70,6 +71,7 @@ const NAV = [
     {id:"pertes"      as Section, ico:"📉", label:"Pertes"},
     {id:"etiquettes"  as Section, ico:"🏷",  label:"Étiquettes"},
     {id:"haccp"       as Section, ico:"✅", label:"HACCP"},
+    {id:"allergenes"  as Section, ico:"⚠️", label:"Allergènes"},
   ]},
   {groupe:"ACHATS",     items:[
     {id:"achats"       as Section, ico:"🛒", label:"Achats"},
@@ -103,7 +105,7 @@ export default function FoodF({ user }: { user?: any }) {
 
   const titres: Record<Section, string> = {
     dashboard:"Dashboard", catalogue:"Catalogue", recettes:"Recettes",
-    recherche:"Rechercher", commandes:"Commandes", revente:"Collection saisonnière (revente)", horaires:"Horaires & quotas", devis:"Devis",
+    recherche:"Rechercher", commandes:"Commandes", revente:"Collection saisonnière (revente)", allergenes:"Allergènes — suivi des fiches", horaires:"Horaires & quotas", devis:"Devis",
     menus:"Menus", menu_jour:"Menu du jour", planning:"Planning", stocks:"Stocks",
     materiel:"Matériel", consommables:"Consommables",
     calculateur:"Calculateur", import:"Import recette",
@@ -188,6 +190,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="recherche"     && <FoodRecherche/>}
         {section==="commandes"     && <FoodCommandes/>}
         {section==="revente"       && <ReventeCollection/>}
+        {section==="allergenes"    && <AllergenesTableau/>}
         {section==="horaires" && <FoodHoraires/>}
         {section==="devis"         && <FoodDevis/>}
         {section==="menus"         && <FoodMenus/>}
