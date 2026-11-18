@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0116_poles_missions_evolutifs.sql
--- STATUT: PRÉPARÉ — NON EXÉCUTÉ (à présenter à la fondatrice)
+-- STATUT: VALIDÉ par la fondatrice (GO P1, 18/11) — exécution ci-dessous vérifiée
 -- Objet (lot P1) : missions attribuables dans TOUS les univers, sans
 -- liste figée dans une contrainte SQL.
 --  • Réutilise le référentiel existant public.business_units (8 pôles :
@@ -47,6 +47,9 @@ update public.bellaia_missions set univers = pole where univers is null and pole
 create or replace function public.mission_pole_compatible() returns trigger
 language plpgsql set search_path = public as $$
 begin
+  -- « univers » est la référence. Compatibilité : si un ancien écran ne
+  -- change que « pole », l'univers suit ce choix.
+  if tg_op = 'UPDATE' and new.pole is distinct from old.pole and new.univers is not distinct from old.univers then new.univers := new.pole; end if;
   if new.univers is null then new.univers := coalesce(new.pole, 'GENERAL'); end if;
   new.pole := case when new.univers in ('FOOD','EVENTS','BSH','STUDIO') then new.univers when new.univers = 'VILDOR' then 'FOOD' else 'STUDIO' end;
   return new;
