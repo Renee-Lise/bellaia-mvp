@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSumupToken, SUMUP_API_URL } from "@/lib/sumup";
 
 // Webhook SumUp — mis à jour automatique du statut commande
 
@@ -23,16 +24,24 @@ export async function POST(req: NextRequest) {
 
   console.log("[sumup/webhook] Événement reçu:", JSON.stringify(event).slice(0, 300));
 
-  const {
-    id:          checkout_id,
-    status:      sumup_status,
-    amount,
-    checkout_reference: ref,
-  } = event || {};
-
-  if (!ref && !checkout_id) {
+  // SÉCURITÉ : le contenu du webhook n'est JAMAIS cru sur parole (n'importe qui
+  // peut appeler cette adresse). On ne garde que l'identifiant du checkout et on
+  // relit le statut, le montant et la référence directement chez SumUp.
+  const checkout_id: string = String(event?.id || event?.checkout_id || event?.payload?.checkout_id || "").trim();
+  if (!checkout_id || !/^[A-Za-z0-9-]{6,80}$/.test(checkout_id)) {
     return NextResponse.json({ received: true, skipped: true });
   }
+  const token = await getSumupToken();
+  if (!token) return NextResponse.json({ error: "SumUp non configuré : vérification impossible." }, { status: 503 });
+  let verifie: any = null;
+  try {
+    const r = await fetch(`${SUMUP_API_URL}/v0.1/checkouts/${encodeURIComponent(checkout_id)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) verifie = await r.json();
+  } catch {}
+  if (!verifie) return NextResponse.json({ error: "Checkout introuvable chez SumUp." }, { status: 404 });
+  const sumup_status: string = verifie.status || "PENDING";
+  const amount = verifie.amount;
+  const ref: string = verifie.checkout_reference || "";
 
   const statut_bellaia = STATUT_MAP[sumup_status?.toUpperCase()] || "en_attente";
 

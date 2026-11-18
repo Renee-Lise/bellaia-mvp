@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
+import { getSumupToken, SUMUP_API_URL } from "@/lib/sumup";
 import { sbServer, confirmerPaiement } from "@/lib/paiements";
 
 // ═══════════════════════════════════════════════════════════
 // SUMUP WEBHOOK — Bellaïa Hub
 // POST /api/webhooks/sumup
 // Gère : CHECKOUT_STATUS_CHANGED
-// Vérification HMAC via SUMUP_WEBHOOK_SECRET si configuré
+// Statut, montant et référence relus chez SumUp (jamais pris du message)
 // ═══════════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
@@ -15,48 +15,41 @@ export async function POST(req: NextRequest) {
   const now     = new Date().toISOString();
   const today   = now.split("T")[0];
 
-  // ── Vérification signature HMAC (si SUMUP_WEBHOOK_SECRET configuré)
-  const webhookSecret = process.env.SUMUP_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const sigHeader = req.headers.get("x-payload-signature") || req.headers.get("sumup-signature") || "";
-    try {
-      const expected = createHmac("sha256", webhookSecret)
-        .update(rawBody).digest("hex");
-      const ok = timingSafeEqual(
-        Buffer.from(sigHeader.replace("sha256=", ""), "hex"),
-        Buffer.from(expected, "hex")
-      );
-      if (!ok) {
-        console.error("[sumup/webhook] Signature HMAC invalide.");
-        return NextResponse.json({ error: "Signature invalide." }, { status: 401 });
-      }
-    } catch {
-      console.warn("[sumup/webhook] Erreur vérification signature — permissif.");
-    }
-  }
-
-  // ── Parser le body
+  // ── SÉCURITÉ : le contenu reçu n'est JAMAIS cru sur parole (cette adresse est
+  // publique). On n'en garde que l'identifiant du checkout, puis on relit le
+  // statut, le montant et la référence directement chez SumUp.
   let event: any;
   try { event = JSON.parse(rawBody); }
   catch { return NextResponse.json({ error: "JSON invalide." }, { status: 400 }); }
 
-  const eventType   = event.event_type || "CHECKOUT_STATUS_CHANGED";
-  const checkout    = event.payload || event;
-  const checkout_id = checkout.id || checkout.checkout_reference || "";
-  const reference   = checkout.checkout_reference || checkout_id;
-  const statut_pp   = checkout.status || "";
+  const eventType   = String(event?.event_type || "CHECKOUT_STATUS_CHANGED").slice(0, 60);
+  const recu        = event?.payload || event || {};
+  const checkout_id = String(recu.id || recu.checkout_id || "").trim();
+  if (!/^[A-Za-z0-9-]{6,80}$/.test(checkout_id)) return NextResponse.json({ received: true, skipped: true });
+
+  const token = await getSumupToken();
+  if (!token) return NextResponse.json({ error: "SumUp non configuré : vérification impossible." }, { status: 503 });
+  let checkout: any = null;
+  try {
+    const r = await fetch(`${SUMUP_API_URL}/v0.1/checkouts/${encodeURIComponent(checkout_id)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) checkout = await r.json();
+  } catch {}
+  if (!checkout) return NextResponse.json({ error: "Checkout introuvable chez SumUp." }, { status: 404 });
+
+  const reference = String(checkout.checkout_reference || checkout_id).replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 80);
+  const statut_pp = String(checkout.status || "").toUpperCase();
 
   console.log(`[sumup/webhook] ${eventType} — ${reference} — statut: ${statut_pp}`);
 
   // ── Log
-  await SB.from("webhook_logs").insert({
+  try { await SB.from("webhook_logs").insert({
     provider:   "SumUp",
     event_type: eventType,
     event_id:   checkout_id,
-    payload:    event,
+    payload:    { recu: event, verifie: { id: checkout.id, status: checkout.status, amount: checkout.amount, checkout_reference: checkout.checkout_reference } },
     statut:     "recu",
     recu_le:    now,
-  }).catch(() => {});
+  }); } catch {}
 
   // ── Idempotence
   const { data: deja } = await SB.from("webhook_logs")
@@ -66,7 +59,7 @@ export async function POST(req: NextRequest) {
   // ── Traiter selon statut SumUp
   try {
     if (statut_pp === "PAID" || statut_pp === "CAPTURED" || statut_pp === "COMPLETED") {
-      const montant    = parseFloat(checkout.amount || checkout.total_amount || "0");
+      const montant    = Number(checkout.amount) || 0;
       const devise     = checkout.currency || "EUR";
 
       // Récupérer le paiement Supabase
@@ -75,7 +68,7 @@ export async function POST(req: NextRequest) {
         .or(`provider_ref.eq.${checkout_id},reference.eq.${reference}`)
         .single();
 
-      const univers = pmt?.univers || checkout.return_url?.match(/BS-([A-Z]+)-/)?.[1] || "GENERAL";
+      const univers = pmt?.univers || reference.match(/BS-([A-Z]+)-/)?.[1] || "GENERAL";
 
       await confirmerPaiement({
         provider:      "SumUp",

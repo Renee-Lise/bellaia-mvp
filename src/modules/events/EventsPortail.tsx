@@ -153,6 +153,7 @@ export function TimelineSuivi({ statutBrut, style }: { statutBrut?: string; styl
 export function PortailSuiviClient({ onBack }: { onBack: () => void }) {
   const [vue,        setVue]        = useState<"sections"|"recherche">("sections");
   const [ref,        setRef]        = useState("");
+  const [contact,    setContact]    = useState("");
   const [dossier,    setDossier]    = useState<EventsDemande|null>(null);
   const [chargement, setChargement] = useState(false);
   const [erreur,     setErreur]     = useState("");
@@ -163,115 +164,54 @@ export function PortailSuiviClient({ onBack }: { onBack: () => void }) {
   const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-  const sbGet = async (params: string) => {
+  // ── Accès SÉCURISÉ : tout passe par des fonctions serveur qui vérifient que
+  //    le dossier appartient au compte connecté, ou que l'e-mail / téléphone saisi
+  //    correspond. Aucune lecture ni écriture directe des tables.
+  const rpc = async (fn: string, args: any) => {
     const token = await (window as any).getTokenAsync?.() ?? SB_KEY;
-    const r = await fetch(SB_URL+"/rest/v1/events_demandes?"+params+"&order=created_at.desc&limit=50", {
-      headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json" }
-    });
-    if (!r.ok) return [];
-    const d = await r.json();
-    return Array.isArray(d) ? d : [];
-  };
-
-  const sbPatch = async (id: string, data: object) => {
-    const token = await (window as any).getTokenAsync?.() ?? SB_KEY;
-    await fetch(SB_URL+"/rest/v1/events_demandes?id=eq."+id, {
-      method:"PATCH",
-      headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json" },
-      body: JSON.stringify(data),
-    });
+    const r = await fetch(SB_URL+"/rest/v1/rpc/"+fn, { method:"POST", headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json" }, body: JSON.stringify(args) });
+    const txt = await r.text(); let d: any = null; try { d = txt ? JSON.parse(txt) : null; } catch { d = txt; }
+    if (!r.ok) throw new Error((d && (d.message || d.error)) || "Erreur "+r.status);
+    return d;
   };
 
   const chargerSection = async (sec: string) => {
     setSection(sec); setChargList(true); setListeDossiers([]);
-    const filtres: Record<string,string> = {
-      demandes:   "statut=in.(nouvelle_demande,a_traiter,a_modifier)",
-      devis:      "statut=in.(devis_en_preparation,devis_envoye)",
-      commandes:  "statut=in.(accepte,Converti en commande,converti_en_commande)",
-      factures:   "numero_facture=not.is.null",
-      paiements:  "statut_paiement=not.eq.non_paye",
-      evenements: "date_souhaitee=not.is.null",
+    const filtres: Record<string,(d: any)=>boolean> = {
+      demandes:   d => ["nouvelle_demande","a_traiter","a_modifier","À traiter"].includes(d.statut),
+      devis:      d => ["devis_en_preparation","devis_envoye"].includes(d.statut),
+      commandes:  d => ["accepte","Converti en commande","converti_en_commande"].includes(d.statut),
+      factures:   d => !!d.numero_facture,
+      paiements:  d => !!d.statut_paiement && d.statut_paiement !== "non_paye",
+      evenements: d => !!d.date_souhaitee,
     };
-    const rows = await sbGet(filtres[sec] || "");
-    setListeDossiers(rows);
+    try { const rows = await rpc("client_mes_dossiers_events", {}); setListeDossiers((Array.isArray(rows) ? rows : []).filter(filtres[sec] || (() => true))); }
+    catch { setListeDossiers([]); }
     setChargList(false);
   };
 
   const rechercher = async () => {
     if (!ref.trim()) return;
     setChargement(true); setErreur(""); setDossier(null);
-    const rows = await sbGet("reference=eq."+encodeURIComponent(ref.trim())+"&select=*&limit=1");
-    if (!rows?.length) setErreur("Aucune demande trouvée pour la référence "+ref.trim()+".");
-    else setDossier(rows[0]);
+    try {
+      const d = await rpc("client_dossier_events", { p_reference: ref.trim(), p_contact: contact.trim() });
+      if (!d) setErreur("Aucun dossier trouvé pour la référence "+ref.trim()+" avec ce contact. Indiquez l'e-mail ou le téléphone donné lors de votre demande.");
+      else setDossier(d);
+    } catch { setErreur("Connexion impossible."); }
     setChargement(false);
   };
 
-  const onAccepte = async () => {
+  const repondre = async (decision: "accepte" | "refuse" | "modifier", message: string | null = null) => {
     if (!dossier) return;
-    await sbPatch(dossier.id, {
-      statut:"accepte", client_reponse:"accepte",
-      client_reponse_at:new Date().toISOString(),
-    });
-    setDossier(d => d ? {...d, statut:"accepte", client_reponse:"accepte"} : null);
-
-    // ── Créer automatiquement la facture FAC- dans le ERP central ──
     try {
-      const SB_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-      const SB_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-      const token   = await (window as any).getTokenAsync?.() ?? SB_KEY;
-      const montant = dossier.montant_estime || 0;
-      const acompte = dossier.montant_acompte || Math.round(montant * 0.3 * 100) / 100;
-      const facRef  = "FAC-" + new Date().getFullYear() + "-" + Date.now().toString().slice(-6);
-      const payload = {
-        reference:     facRef,
-        business_unit: "EVENTS",
-        commande_id:   dossier.id,
-        source_table:  "events_demandes",
-        client_nom:    (dossier.client_prenom || "") + " " + (dossier.client_nom || ""),
-        client_tel:    dossier.client_tel,
-        client_email:  dossier.client_email,
-        lignes:        JSON.stringify([{
-          libelle:     dossier.prestation || dossier.type_evenement || "Prestation Events",
-          qte:         1, unite:"prestation",
-          prixUnitaire:montant, total:montant,
-        }]),
-        sous_total:    montant,
-        total_ttc:     montant,
-        acompte,
-        solde:         Math.round((montant - acompte) * 100) / 100,
-        statut:        "emise",
-        date_emission: new Date().toISOString().split("T")[0],
-      };
-      await fetch(SB_URL + "/rest/v1/bellaia_factures", {
-        method:"POST",
-        headers:{
-          apikey:SB_KEY, Authorization:"Bearer "+token,
-          "Content-Type":"application/json", Prefer:"return=minimal",
-        },
-        body: JSON.stringify(payload),
-      });
-      // Lier la référence facture au dossier
-      await sbPatch(dossier.id, { liaison_comptable: facRef });
-    } catch { /* silencieux — ne bloque pas l'acceptation */ }
+      const res = await rpc("client_repondre_devis", { p_reference: dossier.reference, p_contact: contact.trim(), p_decision: decision, p_message: message });
+      if (res?.dossier) setDossier(res.dossier);
+    } catch (e: any) { alert("Votre réponse n'a pas pu être enregistrée.\n"+(e.message||"")); }
   };
-
-  const onRefuse = async () => {
-    if (!dossier) return;
-    await sbPatch(dossier.id, {
-      statut:"refuse", client_reponse:"refuse",
-      client_reponse_at:new Date().toISOString(),
-    });
-    setDossier(d => d ? {...d, statut:"refuse", client_reponse:"refuse"} : null);
-  };
-
-  const onDemandeModif = async (msg: string) => {
-    if (!dossier) return;
-    await sbPatch(dossier.id, {
-      statut:"a_modifier",
-      fondatrice_notes:(dossier.fondatrice_notes||"")+"[Demande modif "+new Date().toLocaleString("fr-FR")+"]: "+msg+"\n",
-    });
-    setDossier(d => d ? {...d, statut:"a_modifier"} : null);
-  };
+  // Accepter : la commande et la facture sont créées une seule fois, côté serveur.
+  const onAccepte = async () => repondre("accepte");
+  const onRefuse = async () => repondre("refuse");
+  const onDemandeModif = async (msg: string) => repondre("modifier", msg);
 
   const fmtDate = (s?: string) =>
     s ? new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
@@ -490,7 +430,7 @@ export function PortailSuiviClient({ onBack }: { onBack: () => void }) {
               Retrouvez votre dossier
             </div>
             <div style={{ fontSize:12, color:EV.cremeD, marginBottom:16, lineHeight:1.6 }}>
-              Saisissez la référence reçue après l'envoi de votre demande.
+              Saisissez la référence reçue après l'envoi de votre demande, puis l'e-mail ou le téléphone indiqué dans la demande.
             </div>
             <div style={{ display:"flex", gap:8 }}>
               <input value={ref} onChange={e=>setRef(e.target.value.toUpperCase())}
@@ -506,6 +446,10 @@ export function PortailSuiviClient({ onBack }: { onBack: () => void }) {
                 {chargement?"…":"Rechercher"}
               </button>
             </div>
+            <input value={contact} onChange={e=>setContact(e.target.value)} onKeyDown={e=>e.key==="Enter"&&rechercher()}
+              placeholder="E-mail ou téléphone donné lors de la demande" autoComplete="email"
+              style={{ width:"100%", boxSizing:"border-box", marginTop:8, background:"rgba(255,255,255,0.06)", border:"1px solid "+EV.line,
+                borderRadius:10, padding:"11px 14px", color:EV.creme, fontSize:16, fontFamily:SA, outline:"none" }}/>
             {erreur&&<div style={{ fontSize:12, color:C.danger, marginTop:8 }}>{erreur}</div>}
           </div>
         )}

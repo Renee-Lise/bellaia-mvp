@@ -2983,11 +2983,15 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
     const montant = option==="total" ? total : acompte;
     const payRef  = await genererReference("PAY");
     // Enregistrer dans bellaia_paiements
+    // Colonnes réelles de bellaia_paiements (l'ancien envoi utilisait des colonnes
+    // inexistantes et échouait). Statut « en attente » : seule la fondatrice valide.
     const resPAY = await sbPost("bellaia_paiements", {
-        business_unit:bu, reference:payRef, montant,
-        mode_paiement:payMode, statut:"en_attente",
-        source_table:bu==="FOOD"?"bellaia_commandes":"events_demandes",
-        source_id:dos.id,
+        business_unit:bu, module:bu, reference:payRef, montant,
+        montant_total: total, montant_acompte: acompte,
+        mode:payMode, type_paiement: option==="total"?"total":"acompte", statut:"en_attente",
+        dossier_ref: dos.reference || null,
+        client_nom: dos.client_nom||[dos.client_prenom,dos.client_nom].filter(Boolean).join(" ")||null,
+        motif:(option==="total"?"Paiement intégral":"Acompte 30%"),
         notes:(option==="total"?"Paiement intégral":"Acompte 30%")+" — "+dos.reference,
         date_paiement:new Date().toISOString(),
     }, false);
@@ -11864,8 +11868,20 @@ async function gedAutoSave({ titre, module, categorie, reference, clientNom, con
   } catch { return null; }
 }
 
+// Appel d'une fonction sécurisée Supabase (portail client) — renvoie {ok, data, error}
+async function rpcClient(fn, args) {
+  try {
+    const token = await getTokenAsync();
+    const r = await fetch(SB_URL+"/rest/v1/rpc/"+fn, { method:"POST", headers:{ apikey:SB_KEY, Authorization:"Bearer "+token, "Content-Type":"application/json" }, body: JSON.stringify(args||{}) });
+    const txt = await r.text(); let data = null; try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
+    if (!r.ok) return { ok:false, data:null, error:(data && (data.message||data.error)) || ("HTTP "+r.status) };
+    return { ok:true, data, error:null };
+  } catch (e) { return { ok:false, data:null, error:e.message }; }
+}
+
 function PortailSuiviClient({ onBack, user }) {
   const [ref,        setRef]        = useState("");
+  const [contact,    setContact]    = useState("");
   const [dossier,    setDossier]    = useState(null);
   const [dossiers,   setDossiers]   = useState([]);
   const [chargement, setChargement] = useState(false);
@@ -11884,24 +11900,9 @@ function PortailSuiviClient({ onBack, user }) {
       try {
         const token = await getTokenAsync();
         const h = { apikey:SB_KEY, Authorization:"Bearer "+token };
-        // Chercher par email, tel, ou nom/prénom
-        const tel   = (user?.telephone || user?.tel || "").replace(/\D/g,"");
-        const email = user?.email || "";
-        // Identification par email puis téléphone uniquement (pas par nom — trop peu fiable)
-        let url = SB_URL+"/rest/v1/events_demandes?order=created_at.desc&limit=50&select=*";
-        if (email && tel) {
-          url += "&or=(client_email.eq."+encodeURIComponent(email)+",client_tel.eq."+encodeURIComponent(tel)+")";
-        } else if (email) {
-          url += "&client_email=eq."+encodeURIComponent(email);
-        } else if (tel) {
-          url += "&client_tel=eq."+encodeURIComponent(tel);
-        }
-        // Si ni email ni tel : ne pas charger — attendre la recherche manuelle
-        const r = await fetch(url, { headers:h });
-        if (r.ok) {
-          const rows = await r.json();
-          if (Array.isArray(rows) && rows.length > 0) setDossiers(rows);
-        }
+        // Sécurité : seuls MES dossiers (e-mail / téléphone de mon compte), vérifiés côté serveur
+        const res = await rpcClient("client_mes_dossiers_events", {});
+        if (res.ok && Array.isArray(res.data) && res.data.length > 0) setDossiers(res.data);
       } catch {}
       setChargement(false);
     };
@@ -11912,20 +11913,14 @@ function PortailSuiviClient({ onBack, user }) {
     if (!ref.trim()) return;
     setChargement(true); setErreur(""); setDossier(null);
     try {
-      const token = await getTokenAsync();
-      const r = await fetch(
-        SB_URL+"/rest/v1/events_demandes?reference=eq."+encodeURIComponent(ref.trim())+"&select=*&limit=1",
-        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
-      );
-      const rows = await r.json();
-      if (!r.ok || !rows?.length) {
-        setErreur("Aucune demande trouvée pour « "+ref.trim()+" ».");
+      // Le dossier n'est renvoyé que si l'e-mail ou le téléphone saisi correspond (ou s'il est à moi)
+      const res = await rpcClient("client_dossier_events", { p_reference: ref.trim(), p_contact: contact.trim() });
+      if (!res.ok || !res.data) {
+        setErreur("Aucun dossier trouvé pour « "+ref.trim()+" » avec ce contact. Indique l'e-mail ou le téléphone donné lors de ta demande.");
       } else {
-        setDossier(rows[0]);
-        setDossiers(prev => {
-          const exists = prev.find(d=>d.id===rows[0].id);
-          return exists ? prev : [rows[0], ...prev];
-        });
+        const row = res.data;
+        setDossier(row);
+        setDossiers(prev => prev.find(d=>d.id===row.id) ? prev : [row, ...prev]);
       }
     } catch { setErreur("Connexion impossible."); }
     setChargement(false);
@@ -11933,7 +11928,6 @@ function PortailSuiviClient({ onBack, user }) {
 
   // ── Acceptation devis → déclenchement paiement ──────────
   const onAccepterDevis = async (dos) => {
-    const now = new Date().toISOString();
 
     // ── Anti-doublon : si déjà accepté, aller au paiement directement ──
     if (dos.liaison_comptable) {
@@ -11941,147 +11935,19 @@ function PortailSuiviClient({ onBack, user }) {
       return;
     }
 
-    // ── Étape 1 : Enregistrer l'acceptation — INTERROMPRE si échec ────────
-    const patchResult = await sbPatch("events_demandes", dos.id, {
-      statut:"accepte", client_reponse:"accepte", client_reponse_at:now,
-    });
-    if (!patchResult.ok) {
-      alert("Erreur lors de l'enregistrement de votre acceptation.\n"+
-            (patchResult.error || "Statut HTTP "+patchResult.status));
-      return; // Arrêt immédiat — aucune commande ni facture créée
-    }
-
+    // ── Acceptation exécutée CÔTÉ SERVEUR : commande + facture créées une
+    //    seule fois (idempotent), après vérification que le dossier est le mien.
     const clientNom = [dos.client_prenom,dos.client_nom].filter(Boolean).join(" ");
-    const total     = dos.montant_estime || 0;
-    const acompte   = Math.round(total * 0.3);
-    const solde     = total - acompte;
-    let   cmdRef    = "";
-    let   cmdId     = "";
-    let   facRef    = "";
-    let   facId     = "";
-
-    // ── Étape 2 : Commande (anti-doublon source_id) — INTERROMPRE si création échoue ──
-    try {
-      const token     = await getTokenAsync();
-      const rExistCmd = await fetch(
-        SB_URL+"/rest/v1/bellaia_commandes?source_id=eq."+dos.id+"&limit=1&select=id,reference",
-        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
-      );
-      const existCmdRows = rExistCmd.ok ? await rExistCmd.json() : [];
-
-      if (existCmdRows.length > 0) {
-        // Commande déjà créée — récupérer les IDs
-        cmdRef = existCmdRows[0].reference;
-        cmdId  = existCmdRows[0].id;
-      } else {
-        // Créer la commande avec genererReference()
-        try { cmdRef = await genererReference("CMD"); }
-        catch(e) { alert(e.message); return; }
-        const resCMD = await sbPost("bellaia_commandes", {
-          bu:           "EVENTS",
-          reference:    cmdRef,
-          source_table: "events_demandes",
-          source_id:    dos.id,
-          client_nom:   clientNom,
-          client_tel:   dos.client_tel || null,
-          statut:       "COMMANDE",
-          total,
-          acompte,
-          solde,
-          date_commande:now.split("T")[0],
-          devis_ref:    dos.numero_devis || null,
-        });
-        if (!resCMD?.ok) {
-          alert("La commande n'a pas pu être créée.\n"+
-                (resCMD?.error || "Veuillez réessayer ou contacter Bella'Events."));
-          return; // Arrêt — pas de facture sans commande
-        }
-        // Récupérer l'UUID réel Supabase
-        const cmdData = Array.isArray(resCMD.data) ? resCMD.data[0] : resCMD.data;
-        cmdId  = cmdData?.id  || "";
-        cmdRef = cmdData?.reference || cmdRef;
-        if (!cmdId) {
-          alert("Commande créée mais UUID non reçu. Contactez Bella'Events.");
-          return;
-        }
-      }
-    } catch(e) {
-      alert("Erreur réseau lors de la création de la commande.\n"+e.message);
+    const resAcc = await rpcClient("client_repondre_devis", { p_reference: dos.reference, p_contact: contact.trim(), p_decision: "accepte", p_message: null });
+    if (!resAcc.ok || !resAcc.data) {
+      alert("Erreur lors de l'enregistrement de votre acceptation.\n"+(resAcc.error||""));
       return;
     }
-
-    // ── Étape 3 : Facture (anti-doublon source_id + commande_id réel) ──────
-    // Seulement si Étape 2 réussie (cmdId non vide)
-    try {
-      const token     = await getTokenAsync();
-      const rExistFac = await fetch(
-        SB_URL+"/rest/v1/bellaia_factures?source_id=eq."+dos.id+"&limit=1&select=id,reference,commande_id,statut",
-        { headers:{ apikey:SB_KEY, Authorization:"Bearer "+token } }
-      );
-      const existFacRows = rExistFac.ok ? await rExistFac.json() : [];
-
-      if (existFacRows.length > 0) {
-        const existFac = existFacRows[0];
-        facRef       = existFac.reference;
-        // Vérifier cohérence : la facture existante doit être liée à notre commande
-        if (existFac.commande_id && cmdId && existFac.commande_id !== cmdId) {
-          alert("Incohérence détectée : la facture "+facRef+" est liée à une autre commande ("+existFac.commande_id+").\nContactez Bella'Events.");
-          return;
-        }
-        facId = existFac.id || "";
-      } else {
-        try { facRef = await genererReference("FAC"); }
-        catch(e) { alert(e.message); return; }
-        const resFAC = await sbPost("bellaia_factures", {
-          business_unit:"EVENTS",
-          reference:    facRef,
-          client_nom:   clientNom,
-          client_tel:   dos.client_tel || null,
-          source_table: "events_demandes",
-          source_id:    dos.id,
-          commande_id:  cmdId,              // UUID Supabase réel — jamais null ici
-          devis_ref:    dos.numero_devis || null,
-          sous_total:   total,
-          total_ttc:    total,
-          acompte,
-          solde,
-          statut:       "emise",
-          date_emission:now.split("T")[0],
-          lignes:       dos.lignes_devis ? JSON.stringify(dos.lignes_devis) : null,
-        });
-        if (!resFAC?.ok) {
-          alert("La facture n'a pas pu être créée.\n"+
-                (resFAC?.error || "La commande "+cmdRef+" a été créée. Contactez Bella'Events pour la facture."));
-          return; // Arrêt — ne pas ouvrir le paiement sans facture
-        }
-        const facData = Array.isArray(resFAC.data) ? resFAC.data[0] : resFAC.data;
-        facRef = facData?.reference || facRef;
-        facId  = facData?.id        || "";
-      }
-    } catch(e) {
-      alert("Erreur réseau lors de la création de la facture.\n"+e.message);
-      return;
-    }
-
-    // ── Étape 3b : Patcher events_demandes avec les références réelles ────────
-    // Empêche la recréation de CMD/FAC au prochain clic
-    const patchLiaison = await sbPatch("events_demandes", dos.id, {
-      statut:           "converti_en_commande",
-      liaison_comptable:facRef,
-      numero_commande:  cmdRef,
-      numero_facture:   facRef,
-    });
-    if (!patchLiaison.ok) {
-      // Bloquant : sans ce patch, le portail recréerait CMD/FAC au prochain clic
-      alert(
-        "La commande "+cmdRef+" et la facture "+facRef+" ont été créées, "+
-        "mais le dossier n'a pas pu être mis à jour.\n"+
-        (patchLiaison.error || "Erreur: "+patchLiaison.status)+
-        "\nContactez Bella'Events avec ces références."
-      );
-      return; // Ne pas ouvrir le paiement — état incohérent
-    }
-
+    const cmdRef = resAcc.data.commande || "";
+    const facRef = resAcc.data.facture || "";
+    const dosMaj = resAcc.data.dossier || dos;
+    setDossiers(prev => prev.map(x => x.id===dos.id ? dosMaj : x));
+    if (dossier?.id===dos.id) setDossier(dosMaj);
     // ── Étape 4 : GED + notification (non bloquants) ──────────────────────
     gedAutoSave({
       titre:       "Facture "+facRef+" — "+clientNom,
@@ -12107,10 +11973,7 @@ function PortailSuiviClient({ onBack, user }) {
     }).catch(e=>console.warn("[Bellaïa][notif]",e.message));
 
     // ── Étape 5 : Mettre à jour l'état local + ouvrir le paiement ─────────
-    const updated = {...dos, statut:"accepte", client_reponse:"accepte", liaison_comptable:facRef};
-    setDossiers(prev => prev.map(d=>d.id===dos.id ? updated : d));
-    if (dossier?.id===dos.id) setDossier(updated);
-    setPaiement({dossier:updated, facRef, cmdRef, facId, cmdId, demandId:dos.id});
+    setPaiement({dossier:dosMaj, facRef, cmdRef, demandId:dos.id});
   };
 
   // ── Enregistrer le paiement ──────────────────────────────
@@ -12122,38 +11985,14 @@ function PortailSuiviClient({ onBack, user }) {
     const acompte = Math.round(total * 0.3);
     const montant = option==="total" ? total : acompte;
 
-    // ── Générer la référence PAY — arrêt si échec ─────────
-    let payRef = "";
-    try { payRef = await genererReference("PAY"); }
-    catch(e: any) {
+    // ── Déclaration enregistrée côté serveur (statut « en attente », à confirmer par Bella'Events)
+    const resPAY = await rpcClient("client_declarer_paiement", { p_reference: dos.reference, p_contact: contact.trim(), p_option: option==="total"?"total":"acompte", p_mode: mode });
+    if (!resPAY.ok || !resPAY.data) {
       setPayLoading(false);
-      alert(e.message);
-      return;
+      alert("La demande de paiement n'a pas pu être enregistrée.\n"+(resPAY.error||""));
+      return; // ← Ne pas afficher de succès si le serveur a refusé
     }
-
-    // ── Enregistrer dans bellaia_paiements — arrêt si échec ─
-    const resPAY = await sbPost("bellaia_paiements", {
-      business_unit: "EVENTS",
-      reference:     payRef,
-      montant,
-      mode_paiement: mode,
-      statut:        "en_attente",
-      source_table:  "events_demandes",
-      source_id:     dos.id,
-      facture_id:    paiement.facId  || null,
-      commande_id:   paiement.cmdId  || null,
-      notes:         (option==="total" ? "Paiement intégral" : "Acompte 30%")+" — "+dos.reference,
-      date_paiement: new Date().toISOString(),
-    });
-
-    if (!resPAY.ok) {
-      setPayLoading(false);
-      alert(
-        "La demande de paiement n'a pas pu être enregistrée.\n"+
-        (resPAY.error || "Erreur Supabase "+resPAY.status)
-      );
-      return; // ← Ne pas afficher de succès si Supabase a refusé
-    }
+    const payRef = resPAY.data;
 
     // ── Seulement après succès : WhatsApp + notification + succès ─
     if (mode==="virement"||mode==="especes"||mode==="cheque") {
@@ -12366,8 +12205,8 @@ function PortailSuiviClient({ onBack, user }) {
                 <DevisClientView dossier={dossier||d}
                   onAccepte={async()=>await onAccepterDevis(d)}
                   onRefuse={async()=>{
-                    const rRefus = await sbPatch("events_demandes",d.id,{statut:"refuse",client_reponse:"refuse",client_reponse_at:new Date().toISOString()});
-                    if(!rRefus.ok) console.error("[refusDevis] sbPatch échoué:", rRefus.error);
+                    const rRefus = await rpcClient("client_repondre_devis",{ p_reference:d.reference, p_contact:contact.trim(), p_decision:"refuse", p_message:null });
+                    if(!rRefus.ok) { alert("Le refus n'a pas pu être enregistré.\n"+(rRefus.error||"")); return; }
                     setDossiers(prev=>prev.map(x=>x.id===d.id?{...x,statut:"refuse",client_reponse:"refuse"}:x));
                   }}
                 />
@@ -12551,6 +12390,9 @@ function PortailSuiviClient({ onBack, user }) {
                 {chargement?"…":"›"}
               </button>
             </div>
+            <input value={contact} onChange={e=>setContact(e.target.value)} onKeyDown={e=>e.key==="Enter"&&rechercher()}
+              placeholder="E-mail ou téléphone donné lors de la demande" autoComplete="email"
+              style={{width:"100%",boxSizing:"border-box",marginTop:-8,marginBottom:16,background:"rgba(255,255,255,0.06)",border:"1px solid "+EV.line,borderRadius:10,padding:"11px 14px",color:EV.creme,fontSize:16,fontFamily:SA,outline:"none"}}/>
             {erreur && <div style={{fontSize:12,color:"#f87171",marginBottom:10}}>{erreur}</div>}
             {dossier && (
           <div style={{display:"flex",flexDirection:"column",gap:14}}>

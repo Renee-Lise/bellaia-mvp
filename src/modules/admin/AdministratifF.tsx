@@ -221,7 +221,7 @@ function Editeur({ piece, emetteurs, toutes, onFermer, onOuvrir }: any) {
         [r] = await sbInsert("bellaia_pieces", { ...pourEnvoi(p), historique: histo(action === "Modifié" ? "Créé" : action) });
         if (d.numeroAuto === "creation") { const n = await sbRpc<string>("bellaia_numeroter_piece", { p_id: r.id }); r = { ...r, numero: n }; }
       }
-      setP(r); setModifie(false); setMsg("✅ Enregistré" + (r.numero && !piece.numero ? ` · n° ${r.numero}` : "")); setTimeout(() => setMsg(""), 2500);
+      setP(r); setModifie(false); setMsg("✅ Document enregistré à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) + (r.numero ? ` · n° ${r.numero}` : ""));
       setOccupe(""); return r;
     } catch (e: any) { setMsg("⚠️ " + messageErreur(e)); setOccupe(""); return null; }
   };
@@ -400,10 +400,19 @@ function Emetteurs({ emetteurs, setEmetteurs }: any) {
   const [f, setF] = useState<any>(e);
   const [msg, setMsg] = useState("");
   useEffect(() => { setF(emetteurs.find((x: any) => x.bu === bu) || { bu }); }, [bu, emetteurs]);
+  const [envoi, setEnvoi] = useState(false);
   const sauver = async () => {
-    try { const { bu: _b, updated_at, ...patch } = f; const r = await patchEmetteur(bu, patch); setEmetteurs((xs: any[]) => xs.map(x => (x.bu === bu ? r : x))); setMsg("✅ Enregistré"); setTimeout(() => setMsg(""), 2000); }
-    catch (er: any) { setMsg("⚠️ " + er.message); }
+    if (envoi) return;
+    setEnvoi(true);
+    try {
+      const { bu: _b, updated_at, ...patch } = f; const r = await patchEmetteur(bu, patch);
+      if (!r) throw new Error("Enregistrement non confirmé par le serveur.");
+      setEmetteurs((xs: any[]) => xs.map(x => (x.bu === bu ? r : x)));
+      setMsg("✅ Informations enregistrées à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
+    } catch (er: any) { setMsg("⚠️ " + er.message); }
+    setEnvoi(false);
   };
+  const derniere = emetteurs.find((x: any) => x.bu === bu)?.updated_at;
   const copierDe = (src: string) => { const s = emetteurs.find((x: any) => x.bu === src); if (!s) return; const { bu: _b, nom_commercial, couleur, logo_url, updated_at, ...rest } = s; setF({ ...f, ...rest }); };
   const logo = async (file?: File) => {
     if (!file) return; setMsg("Envoi du logo…");
@@ -428,8 +437,11 @@ function Emetteurs({ emetteurs, setEmetteurs }: any) {
         <label style={btn()}>🖼 {f.logo_url ? "Changer le logo" : "Ajouter le logo"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={ev => { logo(ev.target.files?.[0]); ev.target.value = ""; }} /></label>
         <label style={{ ...btn(), display: "flex", alignItems: "center", gap: 6 }}>Couleur <input type="color" value={f.couleur || "#6B1A2B"} onChange={ev => setF({ ...f, couleur: ev.target.value })} /></label>
       </div>
-      <button style={btn(true)} onClick={sauver}>💾 Enregistrer</button>
-      {msg && <div style={{ fontSize: 13, color: msg.startsWith("⚠️") ? C.rouge : C.ok }}>{msg}</div>}
+      <div style={{ position: "sticky", bottom: 0, background: "#120c10", padding: "10px 0 calc(10px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 6, borderTop: `1px solid ${C.ligne}` }}>
+        <button style={{ ...btn(true), opacity: envoi ? 0.6 : 1, minHeight: 46, fontSize: 15 }} onClick={sauver} disabled={envoi}>{envoi ? "⏳ Enregistrement…" : "💾 Enregistrer"}</button>
+        {msg ? <div style={{ fontSize: 14, fontWeight: 700, color: msg.startsWith("⚠️") ? C.rouge : C.ok }}>{msg}</div>
+          : derniere && <div style={{ fontSize: 12, color: C.doux }}>Dernier enregistrement : {new Date(derniere).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>}
+      </div>
     </div>
   );
 }
