@@ -22,7 +22,10 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ Stripe désactivé, plus proposé par défaut (en production)
 - ✅ Salons BSH : écran sécurisé en production · fonctions 0115 (17 tests en base) · accès directs fermés (0115b, appliquée)
 - ✅ Fermeture des prix d'achat BSH / Odyssée et des coûts / marges Food (0117 appliquée ; boutique BSH vérifiée en ligne : prix de vente seuls) · 4 anciennes commandes clientes marquées « à vérifier »
-- 🔄 Contrôle final des accès par rôle (visiteur / cliente / fondatrice) — script `supabase/verifications/P0_verification_acces.sql`
+- ✅ Contrôle exhaustif des accès (toutes tables et vues, 5 profils : visiteur, cliente, assistante, partenaire, fondatrice) — 18/11
+- ✅ 0119 appliquée : notes fournisseur masquées dans le catalogue public (355 produits), prompt IA réservé à l'équipe, listing des fichiers publics réservé à l'équipe
+- 🟦 API : `/api/chat` réservé à l'équipe (clé IA), alertes push anti-spam, références de paiement non devinables, session jointe aux appels internes — **non testé, non déployé**
+- ⬜ Anciennes tables de messagerie (règle en boucle, inaccessibles, non utilisées) : corriger ou archiver
 - ⏳ Protection contre les mots de passe compromis (réglage Supabase — Actions requises)
 - ✅ Mise en production corrective P0 (déploiement 6945bb8 « Ready », aucune erreur serveur)
 - ⬜ Test réel d'un paiement SumUp

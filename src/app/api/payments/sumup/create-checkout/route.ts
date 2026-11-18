@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "SumUp non configuré.", code: "SUMUP_NOT_CONFIGURED" }, { status: 503 });
   if (!SUMUP_CODE) return NextResponse.json({ error: "SUMUP_MERCHANT_CODE manquant.", code: "SUMUP_NO_MERCHANT" }, { status: 503 });
 
-  const checkout_ref = `BS-${calc.univers}-${Date.now()}`;
+  const checkout_ref = `BS-${calc.univers}-${Date.now()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
   const urls = getUrls(checkout_ref);
   let sumup_data: any;
   try {

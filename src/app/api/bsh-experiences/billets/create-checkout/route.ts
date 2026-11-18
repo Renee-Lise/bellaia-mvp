@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Paiement par carte non configuré. Réessayez plus tard." }, { status: 503 });
   }
 
-  const checkout_ref = `BS-BSHBILLET-${Date.now()}`;
+  const checkout_ref = `BS-BSHBILLET-${Date.now()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
   const urls = getUrls(checkout_ref);
 
   let sumup_data: any;

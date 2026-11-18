@@ -3646,6 +3646,34 @@ let apercuEcrituresBloquees = false;
 let fetchAvantApercu: typeof fetch | null = null;
 const APERCU_API_EXCEPTIONS = ["/api/auth/login", "/api/auth/logout", "/api/auth/signup", "/api/chat"];
 
+// Session jointe automatiquement aux appels internes /api/... : les
+// routes serveur vérifient ainsi qui appelle (IA, alertes, paiements)
+// sans modifier chaque écran. Jamais vers un autre site, jamais si un
+// en-tête Authorization est déjà fourni, jamais pour /api/auth/.
+let jetonApiInstalle = false;
+function installerJetonApi() {
+  if (typeof window === "undefined" || jetonApiInstalle) return;
+  jetonApiInstalle = true;
+  const origine = window.fetch.bind(window);
+  window.fetch = (input: any, init?: RequestInit) => {
+    try {
+      if (typeof input === "string" || input instanceof URL) {
+        const u = new URL(String(input), window.location.origin);
+        if (u.origin === window.location.origin && u.pathname.startsWith("/api/") && !u.pathname.startsWith("/api/auth/")) {
+          const jeton = localStorage.getItem("bellaia_token");
+          const entetes = new Headers(init?.headers || {});
+          if (jeton && !entetes.has("authorization")) {
+            entetes.set("Authorization", "Bearer " + jeton);
+            return origine(input, { ...(init || {}), headers: entetes });
+          }
+        }
+      }
+    } catch {}
+    return origine(input, init);
+  };
+}
+installerJetonApi();
+
 function setApercuActif(actif: boolean) {
   apercuEcrituresBloquees = actif;
   if (typeof window === "undefined") return;
@@ -4019,7 +4047,7 @@ async function creerNotification({ pole, type, titre, message, canal, userId, cl
     if (pushFondatrice) {
       fetch("/api/notifications/push", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({titre, message, tag:pole||"notification"}),
+        body:JSON.stringify({titre, message, tag:pole||"notification", source_table:sourceTable||null, source_id:sourceId||null}),
       }).catch(()=>{});
     }
     return res;
