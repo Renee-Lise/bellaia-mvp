@@ -13995,6 +13995,7 @@ const NAV_F = [
   {id:"crm",         ico:"👥", l:"CRM"},
   {id:"finances",    ico:"€",  l:"Finances"},
   {id:"compta",      ico:"📒", l:"Compta"},
+  {id:"administratif", ico:"🧾", l:"Administratif"},
   {id:"events",      ico:"✨", l:"Events"},
   {id:"bsh",         ico:"✦",  l:"BSH"},
   {id:"bsh_members", ico:"💎", l:"Members"},
@@ -14385,6 +14386,14 @@ function MessagerieWrapper({ user }: any) {
 }
 
 // ── Wrapper Documents / GED (docs module)
+// ── Administratif : devis, factures, bons, bordereaux, courriers
+function AdministratifWrapper() {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/admin/AdministratifF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de l'administratif…</div>;
+  return <Comp/>;
+}
+
 function DocumentsWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
@@ -14639,6 +14648,7 @@ export default function BellaiaApp() {
     crm:         <CrmF user={user}/>,
     finances:    <FinancesP1 user={user}/>,
     compta:      <ComptaWrapper user={user}/>,
+    administratif: <AdministratifWrapper/>,
     calendrier:  <CalendrierP1 user={user}/>,
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
