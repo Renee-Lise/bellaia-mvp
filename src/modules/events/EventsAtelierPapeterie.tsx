@@ -84,7 +84,7 @@ function Apercu({ c, largeurPx }: { c: Creation; largeurPx: number }) {
 // ── Composant principal ──────────────────────────────────────
 export default function EventsAtelierPapeterie() {
   const [liste, setListe] = useState<Creation[]>([]);
-  const [onglet, setOnglet] = useState<"mes" | "patrons">("patrons");
+  const [onglet, setOnglet] = useState<"mes" | "patrons" | "packs">("patrons");
   const [erreur, setErreur] = useState("");
   const [charge, setCharge] = useState(true);
   const [ouverte, setOuverte] = useState<Creation | null>(null);
@@ -198,6 +198,7 @@ export default function EventsAtelierPapeterie() {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button style={bouton(onglet === "patrons")} onClick={() => setOnglet("patrons")}>📐 Patrons ({patrons.length})</button>
         <button style={bouton(onglet === "mes")} onClick={() => setOnglet("mes")}>🎨 Mes créations ({mes.length})</button>
+        <button style={bouton(onglet === "packs")} onClick={() => setOnglet("packs")}>📚 Packs achetés</button>
         <div style={{ flex: 1 }} />
         <button style={bouton(true)} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", titre: "Joyeux anniversaire", message: "", banderoleTexte: "", banderoleMode: "lettres", police: "Playfair Display", couleurs: { fond: "#fdf6f0", principale: "#b5838d", accent: "#c9a84c", texte: "#2d2424" }, ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id), collection: collections[0] })} disabled={!patrons.length}>🎁 Créer mon kit</button>
         <button style={bouton()} onClick={() => setNouveau({ nom: "", l: 210, h: 297 })}>+ Format libre</button>
@@ -223,6 +224,8 @@ export default function EventsAtelierPapeterie() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 8 }}>{items.map(c => <Carte key={c.id} c={c} />)}</div>
           </div>
         )))}
+
+      {onglet === "packs" && <PacksAchetes />}
 
       {pack && (
         <Feuille titre="🎁 Créer mon kit" onFermer={() => setPack(null)}>
@@ -287,6 +290,38 @@ export default function EventsAtelierPapeterie() {
           <button style={bouton(true)} onClick={creerLibre}>Créer et ouvrir</button>
         </Feuille>
       )}
+    </div>
+  );
+}
+
+// ── Registre des packs achetés (Canva / Google Drive) ────────
+const ETATS_PACK: [string, string, string][] = [["a_ouvrir", "À ouvrir", C.muted], ["copie_canva", "Copié dans mon Canva", C.bleu], ["exporte", "Exporté (PDF/PNG)", C.gold], ["importe", "Importé dans la médiathèque", C.ok], ["inaccessible", "Inaccessible", C.rouge]];
+function PacksAchetes() {
+  const [lignes, setLignes] = useState<any[]>([]);
+  const [erreur, setErreur] = useState("");
+  const charger = () => sbSelect("events_packs_registre", "select=*&order=pack.asc,ordre.asc").then(setLignes).catch(e => setErreur(e.message));
+  useEffect(() => { charger(); }, []);
+  const maj = async (l: any, patch: any) => { setLignes(xs => xs.map(x => x.id === l.id ? { ...x, ...patch } : x)); try { await sbUpdate("events_packs_registre", l.id, { ...patch, updated_at: new Date().toISOString() }); } catch (e: any) { setErreur(e.message); charger(); } };
+  const packs = [...new Set(lignes.map(l => l.pack))];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
+        Tes PDF d'achat ne contiennent que des liens : les modèles restent dans Canva et Google Drive. Pour chaque élément : <b style={{ color: C.cream }}>1.</b> « Ouvrir » (connecte-toi à ton compte) → <b style={{ color: C.cream }}>2.</b> Canva : « Utiliser le modèle » ; Drive : « Télécharger » → <b style={{ color: C.cream }}>3.</b> télécharge en PDF ou PNG → <b style={{ color: C.cream }}>4.</b> importe le fichier dans 🖼️ Médiathèque → il devient utilisable comme fond, image ou patron dans tes kits. Note l'avancement ici.
+      </div>
+      {erreur && <div style={{ fontSize: 12, color: C.rouge }}>⚠️ {erreur}</div>}
+      {packs.map(p => (
+        <div key={p} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.gold }}>{p} <span style={{ color: C.muted, fontWeight: 400 }}>· {lignes.filter(l => l.pack === p && l.etat === "importe").length}/{lignes.filter(l => l.pack === p).length} importés</span></div>
+          <div style={{ fontSize: 10, color: C.muted }}>Licence : {lignes.find(l => l.pack === p)?.licence}</div>
+          {lignes.filter(l => l.pack === p).map(l => { const e = ETATS_PACK.find(x => x[0] === l.etat) || ETATS_PACK[0]; return (
+            <div key={l.id} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${e[2]}`, borderRadius: 10, padding: "8px 10px" }}>
+              <div style={{ flex: "1 1 180px", fontSize: 12, color: C.cream }}>{l.source === "canva" ? "🎨" : "📁"} {l.element}</div>
+              <a href={l.lien} target="_blank" rel="noopener noreferrer" style={{ ...bouton(), textDecoration: "none", fontSize: 11 }}>Ouvrir ↗</a>
+              <select style={{ ...champ, width: "auto", fontSize: 11 }} value={l.etat} onChange={ev => maj(l, { etat: ev.target.value })}>{ETATS_PACK.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select>
+            </div>); })}
+        </div>
+      ))}
+      {!lignes.length && !erreur && <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Aucun pack enregistré.</div>}
     </div>
   );
 }
