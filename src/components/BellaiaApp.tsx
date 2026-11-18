@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import BellaiaLogo from "@/components/BellaiaLogo";
 import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/modules/push/pushClient";
 import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
@@ -13832,41 +13832,33 @@ function StocksF({ user }) {
 }
 
 // Navigation principale fondatrice — scrollable horizontalement
-const NAV_F = [
-  {id:"dashboard",   ico:"◈",  l:"Accueil"},
-  {id:"crm",         ico:"👥", l:"CRM"},
-  {id:"finances",    ico:"€",  l:"Finances"},
-  {id:"compta",      ico:"📒", l:"Compta"},
-  {id:"administratif", ico:"🧾", l:"Administratif"},
-  {id:"events",      ico:"✨", l:"Events"},
-  {id:"bsh",         ico:"✦",  l:"BSH"},
-  {id:"bsh_members", ico:"💎", l:"Members"},
-  {id:"struct",      ico:"🗂",  l:"Structure"},
-  {id:"erp_projets", ico:"🎯", l:"Projets"},
-  {id:"erp_taches",  ico:"✔",  l:"Tâches"},
-  {id:"planning",    ico:"📅", l:"Planning"},
-  {id:"notifications",  ico:"🔔", l:"Notifications"},
-  {id:"identite",    ico:"🖼",  l:"Identité"},
-  {id:"stocks",      ico:"📦", l:"Stocks"},
-  {id:"biblio",      ico:"📚", l:"Éditions"},
-  {id:"odyssee",     ico:"💅", l:"Odyssée"},
-  {id:"apercu_ux",   ico:"👁",  l:"Aperçu"},
-  {id:"studio",      ico:"✦",  l:"Studio IA"},
-  {id:"editorial",   ico:"📖", l:"Éditorial"},
-  {id:"food",        ico:"🍃", l:"Food"},
-  {id:"ia",          ico:"◎",  l:"IA"},
-  // ── ERP Central (LOT VI)
-  {id:"catalogue_admin", ico:"🗂",  l:"Catalogue"},
-  {id:"stock_central",   ico:"🏪",  l:"Stock ERP"},
-  {id:"workflow_erp",    ico:"📑",  l:"Factures"},
-  {id:"crm_central",     ico:"👥",  l:"CRM"},
-  {id:"recherche",       ico:"🔍",  l:"Recherche"},
-  {id:"messagerie",      ico:"💬",  l:"Messages"},
-  {id:"documents",       ico:"📁",  l:"Documents"},
-  {id:"vilo",            ico:"🤝",  l:"Vilo"},
-  {id:"editions",        ico:"📚",  l:"Éditions"},
-  {id:"motipy",          ico:"🌿",  l:"Mo Ti-Péyi"},
+// Navigation fondatrice regroupée : un onglet par grand domaine, des
+// sous-onglets pour les écrans qui ont la même fonction (CRM, factures,
+// stocks, éditions…). Les identifiants de pages ne changent pas.
+const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] = [
+  {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
+  {id:"g_clients",  ico:"👥", l:"Clients",      pages:[["crm","Clientes"],["crm_central","CRM central"]]},
+  {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
+  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
+  {id:"g_events",   ico:"✨", l:"Events",       pages:[["events","Bella'Even's"]]},
+  {id:"g_food",     ico:"🍃", l:"Food",         pages:[["food","Bella'Food"]]},
+  {id:"g_bsh",      ico:"✦",  l:"BSH",          pages:[["bsh","Bella'Secret Home"],["bsh_members","Membres"]]},
+  {id:"g_odyssee",  ico:"💅", l:"Odyssée",      pages:[["odyssee","Bella'Odyssée"]]},
+  {id:"g_editions", ico:"📚", l:"Éditions",     pages:[["editions","Éditions & ebooks"],["motipy","Mo Ti-Péyi"],["editorial","Éditorial"],["biblio","Bibliothèque"]]},
+  {id:"g_stocks",   ico:"📦", l:"Stocks",       pages:[["stocks","Stocks"],["stock_central","Stock ERP"],["catalogue_admin","Catalogue"]]},
+  {id:"g_studio",   ico:"🎨", l:"Studio",       pages:[["studio","Studio IA"],["ia","IA"],["identite","Identité"],["apercu_ux","Aperçu"]]},
+  {id:"g_vilo",     ico:"🤝", l:"Vilo",         pages:[["vilo","Vilo'Assistance"],["struct","Structure"]]},
 ];
+// Assistante (Bella'Food / Bella'Even's, hôtesse BSH) : son espace et ses pôles.
+const NAV_GROUPES_ASSISTANTE = [
+  {id:"g_equipe", ico:"🤝", l:"Mon espace", pages:[["equipe","Mes missions"]] as [string,string][]},
+  {id:"g_food",   ico:"🍃", l:"Food",       pages:[["food","Bella'Food"]] as [string,string][]},
+  {id:"g_events", ico:"✨", l:"Events",     pages:[["events","Bella'Even's"]] as [string,string][]},
+  {id:"g_orga",   ico:"📅", l:"Planning",   pages:[["planning","Planning"]] as [string,string][]},
+  {id:"g_msg",    ico:"💬", l:"Messages",   pages:[["messagerie","Messages"],["notifications","Notifications"]] as [string,string][]},
+];
+const groupeDe = (groupes: typeof NAV_GROUPES, page: string) => groupes.find(g => g.pages.some(([id]) => id === page));
+
 
 // Placeholder pôle fondatrice
 function PlaceholderModule({ ico, nom, desc }) {
@@ -14229,6 +14221,18 @@ function MessagerieWrapper({ user }: any) {
 
 // ── Wrapper Documents / GED (docs module)
 // ── Administratif : devis, factures, bons, bordereaux, courriers
+function ActionsRequisesWrapper() {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/equipe/ActionsRequises").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement des actions…</div>;
+  return <Comp/>;
+}
+function EquipeWrapper({ user, role }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/equipe/EspaceEquipe").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de l'espace équipe…</div>;
+  return <Comp user={user} role={role}/>;
+}
 function AdministratifWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => { import("../modules/admin/AdministratifF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
@@ -14298,6 +14302,23 @@ function MoTiPeyiWrapper({ user }: any) {
 export default function BellaiaApp() {
   const [user, setUser] = useState(null);
   const [activeF, setActiveF] = useState("dashboard");
+  const roleNav = (user as any)?.role;
+  const groupes = roleNav === "assistante" ? NAV_GROUPES_ASSISTANTE : NAV_GROUPES;
+  useEffect(() => { if (roleNav === "assistante") setActiveF("equipe"); }, [roleNav]);
+  const groupeActif = groupeDe(groupes, activeF);
+  const dernierePage = useRef<Record<string,string>>({});
+  const allerA = (id: string) => { const g = groupeDe(groupes, id); if (g) dernierePage.current[g.id] = id; setActiveF(id); };
+  const [nbActions, setNbActions] = useState(0);
+  useEffect(() => {
+    if (roleNav !== "fondatrice") return;
+    let vivant = true;
+    (async () => { try {
+      const t = await (window as any).getTokenAsync?.();
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/bellaia_actions?select=id&statut=neq.fait&priorite=lte.2`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: `Bearer ${t}` } });
+      if (r.ok && vivant) setNbActions((await r.json()).length);
+    } catch {} })();
+    return () => { vivant = false; };
+  }, [roleNav, activeF === "actions"]);
   const [preview, setPreview] = useState(null);
   const [activeUnivers, setActiveUnivers] = useState(null);
   const [hydrated, setHydrated] = useState(false);
@@ -14491,6 +14512,8 @@ export default function BellaiaApp() {
     finances:    <FinancesP1 user={user}/>,
     compta:      <ComptaWrapper user={user}/>,
     administratif: <AdministratifWrapper/>,
+    actions:     <ActionsRequisesWrapper/>,
+    equipe:      <EquipeWrapper user={user} role={role}/>,
     calendrier:  <CalendrierP1 user={user}/>,
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
@@ -14576,6 +14599,16 @@ export default function BellaiaApp() {
       </div>
 
       {/* Contenu */}
+      {groupeActif && groupeActif.pages.length > 1 && (
+        <div style={{display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch",padding:"8px 12px",borderBottom:"1px solid "+(B.border),background:B.deep,flexShrink:0}}>
+          {groupeActif.pages.map(([id,l])=>(
+            <button key={id} onClick={()=>allerA(id)}
+              style={{flexShrink:0,minHeight:36,padding:"6px 12px",borderRadius:99,border:"1px solid "+(activeF===id?B.gold:B.border),background:activeF===id?"rgba(201,168,76,0.15)":"transparent",color:activeF===id?B.gold:B.mutedL,fontSize:12,fontWeight:700,fontFamily:SA,cursor:"pointer",whiteSpace:"nowrap"}}>
+              {l}{id==="actions"&&nbActions>0?` · ${nbActions}`:""}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{flex:1,overflowY:"auto",padding:activeF==="bsh"?"0":"14px 12px 84px"}}>
         {views[activeF] ?? <PlaceholderModule ico="🔧" nom={activeF} desc="Module en construction"/>}
       </div>
@@ -14583,13 +14616,14 @@ export default function BellaiaApp() {
       {/* Bottom nav fixe — scrollable horizontalement pour 10 modules */}
       <div style={{position:"fixed",bottom:0,left:0,width:"100%",borderTop:"1px solid "+(B.border),background:B.deep,padding:"5px 0 calc(5px + env(safe-area-inset-bottom))",zIndex:100,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         <div style={{display:"flex",minWidth:"max-content",padding:"0 4px"}}>
-          {NAV_F.map(m=>(
-            <button key={m.id} onClick={()=>setActiveF(m.id)}
-              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"3px 10px",minWidth:52,WebkitTapHighlightColor:"transparent",borderBottom:activeF===m.id?"2px solid "+(B.gold):"2px solid transparent"}}>
-              <span style={{fontSize:16,color:activeF===m.id?B.gold:B.muted,transition:"color 0.15s"}}>{m.ico}</span>
-              <span style={{fontSize:8,color:activeF===m.id?B.gold:B.muted,fontWeight:700,letterSpacing:"0.02em",whiteSpace:"nowrap"}}>{m.l}</span>
+          {groupes.map(g=>{ const on = groupeActif?.id===g.id; return (
+            <button key={g.id} onClick={()=>allerA(dernierePage.current[g.id] || g.pages[0][0])}
+              style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"3px 10px",minWidth:58,minHeight:44,WebkitTapHighlightColor:"transparent",borderBottom:on?"2px solid "+(B.gold):"2px solid transparent"}}>
+              <span style={{fontSize:17,color:on?B.gold:B.muted,transition:"color 0.15s"}}>{g.ico}</span>
+              <span style={{fontSize:9,color:on?B.gold:B.muted,fontWeight:700,letterSpacing:"0.02em",whiteSpace:"nowrap"}}>{g.l}</span>
+              {g.id==="g_accueil" && nbActions>0 && <span style={{position:"absolute",top:0,right:8,background:"#ef4444",color:"#fff",borderRadius:99,minWidth:15,height:15,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{nbActions>9?"9+":nbActions}</span>}
             </button>
-          ))}
+          );})}
         </div>
       </div>
     </div>
