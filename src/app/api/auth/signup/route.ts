@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         age_verifi:     majeur,
       },
       session: authData.session
-        ? { access_token: authData.session.access_token, refresh_token: authData.session.refresh_token }
+        ? { access_token: authData.session.access_token, refresh_token: authData.session.refresh_token, expires_at: authData.session.expires_at, expires_in: authData.session.expires_in }
         : null,
     });
   } catch (e: any) {

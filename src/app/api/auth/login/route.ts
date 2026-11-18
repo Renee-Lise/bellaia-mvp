@@ -72,6 +72,11 @@ export async function POST(req: NextRequest) {
       session: {
         access_token:  authData.session.access_token,
         refresh_token: authData.session.refresh_token,
+        // Sans expires_at, le navigateur croyait la session éternelle : il ne
+        // la renouvelait jamais et, une heure après la connexion, toutes les
+        // écritures étaient refusées (401) en silence.
+        expires_at:    authData.session.expires_at,
+        expires_in:    authData.session.expires_in,
       },
     });
   } catch (e: any) {

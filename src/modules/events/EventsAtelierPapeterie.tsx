@@ -15,9 +15,10 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import EventsMediatheque from "./EventsMediatheque";
+import { composerPieces, type BriefKit } from "./kitComposer";
 import {
   sbSelect, sbInsert, sbUpdate, sbDelete, uploadStorage, compresserImage, slug,
-  chargerPolices, POLICES, rendreSurCanvas, canvasVersPdf, pxParMmExport, rendreImpositionA4, partagerFichier, telecharger,
+  chargerPolices, POLICES, rendreSurCanvas, mesurerTexte, TAILLE_MIN_LISIBLE, canvasVersPdf, pxParMmExport, rendreImpositionA4, partagerFichier, telecharger,
   type Calque, type ContenuPapeterie,
 } from "./eventsAtelierLib";
 
@@ -35,6 +36,7 @@ const nomCourt = (n: string) => n.replace(/^BELLA_EVENS \d+ — /, "");
 
 // ── Rendu SVG d'un calque (aperçu + éditeur) ─────────────────
 function CalqueSvg({ k, editeur }: { k: Calque; editeur: boolean }) {
+  const idMasque = "m" + React.useId().replace(/:/g, "");
   const cx = k.x + k.w / 2, cy = k.y + k.h / 2;
   let el: React.ReactNode = null;
   if (k.type === "forme" && k.forme) {
@@ -46,17 +48,25 @@ function CalqueSvg({ k, editeur }: { k: Calque; editeur: boolean }) {
     else if (f.forme === "ligne") el = <line x1={k.x} y1={cy} x2={k.x + k.w} y2={cy} stroke={f.contour || f.remplissage} strokeWidth={f.epaisseur || 0.5} />;
     else el = <rect x={k.x} y={k.y} width={k.w} height={k.h} rx={f.rayon || 0} {...p} />;
   } else if (k.type === "image") {
+    const masque = k.image?.masque && k.image.masque !== "rect" ? k.image.masque : null;
     el = k.image?.url
-      ? <image href={k.image.url} x={k.x} y={k.y} width={k.w} height={k.h} preserveAspectRatio={`xMidYMid ${(k.image.ajustement || "cover") === "cover" ? "slice" : "meet"}`} />
+      ? <>
+          {masque && <defs><clipPath id={idMasque}>{masque === "ellipse" ? <ellipse cx={cx} cy={cy} rx={k.w / 2} ry={k.h / 2} /> : <polygon points={masque === "triangle" ? `${cx},${k.y} ${k.x + k.w},${k.y + k.h} ${k.x},${k.y + k.h}` : `${k.x},${k.y} ${k.x + k.w},${k.y} ${cx},${k.y + k.h}`} />}</clipPath></defs>}
+          <image href={k.image.url} x={k.x} y={k.y} width={k.w} height={k.h} clipPath={masque ? `url(#${idMasque})` : undefined} preserveAspectRatio={`xMidYMid ${(k.image.ajustement || "cover") === "cover" ? "slice" : "meet"}`} />
+        </>
       : editeur ? <g><rect x={k.x} y={k.y} width={k.w} height={k.h} fill="rgba(181,131,141,0.15)" stroke="#b5838d" strokeWidth={0.4} strokeDasharray="1.5 1" /><text x={cx} y={cy} fontSize={Math.min(k.w, k.h) / 6} textAnchor="middle" dominantBaseline="central" fill="#b5838d" fontFamily="Inter">IMAGE</text></g> : null;
   } else if (k.type === "texte" && k.texte) {
     const t = k.texte;
-    const lignes = (t.contenu || "").split("\n");
-    const lh = t.taille * (t.interligne || 1.2);
+    const m = mesurerTexte(t, k.w, k.h);
+    const lh = m.taille * (t.interligne || 1.2);
     const x = t.align === "left" ? k.x : t.align === "right" ? k.x + k.w : cx;
-    el = <text x={x} fontFamily={`'${t.police}'`} fontSize={t.taille} fontWeight={t.gras ? 700 : 400} fontStyle={t.italique ? "italic" : "normal"} fill={t.couleur} textAnchor={t.align === "left" ? "start" : t.align === "right" ? "end" : "middle"} dominantBaseline="central" style={{ whiteSpace: "pre" }}>
-      {lignes.map((ln, i) => <tspan key={i} x={x} y={cy + (i - (lignes.length - 1) / 2) * lh}>{ln || " "}</tspan>)}
-    </text>;
+    const contour = t.contour && (t.contourEpaisseur || 0) > 0 ? { stroke: t.contour, strokeWidth: t.contourEpaisseur! * 2, strokeLinejoin: "round" as const, paintOrder: "stroke" } : {};
+    el = <>
+      <text x={x} fontFamily={`'${t.police}', Georgia, serif`} fontSize={m.taille} fontWeight={t.gras ? 700 : 400} fontStyle={t.italique ? "italic" : "normal"} fill={t.couleur} {...contour} textAnchor={t.align === "left" ? "start" : t.align === "right" ? "end" : "middle"} dominantBaseline="central" style={{ whiteSpace: "pre" }}>
+        {m.lignes.map((ln, i) => <tspan key={i} x={x} y={cy + (i - (m.lignes.length - 1) / 2) * lh}>{ln || " "}</tspan>)}
+      </text>
+      {editeur && (m.illisible || m.deborde) && <rect x={k.x} y={k.y} width={k.w} height={k.h} fill="none" stroke="#f87171" strokeWidth={0.6} strokeDasharray="1.2 0.8" />}
+    </>;
   }
   return <g transform={k.rotation ? `rotate(${k.rotation} ${cx} ${cy})` : undefined} opacity={k.opacite ?? 1}>{el}</g>;
 }
@@ -88,7 +98,8 @@ export default function EventsAtelierPapeterie() {
     catch (e: any) { setErreur(e.message); }
     setCharge(false);
   };
-  useEffect(() => { chargerPolices(); charger(); }, []);
+  const [, policesPretes] = useState(0);
+  useEffect(() => { chargerPolices(); charger(); (document as any).fonts?.ready?.then(() => policesPretes(x => x + 1)); }, []);
 
   const patrons = liste.filter(x => x.est_modele);
   const mes = liste.filter(x => !x.est_modele);
@@ -118,14 +129,29 @@ export default function EventsAtelierPapeterie() {
     return row;
   };
 
+  // « Créer mon kit » : chaque support est recomposé selon sa forme avec
+  // le même univers. Protégé contre les appuis multiples (un seul envoi,
+  // bouton désactivé) — c'est ce qui avait créé 3 fois le pack « Vilosa ».
+  const envoiKit = React.useRef(false);
   const creerPack = async () => {
+    if (envoiKit.current) return;
     const choisis = patrons.filter(p => pack.ids.includes(p.id));
-    if (!pack.client?.trim() || !choisis.length) return;
-    setOccupe(`Création du pack (${choisis.length} supports)…`);
+    const client = pack.client?.trim();
+    if (!client || !choisis.length) return;
+    if (mes.some(c => (c.client_nom || "").toLowerCase() === client.toLowerCase()) && !confirm(`Des créations existent déjà pour « ${client} ». Créer un nouveau kit en plus (variante) ?`)) return;
+    envoiKit.current = true;
+    const brief: BriefKit = { client, prenom: pack.prenom, age: pack.age, date: pack.date, lieu: pack.lieu, rsvp: pack.rsvp, titre: pack.titre || undefined, message: pack.message || undefined, theme: pack.theme,
+      couleurs: pack.couleurs, police: pack.police, imageFond: pack.imageFond || null, personnage: pack.image || null, banderoleTexte: pack.banderoleTexte, banderoleMode: pack.banderoleMode };
+    const lignes = choisis.flatMap(src => composerPieces(src, brief).map(pc => ({
+      nom: pc.nom, type_support: src.type_support, largeur_mm: pc.largeur_mm, hauteur_mm: pc.hauteur_mm, contenu: pc.contenu, est_modele: false,
+      modele_source_id: src.id, collection: src.collection, occasion: src.occasion, theme: pack.theme || src.theme, client_nom: client, statut: "brouillon",
+    })));
+    setOccupe(`Composition du kit : ${lignes.length} pièce(s)…`);
     try {
-      for (const p of choisis) await dupliquer(p, pack);
+      await sbInsert("events_papeterie", lignes, "return=minimal"); // un seul envoi groupé
       setPack(null); await charger(); setOnglet("mes");
     } catch (e: any) { setErreur(e.message); }
+    envoiKit.current = false;
     setOccupe("");
   };
 
@@ -173,7 +199,7 @@ export default function EventsAtelierPapeterie() {
         <button style={bouton(onglet === "patrons")} onClick={() => setOnglet("patrons")}>📐 Patrons ({patrons.length})</button>
         <button style={bouton(onglet === "mes")} onClick={() => setOnglet("mes")}>🎨 Mes créations ({mes.length})</button>
         <div style={{ flex: 1 }} />
-        <button style={bouton(true)} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id), collection: collections[0] })} disabled={!patrons.length}>🎁 Créer un pack client</button>
+        <button style={bouton(true)} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", titre: "Joyeux anniversaire", message: "", banderoleTexte: "", banderoleMode: "lettres", police: "Playfair Display", couleurs: { fond: "#fdf6f0", principale: "#b5838d", accent: "#c9a84c", texte: "#2d2424" }, ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id), collection: collections[0] })} disabled={!patrons.length}>🎁 Créer mon kit</button>
         <button style={bouton()} onClick={() => setNouveau({ nom: "", l: 210, h: 297 })}>+ Format libre</button>
       </div>
       {occupe && <div style={{ fontSize: 12, color: C.gold }}>⏳ {occupe}</div>}
@@ -199,8 +225,8 @@ export default function EventsAtelierPapeterie() {
         )))}
 
       {pack && (
-        <Feuille titre="🎁 Créer un pack client" onFermer={() => setPack(null)}>
-          <div style={{ fontSize: 11, color: C.muted }}>Les patrons choisis sont copiés au nom du client et pré-remplis. Les originaux restent intacts.</div>
+        <Feuille titre="🎁 Créer mon kit" onFermer={() => setPack(null)}>
+          <div style={{ fontSize: 11, color: C.muted }}>Chaque support est recomposé selon sa forme avec le même univers (couleurs, police, fond, personnage). Les patrons d'origine restent intacts. Tout reste modifiable ensuite.</div>
           <select style={champ} value={pack.collection} onChange={e => setPack({ ...pack, collection: e.target.value, ids: patrons.filter(p => p.collection === e.target.value).map(p => p.id) })}>{collections.map(c => <option key={c}>{c}</option>)}</select>
           <input style={champ} placeholder="Nom du client *" value={pack.client} onChange={e => setPack({ ...pack, client: e.target.value })} />
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 6 }}>
@@ -210,10 +236,28 @@ export default function EventsAtelierPapeterie() {
           <input style={champ} placeholder="Date et heure (ex. Samedi 12/12 · 15h)" value={pack.date} onChange={e => setPack({ ...pack, date: e.target.value })} />
           <input style={champ} placeholder="Lieu" value={pack.lieu} onChange={e => setPack({ ...pack, lieu: e.target.value })} />
           <input style={champ} placeholder="RSVP (ex. RSVP : 0694 …)" value={pack.rsvp} onChange={e => setPack({ ...pack, rsvp: e.target.value })} />
-          <input style={champ} placeholder="Thème (facultatif)" value={pack.theme || ""} onChange={e => setPack({ ...pack, theme: e.target.value })} />
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {pack.image ? <img src={pack.image} alt="" style={{ width: 48, height: 48, objectFit: "contain", borderRadius: 6, background: "#fff" }} /> : null}
-            <button style={bouton()} onClick={() => setPack({ ...pack, choixImage: true })}>{pack.image ? "Changer l'image principale" : "🖼️ Image principale (médiathèque)"}</button>
+          <input style={champ} placeholder="Thème (ex. Pat'Patrouille, Bal masqué, Safari…)" value={pack.theme || ""} onChange={e => setPack({ ...pack, theme: e.target.value })} />
+          <input style={champ} placeholder="Titre (ex. Joyeux anniversaire)" value={pack.titre || ""} onChange={e => setPack({ ...pack, titre: e.target.value })} />
+          <input style={champ} placeholder="Message (cartes de remerciement, toppers sachets…)" value={pack.message || ""} onChange={e => setPack({ ...pack, message: e.target.value })} />
+          <div style={lbl}>Univers du kit</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
+            {([["fond", "Fond"], ["principale", "Principale"], ["accent", "Accent"], ["texte", "Texte"]] as const).map(([k, l]) => (
+              <label key={k} style={{ fontSize: 10, color: C.muted, display: "flex", flexDirection: "column", gap: 3 }}>{l}<input type="color" value={pack.couleurs[k]} onChange={e => setPack({ ...pack, couleurs: { ...pack.couleurs, [k]: e.target.value } })} style={{ width: "100%", height: 32, border: "none", background: "none" }} /></label>
+            ))}
+          </div>
+          <select style={champ} value={pack.police} onChange={e => setPack({ ...pack, police: e.target.value })}>{POLICES.map(p => <option key={p} value={p}>Police des titres : {p}</option>)}</select>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {([["imageFond", "choixFond", "🌄 Image de fond / motif"], ["image", "choixImage", "🧸 Personnage / photo"]] as const).map(([k, choix, l]) => (
+              <div key={k} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {pack[k] ? <img src={pack[k]} alt="" style={{ width: 44, height: 44, objectFit: "contain", borderRadius: 6, background: "#fff" }} /> : null}
+                <button style={{ ...bouton(), whiteSpace: "normal", textAlign: "left" }} onClick={() => setPack({ ...pack, [choix]: true })}>{pack[k] ? "Changer" : l}</button>
+                {pack[k] && <button style={{ ...bouton(), padding: "4px 7px" }} onClick={() => setPack({ ...pack, [k]: null })}>✕</button>}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 6 }}>
+            <input style={champ} placeholder="Texte de la banderole (par défaut : le prénom)" value={pack.banderoleTexte || ""} onChange={e => setPack({ ...pack, banderoleTexte: e.target.value })} />
+            <select style={champ} value={pack.banderoleMode} onChange={e => setPack({ ...pack, banderoleMode: e.target.value })}><option value="lettres">1 fanion / lettre</option><option value="mots">1 fanion / mot</option></select>
           </div>
           <div style={lbl}>Supports ({pack.ids.length})</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 180, overflowY: "auto" }}>
@@ -223,8 +267,9 @@ export default function EventsAtelierPapeterie() {
               </label>
             ))}
           </div>
-          <button style={bouton(true)} onClick={creerPack} disabled={!pack.client?.trim()}>Créer le pack</button>
-          {pack.choixImage && <Feuille titre="Choisir l'image principale" onFermer={() => setPack({ ...pack, choixImage: false })}><EventsMediatheque mode="choisir" onChoisir={m => setPack({ ...pack, image: m.url, choixImage: false })} /></Feuille>}
+          <button style={{ ...bouton(true), opacity: occupe ? 0.5 : 1 }} onClick={creerPack} disabled={!pack.client?.trim() || !!occupe}>{occupe ? "⏳ Création en cours…" : "Créer le kit"}</button>
+          {pack.choixImage && <Feuille titre="Choisir le personnage / la photo" onFermer={() => setPack({ ...pack, choixImage: false })}><EventsMediatheque mode="choisir" onChoisir={m => setPack({ ...pack, image: m.url, choixImage: false })} /></Feuille>}
+          {pack.choixFond && <Feuille titre="Choisir l'image de fond" onFermer={() => setPack({ ...pack, choixFond: false })}><EventsMediatheque mode="choisir" onChoisir={m => setPack({ ...pack, imageFond: m.url, choixFond: false })} /></Feuille>}
         </Feuille>
       )}
 
@@ -463,6 +508,14 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
               <button style={bouton(!!calque.texte.italique)} onClick={() => majCalque(calque.id, { texte: { italique: !calque.texte!.italique } })}><i>I</i></button>
               {(["left", "center", "right"] as const).map(a => <button key={a} style={bouton(calque.texte!.align === a)} onClick={() => majCalque(calque.id, { texte: { align: a } })}>{a === "left" ? "⇤" : a === "center" ? "↔" : "⇥"}</button>)}
             </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 4 }}>Contour <input type="color" value={calque.texte.contour || "#ffffff"} onChange={e => majCalque(calque.id, { texte: { contour: e.target.value, contourEpaisseur: calque.texte!.contourEpaisseur || Math.max(0.4, Math.round(calque.texte!.taille * 0.08 * 10) / 10) } })} /></label>
+              <input style={{ ...champ, width: 70 }} type="number" step={0.1} min={0} title="Épaisseur du contour (mm)" value={calque.texte.contourEpaisseur ?? 0} onChange={e => majCalque(calque.id, { texte: { contourEpaisseur: Number(e.target.value), contour: calque.texte!.contour || "#ffffff" } })} />
+              <label style={{ fontSize: 11, color: C.cream, display: "flex", gap: 4, alignItems: "center" }}><input type="checkbox" checked={calque.texte.ajuster !== false} onChange={e => majCalque(calque.id, { texte: { ajuster: e.target.checked } })} /> Ajuster à la zone</label>
+            </div>
+            {(() => { const m = mesurerTexte(calque.texte!, calque.w, calque.h); return m.deborde ? <div style={{ fontSize: 11, color: C.rouge }}>⚠️ Le texte dépasse de sa zone (taille fixe) : agrandis la zone, réduis la taille ou coche « Ajuster à la zone ».</div>
+              : m.illisible ? <div style={{ fontSize: 11, color: C.rouge }}>⚠️ Texte trop long pour cette zone : il serait réduit à {m.taille.toFixed(1)} mm (illisible, minimum {TAILLE_MIN_LISIBLE} mm). Raccourcis-le ou agrandis la zone.</div>
+              : m.reduit ? <div style={{ fontSize: 11, color: C.gold }}>Texte réduit automatiquement à {m.taille.toFixed(1)} mm{m.lignes.length > (calque.texte!.contenu || "").split("\n").length ? " et passé à la ligne" : ""} pour tenir dans sa zone.</div> : null; })()}
           </>)}
 
           {calque.type === "image" && (
@@ -470,6 +523,9 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
               <button style={bouton(true)} onClick={() => setChoixImage("remplacer")}>{calque.image?.url ? "Changer l'image" : "Choisir l'image"}</button>
               <button style={bouton((calque.image?.ajustement || "cover") === "cover")} onClick={() => majCalque(calque.id, { image: { ajustement: "cover" } })}>Remplir</button>
               <button style={bouton(calque.image?.ajustement === "contain")} onClick={() => majCalque(calque.id, { image: { ajustement: "contain" } })}>Ajuster</button>
+              <select style={{ ...champ, width: "auto" }} value={calque.image?.masque || "rect"} onChange={e => majCalque(calque.id, { image: { masque: e.target.value } })}>
+                <option value="rect">Masque : aucun</option><option value="ellipse">Masque : rond</option><option value="triangle">Masque : triangle</option><option value="triangle_bas">Masque : fanion</option>
+              </select>
             </div>
           )}
 

@@ -3653,11 +3653,24 @@ function clearSession() {
   [LS_TOKEN, LS_REFRESH, LS_EXPIRY, "bellaia_user"].forEach(k => localStorage.removeItem(k));
 }
 
+// Date d'expiration lue dans le jeton lui-même (champ "exp" du JWT).
+function expirationDuJeton(token) {
+  try {
+    const p = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const exp = JSON.parse(atob(p + "===".slice((p.length + 3) % 4))).exp;
+    return typeof exp === "number" ? exp : null;
+  } catch { return null; }
+}
+
 function isTokenExpired() {
   if (typeof window === "undefined") return false;
-  const expiry = localStorage.getItem(LS_EXPIRY);
-  if (!expiry) return false; // pas de date connue → on tente quand même
-  return Date.now()/1000 > parseInt(expiry, 10);
+  // Les sessions ouvertes avant le correctif du 18/11 n'ont pas de date
+  // stockée : on la lit alors dans le jeton. Marge de 60 s pour ne pas
+  // envoyer un jeton qui expire pendant la requête.
+  const stocke = parseInt(localStorage.getItem(LS_EXPIRY) || "", 10);
+  const exp = Number.isFinite(stocke) ? stocke : expirationDuJeton(localStorage.getItem(LS_TOKEN) || "");
+  if (!exp) return false;
+  return Date.now()/1000 > exp - 60;
 }
 
 // Rafraîchit le token via l'API Supabase Auth
@@ -3738,6 +3751,14 @@ async function sbGet(table, params = {}) {
   return Array.isArray(d) ? d : [];
 }
 
+// Message d'erreur compréhensible (jamais "[object Object]").
+function messageErreurSb(status, d) {
+  if (status === 401) return "ta session a expiré — déconnecte-toi puis reconnecte-toi, puis réessaie.";
+  if (status === 403) return "action non autorisée pour ce compte.";
+  const brut = d?.message || d?.details || d?.hint || d?.error_description || (typeof d === "string" ? d : "");
+  return brut || ("erreur Supabase " + status);
+}
+
 async function sbPost(table, data) {
   const token = await getTokenAsync();
   const url = (SB_URL)+"/rest/v1/"+(table);
@@ -3748,7 +3769,7 @@ async function sbPost(table, data) {
   if (!r.ok) {
     console.error("[sbPost] Erreur Supabase table="+table+" status="+r.status, d);
   }
-  return { ok: r.ok, status: r.status, data: d, error: r.ok ? null : d };
+  return { ok: r.ok, status: r.status, data: d, error: r.ok ? null : messageErreurSb(r.status, d) };
 }
 
 async function sbPatch(table, id, data) {
@@ -3767,7 +3788,7 @@ async function sbPatch(table, id, data) {
   let d = null;
   try { d = await r.json(); } catch {}
   if (!r.ok) {
-    const msg = d?.message || d?.details || d?.hint || JSON.stringify(d) || "Erreur Supabase "+r.status;
+    const msg = messageErreurSb(r.status, d);
     console.error("[sbPatch:"+table+":"+id+"] "+r.status+" — "+msg);
     return { ok:false, status:r.status, data:null, error:msg };
   }

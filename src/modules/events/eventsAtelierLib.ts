@@ -139,8 +139,10 @@ export async function compresserImage(f: File): Promise<{ blob: Blob; type: stri
 export type Calque = {
   id: string; type: "texte" | "image" | "forme"; zone?: string | null;
   x: number; y: number; w: number; h: number; rotation?: number; verrou?: boolean; opacite?: number;
-  texte?: { contenu: string; taille: number; couleur: string; police: string; gras?: boolean; italique?: boolean; align?: "left" | "center" | "right"; interligne?: number };
-  image?: { url: string; ajustement?: "cover" | "contain" };
+  texte?: { contenu: string; taille: number; couleur: string; police: string; gras?: boolean; italique?: boolean; align?: "left" | "center" | "right"; interligne?: number;
+    /** Contour autour des lettres (lisibilité sur image, effet topper/sticker) */ contour?: string; contourEpaisseur?: number;
+    /** false = taille fixe ; sinon le texte est réduit / passé à la ligne pour tenir dans sa zone */ ajuster?: boolean };
+  image?: { url: string; ajustement?: "cover" | "contain"; /** Masque par forme (photo ronde, fanion…) */ masque?: "rect" | "ellipse" | "triangle" | "triangle_bas" };
   forme?: { forme: "rect" | "ellipse" | "triangle" | "triangle_bas" | "ligne"; remplissage: string; contour?: string; epaisseur?: number; rayon?: number };
 };
 export type ContenuPapeterie = { fond: string; calques: Calque[]; reperes?: { zone_sure_mm?: number; pliage?: { orientation: "h" | "v"; position_mm: number }[] } };
@@ -156,6 +158,60 @@ export function chargerPolices() {
   const l = document.createElement("link");
   l.id = "bellaia-polices-atelier"; l.rel = "stylesheet"; l.href = LIEN_POLICES;
   document.head.appendChild(l);
+}
+
+// ── Mesure et ajustement du texte (polices réellement chargées) ──
+// La taille saisie est un MAXIMUM : si le texte ne tient pas dans la zone,
+// il est réduit ; s'il contient des espaces, un retour à la ligne équilibré
+// est essayé. En dessous de 2,2 mm (≈ 6 pt) il est déclaré illisible :
+// l'éditeur le signale au lieu de le couper en silence.
+export const TAILLE_MIN_LISIBLE = 2.2;
+export function policeCss(t: NonNullable<Calque["texte"]>, taille: number) {
+  return `${t.italique ? "italic " : ""}${t.gras ? "700 " : "400 "}${taille}px "${t.police}", Georgia, serif`;
+}
+let ctxMesure: CanvasRenderingContext2D | null = null;
+function largeurA100(t: NonNullable<Calque["texte"]>, ligne: string) {
+  if (typeof document === "undefined") return ligne.length * 55;
+  if (!ctxMesure) ctxMesure = document.createElement("canvas").getContext("2d");
+  ctxMesure!.font = policeCss(t, 100);
+  return ctxMesure!.measureText(ligne).width + (t.contour ? (t.contourEpaisseur || 0) * 2 * 100 / Math.max(t.taille, 0.1) : 0);
+}
+function couperEquilibre(ligne: string): string[] {
+  const mots = ligne.split(" ");
+  if (mots.length < 2) return [ligne];
+  let meilleur = [ligne], ecart = Infinity;
+  for (let i = 1; i < mots.length; i++) {
+    const a = mots.slice(0, i).join(" "), b = mots.slice(i).join(" ");
+    const e = Math.abs(a.length - b.length);
+    if (e < ecart) { ecart = e; meilleur = [a, b]; }
+  }
+  return meilleur;
+}
+export function mesurerTexte(t: NonNullable<Calque["texte"]>, w: number, h: number) {
+  const brutes = (t.contenu || "").split("\n");
+  const inter = t.interligne || 1.2;
+  const tailleFixe = t.ajuster === false;
+  const essai = (lignes: string[]) => {
+    const maxL = Math.max(1, ...lignes.map(l => largeurA100(t, l)));
+    const parLargeur = (w * 0.96 * 100) / maxL;
+    const parHauteur = (h * 0.96) / (lignes.length * inter);
+    return { lignes, taille: tailleFixe ? t.taille : Math.min(t.taille, parLargeur, parHauteur), deborde: tailleFixe && (t.taille > parLargeur || t.taille > parHauteur) };
+  };
+  let res = essai(brutes);
+  if (!tailleFixe && res.taille < t.taille * 0.8) {
+    const coupe = essai(brutes.flatMap(couperEquilibre));
+    if (coupe.taille > res.taille * 1.08) res = coupe;
+  }
+  return { ...res, reduit: res.taille < t.taille - 0.05, illisible: res.taille < TAILLE_MIN_LISIBLE };
+}
+
+/** Trace une forme (pour remplissage, contour ou masque). */
+export function tracerForme(ctx: CanvasRenderingContext2D, forme: string, x: number, y: number, w: number, h: number, rayon = 0) {
+  const cx = x + w / 2, cy = y + h / 2;
+  if (forme === "ellipse") ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
+  else if (forme === "triangle") { ctx.moveTo(cx, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.closePath(); }
+  else if (forme === "triangle_bas") { ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(cx, y + h); ctx.closePath(); }
+  else { const r = Math.min(rayon, w / 2, h / 2); (ctx as any).roundRect && r > 0 ? (ctx as any).roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
 }
 
 // Rendu d'une création sur un canvas (unités : mm × pxParMm)
@@ -191,19 +247,22 @@ export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: numbe
         let dw = k.w, dh = k.h;
         const cover = (k.image.ajustement || "cover") === "cover";
         if (cover ? ri > rb : ri < rb) { dh = k.h; dw = k.h * ri; } else { dw = k.w; dh = k.w / ri; }
-        ctx.beginPath(); ctx.rect(k.x, k.y, k.w, k.h); ctx.clip();
+        ctx.beginPath(); tracerForme(ctx, k.image.masque || "rect", k.x, k.y, k.w, k.h); ctx.clip();
         ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
       } catch {}
     } else if (k.type === "texte" && k.texte) {
       const t = k.texte;
-      ctx.fillStyle = t.couleur || "#000";
-      ctx.font = `${t.italique ? "italic " : ""}${t.gras ? "700 " : "400 "}${t.taille}px "${t.police}"`;
+      const m = mesurerTexte(t, k.w, k.h);
+      ctx.font = policeCss(t, m.taille);
       ctx.textBaseline = "middle";
       ctx.textAlign = (t.align || "center") as CanvasTextAlign;
-      const lignes = (t.contenu || "").split("\n");
-      const lh = t.taille * (t.interligne || 1.2);
+      const lh = m.taille * (t.interligne || 1.2);
       const x = t.align === "left" ? k.x : t.align === "right" ? k.x + k.w : cx;
-      lignes.forEach((ln, i) => ctx.fillText(ln, x, cy + (i - (lignes.length - 1) / 2) * lh));
+      m.lignes.forEach((ln, i) => {
+        const yy = cy + (i - (m.lignes.length - 1) / 2) * lh;
+        if (t.contour && (t.contourEpaisseur || 0) > 0) { ctx.lineJoin = "round"; ctx.strokeStyle = t.contour; ctx.lineWidth = t.contourEpaisseur! * 2; ctx.strokeText(ln, x, yy); }
+        ctx.fillStyle = t.couleur || "#000"; ctx.fillText(ln, x, yy);
+      });
     }
     ctx.restore();
   }
