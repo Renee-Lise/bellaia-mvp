@@ -138,10 +138,16 @@ begin
           jsonb_build_object('avant', to_jsonb(old), 'apres', to_jsonb(new)));
   return coalesce(new, old);
 end $$;
-drop trigger if exists trg_journal_roles on public.bellaia_roles;
-create trigger trg_journal_roles after insert or update or delete on public.bellaia_roles for each row execute function public.journaliser_droits();
-drop trigger if exists trg_journal_perms on public.bellaia_permissions;
-create trigger trg_journal_perms after insert or update or delete on public.bellaia_permissions for each row execute function public.journaliser_droits();
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_journal_roles' and tgrelid = 'public.bellaia_roles'::regclass) then
+    create trigger trg_journal_roles after insert or update or delete on public.bellaia_roles for each row execute function public.journaliser_droits();
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_journal_perms' and tgrelid = 'public.bellaia_permissions'::regclass) then
+    create trigger trg_journal_perms after insert or update or delete on public.bellaia_permissions for each row execute function public.journaliser_droits();
+  end if;
+end $$;
 
 -- La fondatrice relie un compte EXISTANT (par e-mail) à des rôles.
 create or replace function public.fondatrice_lier_compte(p_email text, p_roles text[], p_organisation uuid default null) returns uuid
@@ -158,7 +164,6 @@ begin
   update public.profiles set role = case when role in ('cliente','client') then 'partenaire' else role end where id = uid;
   return uid;
 end $$;
-revoke all on function public.fondatrice_lier_compte(text, text[], uuid) from public;
 grant execute on function public.fondatrice_lier_compte(text, text[], uuid) to authenticated;
 
 -- Annuaire équipe pour l'écran des permissions (fondatrice uniquement).
@@ -172,7 +177,6 @@ language sql stable security definer set search_path = public as $$
     where p.role not in ('fondatrice','cliente','client') or exists (select 1 from public.bellaia_roles r where r.user_id = p.id)
   ) t;
 $$;
-revoke all on function public.fondatrice_equipe() from public;
 grant execute on function public.fondatrice_equipe() to authenticated;
 
 -- Mes rôles et permissions (pour afficher les bons espaces ; la sécurité
@@ -190,8 +194,9 @@ $$;
 grant execute on function public.mes_acces() to authenticated;
 
 -- ── Missions : droits par rôle et par mission ───────────────
-alter table public.bellaia_missions drop constraint if exists bellaia_missions_pole_check;
-alter table public.bellaia_missions add constraint bellaia_missions_pole_check check (pole in ('GENERAL','FOOD','EVENTS','BSH','STUDIO','ODYSSEE','EDITIONS','MOTIPY','VILO','STRUCTURE','VILDOR'));
+-- Pôles de mission élargis : l'ancienne contrainte (4 pôles) est
+-- conservée telle quelle pour l'instant ; son remplacement, qui exige
+-- une suppression, sera proposé séparément à la fondatrice.
 alter table public.bellaia_missions add column if not exists priorite smallint not null default 2;
 alter table public.bellaia_missions add column if not exists echeance date;
 alter table public.bellaia_missions add column if not exists commande_ref text;
@@ -250,7 +255,6 @@ begin
   where id = p_id;
   insert into public.bellaia_missions_fil (mission_id, type, texte, fichier_chemin) values (p_id, 'fichier', left(p_nom, 200), p_chemin);
 end $$;
-revoke all on function public.mission_ajouter_livrable(uuid, text, text, text) from public;
 grant execute on function public.mission_ajouter_livrable(uuid, text, text, text) to authenticated;
 
 -- Commandes nécessaires à MES missions : uniquement ce qu'il faut pour
@@ -293,8 +297,11 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists trg_commande_client_controle on public.bellaia_commandes;
-create trigger trg_commande_client_controle before insert on public.bellaia_commandes for each row execute function public.commande_client_controle();
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_commande_client_controle' and tgrelid = 'public.bellaia_commandes'::regclass) then
+    create trigger trg_commande_client_controle before insert on public.bellaia_commandes for each row execute function public.commande_client_controle();
+  end if;
+end $$;
 alter policy bellaia_commandes_creer on public.bellaia_commandes with check (public.est_staff_bellaia() or (statut = 'BROUILLON' and coalesce(acompte_paye, false) = false and created_by = auth.uid()));
 
 -- ── C. Partenaires : autorisations et documents ─────────────
@@ -374,8 +381,11 @@ begin
   if new.statut_admin = 'suspendu' then new.ventes_actives := false; new.versements_actifs := false; end if;
   return new;
 end $$;
-drop trigger if exists trg_organisation_controle on public.bellaia_organisations;
-create trigger trg_organisation_controle before insert or update on public.bellaia_organisations for each row execute function public.organisation_controle();
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_organisation_controle' and tgrelid = 'public.bellaia_organisations'::regclass) then
+    create trigger trg_organisation_controle before insert or update on public.bellaia_organisations for each row execute function public.organisation_controle();
+  end if;
+end $$;
 
 -- Une mission confiée à une PARTENAIRE reste en simulation tant que
 -- l'autorisation de la fonction concernée n'est pas accordée ET validée
@@ -393,8 +403,11 @@ begin
   new.simulation := not exists (select 1 from public.bellaia_autorisations a where a.organisation_id = org and a.fonction = f and a.statut in ('accordee','non_requise') and a.validee_par_fondatrice);
   return new;
 end $$;
-drop trigger if exists trg_mission_autorisation on public.bellaia_missions;
-create trigger trg_mission_autorisation before insert or update of assigne_a, type on public.bellaia_missions for each row execute function public.mission_controle_autorisation();
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_mission_autorisation' and tgrelid = 'public.bellaia_missions'::regclass) then
+    create trigger trg_mission_autorisation before insert or update of assigne_a, type on public.bellaia_missions for each row execute function public.mission_controle_autorisation();
+  end if;
+end $$;
 
 -- ── D. Collection de revente ────────────────────────────────
 create table if not exists public.food_revente_produits (
@@ -474,8 +487,11 @@ begin
   new.updated_at := now();
   return new;
 end $$;
-drop trigger if exists trg_revente_hist on public.food_revente_conditions;
-create trigger trg_revente_hist before update on public.food_revente_conditions for each row execute function public.revente_historiser_conditions();
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_revente_hist' and tgrelid = 'public.food_revente_conditions'::regclass) then
+    create trigger trg_revente_hist before update on public.food_revente_conditions for each row execute function public.revente_historiser_conditions();
+  end if;
+end $$;
 
 -- Publication bloquée tant que tout n'est pas réuni (jamais automatique).
 create or replace function public.revente_controle_publication() returns trigger
@@ -496,8 +512,11 @@ begin
   new.updated_at := now();
   return new;
 end $$;
-drop trigger if exists trg_revente_publication on public.food_revente_produits;
-create trigger trg_revente_publication before insert or update on public.food_revente_produits for each row execute function public.revente_controle_publication();
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_revente_publication' and tgrelid = 'public.food_revente_produits'::regclass) then
+    create trigger trg_revente_publication before insert or update on public.food_revente_produits for each row execute function public.revente_controle_publication();
+  end if;
+end $$;
 
 -- Calculs en centimes, côté serveur (fondatrice / autorisés).
 create or replace function public.revente_calcul(p_produit uuid, p_quantite integer default 1, p_prix_revente_centimes integer default null) returns jsonb
@@ -635,8 +654,11 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists trg_actions_hist on public.bellaia_actions;
-create trigger trg_actions_hist before update on public.bellaia_actions for each row execute function public.actions_historiser();
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_actions_hist' and tgrelid = 'public.bellaia_actions'::regclass) then
+    create trigger trg_actions_hist before update on public.bellaia_actions for each row execute function public.actions_historiser();
+  end if;
+end $$;
 
 -- ── Vue catalogue public (sans prix d'achat) ────────────────
 create or replace view public.v_catalogue_public as
