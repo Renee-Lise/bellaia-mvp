@@ -94,6 +94,7 @@ export default function LecteurHistoire({ tome, modeInitial = "lire", onRetour, 
               <button style={bouton()} onClick={() => allerA(0)}>Recommencer</button>
             </div>
           )}
+          {scene.image_url && <figure style={{ margin: "0 0 16px" }}><img src={scene.image_url} alt={scene.image_alt || ""} style={{ width: "100%", borderRadius: 14, display: "block" }} />{scene.image_alt && <figcaption style={{ fontSize: 13, color: th.doux, marginTop: 6 }}>{scene.image_alt}</figcaption>}</figure>}
           <article lang="fr" style={{ fontFamily: SERIF, fontSize: taille, lineHeight: 1.7, userSelect: "text", WebkitUserSelect: "text", hyphens: "auto", WebkitHyphens: "auto" } as React.CSSProperties}>
             {scene.texte.split("\n\n").map((p, i) => <p key={i} style={{ margin: "0 0 0.85em", whiteSpace: "pre-line" }}>{p}</p>)}
           </article>

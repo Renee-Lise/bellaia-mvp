@@ -110,20 +110,26 @@ const ONGLETS = [
   {id:"catalogue", ico:"🃏", label:"Cartes"},
   {id:"commandes", ico:"📦", label:"Commandes"},
   {id:"stats",     ico:"📊", label:"Stats"},
-  {id:"histoires", ico:"🌙", label:"Histoires du soir"},
+  {id:"histoires", ico:"🌙", label:"Albums & histoires"},
+  {id:"registre",  ico:"🗂", label:"Registre & lexique"},
 ];
 
 // Gestion « Histoires du soir » chargée à la demande (module séparé)
 function HistoiresGestionLazy() {
   const [Comp, setComp] = useState<any>(null);
   useEffect(() => { import("../histoires/HistoiresGestion").then(m => setComp(() => m.default)).catch(() => {}); }, []);
-  return Comp ? <Comp /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
+  return Comp ? <Comp espace="jeunesse" /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
+}
+function RegistreLazy() {
+  const [Comp, setComp] = useState<any>(null);
+  useEffect(() => { import("../histoires/EditionsRegistre").then(m => setComp(() => m.default)).catch(() => {}); }, []);
+  return Comp ? <Comp collections={[{ id:"ti-colibri", titre:"Ti-Colibri", tomes:10 }, { id:"le-ptit-lion", titre:"Le P’tit Lion", tomes:10 }]} /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
 }
 
 export default function MoTiPeyiF({ user }: { user?: any }) {
   const [cartes,   setCartes]   = useState<Carte[]>([]);
   const [commandes,setCommandes]= useState<Commande[]>([]);
-  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires">("catalogue");
+  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires"|"registre">("catalogue");
   const [modal,    setModal]    = useState<"carte"|"commande"|null>(null);
   const [formCarte, setFormCarte] = useState<Partial<Carte>>({famille:"deplacements",niveau:"PS",statut:"brouillon"});
   const [formCmd,   setFormCmd]   = useState<Partial<Commande>>({clientNom:"",produit:PRODUITS[0].nom,qte:1,prix:PRODUITS[0].prix,statut:"en_attente",date:today()});
@@ -278,10 +284,10 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
       </div>
 
       {/* Onglets */}
-      <div style={{ display:"flex", gap:5 }}>
+      <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
         {ONGLETS.map(o=>(
           <button key={o.id} onClick={()=>setOnglet(o.id as any)}
-            style={{ flex:1, padding:"7px", borderRadius:9, border:"none", cursor:"pointer",
+            style={{ flex:"1 1 30%", minHeight:36, padding:"7px", borderRadius:9, border:"none", cursor:"pointer",
               fontSize:10, fontWeight:700, fontFamily:SA,
               background:onglet===o.id?CM.acc:"rgba(255,255,255,0.06)",
               color:onglet===o.id?"#fff":"rgba(255,255,255,0.5)" }}>
@@ -291,6 +297,7 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
       </div>
 
       {onglet==="histoires" && <HistoiresGestionLazy/>}
+      {onglet==="registre" && <RegistreLazy/>}
 
       {/* ── Catalogue cartes ── */}
       {onglet==="catalogue" && (

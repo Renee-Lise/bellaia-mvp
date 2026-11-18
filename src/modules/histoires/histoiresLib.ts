@@ -10,7 +10,8 @@ import { SB_URL, SB_KEY, jeton, sbRpc, sbSelect } from "../events/eventsAtelierL
 export const BUCKET_HISTOIRES = "histoires-medias";
 export type EtatMedia = "absent" | "brouillon" | "revision" | "publie";
 export type Repere = { scene: string; debut_s: number };
-export type SceneLecture = { identifiant: string; ordre: number; texte: string; titre?: string; mise_en_scene?: string | null; id?: string };
+export type SceneLecture = { identifiant: string; ordre: number; texte: string; titre?: string; mise_en_scene?: string | null; id?: string; image_chemin?: string | null; image_alt?: string | null; image_url?: string | null };
+const signerImages = (scenes: any[], duree?: number) => Promise.all(scenes.map(async s => { const c = s.image_chemin || s.image; return c ? { ...s, image_url: await urlSignee(c, duree) } : s; }));
 export type MediasLecture = {
   couverture?: { url: string; alt: string } | null;
   audio?: { url: string; reperes: Repere[] } | null;
@@ -50,7 +51,7 @@ export async function lectureFamille(entree: any): Promise<TomeLecture | null> {
     entree.video ? urlSignee(entree.video.vtt) : null,
   ]);
   return {
-    identifiant: d.identifiant, collection: entree.collection, collection_titre: d.collection_titre, titre: d.titre, numero: d.numero, scenes: d.scenes || [],
+    identifiant: d.identifiant, collection: entree.collection, collection_titre: d.collection_titre, titre: d.titre, numero: d.numero, scenes: await signerImages(d.scenes || []),
     medias: {
       couverture: couv ? { url: couv, alt: entree.couverture.alt } : null,
       audio: audio ? { url: audio, reperes: entree.audio.reperes || [] } : null,
@@ -61,7 +62,7 @@ export async function lectureFamille(entree: any): Promise<TomeLecture | null> {
 
 /** Aperçu fondatrice : tous les états, y compris les médias en brouillon. */
 export async function lectureFondatrice(t: any): Promise<TomeLecture> {
-  const scenes = await sbSelect<SceneLecture>("histoires_scenes", `select=id,identifiant,ordre,titre,mise_en_scene,texte&tome_id=eq.${t.id}&order=ordre.asc`);
+  const scenes = await signerImages(await sbSelect<SceneLecture>("histoires_scenes", `select=id,identifiant,ordre,titre,mise_en_scene,texte,image_chemin,image_alt&tome_id=eq.${t.id}&order=ordre.asc`), 3600);
   const [couv, audio, video, affiche, vtt] = await Promise.all([t.couverture_chemin, t.audio_chemin, t.video_chemin, t.video_affiche_chemin, t.video_vtt_chemin].map(c => (c ? urlSignee(c, 3600) : Promise.resolve(null))));
   return {
     identifiant: t.identifiant, collection: t.collection, collection_titre: t.collection_titre, titre: t.titre, numero: t.numero, scenes,
@@ -80,4 +81,25 @@ export function lireProgression(t: { collection: string; identifiant: string }, 
 }
 export function ecrireProgression(t: { collection: string; identifiant: string }, mode: "lire" | "ecouter" | "regarder", v: number) {
   try { if (v > 0) localStorage.setItem(cle(t, mode), String(Math.round(v * 10) / 10)); else localStorage.removeItem(cle(t, mode)); } catch {}
+}
+
+/** Découpe un texte (.md / .txt) en parties : titres « # … », « Chapitre … », « Scène … », « Partie … ».
+ *  Format des consignes P'tit Lion reconnu (**Mise en scène :** / **Texte**). Le texte n'est pas réécrit. */
+export function decouperManuscrit(brut: string): { titre: string; mise_en_scene: string | null; texte: string }[] {
+  const lignes = brut.replace(/\r\n?/g, "\n").split("\n");
+  const parts: { titre: string; corps: string[] }[] = [];
+  const titreRe = /^(?:#{1,4}\s+(.+)|((?:Chapitre|Scène|Partie|Page|Double page)\b.*))$/i;
+  for (const l of lignes) {
+    const m = l.trim().match(titreRe);
+    if (m) parts.push({ titre: (m[1] || m[2]).replace(/\*\*/g, "").trim(), corps: [] });
+    else { if (!parts.length) parts.push({ titre: "", corps: [] }); parts[parts.length - 1].corps.push(l); }
+  }
+  return parts.map(pt => {
+    let corps = pt.corps.join("\n"); let mise: string | null = null;
+    const ms = corps.match(/\*\*Mise en scène\s*:\*\*\s*(.+)/i); if (ms) mise = ms[1].trim();
+    if (/\*\*Texte\*\*/.test(corps)) corps = corps.split(/\*\*Texte\*\*/)[1];
+    else if (ms) corps = corps.replace(ms[0], "");
+    const paras = corps.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(x => x.replace(/^- /, "— "));
+    return { titre: pt.titre, mise_en_scene: mise, texte: paras.join("\n\n") };
+  }).filter(x => x.texte.length > 0);
 }

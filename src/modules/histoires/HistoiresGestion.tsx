@@ -9,8 +9,9 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useState } from "react";
 import LecteurHistoire from "./LecteurHistoire";
-import { sbSelect, sbUpdate, sbInsert, uploadStorage } from "../events/eventsAtelierLib";
-import { BUCKET_HISTOIRES, lectureFondatrice, type TomeLecture } from "./histoiresLib";
+import { sbSelect, sbUpdate, sbInsert, sbDelete, uploadStorage } from "../events/eventsAtelierLib";
+import { BUCKET_HISTOIRES, lectureFondatrice, decouperManuscrit, type TomeLecture } from "./histoiresLib";
+import { telecharger } from "../events/eventsAtelierLib";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.6)", or: "#e8b24a", ok: "#4ade80", rouge: "#f87171", bleu: "#60a5fa" };
@@ -40,7 +41,8 @@ function dureeMedia(f: File, type: "audio" | "video"): Promise<number | null> {
 }
 const fmt = (s?: number | null) => (s ? `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, "0")} s` : "");
 
-export default function HistoiresGestion() {
+export default function HistoiresGestion({ espace = "jeunesse" }: { espace?: "jeunesse" | "editions" }) {
+  const [fCol, setFCol] = useState("__toutes");
   const [tomes, setTomes] = useState<any[]>([]);
   const [nbScenes, setNbScenes] = useState<Record<string, number>>({});
   const [ouvert, setOuvert] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function HistoiresGestion() {
 
   const charger = async () => {
     try {
-      const t = await sbSelect("histoires_tomes", "select=*&order=collection.asc,volume.asc,numero.asc");
+      const t = await sbSelect("histoires_tomes", `select=*&espace=eq.${espace}&order=volume.asc,collection.asc,numero.asc`);
       const s = await sbSelect<{ tome_id: string; texte: string }>("histoires_scenes", "select=tome_id,texte");
       const n: Record<string, number> = {}; s.forEach(x => { if (x.texte?.trim()) n[x.tome_id] = (n[x.tome_id] || 0) + 1; });
       setTomes(t); setNbScenes(n); setMsg("");
@@ -67,22 +69,37 @@ export default function HistoiresGestion() {
   if (apercu) return <LecteurHistoire tome={apercu} apercu onRetour={() => setApercu(null)} />;
 
   const publies = tomes.filter(t => t.publie).length;
+  const collections = [...new Map(tomes.map(t => [t.collection, t.collection_titre])).entries()];
+  const visibles = tomes.filter(t => fCol === "__toutes" || t.collection === fCol);
+  const exporter = (format: "json" | "csv") => {
+    const lignes = visibles.map(t => ({ collection: t.collection_titre, serie: t.serie || "", volume: t.volume, tome: t.numero, identifiant: t.identifiant, titre: t.titre, titres_reperes: (t.titres_reperes || []).join(" | "), etat: t.etat_editorial, publie: t.publie, parties: nbScenes[t.id] || 0, couverture: t.couverture_etat, audio: t.audio_etat, video: t.video_etat, notes: t.notes_fondatrice || "" }));
+    const blob = format === "json" ? new Blob([JSON.stringify(lignes, null, 2)], { type: "application/json" })
+      : new Blob(["\ufeff" + [Object.keys(lignes[0] || { vide: "" }).join(";"), ...lignes.map(l => Object.values(l).map(v => `"${String(v).replace(/"/g, '""')}"`).join(";"))].join("\n")], { type: "text/csv" });
+    telecharger(blob, `catalogue-${espace}.${format}`);
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, fontFamily: SA, color: C.texte }}>
       <div style={{ background: "linear-gradient(160deg,#1b1640,#0d1024)", borderRadius: 14, padding: 14, border: `1px solid ${C.or}44` }}>
-        <div style={{ fontSize: 17, fontWeight: 800 }}>🌙 Histoires du soir</div>
+        <div style={{ fontSize: 17, fontWeight: 800 }}>{espace === "editions" ? "📚 Ebooks — texte maître" : "🌙 Histoires du soir & albums"}</div>
         <div style={{ fontSize: 13, color: C.doux, marginTop: 4, lineHeight: 1.5 }}>
-          {tomes.length} fiche(s) · {Object.keys(nbScenes).length} texte(s) · {publies} publiée(s). Rien n'est visible des familles tant que tu ne publies pas ; les tomes « À écrire » restent privés (titres compris).
+          {tomes.length} fiche(s) · {Object.keys(nbScenes).length} texte(s) · {publies} publiée(s). {espace === "editions" ? "Espace privé : rien n'est en vente ni visible des clients. Les textes autobiographiques restent des choix éditoriaux à valider." : "Rien n'est visible des familles tant que tu ne publies pas ; les tomes « À écrire » restent privés (titres compris)."}
         </div>
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {collections.length > 1 && <><button style={btn(fCol === "__toutes")} onClick={() => setFCol("__toutes")}>Toutes</button>{collections.map(([c, l]) => <button key={c} style={btn(fCol === c)} onClick={() => setFCol(c)}>{l}</button>)}</>}
+        <button style={btn()} onClick={() => exporter("csv")}>⬇️ CSV</button><button style={btn()} onClick={() => exporter("json")}>⬇️ JSON</button>
       </div>
       {msg && <div style={{ fontSize: 13, color: msg.startsWith("⚠️") ? C.rouge : C.ok }}>{msg}</div>}
       {charge && <div style={{ fontSize: 13, color: C.doux }}>Chargement…</div>}
-      {tomes.map(t => {
+      {visibles.map((t, i) => {
         const e = ETATS_ED.find(x => x[0] === t.etat_editorial) || ETATS_ED[0];
         return (
-          <div key={t.id} style={{ background: C.card, border: `1px solid ${C.ligne}`, borderLeft: `4px solid ${t.publie ? C.ok : e[2]}`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <React.Fragment key={t.id}>
+          {(i === 0 || visibles[i - 1].collection !== t.collection) && <div style={{ fontSize: 14, fontWeight: 800, color: C.or, marginTop: 6 }}>{t.serie ? t.serie + " › " : ""}{t.collection_titre}{espace === "editions" ? ` (volume ${t.volume})` : ""}</div>}
+          <div style={{ background: C.card, border: `1px solid ${C.ligne}`, borderLeft: `4px solid ${t.publie ? C.ok : e[2]}`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <button onClick={() => setOuvert(ouvert === t.id ? null : t.id)} style={{ background: "none", border: "none", color: C.texte, textAlign: "left", cursor: "pointer", padding: 0, fontFamily: SA }}>
               <div style={{ fontSize: 12, color: C.doux, fontWeight: 700 }}>{t.collection_titre} · Vol. {t.volume} · Tome {t.numero} · {t.identifiant}</div>
+              {(t.titres_reperes || []).length > 1 && <div style={{ fontSize: 12, color: C.or, marginTop: 2 }}>Variantes : {t.titres_reperes.join(" / ")}</div>}
               <div style={{ fontSize: 15, fontWeight: 800, marginTop: 2 }}>{t.titre}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6, fontSize: 11 }}>
                 <span style={{ color: e[2], fontWeight: 700 }}>● {e[1]}</span>
@@ -91,15 +108,36 @@ export default function HistoiresGestion() {
                 <span style={{ color: C.doux }}>· Couverture {ETATS_MEDIA.find(x => x[0] === t.couverture_etat)?.[1]} · Audio {ETATS_MEDIA.find(x => x[0] === t.audio_etat)?.[1]} · Vidéo {ETATS_MEDIA.find(x => x[0] === t.video_etat)?.[1]}</span>
               </div>
             </button>
-            {ouvert === t.id && <FicheTome t={t} nbTextes={nbScenes[t.id] || 0} maj={maj} recharger={charger} setMsg={setMsg} ouvrirApercu={async () => { try { setApercu(await lectureFondatrice(t)); } catch (er: any) { setMsg("⚠️ " + messageBase(er)); } }} />}
+            {ouvert === t.id && <FicheTome t={t} unite={espace === "editions" ? "chapitre" : "partie"} nbTextes={nbScenes[t.id] || 0} maj={maj} recharger={charger} setMsg={setMsg} ouvrirApercu={async () => { try { setApercu(await lectureFondatrice(t)); } catch (er: any) { setMsg("⚠️ " + messageBase(er)); } }} />}
           </div>
+          </React.Fragment>
         );
       })}
     </div>
   );
 }
 
-function FicheTome({ t, nbTextes, maj, recharger, setMsg, ouvrirApercu }: any) {
+function FicheTome({ t, unite = "partie", nbTextes, maj, recharger, setMsg, ouvrirApercu }: any) {
+  const [notes, setNotes] = useState(t.notes_fondatrice || "");
+  const [importe, setImporte] = useState<any[] | null>(null);
+  const lireFichier = async (f?: File) => { if (!f) return; const txt = await f.text(); const parts = decouperManuscrit(txt); if (!parts.length) return setMsg("⚠️ Aucun texte reconnu dans ce fichier."); setImporte(parts); };
+  const appliquerImport = async () => {
+    if (!importe) return;
+    const lignes = importe.map((x, i) => ({ tome_id: t.id, identifiant: `${t.identifiant}-${i + 1}`, ordre: i + 1, titre: x.titre || "", mise_en_scene: x.mise_en_scene, texte: x.texte, updated_at: new Date().toISOString() }));
+    try {
+      // Identifiants stables : réimporter met à jour les mêmes parties, sans doublon.
+      await sbInsert("histoires_scenes?on_conflict=tome_id,identifiant", lignes, "resolution=merge-duplicates,return=minimal");
+      const restantes = (scenes || []).filter(s => s.ordre > lignes.length);
+      if (restantes.length && confirm(`Le fichier contient ${lignes.length} ${unite}(s) ; ${restantes.length} ancienne(s) ${unite}(s) en plus existent. Les supprimer ?`)) for (const s of restantes) await sbDelete("histoires_scenes", s.id);
+      if (t.etat_editorial === "a_ecrire") await maj(t, { etat_editorial: "brouillon" });
+      setImporte(null); setMsg(`✅ ${lignes.length} ${unite}(s) importée(s)`); setScenes(await sbSelect("histoires_scenes", `select=*&tome_id=eq.${t.id}&order=ordre.asc`)); recharger();
+    } catch (e: any) { setMsg("⚠️ " + messageBase(e)); }
+  };
+  const imageScene = async (s: any, f?: File) => {
+    if (!f) return;
+    try { const ext = (f.name.split(".").pop() || "png").toLowerCase(); const chemin = `${t.collection}/${t.identifiant}/page-${s.ordre}-${Date.now().toString(36)}.${ext}`; await uploadStorage(chemin, f, f.type || "image/png", BUCKET_HISTOIRES); await sbUpdate("histoires_scenes", s.id, { image_chemin: chemin }); setScenes(xs => xs!.map(x => (x.id === s.id ? { ...x, image_chemin: chemin } : x))); setMsg("✅ Illustration déposée (privée)"); }
+    catch (e: any) { setMsg("⚠️ " + (e.message || e)); }
+  };
   const [synopsis, setSynopsis] = useState(t.synopsis || "");
   const [scenes, setScenes] = useState<any[] | null>(null);
   const [envoi, setEnvoi] = useState("");
@@ -121,7 +159,7 @@ function FicheTome({ t, nbTextes, maj, recharger, setMsg, ouvrirApercu }: any) {
   };
 
   const sauverScene = async (s: any) => {
-    try { await sbUpdate("histoires_scenes", s.id, { texte: s.texte, titre: s.titre, mise_en_scene: s.mise_en_scene, updated_at: new Date().toISOString() }); setMsg("✅ Partie enregistrée"); recharger(); }
+    try { await sbUpdate("histoires_scenes", s.id, { texte: s.texte, titre: s.titre, mise_en_scene: s.mise_en_scene, image_alt: s.image_alt || null, updated_at: new Date().toISOString() }); setMsg("✅ Partie enregistrée"); recharger(); }
     catch (e: any) { setMsg("⚠️ " + messageBase(e)); }
   };
   const ajouterScene = async () => {
@@ -151,6 +189,8 @@ function FicheTome({ t, nbTextes, maj, recharger, setMsg, ouvrirApercu }: any) {
         <button style={btn(!t.publie)} disabled={t.etat_editorial !== "valide"} title={t.etat_editorial !== "valide" ? "Valide d'abord le texte" : ""} onClick={() => { if (!t.publie && !confirm(`Publier « ${t.titre} » pour les familles ?\n(Le texte devient lisible dans l'espace Mo Ti-Péyi en production.)`)) return; maj(t, { publie: !t.publie }); }}>{t.publie ? "Retirer de la publication" : "📢 Publier le texte"}</button>
       </div>
       {t.etat_editorial !== "valide" && <div style={{ fontSize: 12, color: C.doux }}>Publication possible seulement quand le texte est « validé ».</div>}
+      <span style={lbl}>Notes éditoriales (privées)</span>
+      <textarea style={{ ...champ, minHeight: 60 }} value={notes} onChange={ev => setNotes(ev.target.value)} onBlur={() => notes !== (t.notes_fondatrice || "") && maj(t, { notes_fondatrice: notes || null })} />
       <span style={lbl}>Synopsis</span>
       <textarea style={{ ...champ, minHeight: 60 }} value={synopsis} onChange={ev => setSynopsis(ev.target.value)} onBlur={() => synopsis !== (t.synopsis || "") && maj(t, { synopsis: synopsis || null })} />
 
@@ -174,20 +214,31 @@ function FicheTome({ t, nbTextes, maj, recharger, setMsg, ouvrirApercu }: any) {
       </>)}
       {envoi && <div style={{ fontSize: 13, color: C.or }}>⏳ {envoi}</div>}
 
-      <span style={lbl}>Texte — parties ({scenes?.length ?? "…"})</span>
+      <span style={lbl}>Texte — {unite}s ({scenes?.length ?? "…"})</span>
+      <label style={{ ...btn(), alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6 }}>📥 Importer le texte (.md / .txt)<input type="file" accept=".md,.txt,text/plain,text/markdown" style={{ display: "none" }} onChange={ev => { lireFichier(ev.target.files?.[0]); ev.target.value = ""; }} /></label>
+      {importe && <div style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${C.or}55`, borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: 13, fontWeight: 800 }}>{importe.length} {unite}(s) reconnue(s) — le texte est repris tel quel</div>
+        {importe.map((x, i) => <div key={i} style={{ fontSize: 12, color: C.doux }}>{i + 1}. {x.titre || "(sans titre)"} — {x.texte.slice(0, 80)}… ({x.texte.length} car.)</div>)}
+        <div style={{ display: "flex", gap: 6 }}><button style={btn(true)} onClick={appliquerImport}>Importer</button><button style={btn()} onClick={() => setImporte(null)}>Annuler</button></div>
+      </div>}
       <div style={{ fontSize: 12, color: C.doux }}>Le titre et la mise en scène sont des repères de production : jamais montrés aux familles ni lus à voix haute.</div>
       {scenes?.map((s, i) => (
         <details key={s.id} style={{ background: "rgba(0,0,0,0.2)", border: `1px solid ${C.ligne}`, borderRadius: 10, padding: 10 }}>
-          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 700 }}>Partie {s.ordre} · {s.titre || "(sans titre)"} · {s.texte.length} caractères</summary>
+          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 700 }}>{unite === "chapitre" ? "Chapitre" : "Partie"} {s.ordre} · {s.titre || "(sans titre)"} · {s.texte.length} caractères</summary>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
             <input style={champ} placeholder="Titre technique (repère)" value={s.titre} onChange={ev => setScenes(xs => xs!.map((x, j) => (j === i ? { ...x, titre: ev.target.value } : x)))} />
             <input style={champ} placeholder="Mise en scène (repère)" value={s.mise_en_scene || ""} onChange={ev => setScenes(xs => xs!.map((x, j) => (j === i ? { ...x, mise_en_scene: ev.target.value } : x)))} />
             <textarea style={{ ...champ, minHeight: 220, fontFamily: "Georgia, serif", lineHeight: 1.6 }} value={s.texte} onChange={ev => setScenes(xs => xs!.map((x, j) => (j === i ? { ...x, texte: ev.target.value } : x)))} />
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ ...btn(), display: "inline-flex", gap: 6 }}>🖼 {s.image_chemin ? "Remplacer l'illustration" : "Illustration de la page"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={ev => { imageScene(s, ev.target.files?.[0]); ev.target.value = ""; }} /></label>
+              {s.image_chemin && <span style={{ fontSize: 12, color: C.ok }}>✓ illustration déposée</span>}
+            </div>
+            {s.image_chemin && <input style={champ} placeholder="Description de l'illustration (texte alternatif) *" value={s.image_alt || ""} onChange={ev => setScenes(xs => xs!.map((x, j) => (j === i ? { ...x, image_alt: ev.target.value } : x)))} />}
             <button style={btn(true)} onClick={() => sauverScene(scenes[i])}>💾 Enregistrer la partie</button>
           </div>
         </details>
       ))}
-      <button style={{ ...btn(), alignSelf: "flex-start" }} onClick={ajouterScene}>+ Ajouter une partie</button>
+      <button style={{ ...btn(), alignSelf: "flex-start" }} onClick={ajouterScene}>+ Ajouter {unite === "chapitre" ? "un chapitre" : "une partie"}</button>
     </div>
   );
 }

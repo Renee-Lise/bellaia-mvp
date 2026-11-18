@@ -95,7 +95,22 @@ const FORM0: Partial<Contenu> = {
   createdAt: new Date().toISOString(),
 };
 
+// Ebooks (texte maître, collection parentale…) : même source éditoriale que
+// les albums jeunesse, dans l'espace « éditions » (jamais montré aux enfants).
+function EbooksLazy() {
+  const [M, setM] = useState<any>(null);
+  const [vue, setVue] = useState<"textes" | "registre">("textes");
+  useEffect(() => { Promise.all([import("../histoires/HistoiresGestion"), import("../histoires/EditionsRegistre")]).then(([g, r]) => setM({ G: g.default, R: r.default })).catch(() => {}); }, []);
+  if (!M) return <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
+  const b = (on: boolean): React.CSSProperties => ({ padding:"7px 12px", borderRadius:9, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:SA, background: on ? CE.acc : "rgba(255,255,255,0.06)", color: on ? "#fff" : "rgba(255,255,255,0.6)" });
+  return <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+    <div style={{ display:"flex", gap:6 }}><button style={b(vue==="textes")} onClick={() => setVue("textes")}>📖 Textes & chapitres</button><button style={b(vue==="registre")} onClick={() => setVue("registre")}>🗂 Registre des sources</button></div>
+    {vue === "textes" ? <M.G espace="editions" /> : <M.R collections={[{ id:"maman-femme-cheffe", titre:"Maman, Femme & Cheffe", tomes:3 }, { id:"papa-homme-leader", titre:"Papa, Homme & Leader", tomes:3 }, { id:"family-legacy", titre:"Family Legacy", tomes:3 }]} />}
+  </div>;
+}
+
 export default function EditionsF({ user }: { user?: any }) {
+  const [espaceEd, setEspaceEd] = useState<"catalogue" | "ebooks">("catalogue");
   const [contenus, setContenus] = useState<Contenu[]>([]);
   const [onglet,   setOnglet]   = useState<"bibliotheque"|"nouveau"|"stats">("bibliotheque");
   const [modal,    setModal]    = useState(false);
@@ -186,8 +201,15 @@ ${c.modules?`<p><strong>Modules :</strong> ${c.modules}</p>`:""}
     if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);}
   };
 
+  const ongletsEd = (
+    <div style={{ display:"flex", gap:6 }}>
+      {([["catalogue","🛍 Catalogue"],["ebooks","📚 Ebooks — texte maître"]] as const).map(([k,l]) => <button key={k} onClick={() => setEspaceEd(k)} style={{ padding:"7px 12px", borderRadius:9, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:SA, background: espaceEd===k ? CE.acc : "rgba(255,255,255,0.06)", color: espaceEd===k ? "#fff" : "rgba(255,255,255,0.6)" }}>{l}</button>)}
+    </div>
+  );
+  if (espaceEd === "ebooks") return <div style={{ display:"flex", flexDirection:"column", gap:12, fontFamily:SA }}>{ongletsEd}<EbooksLazy/></div>;
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12, fontFamily:SA }}>
+      {ongletsEd}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <div style={{ fontFamily:FS, fontSize:15, color:CE.accL }}>📚 Bella'Studio Éditions</div>
