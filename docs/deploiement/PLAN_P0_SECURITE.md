@@ -20,13 +20,21 @@ Rien de ce plan n'est exécuté sans validation explicite de la fondatrice.
 | Étape | Action | Effet visible |
 |---|---|---|
 | 0 | Sauvegarde vérifiée par la fondatrice ✅ (18/11) | — |
-| 1 | Test complet des salons dans une transaction annulée | aucun |
-| 2 | **Ajouts** : 0115 (fonctions salons), 0117a (vues Food publiques), 0116 (pôles — GO P1) | aucun (l'ancien code les ignore) |
-| 3 | Fusion de la branche vers `main` → build Vercel → « Ready » | nouveau code en ligne |
-| 4 | **Fermetures** : 0115b (accès directs aux salons), 0117 (prix d'achat, coûts Food, commandes à vérifier) | aucun pour le nouveau code |
-| 5 | Vérifications ci-dessous | — |
+| 1 ✅ | Test complet des salons dans une transaction annulée (17 tests) | aucun |
+| 2 ✅ | **Ajouts** : 0115 (fonctions salons), 0117a (vues Food publiques), 0116 (pôles — GO P1) | aucun (l'ancien code les ignore) |
+| 3 ✅ | Fusion de la branche vers `main` → build Vercel → « Ready » | nouveau code en ligne |
+| 4 ✅ | **Fermetures** : 0115b (accès directs aux salons), 0117 (prix d'achat, coûts Food, commandes à vérifier) | aucun pour le nouveau code |
+| 5 🔄 | Vérifications ci-dessous | — |
 
 Aucune instruction de suppression (DROP / REVOKE / mise à jour sans condition) n'est utilisée : ces instructions déclenchent une confirmation Supabase qui n'arrive pas jusqu'à la fondatrice.
+
+## Exécution du 18/11 (soir)
+- Déploiement `6945bb8` « Ready » sur l'adresse officielle, aucune erreur serveur dans l'heure.
+- 0115b et 0117 exécutées (ALTER POLICY, sans confirmation). Règles vérifiées en base : lectures publiques de `stocks`, `catalogue_produits`, `catalogue_variantes`, `bsh_salons`, `bsh_salon_participants` = `false` ; règles fondatrice inchangées. 4 commandes clientes marquées « à vérifier ».
+- Vues publiques (`v_catalogue_public`, `v_catalogue_food_public`, `v_variantes_food_public`) : propriétaire `postgres`, non soumises aux règles fermées → boutiques maintenues.
+- Boutique BSH en ligne vérifiée après fermeture (page générée à la volée) : environ 200 prix de vente, aucun prix d'achat / coût / marge.
+- Routes serveur (commande Food, SumUp) : clé serveur présente en production.
+- Restant : contrôle par rôle (visiteur / cliente / fondatrice) → `supabase/verifications/P0_verification_acces.sql` (lecture seule).
 
 ## Vérifications après déploiement
 - Visiteur : `stocks` (prix d'achat) → 0 ligne ; `catalogue_produits?select=cout_revient` → refusé ; `v_catalogue_public` → produits sans prix d'achat ; boutiques BSH, Odyssée, Food affichées.

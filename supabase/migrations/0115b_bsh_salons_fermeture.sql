@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0115b_bsh_salons_fermeture.sql
--- STATUT: PRÉPARÉ — à exécuter JUSTE APRÈS la mise en ligne du nouvel
+-- STATUT: APPLIQUÉ le 18/11 après mise en ligne (déploiement 6945bb8 « Ready »)
+-- (préparé pour exécution JUSTE APRÈS la mise en ligne du nouvel
 -- écran des salons (qui passe par les fonctions de 0115).
 -- Fin des accès directs aux tables des salons : plus de liste
 -- publique des salons ni de leurs codes, plus de modification directe.

@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0117_fermeture_donnees_commerciales.sql
--- STATUT: PRÉPARÉ — à exécuter JUSTE APRÈS le déploiement du code
+-- STATUT: APPLIQUÉ le 18/11 après déploiement (6945bb8 « Ready ») — 4 commandes marquées « à vérifier »
+-- (préparé pour exécution JUSTE APRÈS le déploiement du code
 -- (le nouveau code lit v_catalogue_public et des colonnes explicites).
 -- Objet (lot P0) :
 --  1. stocks : plus aucune lecture publique de la table (prix d'achat
