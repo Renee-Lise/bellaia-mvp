@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import BellaiaLogo from "@/components/BellaiaLogo";
 import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/modules/push/pushClient";
 import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
-import { getCatalogueFoodPublic, getVariantesFoodPublic } from "@/modules/food/catalogueApi";
+import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
@@ -1526,6 +1526,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
   // Stripe neutralisé (18/11) : SumUp par défaut, montant recalculé par le serveur.
   const [pmtChoisi, setPmtChoisi] = useState("SumUp");
   const [nomClient, setNomClient] = useState("");
+  const [codeBsh, setCodeBsh] = useState("");
   const cartN = cart.reduce((s,i) => s+i.qty, 0);
   const cartT = cart.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
   const addCart = p => setCart(c => { const e=c.find(x=>x.id===p.id); return e?c.map(x=>x.id===p.id?{...x,qty:x.qty+1}:x):[...c,{...p,qty:1}]; });
@@ -1612,7 +1613,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
           headers: { "Content-Type": "application/json" },
           // Le serveur recalcule le montant depuis le catalogue (jamais celui du navigateur).
           body: JSON.stringify({
-            source: "panier", univers: "BSH", reference_client: id,
+            source: "panier", univers: "BSH", reference_client: id, code_reduction: codeBsh.trim() || undefined,
             items: selectionnes.map(i=>({id:i.id,qte:i.qty})),
           }),
         });
@@ -1980,6 +1981,10 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
                 )}
               </div>
 
+              {/* ── Code de réduction (appliqué par le serveur au paiement) ── */}
+              <div style={{display:"flex",gap:6,margin:"4px 0 10px"}}>
+                <input value={codeBsh} onChange={e=>setCodeBsh(e.target.value.toUpperCase())} placeholder="Code de réduction" style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid "+B.border,borderRadius:8,padding:"9px 10px",color:B.cream,fontSize:14,outline:"none",fontFamily:SA}}/>
+              </div>
               {/* ── Bouton payer ── */}
               {(() => {
                 const selectionnes = cart.filter(i => i.selected !== false);
@@ -1989,7 +1994,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
                   <Btn v="gold" full onClick={confirmerCommande} disabled={paiementLoading||disabled}>
                     {disabled
                       ? "Sélectionnez au moins un article"
-                      : paiementLoading ? "⏳ Redirection…" : "💳 Payer par Stripe — "+(totalSel)+"€"}
+                      : paiementLoading ? "⏳ Redirection…" : "💳 Payer par carte — "+(totalSel)+"€"}
                   </Btn>
                 );
               })()}
@@ -3147,6 +3152,10 @@ function ClientFood({ user, onBack }) {
 
   // Menu(s) du jour + lieu(x) de vente (migration 0060) — doit être
   // visible dès l'ouverture de la session, pas seulement sur demande.
+  const [allergenesFood, setAllergenesFood] = React.useState<Record<string, string[]>>({});
+  const [codePromo, setCodePromo] = React.useState("");
+  const [promo, setPromo] = React.useState<any>(null);
+  const allergenesDe = (id: string) => allergenesFood[String(id).split("::")[0]];
   const [menusJour, setMenusJour] = React.useState<MenuJour[]>([]);
   const [menuJourCharge, setMenuJourCharge] = React.useState(true);
 
@@ -3165,6 +3174,9 @@ function ClientFood({ user, onBack }) {
       // Variantes (tailles/formats à prix différents) — requête séparée
       // pour ne jamais bloquer l'affichage du catalogue si elle échoue.
       if (mapped.length > 0) {
+        // Allergènes (fiche + recette) : affichés avant l'achat ; liste
+        // vide = non renseignés (jamais « sans allergène »).
+        getAllergenesFoodPublic(mapped.map(p => p.id)).then(al => { if (actif) setAllergenesFood(al || {}); }).catch(() => {});
         const variantes = await getVariantesFoodPublic(mapped.map(p => p.id));
         if (!actif || variantes.length === 0) return;
         setCatalogueFood(prev => prev.map(p => ({ ...p, variantes: variantes.filter(v => v.produitId === p.id) })));
@@ -3240,6 +3252,7 @@ function ClientFood({ user, onBack }) {
         clientNom: form.nom, clientTel: form.tel,
         dateLivraison: form.date || null, notes: form.message,
         idempotencyKey: idempotencyRef.current,
+        codeReduction: promo?.valide ? promo.code : null,
       }),
     }).catch(()=>null);
     const d = r ? await r.json().catch(()=>null) : null;
@@ -3249,7 +3262,7 @@ function ClientFood({ user, onBack }) {
       alert("La commande n'a pas pu être enregistrée.\n"+(d?.error||"Réessayez."));
       return; // Pas de succès si la route refuse
     }
-    const { reference: ref, total, lignes } = d;
+    const { reference: ref, total, lignes, remise, codeReduction: codeOk, allergenes: algs, allergenesAVerifier } = d;
     // GED auto-save — non bloquant
     gedAutoSave({titre:"Commande "+ref+" — "+form.nom, module:"FOOD",
       categorie:"bon_commande", reference:ref, clientNom:form.nom,
@@ -3258,7 +3271,9 @@ function ClientFood({ user, onBack }) {
     // Notif WhatsApp — reprend les lignes/total confirmés par le serveur
     const msg = "Bonjour 🍃\n\nCommande Bella'Food (Réf: "+ref+")\n"+
       lignes.map(l=>l.libelle+" × "+l.qte+" ("+l.total.toFixed(2)+"€)").join("\n")+
+      (remise?"\nRéduction "+codeOk+" : −"+Number(remise).toFixed(2)+"€":"")+
       "\nTotal : "+total.toFixed(2)+"€"+
+      "\nAllergènes : "+((algs&&algs.length)?algs.join(", "):"—")+(allergenesAVerifier?" (à confirmer pour certains produits)":"")+
       (form.date?"\nDate souhaitée : "+form.date:"")+
       (form.message?"\nMessage : "+form.message:"")+
       "\n\nClient : "+form.nom+(form.tel?" · "+form.tel:"");
@@ -3267,7 +3282,7 @@ function ClientFood({ user, onBack }) {
     setSucces(ref);
     setModal(null);
     setCommandes(prev=>[{reference:ref,client_nom:form.nom,statut:"BROUILLON",total,created_at:new Date().toISOString(),...(form.date?{date_livraison:form.date}:{})}, ...prev]);
-    setPanier([]); setForm({nom:"",tel:"",message:"",date:""});
+    setPanier([]); setForm({nom:"",tel:"",message:"",date:""}); setCodePromo(""); setPromo(null);
     idempotencyRef.current = null; // commande confirmée — une prochaine sera une nouvelle tentative
   };
 
@@ -3438,6 +3453,7 @@ function ClientFood({ user, onBack }) {
                 <div>
                   <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>{p.ico} {p.nom}</div>
                   {p.prix&&<div style={{fontSize:11,color:"#c9a96e"}}>×{p.qte} = {((p.prix||0)*p.qte).toFixed(2)}€</div>}
+                  {allergenesDe(p.id)!==undefined&&<div style={{fontSize:10,color:allergenesDe(p.id).length?"#fbbf24":"rgba(245,240,232,0.55)",marginTop:2}}>{allergenesDe(p.id).length?"⚠️ Allergènes : "+allergenesDe(p.id).join(", "):"Allergènes non renseignés — demandez-nous"}</div>}
                 </div>
                 <div style={{display:"flex",gap:6,alignItems:"center"}}>
                   <button onClick={()=>setPanier(prev=>prev.map((x,j)=>j===i?{...x,qte:Math.max(1,x.qte-1)}:x))} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:5,width:24,height:24,color:"#fff",cursor:"pointer",fontSize:14}}>−</button>
@@ -3528,8 +3544,21 @@ function ClientFood({ user, onBack }) {
             </div>
             <div style={{background:"rgba(21,128,61,0.07)",border:"1px solid rgba(21,128,61,0.15)",borderRadius:9,padding:"9px 11px",marginBottom:14,fontSize:11,color:"rgba(245,240,232,0.7)"}}>
               {panier.map(p=><div key={p.id}>{p.ico} {p.nom} ×{p.qte}{p.prix?" — "+((p.prix||0)*p.qte).toFixed(2)+"€":""}</div>)}
-              {totalPanier>0&&<div style={{fontWeight:700,color:"#c9a96e",marginTop:5}}>Total : {totalPanier.toFixed(2)}€</div>}
+              {totalPanier>0&&!promo?.valide&&<div style={{fontWeight:700,color:"#c9a96e",marginTop:5}}>Total : {totalPanier.toFixed(2)}€</div>}
+              {totalPanier>0&&promo?.valide&&<div style={{marginTop:5}}>
+                <div style={{color:"#4ade80"}}>🎁 {promo.libelle} : −{(promo.remise_centimes/100).toFixed(2)}€</div>
+                <div style={{fontWeight:700,color:"#c9a96e"}}>Total estimé : {((Math.round(totalPanier*100)-promo.remise_centimes)/100).toFixed(2)}€</div>
+              </div>}
             </div>
+            <div style={{background:"rgba(251,191,36,0.07)",border:"1px solid rgba(251,191,36,0.25)",borderRadius:9,padding:"9px 11px",marginBottom:12,fontSize:11,color:"rgba(245,240,232,0.8)",lineHeight:1.5}}>
+              <div style={{fontWeight:700,color:"#fbbf24",marginBottom:3}}>⚠️ Allergènes</div>
+              {panier.map(p=>{const a=allergenesDe(p.id);return <div key={p.id}>{p.nom} : {a&&a.length?a.join(", "):"non renseignés — précisez vos allergies dans le message"}</div>;})}
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:12}}>
+              <input value={codePromo} onChange={e=>{setCodePromo(e.target.value.toUpperCase());setPromo(null);}} placeholder="Code de réduction" style={{...inp4,flex:1}}/>
+              <button disabled={!codePromo.trim()} onClick={async()=>{setPromo(await apercuReduction(codePromo.trim(),"FOOD",Math.round(totalPanier*100),await getTokenAsync()));}} style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:8,padding:"8px 12px",color:"#4ade80",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:SA}}>Appliquer</button>
+            </div>
+            {promo&&!promo.valide&&<div style={{fontSize:11,color:"#f87171",marginTop:-6,marginBottom:10}}>{promo.message}</div>}
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {[["Votre nom *","nom","text"],["Téléphone","tel","tel"],["Date souhaitée","date","date"]].map(([l,k,t])=>(
                 <div key={k} style={{display:"flex",flexDirection:"column",gap:3}}>
@@ -13847,7 +13876,7 @@ function StocksF({ user }) {
 const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] = [
   {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
   {id:"g_clients",  ico:"👥", l:"Clients",      pages:[["crm","Clientes"],["crm_central","CRM central"]]},
-  {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
+  {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["reductions","🎁 Réductions"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
   {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
   {id:"g_events",   ico:"✨", l:"Events",       pages:[["events","Bella'Even's"]]},
   {id:"g_food",     ico:"🍃", l:"Food",         pages:[["food","Bella'Food"]]},
@@ -14233,7 +14262,7 @@ function MessagerieWrapper({ user }: any) {
 function ModuleEquipe({ nom, props, libelle }: { nom: string; props: any; libelle: string }) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : import("../modules/equipe/AccesPermissions");
+    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : nom === "ReductionsF" ? import("../modules/admin/ReductionsF") : import("../modules/equipe/AccesPermissions");
     charge.then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, [nom]);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement {libelle}…</div>;
@@ -14552,6 +14581,7 @@ export default function BellaiaApp() {
     compta:      <ComptaWrapper user={user}/>,
     administratif: <AdministratifWrapper/>,
     actions:     <ActionsRequisesWrapper/>,
+    reductions:  <ModuleEquipe nom="ReductionsF" props={{}} libelle="des réductions"/>,
     equipe:      <EquipeWrapper user={user} role={role}/>,
     partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
     acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,

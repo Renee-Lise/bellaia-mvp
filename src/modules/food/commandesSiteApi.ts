@@ -35,6 +35,8 @@ export interface LigneCommandeSite {
   qte: number;
   prixUnitaire: number;
   total: number;
+  allergenes?: string[];
+  allergenesAVerifier?: boolean;
 }
 
 export interface CommandeSite {
@@ -50,6 +52,13 @@ export interface CommandeSite {
   lignes: LigneCommandeSite[];
   notes?: string;
   createdAt?: string;
+  totalAvantRemise?: number;
+  remiseMontant?: number;
+  remiseLibelle?: string;
+  reductionCode?: string;
+  allergenes?: string[];
+  allergenesAVerifier?: boolean;
+  acomptePaye?: boolean;
 }
 
 function mapFromDb(row: any): CommandeSite {
@@ -69,6 +78,13 @@ function mapFromDb(row: any): CommandeSite {
     lignes,
     notes: row.notes ?? undefined,
     createdAt: row.created_at ?? undefined,
+    totalAvantRemise: row.total_avant_remise != null ? Number(row.total_avant_remise) : undefined,
+    remiseMontant: Number(row.remise_montant) || 0,
+    remiseLibelle: row.remise_libelle ?? undefined,
+    reductionCode: row.reduction_code ?? undefined,
+    allergenes: Array.isArray(row.allergenes) ? row.allergenes : [],
+    allergenesAVerifier: !!row.allergenes_a_verifier,
+    acomptePaye: !!row.acompte_paye,
   };
 }
 
@@ -118,5 +134,24 @@ export async function majStatutCommandeSite(id: string, statut: StatutCommandeSi
     });
     if (!r.ok) return { ok: false, error: await r.text().catch(() => "Échec de l'enregistrement.") };
     return { ok: true };
+  } catch (e: any) { return { ok: false, error: e.message }; }
+}
+
+// Réduction manuelle de la fondatrice sur une commande : le total est
+// recalculé depuis le total AVANT remise (jamais cumulé par erreur).
+export async function appliquerRemiseManuelle(c: CommandeSite, remiseEuros: number, libelle: string): Promise<{ ok: boolean; error?: string; total?: number }> {
+  if (!SB_URL) return { ok: false, error: "Configuration manquante." };
+  const base = c.totalAvantRemise ?? c.total;
+  const remise = Math.round(Math.max(0, Math.min(remiseEuros, base)) * 100) / 100;
+  const total = Math.round((base - remise) * 100) / 100;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/bellaia_commandes?id=eq.${c.id}`, {
+      method: "PATCH",
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${await getToken()}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ total_avant_remise: base, remise_montant: remise, remise_libelle: remise ? (libelle || "Remise") : null, total,
+        ...(c.acomptePaye ? {} : { solde: total }), total_verifie: true }),
+    });
+    if (!r.ok) return { ok: false, error: await r.text().catch(() => "Échec de l'enregistrement.") };
+    return { ok: true, total };
   } catch (e: any) { return { ok: false, error: e.message }; }
 }

@@ -84,7 +84,15 @@ export async function POST(req: NextRequest) {
       if (!p || p.univers !== univers || p.statut !== "actif" || !Number.isFinite(pu) || pu <= 0) return refus(409, "Un article n'est plus disponible ou n'a pas de prix.", "ARTICLE_INDISPONIBLE");
       centimes += pu * q; lignes.push({ id, nom: p.nom, qte: q, pu_centimes: pu });
     }
-    calc = { centimes, univers, description: lignes.map(l => `${l.nom} ×${l.qte}`).join(", ").slice(0, 200), detail: { lignes } };
+    // Code de réduction : vérifié et compté par la base (jamais un montant du navigateur).
+    let remise = 0; let codeOk: string | null = null;
+    if (typeof body?.code_reduction === "string" && body.code_reduction.trim()) {
+      const { data: red, error: errRed } = await SB.rpc("reduction_consommer", { p_code: body.code_reduction.trim().slice(0, 40), p_univers: univers, p_montant_centimes: centimes, p_client: qui.id, p_commande_ref: null });
+      if (errRed) return refus(503, "Réduction indisponible pour le moment.", "REDUCTION_INDISPONIBLE");
+      if (!red?.valide) return refus(409, red?.message || "Code de réduction invalide.", "REDUCTION_INVALIDE");
+      remise = Number(red.remise_centimes) || 0; codeOk = red.code || null;
+    }
+    calc = { centimes: centimes - remise, univers, description: (lignes.map(l => `${l.nom} ×${l.qte}`).join(", ") + (codeOk ? ` · code ${codeOk}` : "")).slice(0, 200), detail: { lignes, remise_centimes: remise, code: codeOk } };
   } else if (source === "commande") {
     const reference = String(body?.reference || "").trim();
     const option = String(body?.option || "total");

@@ -181,6 +181,28 @@ export interface VariantePublicFood {
   prix: number | null;
 }
 
+/** Allergènes (fiche produit + recette), tels qu'écrits ; [] = non renseignés. */
+export async function getAllergenesFoodPublic(ids: string[]): Promise<Record<string, string[]>> {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!SB_URL || !SB_KEY || !ids.length) return {};
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/food_allergenes_produits`, { method: "POST", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ p_ids: ids.slice(0, 200) }) });
+    return r.ok ? await r.json() : {};
+  } catch { return {}; }
+}
+
+/** Aperçu d'un code de réduction (aucun effet ; appliqué par le serveur à la commande). */
+export async function apercuReduction(code: string, univers: string, montantCentimes: number, jeton?: string): Promise<{ valide: boolean; message?: string; libelle?: string; remise_centimes?: number; code?: string }> {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!SB_URL || !SB_KEY) return { valide: false, message: "Configuration manquante" };
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/reduction_apercu`, { method: "POST", headers: { apikey: SB_KEY, Authorization: `Bearer ${jeton || SB_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ p_code: code, p_univers: univers, p_montant_centimes: montantCentimes }) });
+    return r.ok ? await r.json() : { valide: false, message: "Vérification impossible" };
+  } catch { return { valide: false, message: "Vérification impossible" }; }
+}
+
 export async function getVariantesFoodPublic(produitIds: string[]): Promise<VariantePublicFood[]> {
   const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

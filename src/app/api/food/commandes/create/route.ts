@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Body JSON invalide." }, { status: 400 }); }
 
-  const { lignes, clientNom, clientTel, dateLivraison, notes, idempotencyKey } = body;
+  const { lignes, clientNom, clientTel, dateLivraison, notes, idempotencyKey, codeReduction } = body;
 
   if (!clientNom?.trim()) {
     return NextResponse.json({ error: "Nom du client manquant." }, { status: 400 });
@@ -121,7 +121,10 @@ export async function POST(req: NextRequest) {
 
   // ── 4 & 6. Reprix­age, disponibilité, et cohérence des options
   // (base Frites maison) — depuis la base, jamais depuis le client.
-  const lignesVerifiees: { libelle: string; qte: number; prixUnitaire: number; total: number }[] = [];
+  // Allergènes repris des fiches (produit + recette liée), TELS QU'ÉCRITS ;
+  // un produit sans information est marqué « à vérifier » — jamais
+  // considéré comme sans allergène.
+  const lignesVerifiees: { libelle: string; qte: number; prixUnitaire: number; total: number; allergenes: string[]; allergenesAVerifier: boolean }[] = [];
 
   for (const l of lignes) {
     const idBrut = String(l?.id || "");
@@ -137,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     const { data: produit } = await SB
       .from("catalogue_produits")
-      .select("id, nom, prix, statut, visible_client, disponible")
+      .select("id, nom, prix, statut, visible_client, disponible, allergenes, recette_id")
       .eq("id", produitId)
       .eq("business_unit", "FOOD")
       .single();
@@ -176,10 +179,18 @@ export async function POST(req: NextRequest) {
       prixReel = parseFloat(produit.prix);
     }
 
-    lignesVerifiees.push({ libelle, qte, prixUnitaire: prixReel, total: parseFloat((prixReel * qte).toFixed(2)) });
+    let allergenes: string[] = Array.isArray(produit.allergenes) ? produit.allergenes.filter(Boolean) : [];
+    if (produit.recette_id) {
+      const { data: rec } = await SB.from("food_recettes").select("allergenes").eq("id", produit.recette_id).maybeSingle();
+      if (Array.isArray(rec?.allergenes)) allergenes = [...allergenes, ...rec!.allergenes.filter(Boolean)];
+    }
+    allergenes = Array.from(new Set(allergenes.map((a: string) => String(a).trim()).filter(Boolean)));
+    lignesVerifiees.push({ libelle, qte, prixUnitaire: prixReel, total: parseFloat((prixReel * qte).toFixed(2)), allergenes, allergenesAVerifier: allergenes.length === 0 });
   }
 
-  const total = parseFloat(lignesVerifiees.reduce((s, l) => s + l.total, 0).toFixed(2));
+  const totalAvantRemise = parseFloat(lignesVerifiees.reduce((s, l) => s + l.total, 0).toFixed(2));
+  const allergenesCommande = Array.from(new Set(lignesVerifiees.flatMap(l => l.allergenes)));
+  const allergenesAVerifier = lignesVerifiees.some(l => l.allergenesAVerifier);
 
   // Référence — même RPC que le reste de l'app (ref_compteurs).
   let reference = `FOOD-${Date.now()}`;
@@ -187,6 +198,19 @@ export async function POST(req: NextRequest) {
     const r = await SB.rpc("prochaine_reference", { p_prefixe: "FOOD" });
     if (r.data && typeof r.data === "string") reference = r.data;
   } catch {}
+
+  // Réduction — validée et consommée PAR LE SERVEUR (code, univers,
+  // période, minimum, utilisations) ; jamais un montant du navigateur.
+  let remiseCentimes = 0; let remiseLibelle: string | null = null; let codeApplique: string | null = null;
+  if (typeof codeReduction === "string" && codeReduction.trim()) {
+    const { data: red, error: errRed } = await SB.rpc("reduction_consommer", {
+      p_code: codeReduction.trim().slice(0, 40), p_univers: "FOOD", p_montant_centimes: Math.round(totalAvantRemise * 100), p_client: clientIdVerifie, p_commande_ref: reference,
+    });
+    if (errRed) return NextResponse.json({ error: "Réduction indisponible pour le moment." }, { status: 503 });
+    if (!red?.valide) return NextResponse.json({ error: red?.message || "Code de réduction invalide.", code: "REDUCTION_INVALIDE" }, { status: 409 });
+    remiseCentimes = Number(red.remise_centimes) || 0; remiseLibelle = red.libelle || null; codeApplique = red.code || null;
+  }
+  const total = parseFloat(((Math.round(totalAvantRemise * 100) - remiseCentimes) / 100).toFixed(2));
 
   // Enregistrement (bellaia_commandes, migration 0069) — statut
   // BROUILLON comme avant, la fondatrice fait avancer le statut.
@@ -207,6 +231,12 @@ export async function POST(req: NextRequest) {
       date_commande: new Date().toISOString().split("T")[0],
       date_livraison: dateLivraison || null,
       lignes: JSON.stringify(lignesVerifiees),
+      total_avant_remise: totalAvantRemise,
+      remise_montant: remiseCentimes / 100,
+      remise_libelle: remiseLibelle,
+      reduction_code: codeApplique,
+      allergenes: allergenesCommande,
+      allergenes_a_verifier: allergenesAVerifier,
       notes: notes || null,
       created_by: clientIdVerifie,
       idempotency_key: idempotencyKey || null,
@@ -238,7 +268,7 @@ export async function POST(req: NextRequest) {
       pole: "FOOD",
       type_notification: "nouvelle_commande",
       titre: `Nouvelle commande Food — ${cmd.reference}`,
-      message: `Client : ${clientNom.trim()}${clientTel ? " · " + clientTel : ""}\nTotal : ${cmd.total.toFixed(2)}€\n${lignesVerifiees.map(l => l.libelle + " ×" + l.qte).join(", ")}`,
+      message: `Client : ${clientNom.trim()}${clientTel ? " · " + clientTel : ""}\nTotal : ${cmd.total.toFixed(2)}€${remiseCentimes ? ` (réduction ${codeApplique} −${(remiseCentimes / 100).toFixed(2)}€)` : ""}\n${lignesVerifiees.map(l => l.libelle + " ×" + l.qte).join(", ")}\nAllergènes : ${allergenesCommande.length ? allergenesCommande.join(", ") : "—"}${allergenesAVerifier ? " ⚠️ à vérifier pour certains produits" : ""}`,
       canal: "interne",
       statut: "a_envoyer",
       client_tel: clientTel || null,
@@ -255,5 +285,6 @@ export async function POST(req: NextRequest) {
     tag: "nouvelle_commande_food",
   }).catch(() => {});
 
-  return NextResponse.json({ ok: true, commandeId: cmd.id, reference: cmd.reference, total: cmd.total, lignes: lignesVerifiees });
+  return NextResponse.json({ ok: true, commandeId: cmd.id, reference: cmd.reference, total: cmd.total, lignes: lignesVerifiees,
+    totalAvantRemise, remise: remiseCentimes / 100, remiseLibelle, codeReduction: codeApplique, allergenes: allergenesCommande, allergenesAVerifier });
 }

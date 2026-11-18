@@ -1,9 +1,11 @@
+import { appliquerRemiseManuelle } from "./commandesSiteApi";
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import { FOOD_COLORS as FC } from "./foodConsts";
 import { fmtPrix } from "./foodUtils";
 import { getCommandesFoodAvecDiagnostic, creerCommandeFood, majCommandeFood, majStatutCommandeFood } from "./commandesApi";
 import { getCommandesSiteFoodAvecDiagnostic, majStatutCommandeSite } from "./commandesSiteApi";
 import { getCatalogueFoodAvecDiagnostic } from "./catalogueApi";
+import { sbFoodGet } from "./foodApi";
 import type { CommandeFood, StatutCommande, Produit } from "./foodTypes";
 import type { CommandeSite } from "./commandesSiteApi";
 
@@ -82,7 +84,28 @@ export default function FoodCommandes() {
   // commande" — demande explicite de Renée-Lise (un seul champ texte
   // "produit" ne permettait de choisir qu'un seul article, et aucun
   // champ de livraison n'existait).
-  const [lignesForm, setLignesForm] = useState<{ id: string; nom: string; quantite: number; prixUnitaire: number }[]>([]);
+  const [lignesForm, setLignesForm] = useState<{ id: string; nom: string; quantite: number; prixUnitaire: number; allergenes?: string[]; allergenesAVerifier?: boolean }[]>([]);
+  // Allergènes par nom de produit (catalogue + recettes) : ajoutés
+  // automatiquement aux lignes à l'enregistrement, tels qu'écrits ;
+  // produit inconnu = « à vérifier » (jamais « sans allergène »).
+  const [allergenesParNom, setAllergenesParNom] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    (async () => {
+      try {
+        const [prods, recs] = await Promise.all([
+          sbFoodGet<any>("catalogue_produits", "business_unit=eq.FOOD&select=nom,allergenes,recette_id&limit=500"),
+          sbFoodGet<any>("food_recettes", "select=id,nom,allergenes&limit=1000"),
+        ]);
+        const parId = new Map<string, any>(recs.map((r: any) => [r.id, r]));
+        const m: Record<string, string[]> = {};
+        const ajouter = (nom: string, liste: any) => { const k = String(nom || "").trim().toLowerCase(); if (!k) return; m[k] = Array.from(new Set([...(m[k] || []), ...((Array.isArray(liste) ? liste : []).map((x: any) => String(x).trim()).filter(Boolean))])); };
+        recs.forEach((r: any) => ajouter(r.nom, r.allergenes));
+        prods.forEach((p: any) => { ajouter(p.nom, p.allergenes); if (p.recette_id && parId.get(p.recette_id)) ajouter(p.nom, parId.get(p.recette_id).allergenes); });
+        setAllergenesParNom(m);
+      } catch {}
+    })();
+  }, []);
+  const allergenesLigne = (nom: string) => allergenesParNom[String(nom || "").trim().toLowerCase()];
   const FRAIS_LIVRAISON = [5, 10, 15, 20];
   const LIEUX_RETRAIT = ["Sinnamary", "Saint-Laurent-du-Maroni"];
 
@@ -141,7 +164,8 @@ export default function FoodCommandes() {
   const enregistrer = async () => {
     const produitResume = lignesForm.filter(l => l.nom.trim()).map(l => `${l.nom} ×${l.quantite}`).join(", ") || form.produit;
     if (!form.client || !produitResume) { setErreur("Client et au moins un produit sont requis."); return; }
-    const payload: Partial<CommandeFood> = { ...form, produit: produitResume, lignes: lignesForm.filter(l => l.nom.trim()) };
+    const lignesAvecAllergenes = lignesForm.filter(l => l.nom.trim()).map(l => { const a = allergenesLigne(l.nom); return { ...l, allergenes: a || [], allergenesAVerifier: !a || a.length === 0 }; });
+    const payload: Partial<CommandeFood> = { ...form, produit: produitResume, lignes: lignesAvecAllergenes as any };
     const res = form.id ? await majCommandeFood(form.id, payload) : await creerCommandeFood(payload);
     if (!res.ok) { setErreur(("error" in res && res.error) || "Échec de l'enregistrement — réessayez."); return; }
     setModal(null); setForm(FORM_INIT); setLignesForm([]); setErreur(null);
@@ -200,10 +224,24 @@ export default function FoodCommandes() {
               </div>
             ))}
           </div>
+          {(c.remiseMontant || 0) > 0 && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, borderTop: `1px solid ${FC.line}` }}><span>Sous-total</span><span>{fmtPrix(c.totalAvantRemise ?? c.total)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#4ade80" }}><span>🎁 {c.remiseLibelle || "Réduction"}{c.reductionCode ? ` (${c.reductionCode})` : ""}</span><span>−{fmtPrix(c.remiseMontant)}</span></div>
+            </>)}
           <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, paddingTop: 6, borderTop: `1px solid ${FC.line}` }}>
             <span>Total</span><span style={{ color: FC.or }}>{fmtPrix(c.total)}</span>
           </div>
         </div>
+        <div style={{ background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+          <div style={{ fontWeight: 700, color: "#fbbf24" }}>⚠️ Allergènes de la commande</div>
+          {c.lignes.map((l, i) => (
+            <div key={i}><strong>{l.libelle}</strong> : {l.allergenes && l.allergenes.length ? l.allergenes.join(", ") : <span style={{ color: "#fb923c" }}>non renseignés — à vérifier</span>}</div>
+          ))}
+          {!c.lignes.some(l => l.allergenes !== undefined) && <div style={{ color: "rgba(255,255,255,0.5)" }}>Commande antérieure à l'ajout automatique des allergènes : à vérifier sur les fiches.</div>}
+          {c.notes && <div style={{ color: "rgba(255,255,255,0.7)" }}>Message de la cliente (allergies éventuelles) : {c.notes}</div>}
+        </div>
+        <RemiseManuelle c={c} onFait={(total) => setDetail({ ...detail, c: { ...c, total, remiseMontant: (c.totalAvantRemise ?? c.total) - total, totalAvantRemise: c.totalAvantRemise ?? c.total } })} />
         <div style={{ background: FC.card, border: `1px solid ${FC.line}`, borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>STATUT (commande site)</div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -255,7 +293,8 @@ export default function FoodCommandes() {
           ["Thème",          dC.theme || "—"],
           ["Saveur",         dC.saveur || "—"],
           ["Nb parts",       dC.nbParts ? String(dC.nbParts) : "—"],
-          ["Allergies",      dC.allergies || "Aucune"],
+          ["Allergies de la cliente", dC.allergies || "Non précisées"],
+          ...((dC.lignes || []).map((l: any) => [`Allergènes · ${l.nom}`, l.allergenes && l.allergenes.length ? l.allergenes.join(", ") : (l.allergenes ? "à vérifier" : "")]) as [string, string][]),
         ].map(([l, v]) => v && (
           <div key={l} style={{ display:"flex", justifyContent:"space-between",
             padding:"5px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
@@ -496,7 +535,7 @@ export default function FoodCommandes() {
                 <label style={{ fontSize:10, color:"rgba(255,255,255,0.5)" }}>Produits commandés *</label>
                 {lignesForm.map((l, i) => (
                   <div key={l.id} style={{ display:"flex", gap:5 }}>
-                    <input value={l.nom} onChange={e => majLigne(i, "nom", e.target.value)} placeholder="Layer cake, jus..."
+                    <input list="food-produits-connus" value={l.nom} onChange={e => majLigne(i, "nom", e.target.value)} placeholder="Layer cake, jus..."
                       style={{ flex:2, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"7px 9px", color:"#fff", fontSize:12, fontFamily:"sans-serif", outline:"none" }}/>
                     <input type="number" value={l.quantite} onChange={e => majLigne(i, "quantite", parseFloat(e.target.value) || 0)} placeholder="Qté"
                       style={{ flex:1, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"7px 9px", color:"#fff", fontSize:12, fontFamily:"sans-serif", outline:"none" }}/>
@@ -505,6 +544,11 @@ export default function FoodCommandes() {
                     <button onClick={() => supprimerLigne(i)} style={{ background:"rgba(248,113,113,0.12)", border:"none", borderRadius:8, padding:"0 9px", color:"#f87171", cursor:"pointer" }}>✕</button>
                   </div>
                 ))}
+                <datalist id="food-produits-connus">{Object.keys(allergenesParNom).slice(0, 400).map(k => <option key={k} value={k.charAt(0).toUpperCase() + k.slice(1)} />)}</datalist>
+                {lignesForm.filter(l => l.nom.trim()).length > 0 && (
+                  <div style={{ fontSize:10, color:"#fbbf24", lineHeight:1.5 }}>
+                    {lignesForm.filter(l => l.nom.trim()).map(l => { const a = allergenesLigne(l.nom); return <div key={l.id}>⚠️ {l.nom} : {a && a.length ? a.join(", ") : "allergènes non trouvés — à vérifier"}</div>; })}
+                  </div>)}
                 <button onClick={ajouterLigne} style={{ alignSelf:"flex-start", background:"none", border:`1px solid ${FC.line}`, borderRadius:8, padding:"5px 12px", color:FC.creamD, cursor:"pointer", fontSize:11, fontFamily:"sans-serif" }}>+ Produit</button>
                 {lignesForm.length === 0 && (
                   <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>Aucun produit — cliquez "+ Produit", ou laissez vide pour saisir un libellé manuel ci-dessous.</div>
@@ -587,6 +631,37 @@ export default function FoodCommandes() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// Réduction ponctuelle décidée par la fondatrice sur UNE commande site.
+function RemiseManuelle({ c, onFait }: { c: any; onFait: (total: number) => void }) {
+  const [mode, setMode] = React.useState<"montant" | "pourcentage">("montant");
+  const [valeur, setValeur] = React.useState("");
+  const [libelle, setLibelle] = React.useState("Geste commercial");
+  const [msg, setMsg] = React.useState("");
+  const base = c.totalAvantRemise ?? c.total;
+  const v = Number(valeur.replace(",", "."));
+  const remise = !Number.isFinite(v) || v <= 0 ? 0 : mode === "pourcentage" ? Math.min(100, v) * base / 100 : Math.min(v, base);
+  const st = { background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 9px", color: "#fff", fontSize: 14, outline: "none" } as React.CSSProperties;
+  return (
+    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>RÉDUCTION MANUELLE</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <select value={mode} onChange={e => setMode(e.target.value as any)} style={st}><option value="montant">€</option><option value="pourcentage">%</option></select>
+        <input inputMode="decimal" value={valeur} onChange={e => setValeur(e.target.value)} placeholder={mode === "montant" ? "5" : "10"} style={{ ...st, width: 90 }} />
+        <input value={libelle} onChange={e => setLibelle(e.target.value)} style={{ ...st, flex: 1, minWidth: 140 }} />
+      </div>
+      {remise > 0 && <div style={{ fontSize: 12, color: "#4ade80" }}>−{remise.toFixed(2).replace(".", ",")} € → nouveau total {(base - remise).toFixed(2).replace(".", ",")} €</div>}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button disabled={remise <= 0} onClick={async () => { const r = await appliquerRemiseManuelle(c, remise, libelle.trim()); setMsg(r.ok ? "✅ Réduction appliquée" : "❌ " + r.error); if (r.ok && r.total != null) onFait(r.total); }}
+          style={{ background: "#15803d", border: "none", borderRadius: 8, padding: "8px 12px", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: remise > 0 ? 1 : 0.5, minHeight: 38 }}>Appliquer</button>
+        {(c.remiseMontant || 0) > 0 && <button onClick={async () => { const r = await appliquerRemiseManuelle(c, 0, ""); setMsg(r.ok ? "Réduction retirée" : "❌ " + r.error); if (r.ok && r.total != null) onFait(r.total); }}
+          style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "8px 12px", color: "rgba(255,255,255,0.7)", fontSize: 12, cursor: "pointer", minHeight: 38 }}>Retirer la réduction</button>}
+      </div>
+      {msg && <div style={{ fontSize: 12, color: msg.startsWith("❌") ? "#f87171" : "#4ade80" }}>{msg}</div>}
     </div>
   );
 }
