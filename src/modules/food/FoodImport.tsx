@@ -111,7 +111,7 @@ export default function FoodImport({ onImporter }: Props) {
       });
       const [meta, b64] = dataUrl.split(",");
       const mediaType = (meta.match(/data:([^;]+);/) || [])[1] || photoFile.type || "image/jpeg";
-      const token = await (window as any).getTokenAsync?.() ?? SB_KEY;
+      const token = await (window as any).getTokenAsync?.() ?? (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
       const r = await fetch("/api/ia/importer-recette-photo", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer "+token },

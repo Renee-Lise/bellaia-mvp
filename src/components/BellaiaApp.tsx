@@ -2996,7 +2996,7 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
         motif:(option==="total"?"Paiement intégral":"Acompte 30%"),
         notes:(option==="total"?"Paiement intégral":"Acompte 30%")+" — "+dos.reference,
         date_paiement:new Date().toISOString(),
-    }, false);
+    });
     if (!resPAY?.ok) {
       setPayLoading(false);
       alert(
@@ -7658,7 +7658,7 @@ function IAF({ user, bshCmds, bshProduits }) {
     { label: "⚡ Actions prioritaires", prompt: "Liste les 5 actions prioritaires que je dois faire aujourd'hui pour Bella'Studio." },
   ];
 
-  const envoyer = async (texte) => {
+  const envoyer = async (texte?: string) => {
     const msg = texte || input.trim();
     if (!msg) return;
     setInput("");

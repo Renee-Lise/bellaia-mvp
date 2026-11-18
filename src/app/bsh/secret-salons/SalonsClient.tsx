@@ -7,26 +7,30 @@
 // bsh_salons — voir migration 0046 pour la portée de cette v1).
 // ═══════════════════════════════════════════════════════════
 import { useEffect, useRef, useState } from "react";
-import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { BSH_PALETTE as C, BSH_FONT_DISPLAY as DISPLAY, BSH_FONT_BODY as BODY } from "../bshTokens";
 import type { JeuBSH } from "../secret-games/getJeux";
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-// Créé à la demande (pas au chargement du module) : un appel à
-// createClient() au niveau module échoue pendant le build Next.js
-// (prérendu), les variables d'environnement n'étant pas garanties
-// disponibles à ce moment-là — même piège que useBshEspace.ts, qui
-// crée son client à l'intérieur d'un useEffect pour la même raison.
-let sbInstance: ReturnType<typeof createClient> | null = null;
-function getSb() {
-  if (!sbInstance) sbInstance = createClient(SB_URL, SB_KEY);
-  return sbInstance;
+// Salons sécurisés (migration 0115) : plus aucun accès direct aux
+// tables. Chaque participant reçoit un jeton secret (gardé dans cet
+// onglet uniquement) ; toutes les actions passent par des fonctions
+// serveur qui vérifient ce jeton. L'état est rafraîchi toutes les 2,5 s.
+async function rpc<T = any>(fn: string, args: any): Promise<T> {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(args),
+  });
+  const t = await r.text();
+  if (!r.ok) { let m = t; try { m = JSON.parse(t).message || t; } catch {} throw new Error(m || `Erreur ${r.status}`); }
+  return t ? JSON.parse(t) : (null as any);
 }
+type Session = { salon_id: string; jeton: string; participant_id: string; role: string };
+const CLE_SESSION = "bsh_salon_session";
 
 interface Carte { id: string; emoji: string; nom: string; question: string; }
-interface Salon { id: string; code: string; jeu_id: string; pseudo_hote: string | null; carte_actuelle_id: string | null; statut: string; }
+interface Salon { id: string; code: string; jeu_id: string; pseudo_hote: string | null; carte_actuelle_id: string | null; statut: string;
+  moi?: { id: string; role: string; pseudo: string }; participants?: { id: string; pseudo: string; role: string }[]; }
 
 const inp: React.CSSProperties = {
   width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)",
@@ -54,11 +58,10 @@ export default function SalonsClient({ jeux, diagnostic }: { jeux: JeuBSH[]; dia
   const [cartesDuJeu, setCartesDuJeu] = useState<Carte[]>([]);
   const [carteActuelle, setCarteActuelle] = useState<Carte | null>(null);
   const [nbParticipants, setNbParticipants] = useState(1);
-  const canalRef = useRef<RealtimeChannel | null>(null);
+  const sessionRef = useRef<Session | null>(null);
+  const minuterie = useRef<any>(null);
 
-  useEffect(() => {
-    return () => { if (canalRef.current) getSb().removeChannel(canalRef.current); };
-  }, []);
+  useEffect(() => () => { if (minuterie.current) clearInterval(minuterie.current); }, []);
 
   const chargerCartes = async (jeuId: string) => {
     const r = await fetch(`${SB_URL}/rest/v1/bsh_jeux_cartes?jeu_id=eq.${jeuId}&statut=eq.active&select=id,emoji,nom,question`, {
@@ -67,52 +70,46 @@ export default function SalonsClient({ jeux, diagnostic }: { jeux: JeuBSH[]; dia
     return r.ok ? await r.json() : [];
   };
 
-  const sAbonner = (salonId: string) => {
-    const canal = getSb().channel(`salon-${salonId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bsh_salons", filter: `id=eq.${salonId}` },
-        (payload) => { setSalon(payload.new as Salon); })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bsh_salon_participants", filter: `salon_id=eq.${salonId}` },
-        () => { setNbParticipants((n) => n + 1); })
-      .subscribe();
-    canalRef.current = canal;
+  const quitterVue = (message = "") => {
+    if (minuterie.current) clearInterval(minuterie.current);
+    sessionRef.current = null; try { sessionStorage.removeItem(CLE_SESSION); } catch {}
+    setSalon(null); setCarteActuelle(null); setVue("accueil"); setErreur(message);
   };
 
-  const rejoindreSalon = async (s: Salon) => {
-    setSalon(s);
-    const cartes = await chargerCartes(s.jeu_id);
-    setCartesDuJeu(cartes);
-    if (s.carte_actuelle_id) {
-      setCarteActuelle(cartes.find((c: Carte) => c.id === s.carte_actuelle_id) || null);
+  const rafraichir = async () => {
+    const ses = sessionRef.current; if (!ses) return;
+    try {
+      const e = await rpc<Salon>("salon_etat", { p_salon: ses.salon_id, p_jeton: ses.jeton });
+      setSalon(e); setNbParticipants(e.participants?.length || 1);
+    } catch (er: any) {
+      quitterVue(/ferm/i.test(er.message) ? "Le salon a été fermé." : "Vous ne faites plus partie de ce salon.");
     }
-    await fetch(`${SB_URL}/rest/v1/bsh_salon_participants`, {
-      method: "POST",
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ salon_id: s.id, pseudo: pseudo.trim() || "Invité·e" }),
-    }).catch(() => {});
-    const rCount = await fetch(`${SB_URL}/rest/v1/bsh_salon_participants?salon_id=eq.${s.id}&select=id`, {
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
-    });
-    if (rCount.ok) setNbParticipants((await rCount.json()).length);
-    sAbonner(s.id);
+  };
+
+  const entrer = async (ses: Session) => {
+    sessionRef.current = ses; try { sessionStorage.setItem(CLE_SESSION, JSON.stringify(ses)); } catch {}
+    const e = await rpc<Salon>("salon_etat", { p_salon: ses.salon_id, p_jeton: ses.jeton });
+    setSalon(e); setNbParticipants(e.participants?.length || 1);
+    const cartes = await chargerCartes(e.jeu_id);
+    setCartesDuJeu(cartes);
+    if (minuterie.current) clearInterval(minuterie.current);
+    minuterie.current = setInterval(rafraichir, 2500);
     setVue("salon");
   };
+
+  // Reprise après rechargement de la page (même onglet).
+  useEffect(() => {
+    try { const s0 = sessionStorage.getItem(CLE_SESSION); if (s0) entrer(JSON.parse(s0)).catch(() => quitterVue()); } catch {}
+    const code = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("code") : null;
+    if (code) { setSousVue("rejoindre"); setCodeSaisi(code.toUpperCase()); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const creerSalon = async () => {
     if (!jeuChoisi) { setErreur("Choisissez un jeu."); return; }
     setErreur(""); setChargement(true);
-    try {
-      const code = genererCode();
-      const r = await fetch(`${SB_URL}/rest/v1/bsh_salons`, {
-        method: "POST",
-        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify({ code, jeu_id: jeuChoisi, pseudo_hote: pseudo.trim() || null }),
-      });
-      if (!r.ok) { setErreur("Impossible de créer le salon — réessayez."); setChargement(false); return; }
-      const data = await r.json();
-      await rejoindreSalon(data[0]);
-    } catch {
-      setErreur("Erreur réseau.");
-    }
+    try { await entrer(await rpc<Session>("salon_creer", { p_jeu: jeuChoisi, p_pseudo: pseudo.trim() || null })); }
+    catch (e: any) { setErreur(e.message || "Impossible de créer le salon — réessayez."); }
     setChargement(false);
   };
 
@@ -120,31 +117,41 @@ export default function SalonsClient({ jeux, diagnostic }: { jeux: JeuBSH[]; dia
     const code = codeSaisi.trim().toUpperCase();
     if (code.length < 4) { setErreur("Entrez le code du salon."); return; }
     setErreur(""); setChargement(true);
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/bsh_salons?code=eq.${encodeURIComponent(code)}&limit=1`, {
-        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
-      });
-      const data = r.ok ? await r.json() : [];
-      if (!data[0]) { setErreur("Aucun salon avec ce code."); setChargement(false); return; }
-      await rejoindreSalon(data[0]);
-    } catch {
-      setErreur("Erreur réseau.");
-    }
+    try { await entrer(await rpc<Session>("salon_rejoindre", { p_code: code, p_pseudo: pseudo.trim() || null })); }
+    catch (e: any) { setErreur(e.message || "Aucun salon ouvert avec ce code."); }
     setChargement(false);
   };
 
   const tirerCarte = async () => {
-    if (!salon || cartesDuJeu.length === 0) return;
+    const ses = sessionRef.current;
+    if (!salon || !ses || cartesDuJeu.length === 0) return;
     const c = cartesDuJeu[Math.floor(Math.random() * cartesDuJeu.length)];
-    setCarteActuelle(c); // affichage immédiat local, synchronisé pour les autres via Realtime
-    await fetch(`${SB_URL}/rest/v1/bsh_salons?id=eq.${salon.id}`, {
-      method: "PATCH",
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ carte_actuelle_id: c.id, updated_at: new Date().toISOString() }),
-    }).catch(() => {});
+    try { await rpc("salon_tirer", { p_salon: ses.salon_id, p_jeton: ses.jeton, p_carte: c.id }); setCarteActuelle(c); setSalon(x => x ? { ...x, carte_actuelle_id: c.id } : x); }
+    catch (e: any) { setErreur(e.message); }
   };
 
-  // Quand le salon change via Realtime (un autre participant a tiré une
+  const actionHote = async (fn: "salon_expulser" | "salon_fermer", participant?: string) => {
+    const ses = sessionRef.current; if (!ses) return;
+    if (fn === "salon_fermer" && !confirm("Fermer le salon pour tout le monde ?")) return;
+    try {
+      await rpc(fn, fn === "salon_expulser" ? { p_salon: ses.salon_id, p_jeton: ses.jeton, p_participant: participant } : { p_salon: ses.salon_id, p_jeton: ses.jeton });
+      if (fn === "salon_fermer") quitterVue("Salon fermé."); else rafraichir();
+    } catch (e: any) { setErreur(e.message); }
+  };
+  const quitter = async () => {
+    const ses = sessionRef.current;
+    if (ses) await rpc("salon_quitter", { p_salon: ses.salon_id, p_jeton: ses.jeton }).catch(() => {});
+    quitterVue();
+  };
+  const signaler = async (vise?: string) => {
+    const ses = sessionRef.current; if (!ses) return;
+    const motif = prompt("Que souhaitez-vous signaler ? (la fondatrice sera informée)");
+    if (!motif?.trim()) return;
+    try { await rpc("salon_signaler", { p_salon: ses.salon_id, p_jeton: ses.jeton, p_vise: vise || null, p_motif: motif.trim() }); setErreur("Merci, le signalement a été transmis."); }
+    catch (e: any) { setErreur(e.message); }
+  };
+
+  // Quand le salon change (rafraîchissement : un autre participant a tiré une
   // carte), on met à jour la carte affichée à partir des cartes déjà en
   // mémoire — pas besoin de refaire une requête à chaque tirage.
   useEffect(() => {
@@ -198,6 +205,22 @@ export default function SalonsClient({ jeux, diagnostic }: { jeux: JeuBSH[]; dia
               ↻ Carte suivante (pour tout le salon)
             </button>
           )}
+          {erreur && <p style={{ fontSize: 11, color: "#f87171", margin: 0, textAlign: "center" }}>{erreur}</p>}
+          <div style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+            {(salon.participants || []).map((p) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.cream, borderBottom: `1px solid ${C.border}`, padding: "6px 0" }}>
+                <span style={{ flex: 1 }}>{p.role === "hote" ? "👑 " : "• "}{p.pseudo}{p.id === salon.moi?.id ? " (vous)" : ""}</span>
+                {salon.moi?.role === "hote" && p.id !== salon.moi?.id && (
+                  <button onClick={() => actionHote("salon_expulser", p.id)} style={{ fontSize: 11, color: "#f87171", background: "none", border: "1px solid rgba(248,113,113,0.4)", borderRadius: 14, padding: "4px 10px", cursor: "pointer", minHeight: 30 }}>Expulser</button>)}
+                {p.id !== salon.moi?.id && (
+                  <button onClick={() => signaler(p.id)} style={{ fontSize: 11, color: C.muted, background: "none", border: `1px solid ${C.border}`, borderRadius: 14, padding: "4px 10px", cursor: "pointer", minHeight: 30 }}>Signaler</button>)}
+              </div>))}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            {salon.moi?.role === "hote"
+              ? <button onClick={() => actionHote("salon_fermer")} style={{ fontSize: 11, color: "#f87171", background: "none", border: "1px solid rgba(248,113,113,0.4)", borderRadius: 20, padding: "7px 14px", cursor: "pointer", minHeight: 36 }}>Fermer le salon</button>
+              : <button onClick={quitter} style={{ fontSize: 11, color: C.muted, background: "none", border: `1px solid ${C.border}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", minHeight: 36 }}>Quitter le salon</button>}
+          </div>
           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
             <a href={`https://wa.me/?text=${encodeURIComponent(`Rejoins mon salon BSH Secret Games avec le code ${salon.code} → ${lienPartage}`)}`}
               target="_blank" rel="noopener noreferrer"
@@ -206,7 +229,7 @@ export default function SalonsClient({ jeux, diagnostic }: { jeux: JeuBSH[]; dia
             </a>
           </div>
           <p style={{ fontSize: 10, color: "rgba(203,185,185,0.4)", textAlign: "center", margin: "10px 0 0", maxWidth: 320 }}>
-            Partagez le code <strong>{salon.code}</strong> — n&apos;importe qui dans le salon peut tirer la carte suivante, pour tout le monde.
+            Partagez le code <strong>{salon.code}</strong> — chaque participant du salon peut tirer la carte suivante. L&apos;hôte peut expulser un participant ou fermer le salon.
           </p>
         </div>
       </div>

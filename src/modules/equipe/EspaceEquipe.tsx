@@ -17,7 +17,16 @@ import { C, SA, btn, champ, lbl, carte, heure, nomFichierSur, deposerPrive, ouvr
 
 // Pôles autorisés par la contrainte actuelle de la base (élargissement
 // proposé séparément à la fondatrice : il exige de remplacer la règle).
-const POLES: [string, string][] = [["FOOD", "🍃 Bella'Food · Vil'Dor"], ["EVENTS", "✨ Bella'Even's"], ["BSH", "✦ Bella'Secret Home"], ["STUDIO", "🎨 Bella'Studio (autres univers)"]];
+const POLES_BASE: [string, string][] = [["FOOD", "🍃 Bella'Food · Vil'Dor"], ["EVENTS", "✨ Bella'Even's"], ["BSH", "✦ Bella'Secret Home"], ["STUDIO", "🎨 Bella'Studio (autres univers)"]];
+// Référentiel évolutif (business_units) dès que la migration 0116 est
+// appliquée (présence du pôle STUDIO) ; sinon les 4 pôles autorisés.
+let POLES: [string, string][] = POLES_BASE;
+async function chargerPoles() {
+  try {
+    const l = await sbSelect<any>("business_units", "select=code,nom,icone,statut&order=ordre.asc");
+    if (l.some((x: any) => x.code === "STUDIO")) POLES = l.filter((x: any) => x.statut !== "archive").map((x: any) => [x.code, `${x.icone || "•"} ${x.nom}`] as [string, string]);
+  } catch {}
+}
 const TYPES: [string, string, string][] = [["patisserie", "🧁 Pâtisserie", C.orange], ["creation", "🎨 Création / Canva", C.violet], ["hotesse", "🥂 Hôtesse BSH", C.bleu], ["autre", "📋 Assistante / autre", C.doux]];
 const STATUTS: [string, string, string][] = [["a_faire", "À faire", C.doux], ["en_cours", "En cours", C.bleu], ["a_valider", "À valider", C.orange], ["fait", "Validée", C.ok], ["annule", "Annulée", C.rouge]];
 const PRIOS: [number, string][] = [[1, "Urgente"], [2, "Normale"], [3, "Quand possible"]];
@@ -41,6 +50,7 @@ export default function EspaceEquipe({ user, role }: { user?: any; role?: string
     setCharge(true); setErreur("");
     try {
       const a = await mesAcces(); setAcces(a);
+      await chargerPoles();
       setMissions(await sbSelect("bellaia_missions", "select=*&order=date_prevue.asc.nullslast,created_at.desc"));
       if (role === "fondatrice" || a.fondatrice) {
         const eq = await sbRpc<any[]>("fondatrice_equipe", {}).catch(() => []);

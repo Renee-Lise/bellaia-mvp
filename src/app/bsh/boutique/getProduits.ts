@@ -52,7 +52,7 @@ export async function getProduitsBSH(categorie?: string): Promise<ResultatProdui
   }
 
   try {
-    const res = await fetch(`${url}/rest/v1/stocks?${query}`, {
+    const res = await fetch(`${url}/rest/v1/v_catalogue_public?${query}`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
       cache: "no-store",
     });
