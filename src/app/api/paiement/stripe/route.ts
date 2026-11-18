@@ -4,6 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 
 export async function POST(req: NextRequest) {
+  // Stripe NEUTRALISÉ (18/11) : non utilisé, et ces routes acceptaient
+  // un montant fourni par le navigateur. Code conservé pour une future
+  // intégration sécurisée (montants calculés côté serveur, Stripe Connect
+  // uniquement après validation de la fondatrice).
+  if (process.env.STRIPE_ACTIF !== "true") return NextResponse.json({ error: "Paiement Stripe désactivé.", code: "STRIPE_DESACTIVE" }, { status: 503 });
   const { createClient } = await import("@supabase/supabase-js");
   const SB = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

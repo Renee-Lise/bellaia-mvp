@@ -149,14 +149,16 @@ export async function confirmerPaiement(params: {
   });
 
   // ── 6. Log webhook pour audit
-  await SB.from("webhook_logs").insert({
+  try {
+    await SB.from("webhook_logs").insert({
     provider:    params.provider,
     event_type:  "PAYMENT.CONFIRMED",
     event_id:    params.provider_ref,
     payload:     params.metadata || {},
     statut:      "traite",
     traite_le:   now,
-  }).catch(() => {}); // table optionnelle
+  });
+  } catch {} // table optionnelle
 
   return { ok: true, paiement_id };
 }

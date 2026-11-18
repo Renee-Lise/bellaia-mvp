@@ -13,6 +13,7 @@
 // la distinction reste visible dans la bibliothèque de visuels.
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { permisUtilisateur } from "@/lib/permissions";
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: profile } = await sb.from("profiles").select("role").eq("id", user.id).single();
-  if (!profile || !["fondatrice", "assistante"].includes(profile.role)) {
+  // Fondatrice, ou permission « ia.utiliser » accordée par elle (plus d'accès automatique de l'assistante).
+  if (!profile || !(await permisUtilisateur(sb, "ia.utiliser", "*", profile.role))) {
     return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
   }
 

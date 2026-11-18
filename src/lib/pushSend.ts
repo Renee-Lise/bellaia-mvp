@@ -24,8 +24,10 @@ export async function envoyerPushFondatrice(params: { titre: string; message: st
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    const { data: profils } = await SB.from("profiles").select("id").in("role", ["fondatrice", "assistante"]);
-    const ids = (profils || []).map((p: any) => p.id);
+    // Fondatrice + personnes autorisées (« notifications.commandes ») —
+    // plus d'envoi automatique à tout compte « assistante ».
+    const { destinatairesAlertes } = await import("./permissions");
+    const ids = await destinatairesAlertes(SB);
     if (ids.length === 0) return;
 
     const { data: subs } = await SB.from("bellaia_push_subscriptions").select("id, endpoint, p256dh, auth").in("user_id", ids);

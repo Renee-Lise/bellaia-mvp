@@ -53,8 +53,10 @@ export async function createBellaiaPayment(params: {
     try {
       const r = await fetch("/api/payments/sumup/create-checkout", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ montant, description, univers: univers || "GENERAL", commande_id, client_id, client_email }),
+        // Montant libre accepté uniquement pour la fondatrice (lien de paiement) :
+        // le serveur refuse tout montant imposé par une cliente.
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + (typeof window !== "undefined" && (window as any).getTokenAsync ? await (window as any).getTokenAsync() : "") },
+        body:    JSON.stringify({ source: "lien", montant, description, univers: univers || "GENERAL", client_email }),
       });
       const d = await r.json();
       if (!r.ok) return { ok: false, error: d.error || `Erreur SumUp (${r.status})` };

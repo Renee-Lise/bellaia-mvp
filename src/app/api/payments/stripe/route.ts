@@ -32,6 +32,11 @@ async function verifierSession(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Stripe NEUTRALISÉ (18/11) : non utilisé, et ces routes acceptaient
+  // un montant fourni par le navigateur. Code conservé pour une future
+  // intégration sécurisée (montants calculés côté serveur, Stripe Connect
+  // uniquement après validation de la fondatrice).
+  if (process.env.STRIPE_ACTIF !== "true") return NextResponse.json({ error: "Paiement Stripe désactivé.", code: "STRIPE_DESACTIVE" }, { status: 503 });
   const body = await req.json();
   const { action } = body;
 
@@ -188,6 +193,11 @@ export async function POST(req: NextRequest) {
 
 // ── Webhook Stripe → mise à jour automatique des statuts ────────────
 export async function PUT(req: NextRequest) {
+  // Stripe NEUTRALISÉ (18/11) : non utilisé, et ces routes acceptaient
+  // un montant fourni par le navigateur. Code conservé pour une future
+  // intégration sécurisée (montants calculés côté serveur, Stripe Connect
+  // uniquement après validation de la fondatrice).
+  if (process.env.STRIPE_ACTIF !== "true") return NextResponse.json({ error: "Paiement Stripe désactivé.", code: "STRIPE_DESACTIVE" }, { status: 503 });
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     return NextResponse.json({ error: "Webhook non configuré" }, { status: 500 });

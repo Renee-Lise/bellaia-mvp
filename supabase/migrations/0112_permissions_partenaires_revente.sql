@@ -35,6 +35,10 @@ create table if not exists public.bellaia_organisations (
   versements_actifs boolean not null default false,
   checklist jsonb not null default '{}'::jsonb,
   notes_partenaire text, notes_fondatrice text,
+  -- Situation professionnelle de la dirigeante (ex. agente publique) et
+  -- dispositif juridique envisagé : informations déclarées, à vérifier.
+  situation_dirigeante jsonb not null default '{}'::jsonb,
+  dispositif_envisage text,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 
@@ -195,6 +199,7 @@ alter table public.bellaia_missions add column if not exists organisation_id uui
 alter table public.bellaia_missions add column if not exists pieces_jointes jsonb not null default '[]'::jsonb;
 alter table public.bellaia_missions add column if not exists livrables jsonb not null default '[]'::jsonb;
 alter table public.bellaia_missions add column if not exists temps_passe_min integer;
+alter table public.bellaia_missions add column if not exists simulation boolean not null default false;
 
 alter policy missions_equipe on public.bellaia_missions using (public.a_permission('missions.gerer')) with check (public.a_permission('missions.gerer'));
 
@@ -296,7 +301,7 @@ alter policy bellaia_commandes_creer on public.bellaia_commandes with check (pub
 create table if not exists public.bellaia_autorisations (
   id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references public.bellaia_organisations(id) on delete cascade,
-  fonction text not null check (fonction in ('patisserie','assistante','hotesse','aide_cuisine','autre')),
+  fonction text not null check (fonction in ('patisserie','assistante_cuisine','hotesse')),
   statut text not null default 'a_demander' check (statut in ('a_demander','demandee','accordee','refusee','expiree','non_requise')),
   type_autorisation text, organisme text, date_demande date, date_delivrance date, date_fin date,
   activites_autorisees text, restrictions text, document_id uuid,
@@ -371,6 +376,25 @@ begin
 end $$;
 drop trigger if exists trg_organisation_controle on public.bellaia_organisations;
 create trigger trg_organisation_controle before insert or update on public.bellaia_organisations for each row execute function public.organisation_controle();
+
+-- Une mission confiée à une PARTENAIRE reste en simulation tant que
+-- l'autorisation de la fonction concernée n'est pas accordée ET validée
+-- par la fondatrice. Une fonction validée n'active jamais les autres.
+create or replace function public.mission_controle_autorisation() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare f text; org uuid;
+begin
+  if new.assigne_a is null then new.simulation := false; return new; end if;
+  select r.organisation_id into org from public.bellaia_roles r join public.bellaia_organisations o on o.id = r.organisation_id
+   where r.user_id = new.assigne_a and r.statut = 'actif' and o.type = 'partenaire' limit 1;
+  if org is null then new.simulation := false; return new; end if;
+  f := case new.type when 'patisserie' then 'patisserie' when 'hotesse' then 'hotesse' else 'assistante_cuisine' end;
+  new.organisation_id := coalesce(new.organisation_id, org);
+  new.simulation := not exists (select 1 from public.bellaia_autorisations a where a.organisation_id = org and a.fonction = f and a.statut in ('accordee','non_requise') and a.validee_par_fondatrice);
+  return new;
+end $$;
+drop trigger if exists trg_mission_autorisation on public.bellaia_missions;
+create trigger trg_mission_autorisation before insert or update of assigne_a, type on public.bellaia_missions for each row execute function public.mission_controle_autorisation();
 
 -- ── D. Collection de revente ────────────────────────────────
 create table if not exists public.food_revente_produits (

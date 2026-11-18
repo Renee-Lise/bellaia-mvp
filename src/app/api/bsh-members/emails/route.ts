@@ -9,6 +9,7 @@
 // fondatrice/assistante. Jamais accessible au client final.
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { permisParId } from "@/lib/permissions";
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       .select("role")
       .eq("id", user.id)
       .single();
-    if (profErr || !profile || !["fondatrice", "assistante"].includes(profile.role)) {
+    if (profErr || !profile || !(await permisParId(sbAdmin, user.id, profile.role, "bsh.membres_emails", "BSH"))) {
       return NextResponse.json({ error: "Accès réservé à l'administration" }, { status: 403 });
     }
 

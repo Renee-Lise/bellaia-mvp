@@ -45,6 +45,19 @@ export async function POST(req: NextRequest) {
 
   const statut_bellaia = STATUT_MAP[sumup_status?.toUpperCase()] || "en_attente";
 
+  // Montant réellement payé (relu chez SumUp) comparé au montant ATTENDU
+  // enregistré par le serveur à la création : un écart bloque la
+  // validation (paiement modifié, partiel ou frauduleux) et est journalisé.
+  if (statut_bellaia === "reçu") {
+    const { data: attendu } = await SB.from("payments").select("montant,statut").eq("reference", ref || checkout_id).maybeSingle();
+    if (attendu?.statut === "reçu") return NextResponse.json({ received: true, deja_traite: true });
+    const ecart = attendu ? Math.abs(Math.round(Number(amount) * 100) - Math.round(Number(attendu.montant) * 100)) : null;
+    if (!attendu || ecart !== 0 || String(verifie.currency || "EUR").toUpperCase() !== "EUR") {
+      try { await SB.from("bellaia_journal").insert({ action: "paiement.anomalie", cible: ref || checkout_id, details: { paye: amount, devise: verifie.currency, attendu: attendu?.montant ?? null } }); } catch {}
+      return NextResponse.json({ received: true, anomalie: true }, { status: 202 });
+    }
+  }
+
   // Mettre à jour le paiement Bellaïa
   const { data: pmt } = await SB
     .from("payments")

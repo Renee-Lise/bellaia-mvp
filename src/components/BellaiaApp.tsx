@@ -1523,7 +1523,8 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
   const [cart, setCart] = useState([]);
   const [fav, setFav] = useState([]);
   const [modal, setModal] = useState(null);
-  const [pmtChoisi, setPmtChoisi] = useState("Stripe");
+  // Stripe neutralisé (18/11) : SumUp par défaut, montant recalculé par le serveur.
+  const [pmtChoisi, setPmtChoisi] = useState("SumUp");
   const [nomClient, setNomClient] = useState("");
   const cartN = cart.reduce((s,i) => s+i.qty, 0);
   const cartT = cart.reduce((s,i) => s+(i.promo||i.prix)*i.qty, 0);
@@ -1609,9 +1610,10 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
         const r = await fetch("/api/payments/sumup/create-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          // Le serveur recalcule le montant depuis le catalogue (jamais celui du navigateur).
           body: JSON.stringify({
-            montant: totalSel, description: `Commande BSH ${id}`,
-            univers: "BSH", items: selectionnes.map(i=>({nom:i.name,qty:i.qty,prix:(i.promo||i.prix)})),
+            source: "panier", univers: "BSH", reference_client: id,
+            items: selectionnes.map(i=>({id:i.id,qte:i.qty})),
           }),
         });
         const d = await r.json();
@@ -2095,7 +2097,7 @@ function ClientOdyssee({user, rdvs, onBack}) {
     const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!sbUrl || !sbKey) return;
     let actif = true;
-    fetch(`${sbUrl}/rest/v1/stocks?univers=eq.ODYSSEE&statut=eq.actif&select=id,nom,categorie,notes,prix_vente,image_url&order=categorie.asc,nom.asc&limit=100`, {
+    fetch(`${sbUrl}/rest/v1/v_catalogue_public?univers=eq.ODYSSEE&statut=eq.actif&select=id,nom,categorie,notes,prix_vente,image_url&order=categorie.asc,nom.asc&limit=100`, {
       headers: { apikey: sbKey, Authorization: "Bearer " + sbKey },
     }).then(r => r.ok ? r.json() : [])
       .then(d => { if (actif) setProduitsVente(Array.isArray(d) ? d : []); })
@@ -2131,7 +2133,7 @@ function ClientOdyssee({user, rdvs, onBack}) {
       try {
         const r = await fetch("/api/payments/sumup/create-checkout", {
           method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ montant:p.prix_vente, description:p.nom, univers:"ODYSSEE" }),
+          body: JSON.stringify({ source:"panier", univers:"ODYSSEE", items:[{id:p.id,qte:1}] }),
         });
         const d = await r.json();
         if (r.ok && d.url) { window.open(d.url, "_blank"); setCommandeVenteLoading(null); return; }
@@ -4103,6 +4105,9 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r, filtre = "") {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    // `table` peut changer (catalogue public → table complète quand la
+    // fondatrice se connecte) : une lecture devenue périmée est ignorée.
+    let actif = true;
     // Essayer Supabase d'abord
     const load = async () => {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -4134,12 +4139,14 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r, filtre = "") {
             // la vraie base était vide (constaté en diagnostiquant
             // pourquoi /bsh/boutique restait vide malgré des policies et
             // des colonnes pourtant correctes).
+            if (!actif) return;
             setData(rows.map(mapRow));
             setLoaded(true);
             return;
           }
         }
       } catch {}
+      if (!actif) return;
       // Fallback localStorage — uniquement si la requête a vraiment
       // échoué (réseau, erreur HTTP), jamais sur un succès vide.
       try {
@@ -4149,7 +4156,8 @@ function useBSHSupabase(table, localKey, init, mapRow = r => r, filtre = "") {
       setLoaded(true);
     };
     load();
-  }, []);
+    return () => { actif = false; };
+  }, [table, filtre]);
 
   // Sauvegarder en localStorage à chaque changement (cache local)
   useEffect(() => {
@@ -13283,8 +13291,9 @@ function BoutonSumup({ montant, description, commande_id, client_id, univers, di
     try {
       const r = await fetch("/api/payments/sumup/create-checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ montant, description, commande_id, client_id, univers }),
+        // Lien de paiement à montant libre : réservé à la fondatrice (vérifié par le serveur).
+        headers: { "Content-Type": "application/json", Authorization: "Bearer "+(await getTokenAsync()) },
+        body: JSON.stringify({ source: "lien", montant, description, univers }),
       });
       const d = await r.json();
       if (d.url) window.location.href = d.url;
@@ -14382,7 +14391,9 @@ export default function BellaiaApp() {
   }, [preview]);
 
   // BSH — Supabase avec fallback localStorage
-  const [bshProd, setBshProd] = useBSHSupabase("stocks", "b5:bsh:prod", PRODS_BSH_INIT,
+  // Clientes et visiteurs : vue catalogue publique (SANS prix d'achat).
+  // Fondatrice : table complète (prix d'achat nécessaire aux marges).
+  const [bshProd, setBshProd] = useBSHSupabase((user as any)?.role === "fondatrice" ? "stocks" : "v_catalogue_public", (user as any)?.role === "fondatrice" ? "b5:bsh:prod" : "b5:bsh:prod:public", PRODS_BSH_INIT,
     r => ({
       id: r.id, name: r.nom, cat: r.categorie || "Lingerie",
       ico: "✨", image: r.image_url || null, prix: parseFloat(r.prix_vente) || 0,

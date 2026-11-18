@@ -62,6 +62,14 @@ export async function POST(req: NextRequest) {
       const montant    = Number(checkout.amount) || 0;
       const devise     = checkout.currency || "EUR";
 
+      // Montant payé (SumUp) = montant attendu (serveur) ? Sinon : anomalie.
+      const { data: attendu } = await SB.from("payments").select("montant").eq("reference", reference).maybeSingle();
+      if (!attendu || Math.round(montant * 100) !== Math.round(Number(attendu.montant) * 100) || String(devise).toUpperCase() !== "EUR") {
+        try { await SB.from("bellaia_journal").insert({ action: "paiement.anomalie", cible: reference, details: { paye: montant, devise, attendu: attendu?.montant ?? null } }); } catch {}
+        await SB.from("webhook_logs").update({ statut: "anomalie", traite_le: now }).eq("event_id", checkout_id);
+        return NextResponse.json({ ok: true, anomalie: true }, { status: 202 });
+      }
+
       // Récupérer le paiement Supabase
       const { data: pmt } = await SB.from("payments")
         .select("id,client_id,client_email,facture_id,univers,commande_id,notes")
