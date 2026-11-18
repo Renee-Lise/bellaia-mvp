@@ -145,7 +145,25 @@ export type Calque = {
   image?: { url: string; ajustement?: "cover" | "contain"; /** Masque par forme (photo ronde, fanion…) */ masque?: "rect" | "ellipse" | "triangle" | "triangle_bas" };
   forme?: { forme: "rect" | "ellipse" | "triangle" | "triangle_bas" | "ligne"; remplissage: string; contour?: string; epaisseur?: number; rayon?: number };
 };
-export type ContenuPapeterie = { fond: string; calques: Calque[]; reperes?: { zone_sure_mm?: number; pliage?: { orientation: "h" | "v"; position_mm: number }[] } };
+/** Trait technique d'un patron : coupe (noir plein), pli (pointillé), collage (zone hachurée). */
+export type Trait = { type: "coupe" | "pli" | "collage"; points: [number, number][]; ferme?: boolean };
+export type ContenuPapeterie = { fond: string; calques: Calque[]; reperes?: { zone_sure_mm?: number; pliage?: { orientation: "h" | "v"; position_mm: number }[]; traits?: Trait[] };
+  /** true : seules les zones (textes, images nommés) se modifient ; le reste est figé */ remplissage?: boolean; parametres?: any };
+
+/** Dessine les traits techniques (coupe, pli, collage) d'un patron. */
+export function dessinerTraits(ctx: CanvasRenderingContext2D, traits: Trait[]) {
+  for (const t of traits) {
+    if (t.points.length < 2) continue;
+    ctx.save();
+    ctx.beginPath();
+    t.points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    if (t.ferme) ctx.closePath();
+    if (t.type === "collage") { ctx.fillStyle = "rgba(120,120,120,0.18)"; ctx.fill(); ctx.setLineDash([1, 1]); ctx.strokeStyle = "#888"; ctx.lineWidth = 0.25; ctx.stroke(); }
+    else if (t.type === "pli") { ctx.setLineDash([2, 1.5]); ctx.strokeStyle = "#555"; ctx.lineWidth = 0.3; ctx.stroke(); }
+    else { ctx.setLineDash([]); ctx.strokeStyle = "#000"; ctx.lineWidth = 0.3; ctx.stroke(); }
+    ctx.restore();
+  }
+}
 
 export const POLICES = [
   "Georgia", "Inter", "Playfair Display", "Cormorant Garamond", "Poppins", "Fredoka", "Pacifico", "Dancing Script", "Great Vibes", "Amatic SC", "Arial", "Courier New",
@@ -215,7 +233,7 @@ export function tracerForme(ctx: CanvasRenderingContext2D, forme: string, x: num
 }
 
 // Rendu d'une création sur un canvas (unités : mm × pxParMm)
-export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: number, pxParMm: number, ctxCible?: CanvasRenderingContext2D, ox = 0, oy = 0) {
+export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: number, pxParMm: number, ctxCible?: CanvasRenderingContext2D, ox = 0, oy = 0, options: { traits?: boolean } = {}) {
   const c = ctxCible ? null : document.createElement("canvas");
   if (c) { c.width = Math.round(L * pxParMm); c.height = Math.round(H * pxParMm); }
   const ctx = ctxCible || c!.getContext("2d")!;
@@ -266,6 +284,7 @@ export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: numbe
     }
     ctx.restore();
   }
+  if (options.traits && doc.reperes?.traits?.length) dessinerTraits(ctx, doc.reperes.traits);
   ctx.restore();
   return c;
 }
@@ -313,9 +332,10 @@ export function pxParMmExport(L: number, H: number) {
 }
 
 // Imposition : autant d'exemplaires que possible sur A4, avec traits de coupe
-export async function rendreImpositionA4(doc: ContenuPapeterie, L: number, H: number) {
-  const marge = 8, ecart = 4;
-  const essais = [{ W: 210, Hp: 297 }, { W: 297, Hp: 210 }].map(f => {
+export async function rendreImpositionA4(doc: ContenuPapeterie, L: number, H: number, options: { traits?: boolean } = {}) {
+  const ecart = 4;
+  // Marge 8 mm, réduite à 5 mm si la pièce (ex. un patron de boîte) ne tient qu'ainsi
+  const essais = [8, 5].flatMap(marge => [{ W: 210, Hp: 297, marge }, { W: 297, Hp: 210, marge }]).map(f => { const marge = f.marge;
     const nx = Math.max(0, Math.floor((f.W - 2 * marge + ecart) / (L + ecart))), ny = Math.max(0, Math.floor((f.Hp - 2 * marge + ecart) / (H + ecart)));
     return { ...f, nx, ny, n: nx * ny };
   }).sort((a, b) => b.n - a.n);
@@ -329,7 +349,7 @@ export async function rendreImpositionA4(doc: ContenuPapeterie, L: number, H: nu
   const x0 = (f.W - (f.nx * L + (f.nx - 1) * ecart)) / 2, y0 = (f.Hp - (f.ny * H + (f.ny - 1) * ecart)) / 2;
   for (let j = 0; j < f.ny; j++) for (let i = 0; i < f.nx; i++) {
     const x = x0 + i * (L + ecart), y = y0 + j * (H + ecart);
-    await rendreSurCanvas(doc, L, H, k, ctx, x * k, y * k);
+    await rendreSurCanvas(doc, L, H, k, ctx, x * k, y * k, options);
     ctx.save(); ctx.strokeStyle = "#999"; ctx.lineWidth = 0.2 * k;
     const m = 2.5 * k; const X = x * k, Y = y * k, XW = (x + L) * k, YH = (y + H) * k;
     // Traits de coupe aux 4 coins, à l'extérieur du support

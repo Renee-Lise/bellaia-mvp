@@ -7548,19 +7548,31 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
 function DocumentsBSHWrapper() {
   const [Comp, setComp] = React.useState(null);
   React.useEffect(() => {
-    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default));
+    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
   return <Comp moduleInitial="BSH"/>;
 }
 
 // ── Wrapper BSH Secret Circle & Experiences
+// Après une mise en ligne, une page restée ouverte réclame d'anciens
+// fichiers JavaScript qui n'existent plus ("Loading chunk … failed") :
+// on recharge alors la page une fois (garde anti-boucle en sessionStorage).
+function rechargerSiVersionObsolete(e) {
+  const msg = String(e?.message || e || "");
+  if (typeof window !== "undefined" && /Loading chunk|ChunkLoadError|dynamically imported module|Importing a module script failed/i.test(msg)) {
+    try { if (!sessionStorage.getItem("bellaia-rechargement")) { sessionStorage.setItem("bellaia-rechargement", "1"); window.location.reload(); return true; } } catch {}
+  }
+  return false;
+}
+if (typeof window !== "undefined") window.addEventListener("load", () => setTimeout(() => { try { sessionStorage.removeItem("bellaia-rechargement"); } catch {} }, 15000));
+
 // ── BSH Secret Agenda & Rewards (cahier des charges du 17/11) — chargé à la demande
 function BshAgendaWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
   const [err, setErr] = React.useState("");
   React.useEffect(() => {
-    import("../modules/bshAgenda/BshAgendaHub").then(m => setComp(()=>m.default)).catch(e => setErr(String(e?.message||e)));
+    import("../modules/bshAgenda/BshAgendaHub").then(m => setComp(()=>m.default)).catch(e => { if (!rechargerSiVersionObsolete(e)) setErr(String(e?.message||e)); });
   }, []);
   if (err) return <div style={{color:"#f87171",fontSize:12,padding:16}}>⚠️ Chargement impossible : {err}</div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du Secret Agenda…</div>;
@@ -7570,7 +7582,7 @@ function BshAgendaWrapper() {
 function ExperiencesBSHWrapper() {
   const [Comp, setComp] = React.useState(null);
   React.useEffect(() => {
-    import("../modules/bshExperiences/BshExperiencesF").then(m => setComp(()=>m.default));
+    import("../modules/bshExperiences/BshExperiencesF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement BSH Experiences…</div>;
   return <Comp/>;
@@ -7580,7 +7592,7 @@ function ExperiencesBSHWrapper() {
 function IdentiteVisuelleWrapper() {
   const [Comp, setComp] = React.useState(null);
   React.useEffect(() => {
-    import("../modules/identite/IdentiteVisuelleF").then(m => setComp(()=>m.default));
+    import("../modules/identite/IdentiteVisuelleF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement…</div>;
   return <Comp/>;
@@ -14246,7 +14258,7 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
 function ComptaWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/compta/ComptaF").then(m => setComp(()=>m.default));
+    import("../modules/compta/ComptaF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Pré-comptabilité…</div>;
   return <Comp user={user}/>;
@@ -14270,7 +14282,7 @@ function StudioIAWrapper({ user }: any) {
 function CalculateurWrapper({ pole, onPrixRetenu, prixFournisseurInitial }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/CalculateurUI").then(m => setComp(()=>m.default));
+    import("../modules/core/CalculateurUI").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement calculateur…</div>;
   return <Comp pole={pole} onPrixRetenu={onPrixRetenu} prixFournisseurInitial={prixFournisseurInitial}/>;
@@ -14286,7 +14298,7 @@ function EventsModuleLazy({ nom }: { nom: "preparation" | "papeterie" | "mediath
     const imp = nom === "preparation" ? import("../modules/events/EventsPreparation")
       : nom === "papeterie" ? import("../modules/events/EventsAtelierPapeterie")
       : import("../modules/events/EventsMediatheque");
-    imp.then(m => setComp(() => m.default)).catch(e => setErr(String(e?.message || e)));
+    imp.then(m => setComp(() => m.default)).catch(e => { if (!rechargerSiVersionObsolete(e)) setErr(String(e?.message || e)); });
   }, [nom]);
   if (err) return <div style={{color:"#f87171",fontSize:12,padding:16}}>⚠️ Chargement impossible : {err}</div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement…</div>;
@@ -14297,7 +14309,7 @@ function EventsModuleLazy({ nom }: { nom: "preparation" | "papeterie" | "mediath
 function FoodWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/food/FoodF").then(m => setComp(()=>m.default));
+    import("../modules/food/FoodF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella\'Food…</div>;
   return <Comp user={user}/>;
@@ -14307,7 +14319,7 @@ function FoodWrapper({ user }: any) {
 function CatalogueAdminWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/CatalogueAdmin").then(m => setComp(()=>m.default));
+    import("../modules/core/CatalogueAdmin").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Catalogue…</div>;
   return <Comp user={user}/>;
@@ -14317,7 +14329,7 @@ function CatalogueAdminWrapper({ user }: any) {
 function StockCentralWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/BellaiaStocks").then(m => setComp(()=>m.default));
+    import("../modules/core/BellaiaStocks").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Stock central…</div>;
   return <Comp user={user}/>;
@@ -14327,7 +14339,7 @@ function StockCentralWrapper({ user }: any) {
 function WorkflowERPWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/BellaWorkflowF").then(m => setComp(()=>m.default));
+    import("../modules/core/BellaWorkflowF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Workflow…</div>;
   return <Comp user={user}/>;
@@ -14338,7 +14350,7 @@ function WorkflowERPWrapper({ user }: any) {
 function CRMWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/crm/ClientCenter").then(m => setComp(()=>m.default));
+    import("../modules/crm/ClientCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement CRM…</div>;
   return <Comp user={user}/>;
@@ -14348,7 +14360,7 @@ function CRMWrapper({ user }: any) {
 function RechercheWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/search/GlobalSearch").then(m => setComp(()=>m.default));
+    import("../modules/search/GlobalSearch").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Recherche…</div>;
   return <Comp profil="fondatrice"/>;
@@ -14358,7 +14370,7 @@ function RechercheWrapper({ user }: any) {
 function MessagerieWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default));
+    import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement messagerie…</div>;
   return <Comp user={user}/>;
@@ -14368,7 +14380,7 @@ function MessagerieWrapper({ user }: any) {
 function DocumentsWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default));
+    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
   return <Comp user={user}/>;
@@ -14378,7 +14390,7 @@ function DocumentsWrapper({ user }: any) {
 function EditorialWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/editorial/GenerateurEditorial").then(m => setComp(()=>m.default));
+    import("../modules/editorial/GenerateurEditorial").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Éditorial…</div>;
   return <Comp user={user}/>;
@@ -14388,7 +14400,7 @@ function EditorialWrapper({ user }: any) {
 function OdysseeWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/odyssee/OdysseeF").then(m => setComp(()=>m.default));
+    import("../modules/odyssee/OdysseeF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Odyssée…</div>;
   return <Comp user={user}/>;
@@ -14398,7 +14410,7 @@ function OdysseeWrapper({ user }: any) {
 function ViloWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/vilo/ViloF").then(m => setComp(()=>m.default));
+    import("../modules/vilo/ViloF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Vilo'Assistance…</div>;
   return <Comp user={user}/>;
@@ -14408,7 +14420,7 @@ function ViloWrapper({ user }: any) {
 function EditionsWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/editions/EditionsF").then(m => setComp(()=>m.default));
+    import("../modules/editions/EditionsF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Studio Éditions…</div>;
   return <Comp user={user}/>;
@@ -14418,7 +14430,7 @@ function EditionsWrapper({ user }: any) {
 function MoTiPeyiWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/motipy").then(m => setComp(()=>m.default));
+    import("../modules/motipy").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Mo Ti-Péyi…</div>;
   return <Comp user={user}/>;

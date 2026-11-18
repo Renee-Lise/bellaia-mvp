@@ -16,6 +16,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import EventsMediatheque from "./EventsMediatheque";
 import { composerPieces, type BriefKit } from "./kitComposer";
+import { patronPopcorn, patronGable } from "./patronsBoites";
 import {
   sbSelect, sbInsert, sbUpdate, sbDelete, uploadStorage, compresserImage, slug,
   chargerPolices, POLICES, rendreSurCanvas, mesurerTexte, TAILLE_MIN_LISIBLE, canvasVersPdf, pxParMmExport, rendreImpositionA4, partagerFichier, telecharger,
@@ -77,6 +78,7 @@ function Apercu({ c, largeurPx }: { c: Creation; largeurPx: number }) {
   return (
     <svg viewBox={`0 0 ${L} ${H}`} width={L * k} height={H * k} style={{ display: "block", background: c.contenu?.fond || "#fff", borderRadius: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.35)" }}>
       {(c.contenu?.calques || []).map(x => <CalqueSvg key={x.id} k={x} editeur />)}
+      {(c.contenu?.reperes?.traits || []).filter(t => t.type !== "collage").map((t, i) => <polyline key={i} points={(t.ferme ? [...t.points, t.points[0]] : t.points).map(p => p.join(",")).join(" ")} fill="none" stroke={t.type === "coupe" ? "#000" : "#999"} strokeWidth={t.type === "coupe" ? 0.6 : 0.4} strokeDasharray={t.type === "pli" ? "2 1.5" : undefined} />)}
     </svg>
   );
 }
@@ -171,9 +173,24 @@ export default function EventsAtelierPapeterie() {
   };
 
   const creerLibre = async () => {
-    const L = Number(nouveau.l), H = Number(nouveau.h);
-    if (!nouveau.nom?.trim() || !(L > 0) || !(H > 0)) return;
-    const [row] = await sbInsert<Creation>("events_papeterie", { nom: nouveau.nom.trim(), type_support: "libre", largeur_mm: L, hauteur_mm: H, contenu: { fond: "#ffffff", calques: [], reperes: { zone_sure_mm: 3, pliage: [] } }, est_modele: !!nouveau.modele, collection: nouveau.modele ? nouveau.collection || "Mes patrons" : null, client_nom: nouveau.client || null, statut: "brouillon" });
+    const base = { est_modele: !!nouveau.modele, collection: nouveau.modele ? nouveau.collection || "Mes patrons" : null, client_nom: nouveau.client || null, statut: "brouillon" };
+    let ligne: any;
+    if (nouveau.type === "popcorn" || nouveau.type === "gable") {
+      const prm = paramsBoite(nouveau);
+      const g = nouveau.type === "popcorn" ? patronPopcorn(prm) : patronGable(prm);
+      ligne = { ...base, nom: nouveau.nom?.trim() || g.nom, type_support: g.type_support, largeur_mm: g.largeur_mm, hauteur_mm: g.hauteur_mm, contenu: g.contenu };
+    } else if (nouveau.type === "image") {
+      if (!nouveau.imageUrl) return setErreur("Choisis d'abord l'image du patron (médiathèque).");
+      const L = Number(nouveau.l) || 210, H = Math.round((L / (nouveau.ratio || 1)) * 10) / 10;
+      // L'image du modèle est figée ; seules les zones ajoutées ensuite (textes, images) se modifient.
+      ligne = { ...base, nom: nouveau.nom?.trim() || "Patron importé", type_support: "patron_importe", largeur_mm: L, hauteur_mm: H,
+        contenu: { fond: "#ffffff", remplissage: true, reperes: { zone_sure_mm: 3, pliage: [] }, calques: [{ id: nouvelId(), type: "image", zone: null, x: 0, y: 0, w: L, h: H, rotation: 0, verrou: true, image: { url: nouveau.imageUrl, ajustement: "cover" } }] } };
+    } else {
+      const L = Number(nouveau.l), H = Number(nouveau.h);
+      if (!nouveau.nom?.trim() || !(L > 0) || !(H > 0)) return;
+      ligne = { ...base, nom: nouveau.nom.trim(), type_support: "libre", largeur_mm: L, hauteur_mm: H, contenu: { fond: "#ffffff", calques: [], reperes: { zone_sure_mm: 3, pliage: [] } } };
+    }
+    const [row] = await sbInsert<Creation>("events_papeterie", ligne);
     setNouveau(null); await charger(); if (row) setOuverte(row);
   };
 
@@ -182,7 +199,7 @@ export default function EventsAtelierPapeterie() {
   const Carte = ({ c }: { c: Creation }) => (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 8, display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
       <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={() => setOuverte(c)}><Apercu c={c} largeurPx={110} /></div>
-      <div style={{ fontSize: 11, color: C.cream, fontWeight: 700, textAlign: "center", lineHeight: 1.25 }}>{nomCourt(c.nom)}</div>
+      <div style={{ fontSize: 11, color: C.cream, fontWeight: 700, textAlign: "center", lineHeight: 1.25, cursor: "pointer" }} onClick={() => setOuverte(c)}>{nomCourt(c.nom)}</div>
       <div style={{ fontSize: 10, color: C.muted }}>{Number(c.largeur_mm)} × {Number(c.hauteur_mm)} mm{!c.est_modele ? ` · ${c.statut}` : ""}</div>
       <div style={{ display: "flex", gap: 4 }}>
         <button style={{ ...bouton(), padding: "4px 8px", fontSize: 11 }} onClick={() => setOuverte(c)}>✏️</button>
@@ -201,7 +218,7 @@ export default function EventsAtelierPapeterie() {
         <button style={bouton(onglet === "packs")} onClick={() => setOnglet("packs")}>📚 Packs achetés</button>
         <div style={{ flex: 1 }} />
         <button style={bouton(true)} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", titre: "Joyeux anniversaire", message: "", banderoleTexte: "", banderoleMode: "lettres", police: "Playfair Display", couleurs: { fond: "#fdf6f0", principale: "#b5838d", accent: "#c9a84c", texte: "#2d2424" }, ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id), collection: collections[0] })} disabled={!patrons.length}>🎁 Créer mon kit</button>
-        <button style={bouton()} onClick={() => setNouveau({ nom: "", l: 210, h: 297 })}>+ Format libre</button>
+        <button style={bouton()} onClick={() => setNouveau({ nom: "", l: 210, h: 297, type: "libre" })}>+ Nouvelle création / patron</button>
       </div>
       {occupe && <div style={{ fontSize: 12, color: C.gold }}>⏳ {occupe}</div>}
       {erreur && <div style={{ fontSize: 12, color: C.rouge }}>⚠️ {erreur}</div>}
@@ -277,19 +294,74 @@ export default function EventsAtelierPapeterie() {
       )}
 
       {nouveau && (
-        <Feuille titre="Nouveau format libre" onFermer={() => setNouveau(null)}>
-          <input style={champ} placeholder="Nom (ex. Menu de table)" value={nouveau.nom} onChange={e => setNouveau({ ...nouveau, nom: e.target.value })} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        <Feuille titre="Nouvelle création" onFermer={() => setNouveau(null)}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 6 }}>
+            {([["libre", "📄 Page vierge"], ["popcorn", "🍿 Patron boîte popcorn"], ["gable", "🎁 Patron gable box"], ["image", "🖼️ Patron depuis une image"]] as const).map(([t, l]) => <button key={t} style={bouton((nouveau.type || "libre") === t)} onClick={() => setNouveau({ ...nouveau, type: t })}>{l}</button>)}
+          </div>
+          <input style={champ} placeholder={nouveau.type === "popcorn" || nouveau.type === "gable" ? "Nom (facultatif, sinon généré)" : "Nom (ex. Menu de table)"} value={nouveau.nom} onChange={e => setNouveau({ ...nouveau, nom: e.target.value })} />
+          {(nouveau.type === "popcorn" || nouveau.type === "gable") && <>
+            <div style={{ fontSize: 11, color: C.muted }}>Dimensions de la boîte MONTÉE, en mm : largeur de face × profondeur × hauteur{nouveau.type === "gable" ? " (+ hauteur du toit)" : ""}. Le patron (coupe, plis, rabats, collage) est calculé automatiquement. Fais un essai d'assemblage avant une production.</div>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${nouveau.type === "gable" ? 4 : 3},1fr)`, gap: 6 }}>
+              <input style={champ} type="number" placeholder="Largeur" value={nouveau.bl ?? (nouveau.type === "gable" ? 80 : 65)} onChange={e => setNouveau({ ...nouveau, bl: e.target.value })} />
+              <input style={champ} type="number" placeholder="Profondeur" value={nouveau.bp ?? (nouveau.type === "gable" ? 50 : 65)} onChange={e => setNouveau({ ...nouveau, bp: e.target.value })} />
+              <input style={champ} type="number" placeholder="Hauteur" value={nouveau.bh ?? (nouveau.type === "gable" ? 80 : 110)} onChange={e => setNouveau({ ...nouveau, bh: e.target.value })} />
+              {nouveau.type === "gable" && <input style={champ} type="number" placeholder="Toit" value={nouveau.bt ?? 45} onChange={e => setNouveau({ ...nouveau, bt: e.target.value })} />}
+            </div>
+            {(() => { const g = nouveau.type === "popcorn" ? patronPopcorn(paramsBoite(nouveau)) : patronGable(paramsBoite(nouveau)); const a4 = (g.largeur_mm <= 287 && g.hauteur_mm <= 200) || (g.largeur_mm <= 200 && g.hauteur_mm <= 287); const a3 = (g.largeur_mm <= 410 && g.hauteur_mm <= 287) || (g.largeur_mm <= 287 && g.hauteur_mm <= 410);
+              return <div style={{ fontSize: 11, color: a4 ? C.ok : C.gold }}>Patron à plat : {g.largeur_mm} × {g.hauteur_mm} mm → {a4 ? "tient sur une feuille A4" : a3 ? "nécessite une feuille A3 (ou réduis les dimensions)" : "plus grand qu'un A3 : réduis les dimensions ou imprime chez un imprimeur"}.</div>; })()}
+          </>}
+          {nouveau.type === "image" && <>
+            <div style={{ fontSize: 11, color: C.muted }}>Importe d'abord ton modèle (export PNG/JPG de Canva, scan…) dans la Médiathèque. Il devient le fond figé ; tu ajoutes ensuite par-dessus les zones de texte et d'image à remplir, puis tu l'enregistres comme patron.</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {nouveau.imageUrl && <img src={nouveau.imageUrl} alt="" style={{ width: 56, height: 56, objectFit: "contain", background: "#fff", borderRadius: 6 }} />}
+              <button style={bouton()} onClick={() => setNouveau({ ...nouveau, choixFond: true })}>{nouveau.imageUrl ? "Changer l'image" : "🖼️ Choisir l'image du modèle"}</button>
+            </div>
+            <input style={champ} type="number" placeholder="Largeur réelle imprimée (mm)" value={nouveau.l} onChange={e => setNouveau({ ...nouveau, l: e.target.value })} />
+            {nouveau.imageUrl && <div style={{ fontSize: 11, color: C.muted }}>Hauteur calculée d'après l'image : {Math.round((Number(nouveau.l) || 210) / (nouveau.ratio || 1))} mm.</div>}
+            {nouveau.choixFond && <Feuille titre="Image du modèle" onFermer={() => setNouveau({ ...nouveau, choixFond: false })}><EventsMediatheque mode="choisir" onChoisir={m => setNouveau({ ...nouveau, imageUrl: m.url, ratio: m.largeur && m.hauteur ? m.largeur / m.hauteur : 1, choixFond: false })} /></Feuille>}
+          </>}
+          {(!nouveau.type || nouveau.type === "libre") && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             <input style={champ} type="number" placeholder="Largeur mm" value={nouveau.l} onChange={e => setNouveau({ ...nouveau, l: e.target.value })} />
             <input style={champ} type="number" placeholder="Hauteur mm" value={nouveau.h} onChange={e => setNouveau({ ...nouveau, h: e.target.value })} />
-          </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{[["A4", 210, 297], ["A5", 148, 210], ["A6", 105, 148], ["Carré 10", 100, 100], ["Story", 108, 192]].map(([n, l, h]) => <button key={n as string} style={{ ...bouton(), padding: "3px 8px", fontSize: 11 }} onClick={() => setNouveau({ ...nouveau, l, h })}>{n}</button>)}</div>
+          </div>}
+          {(!nouveau.type || nouveau.type === "libre") && <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{[["A4", 210, 297], ["A5", 148, 210], ["A6", 105, 148], ["Carré 10", 100, 100], ["Story", 108, 192]].map(([n, l, h]) => <button key={n as string} style={{ ...bouton(), padding: "3px 8px", fontSize: 11 }} onClick={() => setNouveau({ ...nouveau, l, h })}>{n}</button>)}</div>}
           <input style={champ} placeholder="Client (facultatif)" value={nouveau.client || ""} onChange={e => setNouveau({ ...nouveau, client: e.target.value })} />
           <label style={{ fontSize: 12, color: C.cream, display: "flex", gap: 6 }}><input type="checkbox" checked={!!nouveau.modele} onChange={e => setNouveau({ ...nouveau, modele: e.target.checked })} /> C'est un nouveau patron réutilisable</label>
           {nouveau.modele && <input style={champ} placeholder="Collection (ex. Pack Baptême)" value={nouveau.collection || ""} onChange={e => setNouveau({ ...nouveau, collection: e.target.value })} />}
           <button style={bouton(true)} onClick={creerLibre}>Créer et ouvrir</button>
         </Feuille>
       )}
+    </div>
+  );
+}
+
+const paramsBoite = (n: any) => n.type === "gable"
+  ? { largeur: Number(n.bl) || 80, profondeur: Number(n.bp) || 50, hauteur: Number(n.bh) || 80, toit: Number(n.bt) || 45 }
+  : { largeur: Number(n.bl) || 65, profondeur: Number(n.bp) || 65, hauteur: Number(n.bh) || 110 };
+
+// ── Mode remplissage : la liste des zones à compléter ────────
+function ZonesARemplir({ doc, majCalque, choisirImage }: { doc: ContenuPapeterie; majCalque: (id: string, p: any, memo?: boolean) => void; choisirImage: (id: string) => void }) {
+  const zones = doc.calques.filter(k => k.zone && k.zone !== "FOND");
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.gold}55`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: C.gold }}>🔒 Mode remplissage — seules ces zones se modifient</div>
+      {zones.length === 0 && <div style={{ fontSize: 11, color: C.muted }}>Aucune zone définie. Passe en « 🔓 Édition libre », ajoute un texte ou une image, choisis « Zone … » dans ses propriétés, puis reviens en mode remplissage.</div>}
+      {zones.map(k => {
+        if (k.type === "texte" && k.texte) {
+          const m = mesurerTexte(k.texte, k.w, k.h);
+          return <div key={k.id} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <span style={lbl}>{k.zone}</span>
+            <textarea style={{ ...champ, minHeight: 36 }} value={k.texte.contenu} onChange={e => majCalque(k.id, { texte: { contenu: e.target.value } }, false)} />
+            {m.illisible ? <span style={{ fontSize: 10, color: C.rouge }}>⚠️ Trop long pour la zone ({m.taille.toFixed(1)} mm) : raccourcis le texte.</span> : m.reduit ? <span style={{ fontSize: 10, color: C.gold }}>Réduit à {m.taille.toFixed(1)} mm pour tenir.</span> : null}
+          </div>;
+        }
+        if (k.type === "image") return <div key={k.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {k.image?.url ? <img src={k.image.url} alt="" style={{ width: 44, height: 44, objectFit: "contain", background: "#fff", borderRadius: 6 }} /> : <span style={{ width: 44, height: 44, borderRadius: 6, border: `1px dashed ${C.border}` }} />}
+          <span style={{ ...lbl, flex: 1 }}>{k.zone}</span>
+          <button style={bouton()} onClick={() => choisirImage(k.id)}>{k.image?.url ? "Changer l'image" : "Choisir l'image"}</button>
+        </div>;
+        return null;
+      })}
     </div>
   );
 }
@@ -344,6 +416,11 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
   const [meta, setMeta] = useState({ nom: creation.nom, client_nom: creation.client_nom || "", statut: creation.statut });
   const [sel, setSel] = useState<string | null>(null);
   const [histo, setHisto] = useState<ContenuPapeterie[]>([]);
+  const [futur, setFutur] = useState<ContenuPapeterie[]>([]);
+  const [zoom, setZoom] = useState(1);
+  const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
+  const [avecTraits, setAvecTraits] = useState(true);
+  const [sauvegarde, setSauvegarde] = useState<"" | "en_cours" | "ok">("");
   const [modifie, setModifie] = useState(false);
   const [reperes, setReperes] = useState(true);
   const [choixImage, setChoixImage] = useState<null | "ajout" | "remplacer">(null);
@@ -360,21 +437,31 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
     ro.observe(el); setLargeurDispo(el.clientWidth);
     return () => ro.disconnect();
   }, []);
-  const echelle = Math.min(largeurDispo / L, (typeof window !== "undefined" ? window.innerHeight * 0.6 : 500) / H);
+  const echelle = Math.min(largeurDispo / L, (typeof window !== "undefined" ? window.innerHeight * 0.6 : 500) / H) * zoom;
+  const remplissage = !!doc.remplissage;
+  const traits = doc.reperes?.traits || [];
   const calque = doc.calques.find(k => k.id === sel) || null;
 
-  const memoriser = () => { setHisto(h => [...h.slice(-40), copie(doc)]); setModifie(true); };
+  const memoriser = () => { setHisto(h => [...h.slice(-40), copie(doc)]); setFutur([]); setModifie(true); };
   const changerDoc = (f: (d: ContenuPapeterie) => void, memo = true) => { if (memo) memoriser(); setDoc(d => { const n = copie(d); f(n); return n; }); setModifie(true); };
   const majCalque = (id: string, patch: any, memo = true) => changerDoc(d => { const k = d.calques.find(x => x.id === id); if (!k) return; Object.keys(patch).forEach(cle => { (k as any)[cle] = typeof patch[cle] === "object" && patch[cle] && !Array.isArray(patch[cle]) ? { ...(k as any)[cle], ...patch[cle] } : patch[cle]; }); }, memo);
-  const annuler = () => { if (!histo.length) return; setDoc(histo[histo.length - 1]); setHisto(h => h.slice(0, -1)); setModifie(true); };
+  const annuler = () => { if (!histo.length) return; setFutur(f => [...f, copie(doc)]); setDoc(histo[histo.length - 1]); setHisto(h => h.slice(0, -1)); setModifie(true); };
+  const retablir = () => { if (!futur.length) return; setHisto(h => [...h, copie(doc)]); setDoc(futur[futur.length - 1]); setFutur(f => f.slice(0, -1)); setModifie(true); };
+  // Alignement d'un élément sur la page (comme Canva)
+  const aligner = (ou: "g" | "c" | "d" | "h" | "m" | "b") => { if (!calque) return; const p: any = {};
+    if (ou === "g") p.x = 0; if (ou === "c") p.x = r1((L - calque.w) / 2); if (ou === "d") p.x = r1(L - calque.w);
+    if (ou === "h") p.y = 0; if (ou === "m") p.y = r1((H - calque.h) / 2); if (ou === "b") p.y = r1(H - calque.h);
+    majCalque(calque.id, p); };
 
   const pointMm = (e: React.PointerEvent | PointerEvent) => {
     const svg = svgRef.current!; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
     const p = pt.matrixTransform(svg.getScreenCTM()!.inverse()); return { x: p.x, y: p.y };
   };
   const debut = (e: React.PointerEvent, k: Calque, mode: "deplacer" | "taille") => {
-    e.stopPropagation(); setSel(k.id);
-    if (k.verrou) return;
+    e.stopPropagation();
+    if (remplissage && !k.zone) return; // élément figé du patron
+    setSel(k.id);
+    if (k.verrou || remplissage) return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     memoriser();
     const p = pointMm(e);
@@ -383,15 +470,21 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
   const bouge = (e: React.PointerEvent) => {
     const g = glisse.current; if (!g) return;
     const p = pointMm(e); const dx = p.x - g.px, dy = p.y - g.py;
-    if (g.mode === "deplacer") majCalque(g.id, { x: r1(g.x + dx), y: r1(g.y + dy) }, false);
+    if (g.mode === "deplacer") {
+      let x = g.x + dx, y = g.y + dy; const gd: { v?: number; h?: number } = {};
+      if (Math.abs(x + g.w / 2 - L / 2) < 1.5) { x = (L - g.w) / 2; gd.v = L / 2; }
+      if (Math.abs(y + g.h / 2 - H / 2) < 1.5) { y = (H - g.h) / 2; gd.h = H / 2; }
+      setGuides(gd); majCalque(g.id, { x: r1(x), y: r1(y) }, false);
+    }
     else majCalque(g.id, { w: r1(Math.max(2, g.w + dx)), h: r1(Math.max(2, g.h + dy)) }, false);
   };
-  const fin = () => { glisse.current = null; };
+  const fin = () => { glisse.current = null; setGuides({}); };
 
   useEffect(() => {
     const clavier = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement; if (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); annuler(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? retablir() : annuler(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); retablir(); return; }
       if (!sel) return;
       const pas = e.shiftKey ? 5 : 0.5;
       const k = doc.calques.find(x => x.id === sel); if (!k) return;
@@ -438,6 +531,15 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
       setModifie(false); setMessage("✅ Enregistré"); setTimeout(() => setMessage(""), 2000);
     } catch (e: any) { setMessage("⚠️ " + e.message); }
   };
+  useEffect(() => {
+    if (!modifie || creation.est_modele || glisse.current) return;
+    const t = setTimeout(async () => {
+      setSauvegarde("en_cours");
+      try { await sbUpdate("events_papeterie", creation.id, { contenu: doc, nom: meta.nom, client_nom: meta.client_nom || null, statut: meta.statut, updated_at: new Date().toISOString() }); setModifie(false); setSauvegarde("ok"); }
+      catch { setSauvegarde(""); }
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [doc, meta, modifie]);
   const fermer = () => { if (modifie && !confirm("Des modifications ne sont pas enregistrées. Quitter quand même ?")) return; onFermer(); };
 
   const exporter = async (format: "png" | "pdf" | "a4", action: "partager" | "telecharger") => {
@@ -446,11 +548,11 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
       const base = slug(meta.nom);
       let blob: Blob; let nom: string;
       if (format === "a4") {
-        const imp = await rendreImpositionA4(doc, L, H);
+        const imp = await rendreImpositionA4(doc, L, H, { traits: avecTraits });
         if (!imp) throw new Error("Ce format est plus grand qu'une feuille A4 : utilise « PDF taille réelle ».");
         blob = await canvasVersPdf([imp]); nom = `${base}-A4-x${imp.exemplaires}.pdf`;
       } else {
-        const cv = (await rendreSurCanvas(doc, L, H, pxParMmExport(L, H)))!;
+        const cv = (await rendreSurCanvas(doc, L, H, pxParMmExport(L, H), undefined, 0, 0, { traits: avecTraits && format !== "png" }))!;
         if (format === "png") { blob = await new Promise<Blob>((ok, ko) => cv.toBlob(b => b ? ok(b) : ko(new Error("PNG impossible")), "image/png")); nom = `${base}.png`; }
         else { blob = await canvasVersPdf([{ canvas: cv, largeurMm: L, hauteurMm: H }]); nom = `${base}.pdf`; }
       }
@@ -470,15 +572,20 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
         <button style={bouton()} onClick={fermer}>← Retour</button>
         <div style={{ flex: 1, minWidth: 140 }}>
           <input style={{ ...champ, fontWeight: 800, fontSize: 13 }} value={meta.nom} onChange={e => { setMeta({ ...meta, nom: e.target.value }); setModifie(true); }} />
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{L} × {H} mm{creation.est_modele ? " · PATRON D'ORIGINE" : ""}{modifie ? " · non enregistré" : ""}</div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{L} × {H} mm{creation.est_modele ? " · PATRON D'ORIGINE" : ""}{sauvegarde === "en_cours" ? " · enregistrement…" : modifie ? (creation.est_modele ? " · non enregistré" : " · modifications en attente") : sauvegarde === "ok" ? " · ✓ enregistré automatiquement" : ""}</div>
         </div>
-        <button style={bouton()} onClick={annuler} disabled={!histo.length}>↶</button>
+        <button style={bouton()} onClick={annuler} disabled={!histo.length} title="Annuler">↶</button>
+        <button style={bouton()} onClick={retablir} disabled={!futur.length} title="Rétablir">↷</button>
+        <button style={bouton(remplissage)} title="Mode remplissage : seules les zones (textes et images nommés) se modifient" onClick={() => { changerDoc(d => { d.remplissage = !d.remplissage; }); setSel(null); }}>{remplissage ? "🔒 Remplissage" : "🔓 Édition libre"}</button>
         <button style={bouton(true)} onClick={enregistrer}>💾 Enregistrer</button>
         {creation.est_modele && <button style={bouton(true)} onClick={async () => { const client = prompt("Nom du client :"); if (!client) return; await onDupliquer({ ...creation, contenu: doc }, { client }); }}>⧉ Dupliquer pour un client</button>}
       </div>
       {message && <div style={{ fontSize: 12, color: message.startsWith("⚠️") ? C.rouge : C.ok }}>{message}</div>}
 
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+      {remplissage && <ZonesARemplir doc={doc} majCalque={majCalque} choisirImage={(id) => { setSel(id); setChoixImage("remplacer"); }} />}
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+        <label style={{ ...bouton(), display: "flex", alignItems: "center", gap: 6 }}>🔍 <input type="range" min={0.5} max={3} step={0.1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 90 }} /> {Math.round(zoom * 100)} %</label>
+        {!remplissage && <>
         <button style={bouton()} onClick={() => ajouter("texte")}>T Texte</button>
         <button style={bouton()} onClick={() => setChoixImage("ajout")}>🖼️ Médiathèque</button>
         <button style={bouton()} onClick={() => refFichier.current?.click()}>📷 Depuis l'appareil</button>
@@ -486,10 +593,11 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
         <button style={bouton()} onClick={() => ajouter("forme")}>▭ Forme</button>
         <button style={bouton()} onClick={() => ajouter("forme", { forme: { forme: "ellipse", remplissage: "#f5d6dc", contour: "", epaisseur: 0 } })}>◯</button>
         <label style={{ ...bouton(), display: "flex", alignItems: "center", gap: 5 }}>Fond <input type="color" value={doc.fond || "#ffffff"} onChange={e => changerDoc(d => { d.fond = e.target.value; })} style={{ width: 24, height: 18, border: "none", background: "none", padding: 0 }} /></label>
+        </>}
         <button style={bouton(reperes)} onClick={() => setReperes(!reperes)}>📏 Repères</button>
       </div>
 
-      <div ref={boite} style={{ width: "100%", display: "flex", justifyContent: "center", background: "repeating-conic-gradient(#221f27 0% 25%, #1b1820 0% 50%) 50%/16px 16px", borderRadius: 12, padding: "14px 0", touchAction: "none" }}>
+      <div ref={boite} style={{ width: "100%", overflow: "auto", display: "flex", justifyContent: zoom > 1 ? "flex-start" : "center", background: "repeating-conic-gradient(#221f27 0% 25%, #1b1820 0% 50%) 50%/16px 16px", borderRadius: 12, padding: "14px 0", touchAction: "none" }}>
         <svg ref={svgRef} viewBox={`${-4} ${-4} ${L + 8} ${H + 8}`} width={(L + 8) * echelle * 0.94} height={(H + 8) * echelle * 0.94}
           onPointerMove={bouge} onPointerUp={fin} onPointerLeave={fin} onPointerDown={() => setSel(null)} style={{ display: "block", touchAction: "none", userSelect: "none" }}>
           <defs><clipPath id="clip-support"><rect x={0} y={0} width={L} height={H} /></clipPath></defs>
@@ -505,10 +613,15 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
           {reperes && <g pointerEvents="none">
             <rect x={0} y={0} width={L} height={H} fill="none" stroke="#000" strokeWidth={0.35} />
             <rect x={zs} y={zs} width={L - 2 * zs} height={H - 2 * zs} fill="none" stroke={C.bleu} strokeWidth={0.3} strokeDasharray="1.2 0.8" />
+            {traits.map((t, i) => t.type === "collage"
+              ? <polygon key={"t" + i} points={t.points.map(p => p.join(",")).join(" ")} fill="rgba(120,120,120,0.22)" stroke="#888" strokeWidth={0.25} strokeDasharray="1 1" />
+              : <polyline key={"t" + i} points={(t.ferme ? [...t.points, t.points[0]] : t.points).map(p => p.join(",")).join(" ")} fill="none" stroke={t.type === "coupe" ? "#000" : C.gold} strokeWidth={t.type === "coupe" ? 0.35 : 0.3} strokeDasharray={t.type === "pli" ? "2 1.5" : undefined} />)}
             {(doc.reperes?.pliage || []).map((p, i) => p.orientation === "h"
               ? <line key={i} x1={0} x2={L} y1={p.position_mm} y2={p.position_mm} stroke={C.gold} strokeWidth={0.35} strokeDasharray="1.5 1" />
               : <line key={i} y1={0} y2={H} x1={p.position_mm} x2={p.position_mm} stroke={C.gold} strokeWidth={0.35} strokeDasharray="1.5 1" />)}
           </g>}
+          {guides.v != null && <line x1={guides.v} x2={guides.v} y1={0} y2={H} stroke="#ec4899" strokeWidth={0.3} pointerEvents="none" />}
+          {guides.h != null && <line y1={guides.h} y2={guides.h} x1={0} x2={L} stroke="#ec4899" strokeWidth={0.3} pointerEvents="none" />}
           {calque && (
             <g transform={calque.rotation ? `rotate(${calque.rotation} ${calque.x + calque.w / 2} ${calque.y + calque.h / 2})` : undefined}>
               <rect x={calque.x} y={calque.y} width={calque.w} height={calque.h} fill="none" stroke="#7c3aed" strokeWidth={0.4} strokeDasharray="1 0.6" pointerEvents="none" />
@@ -517,19 +630,28 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
           )}
         </svg>
       </div>
-      {reperes && <div style={{ fontSize: 10, color: C.muted }}>Repères (jamais imprimés) : noir = coupe · bleu pointillé = zone sûre ({zs} mm) · doré pointillé = pliage. Double-clic sur un texte pour le modifier ; flèches du clavier pour ajuster (Maj = 5 mm).</div>}
+      {reperes && <div style={{ fontSize: 10, color: C.muted }}>Repères : noir = coupe · bleu pointillé = zone sûre ({zs} mm) · doré pointillé = pliage{traits.length ? " · gris hachuré = collage" : ""}. Les traits de coupe et de pli d'un patron peuvent être inclus dans le PDF (case ci-dessous). Double-clic sur un texte pour le modifier ; flèches du clavier pour ajuster (Maj = 5 mm).</div>}
 
       {/* Propriétés du calque sélectionné */}
       {calque ? (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.cream, flex: 1 }}>{calque.type === "texte" ? "Texte" : calque.type === "image" ? "Image" : "Forme"}{calque.zone ? ` · zone ${calque.zone}` : ""}</div>
+            {!remplissage && <select style={{ ...champ, width: "auto", fontSize: 11 }} title="Zone à remplir (mode remplissage, Créer mon kit)" value={calque.zone || ""} onChange={e => majCalque(calque.id, { zone: e.target.value || null })}>
+              <option value="">Pas une zone</option>{(calque.type === "image" ? ["IMAGE", "FOND", "LOGO"] : ["PRENOM", "AGE", "TITRE", "DATE", "LIEU", "RSVP", "MESSAGE", "TEXTE_LIBRE"]).map(z => <option key={z} value={z}>Zone {z}</option>)}
+            </select>}
+            {!remplissage && <>
             <button style={bouton()} title="Mettre devant" onClick={() => ordre(1)}>⬆</button>
             <button style={bouton()} title="Mettre derrière" onClick={() => ordre(-1)}>⬇</button>
             <button style={bouton()} title="Dupliquer" onClick={() => { const n = { ...copie(calque), id: nouvelId(), x: r1(calque.x + 3), y: r1(calque.y + 3) }; changerDoc(d => { d.calques.push(n); }); setSel(n.id); }}>⧉</button>
             <button style={bouton(!!calque.verrou)} title="Verrouiller" onClick={() => majCalque(calque.id, { verrou: !calque.verrou })}>{calque.verrou ? "🔒" : "🔓"}</button>
             <button style={bouton()} title="Supprimer" onClick={() => { changerDoc(d => { d.calques = d.calques.filter(x => x.id !== calque.id); }); setSel(null); }}>🗑</button>
+            </>}
           </div>
+          {!remplissage && <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            <span style={{ ...lbl, alignSelf: "center" }}>Aligner sur la page</span>
+            {([["g", "⇤ Gauche"], ["c", "↔ Centre"], ["d", "Droite ⇥"], ["h", "⤒ Haut"], ["m", "↕ Milieu"], ["b", "Bas ⤓"]] as const).map(([k, l]) => <button key={k} style={{ ...bouton(), padding: "4px 8px", fontSize: 11 }} onClick={() => aligner(k)}>{l}</button>)}
+          </div>}
 
           {calque.type === "texte" && calque.texte && (<>
             <textarea id="atelier-texte" style={{ ...champ, minHeight: 54, fontFamily: calque.texte.police }} value={calque.texte.contenu} onFocus={memoriser} onChange={e => majCalque(calque.id, { texte: { contenu: e.target.value } }, false)} />
@@ -593,6 +715,7 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
           </select>
         </div>
         <div style={lbl}>Imprimer · télécharger · partager</div>
+        {traits.length > 0 && <label style={{ fontSize: 12, color: C.cream, display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={avecTraits} onChange={e => setAvecTraits(e.target.checked)} /> Inclure les traits de coupe, de pli et la zone de collage dans le PDF (pour découper à la main)</label>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 6, alignItems: "center", fontSize: 12, color: C.cream }}>
           {([["pdf", "PDF taille réelle"], ["a4", "PDF sur A4 (plusieurs exemplaires + traits de coupe)"], ["png", "Image PNG 300 dpi"]] as const).map(([f, l]) => (
             <React.Fragment key={f}>
