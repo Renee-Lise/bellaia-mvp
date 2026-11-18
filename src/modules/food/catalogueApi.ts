@@ -144,7 +144,7 @@ export async function getCatalogueFoodPublic(): Promise<{ produits: ProduitPubli
   const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!SB_URL || !SB_KEY) return { produits: [], diagnostic: "Configuration manquante." };
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/catalogue_produits?business_unit=eq.FOOD&select=id,nom,categorie_slug,sous_categorie,description_courte,prix,tags,galerie_photos&order=ordre.asc,nom.asc&limit=200`, {
+    const r = await fetch(`${SB_URL}/rest/v1/v_catalogue_food_public?select=id,nom,categorie_slug,sous_categorie,description_courte,prix,tags,galerie_photos&order=ordre.asc,nom.asc&limit=200`, {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
       cache: "no-store",
     });
@@ -209,7 +209,7 @@ export async function getVariantesFoodPublic(produitIds: string[]): Promise<Vari
   if (!SB_URL || !SB_KEY || produitIds.length === 0) return [];
   try {
     const ids = produitIds.join(",");
-    const r = await fetch(`${SB_URL}/rest/v1/catalogue_variantes?produit_id=in.(${ids})&disponible=eq.true&select=id,produit_id,nom,prix&order=prix.asc`, {
+    const r = await fetch(`${SB_URL}/rest/v1/v_variantes_food_public?produit_id=in.(${ids})&select=id,produit_id,nom,prix&order=prix.asc`, {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
       cache: "no-store",
     });

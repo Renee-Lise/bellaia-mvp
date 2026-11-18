@@ -9,17 +9,16 @@
 --    par une simple ligne (aucune migration).
 --  • Vil'Dor Pâtisse est enregistrée comme pôle de type « partenaire »,
 --    relié à son organisation indépendante (non détenue par Bella'Studio).
---  • bellaia_missions.pole devient une référence (clé étrangère) vers
---    business_units.code, au lieu de la contrainte figée à 4 valeurs.
+--  • Nouvelle colonne bellaia_missions.univers = référence (clé
+--    étrangère) vers business_units.code. L'ancienne colonne « pole »
+--    (contrainte à 4 valeurs) est CONSERVÉE et remplie automatiquement
+--    pour compatibilité (FOOD / EVENTS / BSH, sinon STUDIO) : aucune
+--    suppression de règle ni de donnée.
 --  • L'existence d'un pôle n'accorde AUCUNE permission : les droits
 --    restent ceux de bellaia_permissions / bellaia_roles / autorisations.
 --  • Durée de mission (début / fin) ; une mission échue ne peut plus
 --    être avancée par la personne assignée.
--- ⚠️ Une seule opération de suppression : l'ancienne contrainte
---    bellaia_missions_pole_check (4 valeurs), REMPLACÉE dans la même
---    transaction par la clé étrangère. Aucune donnée supprimée.
---    Données existantes : missions aux pôles FOOD / EVENTS / BSH / STUDIO
---    (STUDIO est ajouté au référentiel avant la clé étrangère).
+-- Aucune suppression : uniquement des ajouts (colonnes, lignes, index).
 -- ═══════════════════════════════════════════════════════════
 
 -- Garde-fou : la référence exige des codes uniques (échec sans effet
@@ -42,9 +41,21 @@ select 'VILDOR', 'Vil''Dor Pâtisse', 'Entreprise partenaire indépendante (pât
 from public.bellaia_organisations o where o.nom_commercial = 'Vil''Dor Pâtisse'
 on conflict (code) do nothing;
 
--- Remplacement de la contrainte figée par la référence évolutive.
-alter table public.bellaia_missions drop constraint if exists bellaia_missions_pole_check;
-alter table public.bellaia_missions add constraint bellaia_missions_pole_fk foreign key (pole) references public.business_units(code) on update cascade;
+-- Référence évolutive (aucune liste figée) ; l'ancienne colonne suit.
+alter table public.bellaia_missions add column if not exists univers text references public.business_units(code) on update cascade;
+update public.bellaia_missions set univers = pole where univers is null and pole is not null;
+create or replace function public.mission_pole_compatible() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if new.univers is null then new.univers := coalesce(new.pole, 'GENERAL'); end if;
+  new.pole := case when new.univers in ('FOOD','EVENTS','BSH','STUDIO') then new.univers when new.univers = 'VILDOR' then 'FOOD' else 'STUDIO' end;
+  return new;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_mission_pole_compatible' and tgrelid = 'public.bellaia_missions'::regclass) then
+    create trigger trg_mission_pole_compatible before insert or update of univers, pole on public.bellaia_missions for each row execute function public.mission_pole_compatible();
+  end if;
+end $$;
 
 alter table public.bellaia_missions add column if not exists debut date;
 alter table public.bellaia_missions add column if not exists fin date;

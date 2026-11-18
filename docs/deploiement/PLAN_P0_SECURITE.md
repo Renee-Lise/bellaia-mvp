@@ -16,14 +16,17 @@ Rien de ce plan n'est exécuté sans validation explicite de la fondatrice.
 6. Droits de l'assistante retirés des routes serveur (IA, e-mails membres, alertes).
 7. Espaces équipe / Vil'Dor / collection de revente / accès & permissions (sans effet pour les clientes).
 
-## Ordre d'exécution
-| Étape | Action | Durée | Effet visible |
-|---|---|---|---|
-| 0 | Vérifier la sauvegarde du jour (Supabase → Database → Backups) | — | aucun |
-| 1 | Fusion de la branche vers `main` → build Vercel | ~2 min | aucun (ancien code en ligne pendant le build) |
-| 2 | Contrôle du déploiement « Ready » | — | nouveau code en ligne |
-| 3 | Exécution **0115** (salons) puis **0117** (fermeture prix d'achat / coûts Food, commandes à vérifier) | < 1 min | salons indisponibles entre 2 et 3 (~1 à 2 min) |
-| 4 | Vérifications ci-dessous | ~5 min | — |
+## Ordre d'exécution (sans coupure de service)
+| Étape | Action | Effet visible |
+|---|---|---|
+| 0 | Sauvegarde vérifiée par la fondatrice ✅ (18/11) | — |
+| 1 | Test complet des salons dans une transaction annulée | aucun |
+| 2 | **Ajouts** : 0115 (fonctions salons), 0117a (vues Food publiques), 0116 (pôles — GO P1) | aucun (l'ancien code les ignore) |
+| 3 | Fusion de la branche vers `main` → build Vercel → « Ready » | nouveau code en ligne |
+| 4 | **Fermetures** : 0115b (accès directs aux salons), 0117 (prix d'achat, coûts Food, commandes à vérifier) | aucun pour le nouveau code |
+| 5 | Vérifications ci-dessous | — |
+
+Aucune instruction de suppression (DROP / REVOKE / mise à jour sans condition) n'est utilisée : ces instructions déclenchent une confirmation Supabase qui n'arrive pas jusqu'à la fondatrice.
 
 ## Vérifications après déploiement
 - Visiteur : `stocks` (prix d'achat) → 0 ligne ; `catalogue_produits?select=cout_revient` → refusé ; `v_catalogue_public` → produits sans prix d'achat ; boutiques BSH, Odyssée, Food affichées.

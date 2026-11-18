@@ -21,10 +21,12 @@ const POLES_BASE: [string, string][] = [["FOOD", "🍃 Bella'Food · Vil'Dor"], 
 // Référentiel évolutif (business_units) dès que la migration 0116 est
 // appliquée (présence du pôle STUDIO) ; sinon les 4 pôles autorisés.
 let POLES: [string, string][] = POLES_BASE;
+let UNIVERS_ACTIF = false; // colonne « univers » disponible (migration 0116)
 async function chargerPoles() {
   try {
     const l = await sbSelect<any>("business_units", "select=code,nom,icone,statut&order=ordre.asc");
-    if (l.some((x: any) => x.code === "STUDIO")) POLES = l.filter((x: any) => x.statut !== "archive").map((x: any) => [x.code, `${x.icone || "•"} ${x.nom}`] as [string, string]);
+    if (l.some((x: any) => x.code === "STUDIO")) UNIVERS_ACTIF = true;
+    if (UNIVERS_ACTIF) POLES = l.filter((x: any) => x.statut !== "archive").map((x: any) => [x.code, `${x.icone || "•"} ${x.nom}`] as [string, string]);
   } catch {}
 }
 const TYPES: [string, string, string][] = [["patisserie", "🧁 Pâtisserie", C.orange], ["creation", "🎨 Création / Canva", C.violet], ["hotesse", "🥂 Hôtesse BSH", C.bleu], ["autre", "📋 Assistante / autre", C.doux]];
@@ -85,7 +87,7 @@ export default function EspaceEquipe({ user, role }: { user?: any; role?: string
     <div key={m.id} style={{ ...carte, borderLeft: `4px solid ${tc}`, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
       <button onClick={() => setEdit({ ...m })} style={{ all: "unset", cursor: "pointer", display: "block" }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 11, fontWeight: 800 }}>
-          <span style={{ color: tc }}>{tl}</span><span style={{ color: C.doux }}>· {POLES.find(p => p[0] === m.pole)?.[1]}</span>
+          <span style={{ color: tc }}>{tl}</span><span style={{ color: C.doux }}>· {POLES.find(p => p[0] === (m.univers || m.pole))?.[1] || m.univers || m.pole}</span>
           {m.priorite === 1 && <span style={{ color: C.rouge }}>· URGENT</span>}
           {m.simulation && <span style={{ color: C.orange, border: `1px solid ${C.orange}66`, borderRadius: 99, padding: "0 6px" }}>SIMULATION</span>}
           <span style={{ marginLeft: "auto", color: sc, border: `1px solid ${sc}66`, borderRadius: 99, padding: "1px 8px" }}>{sl}</span>
@@ -142,7 +144,7 @@ export default function EspaceEquipe({ user, role }: { user?: any; role?: string
 }
 
 function Editeur({ m, gere, fondatrice, user, membres, onRetour, onSauve }: any) {
-  const [e, setE] = useState<any>({ ...m });
+  const [e, setE] = useState<any>({ ...m, pole: m.univers || m.pole });
   const [fil, setFil] = useState<any[]>([]);
   const [commandes, setCommandes] = useState<any[]>([]);
   const [texte, setTexte] = useState("");
@@ -167,6 +169,7 @@ function Editeur({ m, gere, fondatrice, user, membres, onRetour, onSauve }: any)
         const ligne: any = {}; champs.forEach(k => { ligne[k] = x[k] === "" ? null : x[k] ?? null; });
         ligne.quantite = ligne.quantite != null ? Number(ligne.quantite) || null : null;
         ligne.temps_passe_min = ligne.temps_passe_min != null ? parseInt(ligne.temps_passe_min, 10) || null : null;
+        if (UNIVERS_ACTIF) { ligne.univers = x.pole; ligne.debut = x.debut || null; ligne.fin = x.fin || null; }
         if (x.id) await sbUpdate("bellaia_missions", x.id, { ...ligne, updated_at: new Date().toISOString() });
         else await sbInsert("bellaia_missions", { ...ligne, cree_par: user?.id });
       }
@@ -206,6 +209,8 @@ function Editeur({ m, gere, fondatrice, user, membres, onRetour, onSauve }: any)
         <div><div style={lbl}>Type</div><select style={champ} disabled={ro} value={e.type} onChange={x => setE({ ...e, type: x.target.value })}>{TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
         <div><div style={lbl}>Date</div><input type="date" style={champ} disabled={ro} value={e.date_prevue || ""} onChange={x => setE({ ...e, date_prevue: x.target.value })} /></div>
         <div><div style={lbl}>Heure</div><input style={champ} disabled={ro} value={e.heure || ""} onChange={x => setE({ ...e, heure: x.target.value })} placeholder="14h30" /></div>
+        {UNIVERS_ACTIF && <div><div style={lbl}>Début</div><input type="date" style={champ} disabled={ro} value={e.debut || ""} onChange={x => setE({ ...e, debut: x.target.value })} /></div>}
+        {UNIVERS_ACTIF && <div><div style={lbl}>Fin de mission</div><input type="date" style={champ} disabled={ro} value={e.fin || ""} onChange={x => setE({ ...e, fin: x.target.value })} /></div>}
         <div><div style={lbl}>Échéance</div><input type="date" style={champ} disabled={ro} value={e.echeance || ""} onChange={x => setE({ ...e, echeance: x.target.value })} /></div>
         <div><div style={lbl}>Priorité</div><select style={champ} disabled={ro} value={e.priorite || 2} onChange={x => setE({ ...e, priorite: Number(x.target.value) })}>{PRIOS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
         {e.type === "patisserie" && <div><div style={lbl}>Quantité</div><input inputMode="decimal" style={champ} disabled={ro} value={e.quantite ?? ""} onChange={x => setE({ ...e, quantite: x.target.value })} /></div>}

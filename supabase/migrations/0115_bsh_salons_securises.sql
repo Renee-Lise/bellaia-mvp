@@ -1,8 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0115_bsh_salons_securises.sql
--- STATUT: PRÉPARÉ — à exécuter AVEC le déploiement du nouveau code
--- (l'ancien écran des salons écrit directement dans les tables : il
--- cessera de fonctionner dès cette migration).
+-- STATUT: PRÉPARÉ — partie AJOUTS (colonnes, tables, fonctions), sans
+-- effet sur l'écran actuel : à exécuter AVANT la mise en ligne. La
+-- fermeture des accès directs est dans 0115b, APRÈS la mise en ligne.
 -- Objet : salons BSH Secret Games sécurisés, jeu sous pseudonyme SANS
 -- compte permanent, par participation temporaire :
 --  • chaque participant reçoit un JETON secret (seule son empreinte
@@ -49,13 +49,6 @@ do $$ begin
     create policy salon_signal_fondatrice on public.bsh_salon_signalements for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice());
   end if;
 end $$;
-
--- Plus d'accès direct (anonyme ou connecté) : uniquement les fonctions.
-alter policy bsh_salons_lecture_publique on public.bsh_salons using (false);
-alter policy bsh_salons_creation_publique on public.bsh_salons with check (false);
-alter policy bsh_salons_maj_publique on public.bsh_salons using (false) with check (false);
-alter policy bsh_salon_participants_lecture_publique on public.bsh_salon_participants using (false);
-alter policy bsh_salon_participants_creation_publique on public.bsh_salon_participants with check (false);
 
 create or replace function public.salon_empreinte(j text) returns text
 language sql immutable set search_path = public, extensions as $$ select encode(extensions.digest(coalesce(j, ''), 'sha256'), 'hex') $$;
