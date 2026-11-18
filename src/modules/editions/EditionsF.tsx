@@ -100,12 +100,21 @@ const FORM0: Partial<Contenu> = {
 function EbooksLazy() {
   const [M, setM] = useState<any>(null);
   const [vue, setVue] = useState<"textes" | "registre">("textes");
-  useEffect(() => { Promise.all([import("../histoires/HistoiresGestion"), import("../histoires/EditionsRegistre")]).then(([g, r]) => setM({ G: g.default, R: r.default })).catch(() => {}); }, []);
+  const [cols, setCols] = useState<any[]>([]);
+  useEffect(() => {
+    Promise.all([import("../histoires/HistoiresGestion"), import("../histoires/EditionsRegistre"), import("../events/eventsAtelierLib")]).then(async ([g, r, lib]) => {
+      setM({ G: g.default, R: r.default });
+      // Collections lues en base (aucun titre d'ouvrage dans le code public)
+      const t = await lib.sbSelect("histoires_tomes", "select=collection,collection_titre,volume&espace=eq.editions&order=volume.asc").catch(() => []);
+      const m = new Map<string, any>(); t.forEach((x: any) => { const e = m.get(x.collection) || { id: x.collection, titre: x.collection_titre, tomes: 0 }; e.tomes++; m.set(x.collection, e); });
+      setCols([...m.values()]);
+    }).catch(() => {});
+  }, []);
   if (!M) return <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
   const b = (on: boolean): React.CSSProperties => ({ padding:"7px 12px", borderRadius:9, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:SA, background: on ? CE.acc : "rgba(255,255,255,0.06)", color: on ? "#fff" : "rgba(255,255,255,0.6)" });
   return <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
     <div style={{ display:"flex", gap:6 }}><button style={b(vue==="textes")} onClick={() => setVue("textes")}>📖 Textes & chapitres</button><button style={b(vue==="registre")} onClick={() => setVue("registre")}>🗂 Registre des sources</button></div>
-    {vue === "textes" ? <M.G espace="editions" /> : <M.R collections={[{ id:"maman-femme-cheffe", titre:"Maman, Femme & Cheffe", tomes:3 }, { id:"papa-homme-leader", titre:"Papa, Homme & Leader", tomes:3 }, { id:"family-legacy", titre:"Family Legacy", tomes:3 }]} />}
+    {vue === "textes" ? <M.G espace="editions" /> : (cols.length ? <M.R collections={cols} /> : <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>Aucune collection.</div>)}
   </div>;
 }
 
