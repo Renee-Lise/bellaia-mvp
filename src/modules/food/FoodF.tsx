@@ -36,6 +36,7 @@ import FoodPertes       from "./FoodPertes";
 import FoodEtiquettes   from "./FoodEtiquettes";
 import FoodPredictif    from "./FoodPredictif";
 import FoodExports      from "./FoodExports";
+import ReventeCollection from "./ReventeCollection";
 
 type Section =
   | "dashboard" | "catalogue" | "recettes" | "recherche"
@@ -44,7 +45,7 @@ type Section =
   | "calculateur" | "import" | "courses" | "assistant"
   | "fournisseurs" | "achats"
   | "inventaire" | "production" | "haccp" | "alertes"
-  | "versions" | "pertes" | "etiquettes" | "predictif" | "exports";
+  | "versions" | "pertes" | "etiquettes" | "predictif" | "exports" | "revente";
 
 const NAV = [
   {groupe:"PILOTAGE",   items:[
@@ -55,6 +56,7 @@ const NAV = [
   ]},
   {groupe:"VENTES",     items:[
     {id:"commandes"    as Section, ico:"📋", label:"Commandes"},
+    {id:"revente"      as Section, ico:"🎄", label:"Collection saisonnière"},
     {id:"horaires"     as Section, ico:"⏰", label:"Horaires & quotas"},
     {id:"devis"        as Section, ico:"📄", label:"Devis"},
     {id:"menus"        as Section, ico:"🍽",  label:"Menus"},
@@ -101,7 +103,7 @@ export default function FoodF({ user }: { user?: any }) {
 
   const titres: Record<Section, string> = {
     dashboard:"Dashboard", catalogue:"Catalogue", recettes:"Recettes",
-    recherche:"Rechercher", commandes:"Commandes", horaires:"Horaires & quotas", devis:"Devis",
+    recherche:"Rechercher", commandes:"Commandes", revente:"Collection saisonnière (revente)", horaires:"Horaires & quotas", devis:"Devis",
     menus:"Menus", menu_jour:"Menu du jour", planning:"Planning", stocks:"Stocks",
     materiel:"Matériel", consommables:"Consommables",
     calculateur:"Calculateur", import:"Import recette",
@@ -185,6 +187,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="versions"      && <FoodVersions/>}
         {section==="recherche"     && <FoodRecherche/>}
         {section==="commandes"     && <FoodCommandes/>}
+        {section==="revente"       && <ReventeCollection/>}
         {section==="horaires" && <FoodHoraires/>}
         {section==="devis"         && <FoodDevis/>}
         {section==="menus"         && <FoodMenus/>}

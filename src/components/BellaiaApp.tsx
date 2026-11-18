@@ -13848,7 +13848,7 @@ const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] 
   {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
   {id:"g_clients",  ico:"👥", l:"Clients",      pages:[["crm","Clientes"],["crm_central","CRM central"]]},
   {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
-  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
+  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
   {id:"g_events",   ico:"✨", l:"Events",       pages:[["events","Bella'Even's"]]},
   {id:"g_food",     ico:"🍃", l:"Food",         pages:[["food","Bella'Food"]]},
   {id:"g_bsh",      ico:"✦",  l:"BSH",          pages:[["bsh","Bella'Secret Home"],["bsh_members","Membres"]]},
@@ -13860,11 +13860,10 @@ const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] 
 ];
 // Assistante (Bella'Food / Bella'Even's, hôtesse BSH) : son espace et ses pôles.
 const NAV_GROUPES_ASSISTANTE = [
-  {id:"g_equipe", ico:"🤝", l:"Mon espace", pages:[["equipe","Mes missions"]] as [string,string][]},
-  {id:"g_food",   ico:"🍃", l:"Food",       pages:[["food","Bella'Food"]] as [string,string][]},
-  {id:"g_events", ico:"✨", l:"Events",     pages:[["events","Bella'Even's"]] as [string,string][]},
-  {id:"g_orga",   ico:"📅", l:"Planning",   pages:[["planning","Planning"]] as [string,string][]},
-  {id:"g_msg",    ico:"💬", l:"Messages",   pages:[["messagerie","Messages"],["notifications","Notifications"]] as [string,string][]},
+  // Depuis le 18/11, une assistante n'a plus les droits de la fondatrice :
+  // seuls ses missions et ses messages lui sont ouverts (vérifié en base).
+  {id:"g_equipe", ico:"🤝", l:"Mes missions", pages:[["equipe","Mes missions"]] as [string,string][]},
+  {id:"g_msg",    ico:"💬", l:"Messages",     pages:[["messagerie","Messages"],["notifications","Notifications"]] as [string,string][]},
 ];
 const groupeDe = (groupes: typeof NAV_GROUPES, page: string) => groupes.find(g => g.pages.some(([id]) => id === page));
 
@@ -14230,6 +14229,35 @@ function MessagerieWrapper({ user }: any) {
 
 // ── Wrapper Documents / GED (docs module)
 // ── Administratif : devis, factures, bons, bordereaux, courriers
+// Chargement à la demande des écrans Équipe / Partenaires.
+function ModuleEquipe({ nom, props, libelle }: { nom: string; props: any; libelle: string }) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => {
+    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : import("../modules/equipe/AccesPermissions");
+    charge.then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+  }, [nom]);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement {libelle}…</div>;
+  return <Comp {...props}/>;
+}
+// Espace d'un compte PARTENAIRE : son espace professionnel s'il est relié
+// à une organisation (Vil'Dor Pâtisse), sinon l'ancien espace partenaire.
+function EspacePartenaireUnifie({ user, onLogout }: any) {
+  const [etat, setEtat] = React.useState<"charge"|"org"|"ancien">("charge");
+  React.useEffect(() => {
+    import("../modules/equipe/equipeLib").then(m => m.mesAcces()).then(a => setEtat(a.roles.some(r => r.organisation_id) ? "org" : "ancien")).catch(() => setEtat("ancien"));
+  }, []);
+  if (etat === "charge") return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:B.night,color:B.muted}}>Chargement…</div>;
+  if (etat === "ancien") return <EspacePartenaire user={user} onLogout={onLogout}/>;
+  return (
+    <div style={{minHeight:"100vh",background:B.night,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"calc(10px + env(safe-area-inset-top,0px)) 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep}}>
+        <div style={{display:"flex",alignItems:"center",gap:9}}><BellaiaLogo size={30}/><div style={{fontSize:13,fontWeight:900,color:B.cream,fontFamily:FS}}>Espace professionnel</div></div>
+        <button onClick={onLogout} style={{background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"6px 10px",color:B.muted,cursor:"pointer",fontSize:12,fontFamily:SA}}>Déconnexion</button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 12px 40px"}}><ModuleEquipe nom="EspaceVildor" props={{ user, mode: "partenaire" }} libelle="de votre espace"/></div>
+    </div>
+  );
+}
 function ActionsRequisesWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => { import("../modules/equipe/ActionsRequises").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
@@ -14514,7 +14542,7 @@ export default function BellaiaApp() {
     return <EspaceHote user={user} onLogout={deconnexion}/>;
   }
   if (espaceEffectif === "partenaire")
-    return <EspacePartenaire user={user} onLogout={deconnexion}/>;
+    return <EspacePartenaireUnifie user={user} onLogout={deconnexion}/>;
 
   // ── Espace Fondatrice
   const views = {
@@ -14525,6 +14553,8 @@ export default function BellaiaApp() {
     administratif: <AdministratifWrapper/>,
     actions:     <ActionsRequisesWrapper/>,
     equipe:      <EquipeWrapper user={user} role={role}/>,
+    partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
+    acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,
     calendrier:  <CalendrierP1 user={user}/>,
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,

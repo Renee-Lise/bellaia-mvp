@@ -1,0 +1,23 @@
+-- ═══════════════════════════════════════════════════════════
+-- 0113_donnees_vildor_revente.sql
+-- STATUT: VALIDÉ — exécuté et vérifié le 2026-11-18 (données)
+-- Saisie en BROUILLON, sans publication :
+--  • Organisation « Vil'Dor Pâtisse » : en création, ventes et
+--    versements désactivés ; situation de la dirigeante DÉCLARÉE par la
+--    fondatrice (fonction publique d'État, Éducation nationale,
+--    enseignante titulaire à temps complet, diplômée en pâtisserie) ;
+--    dispositif envisagé : cumul d'une activité accessoire (art. L. 123-7
+--    et R. 123-8, 11° CGFP) — autorisation non obtenue.
+--  • Trois autorisations distinctes « à demander » (pâtisserie ;
+--    assistante et aide en cuisine ; hôtesse BSH).
+--  • 14 références « Bûches de Noël & Galettes des Rois » : prix
+--    fournisseur et prix de revente PROPOSÉS (non confirmés), parfums
+--    vides, 14 allergènes « inconnu », aucune photo.
+--  • Actions requises : démarches Vil'Dor, validation des prix,
+--    fiches produits, cotisations, répartition des paiements, cadre des
+--    missions, fermeture de la lecture publique des prix d'achat.
+-- Aucun SIRET, agrément, document ou coordonnée bancaire inventé.
+-- Le contenu exact exécuté est conservé dans l'historique de session ;
+-- ces données vivent en base (rejouer = doublons évités par contraintes).
+-- ═══════════════════════════════════════════════════════════
+select 1;

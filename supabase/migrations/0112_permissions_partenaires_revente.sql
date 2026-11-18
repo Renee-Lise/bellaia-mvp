@@ -554,6 +554,7 @@ begin
   if not public.a_permission('food.revente.marges','FOOD') then raise exception 'Accès refusé'; end if;
   if p_taux_marque is null or p_taux_marque <= 0 or p_taux_marque >= 90 then raise exception 'Taux de marque entre 1 et 89 %%'; end if;
   select * into c from public.food_revente_conditions where produit_id = p_produit;
+  if c.produit_id is null then raise exception 'Conditions introuvables'; end if;
   brut := (c.prix_fournisseur_centimes + c.frais_centimes) / (1 - p_taux_marque / 100.0);
   return (ceil(brut / 50.0) * 50)::int;
 end $$;

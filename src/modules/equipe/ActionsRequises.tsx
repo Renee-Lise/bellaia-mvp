@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useMemo, useState } from "react";
 import { sbSelect, sbUpdate, sbInsert } from "../events/eventsAtelierLib";
+import { deposerPrive, ouvrirPrive, nomFichierSur } from "./equipeLib";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c", bleu: "#60a5fa" };
@@ -22,6 +23,7 @@ export default function ActionsRequises() {
   const [erreur, setErreur] = useState("");
   const [filtre, setFiltre] = useState<"ouvertes" | "toutes" | "faites">("ouvertes");
   const [univers, setUnivers] = useState("");
+  const [prio, setPrio] = useState(0);
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [brouillon, setBrouillon] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState("");
@@ -36,7 +38,17 @@ export default function ActionsRequises() {
 
   const listeUnivers = useMemo(() => Array.from(new Set(actions.map(a => a.univers))).sort(), [actions]);
   const visibles = actions.filter(a =>
-    (filtre === "toutes" || (filtre === "faites" ? a.statut === "fait" : a.statut !== "fait")) && (!univers || a.univers === univers));
+    (filtre === "toutes" || (filtre === "faites" ? a.statut === "fait" : a.statut !== "fait")) && (!univers || a.univers === univers) && (!prio || a.priorite === prio));
+  const titreDe = (cle: string) => actions.find(x => x.cle === cle)?.titre || cle;
+  const bloquePar = (a: any) => (a.depend_de || []).filter((c: string) => actions.some(x => x.cle === c && x.statut !== "fait"));
+  const joindre = async (a: any, f?: File) => {
+    if (!f) return;
+    try {
+      const chemin = `actions/${a.id}/${Date.now()}-${nomFichierSur(f.name)}`;
+      await deposerPrive(chemin, f, f.type);
+      await maj(a, { pieces_jointes: [...(a.pieces_jointes || []), { chemin, nom: f.name, le: new Date().toISOString() }] });
+    } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
+  };
   const nbOuvertes = actions.filter(a => a.statut !== "fait").length;
   const nbUrgentes = actions.filter(a => a.statut !== "fait" && a.priorite === 1).length;
 
@@ -74,6 +86,9 @@ export default function ActionsRequises() {
           <option value="">Tous les univers</option>
           {listeUnivers.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
+        <select style={{ ...champ, width: "auto", minWidth: 140 }} value={prio} onChange={e => setPrio(Number(e.target.value))}>
+          <option value={0}>Toutes priorités</option>{[1, 2, 3, 4].map(p => <option key={p} value={p}>{PRIO[p][0]}</option>)}
+        </select>
       </div>
       {msg && <div style={{ fontSize: 13, color: msg.startsWith("❌") ? C.rouge : C.ok }}>{msg}</div>}
       {charge && <div style={{ color: C.doux }}>Chargement…</div>}
@@ -89,7 +104,9 @@ export default function ActionsRequises() {
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: C.or, textTransform: "uppercase" }}>{a.univers}</span>
                 <span style={{ fontSize: 11, fontWeight: 800, color: pc, border: `1px solid ${pc}66`, borderRadius: 99, padding: "1px 8px" }}>{pl}</span>
-                <span style={{ fontSize: 11, color: C.doux }}>{STATUTS.find(s => s[0] === a.statut)?.[1]}</span>
+                <span style={{ fontSize: 11, color: C.doux }}>{STATUTS.find(s => s[0] === a.statut)?.[1]}{a.reponse && a.statut !== "fait" ? " · réponse partielle" : ""}</span>
+                {a.date_limite && <span style={{ fontSize: 11, fontWeight: 800, color: new Date(a.date_limite) < new Date() && a.statut !== "fait" ? C.rouge : C.doux }}>⏰ {new Date(a.date_limite + "T12:00").toLocaleDateString("fr-FR")}</span>}
+                {bloquePar(a).length > 0 && <span style={{ fontSize: 11, color: C.doux }}>🔗 après {bloquePar(a).length} action(s)</span>}
               </div>
               <div style={{ fontSize: 16, fontWeight: 800 }}>{a.titre}</div>
               {!ouv && <div style={{ fontSize: 13, color: C.doux, marginTop: 4, lineHeight: 1.45 }}>{a.decision}</div>}
@@ -99,13 +116,26 @@ export default function ActionsRequises() {
                 {([["Décision attendue", a.decision], ["Données manquantes", a.donnees_manquantes], ["Fonctionnalités bloquées", a.bloque], ["Après validation", a.consequences]] as const).filter(x => x[1]).map(([t, v]) => (
                   <div key={t}><div style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase" }}>{t}</div><div style={{ fontSize: 14, lineHeight: 1.5, marginTop: 2 }}>{v}</div></div>
                 ))}
+                {(a.depend_de || []).length > 0 && (
+                  <div><div style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase" }}>Dépend de</div>
+                    {(a.depend_de || []).map((c: string) => { const d = actions.find(x => x.cle === c); return <div key={c} style={{ fontSize: 13 }}>{d?.statut === "fait" ? "✅" : "⏳"} {titreDe(c)}</div>; })}
+                  </div>)}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase" }}>Date limite</div>
+                  <input type="date" style={{ ...champ, width: "auto" }} value={a.date_limite || ""} onChange={e => maj(a, { date_limite: e.target.value || null })} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase", marginBottom: 4 }}>Pièces jointes</div>
+                  {(a.pieces_jointes || []).map((pj: any, i: number) => <button key={i} style={{ ...btn(), marginRight: 6, marginBottom: 6 }} onClick={() => ouvrirPrive(pj.chemin)}>📎 {pj.nom}</button>)}
+                  <label style={btn()}>＋ Joindre un document<input type="file" accept="application/pdf,image/*,.heic,.doc,.docx" style={{ display: "none" }} onChange={e => joindre(a, e.target.files?.[0])} /></label>
+                </div>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase", marginBottom: 4 }}>Votre réponse</div>
                   <textarea style={{ ...champ, minHeight: 90 }} placeholder="Écrivez votre décision ou les informations demandées…"
                     value={brouillon[a.id] ?? a.reponse ?? ""} onChange={e => setBrouillon(b => ({ ...b, [a.id]: e.target.value }))} />
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button style={btn(true)} onClick={() => maj(a, { reponse: brouillon[a.id] ?? a.reponse ?? "", statut: a.statut === "a_faire" ? "en_cours" : a.statut })}>💾 Enregistrer</button>
+                  <button style={btn(true)} onClick={() => maj(a, { reponse: brouillon[a.id] ?? a.reponse ?? "", statut: a.statut === "a_faire" ? "en_cours" : a.statut })}>💾 Enregistrer (réponse partielle)</button>
                   {a.statut !== "fait"
                     ? <button style={btn(true, C.ok)} onClick={() => maj(a, { reponse: brouillon[a.id] ?? a.reponse ?? "", statut: "fait" })}>✓ Fait / validé</button>
                     : <button style={btn()} onClick={() => maj(a, { statut: "en_cours", resolu_le: null })}>↺ Rouvrir</button>}
@@ -115,6 +145,10 @@ export default function ActionsRequises() {
                   </select>
                 </div>
                 {a.resolu_le && <div style={{ fontSize: 12, color: C.doux }}>Validé le {new Date(a.resolu_le).toLocaleString("fr-FR")}</div>}
+                {(a.historique || []).length > 0 && (
+                  <details><summary style={{ fontSize: 12, color: C.doux, cursor: "pointer" }}>Historique des décisions ({a.historique.length})</summary>
+                    {[...a.historique].reverse().map((h: any, i: number) => <div key={i} style={{ fontSize: 12, color: C.doux, borderTop: `1px solid ${C.ligne}`, padding: "4px 0" }}>{new Date(h.le).toLocaleString("fr-FR")} · {STATUTS.find(s => s[0] === h.statut)?.[1] || h.statut}{h.reponse ? ` — « ${String(h.reponse).slice(0, 160)} »` : ""}</div>)}
+                  </details>)}
               </div>
             )}
           </div>
