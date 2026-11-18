@@ -53,6 +53,15 @@ export async function sbRpc<T = any>(fn: string, args: any): Promise<T> {
   return r.json();
 }
 
+/** Mise à jour groupée (id=in.(…)) — ex. classer plusieurs visuels d'un coup. */
+export async function sbUpdateIds(table: string, ids: string[], patch: any) {
+  for (let i = 0; i < ids.length; i += 150) {
+    const lot = ids.slice(i, i + 150);
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?id=in.(${lot.join(",")})`, { method: "PATCH", headers: await entetes({ Prefer: "return=minimal" }), body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(await lireErreur(r));
+  }
+}
+
 export async function sbDelete(table: string, id: string) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers: await entetes() });
   if (!r.ok) throw new Error(await lireErreur(r));

@@ -17,6 +17,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import EventsMediatheque from "./EventsMediatheque";
 import { composerPieces, type BriefKit } from "./kitComposer";
 import { patronPopcorn, patronGable } from "./patronsBoites";
+import { SUPPORTS, THEMES, COULEURS, PRESTATIONS, proposerPack, supportDuPatron, supportDe, themeDe, nommerCouleur, type Proposition } from "./classement";
 import {
   sbSelect, sbInsert, sbUpdate, sbDelete, uploadStorage, compresserImage, slug,
   chargerPolices, POLICES, rendreSurCanvas, mesurerTexte, TAILLE_MIN_LISIBLE, canvasVersPdf, pxParMmExport, rendreImpositionA4, partagerFichier, telecharger,
@@ -92,6 +93,10 @@ export default function EventsAtelierPapeterie() {
   const [ouverte, setOuverte] = useState<Creation | null>(null);
   const [pack, setPack] = useState<any>(null);
   const [nouveau, setNouveau] = useState<any>(null);
+  const [assistant, setAssistant] = useState<any>(null);
+  const [fSupport, setFSupport] = useState("__tous");
+  const [fTheme, setFTheme] = useState("__tous");
+  const [fCouleur, setFCouleur] = useState("__tous");
   const [occupe, setOccupe] = useState("");
 
   const charger = async () => {
@@ -103,8 +108,15 @@ export default function EventsAtelierPapeterie() {
   const [, policesPretes] = useState(0);
   useEffect(() => { chargerPolices(); charger(); (document as any).fonts?.ready?.then(() => policesPretes(x => x + 1)); }, []);
 
-  const patrons = liste.filter(x => x.est_modele);
-  const mes = liste.filter(x => !x.est_modele);
+  const supportDe_ = (c: Creation) => supportDuPatron(c.type_support) || "autre";
+  const filtre = (c: Creation) => (fSupport === "__tous" || supportDe_(c) === fSupport) && (fTheme === "__tous" || (c.theme || "__aucun") === fTheme) && (fCouleur === "__tous" || ((c as any).couleurs || []).includes(fCouleur));
+  const tousPatrons = liste.filter(x => x.est_modele), tousMes = liste.filter(x => !x.est_modele);
+  const patrons = tousPatrons; // la création de kit voit toujours tous les patrons
+  const mes = tousMes.filter(filtre);
+  const base = onglet === "patrons" ? tousPatrons : tousMes;
+  const supportsPresents = [...new Set(base.map(supportDe_))];
+  const themesPresents = [...new Set(base.filter(c => fSupport === "__tous" || supportDe_(c) === fSupport).map(c => c.theme || "__aucun"))];
+  const couleursPresentes = [...new Set(base.flatMap(c => (c as any).couleurs || []))] as string[];
   const collections = useMemo(() => [...new Set(patrons.map(p => p.collection || "Sans collection"))], [patrons]);
   const parClient = useMemo(() => {
     const m = new Map<string, Creation[]>();
@@ -143,10 +155,12 @@ export default function EventsAtelierPapeterie() {
     if (mes.some(c => (c.client_nom || "").toLowerCase() === client.toLowerCase()) && !confirm(`Des créations existent déjà pour « ${client} ». Créer un nouveau kit en plus (variante) ?`)) return;
     envoiKit.current = true;
     const brief: BriefKit = { client, prenom: pack.prenom, age: pack.age, date: pack.date, lieu: pack.lieu, rsvp: pack.rsvp, titre: pack.titre || undefined, message: pack.message || undefined, theme: pack.theme,
-      couleurs: pack.couleurs, police: pack.police, imageFond: pack.imageFond || null, personnage: pack.image || null, banderoleTexte: pack.banderoleTexte, banderoleMode: pack.banderoleMode };
+      couleurs: pack.couleurs, police: pack.police, imageFond: pack.imageFond || null, personnage: pack.image || null, banderoleTexte: pack.banderoleTexte, banderoleMode: pack.banderoleMode, motif: pack.motif || null };
+    const hexVersNom = (h: string) => { const n = parseInt((h || "#888888").slice(1, 7), 16); return nommerCouleur((n >> 16) & 255, (n >> 8) & 255, n & 255); };
+    const couleursKit = Array.from(new Set([hexVersNom(pack.couleurs.principale), hexVersNom(pack.couleurs.accent)]));
     const lignes = choisis.flatMap(src => composerPieces(src, brief).map(pc => ({
       nom: pc.nom, type_support: src.type_support, largeur_mm: pc.largeur_mm, hauteur_mm: pc.hauteur_mm, contenu: pc.contenu, est_modele: false,
-      modele_source_id: src.id, collection: src.collection, occasion: src.occasion, theme: pack.theme || src.theme, client_nom: client, statut: "brouillon",
+      modele_source_id: src.id, collection: src.collection, occasion: src.occasion, theme: pack.themeId || THEMES.find(t => t.mots.some(m => (pack.theme || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(m)))?.id || src.theme || null, couleurs: couleursKit, client_nom: client, statut: "brouillon",
     })));
     setOccupe(`Composition du kit : ${lignes.length} pièce(s)…`);
     try {
@@ -217,19 +231,29 @@ export default function EventsAtelierPapeterie() {
         <button style={bouton(onglet === "mes")} onClick={() => setOnglet("mes")}>🎨 Mes créations ({mes.length})</button>
         <button style={bouton(onglet === "packs")} onClick={() => setOnglet("packs")}>📚 Packs achetés</button>
         <div style={{ flex: 1 }} />
-        <button style={bouton(true)} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", titre: "Joyeux anniversaire", message: "", banderoleTexte: "", banderoleMode: "lettres", police: "Playfair Display", couleurs: { fond: "#fdf6f0", principale: "#b5838d", accent: "#c9a84c", texte: "#2d2424" }, ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id), collection: collections[0] })} disabled={!patrons.length}>🎁 Créer mon kit</button>
+        <button style={bouton(true)} onClick={() => setAssistant({ demande: "", prenom: "", age: "", prestation: "", client: "" })} disabled={!patrons.length}>🪄 Proposer un pack</button>
+        <button style={bouton()} onClick={() => setPack({ client: "", prenom: "", age: "", date: "", lieu: "", rsvp: "", titre: "Joyeux anniversaire", message: "", banderoleTexte: "", banderoleMode: "lettres", police: "Playfair Display", couleurs: { fond: "#fdf6f0", principale: "#b5838d", accent: "#c9a84c", texte: "#2d2424" }, ids: patrons.filter(p => p.collection === collections[0]).map(p => p.id), collection: collections[0] })} disabled={!patrons.length}>🎁 Créer mon kit</button>
         <button style={bouton()} onClick={() => setNouveau({ nom: "", l: 210, h: 297, type: "libre" })}>+ Nouvelle création / patron</button>
       </div>
       {occupe && <div style={{ fontSize: 12, color: C.gold }}>⏳ {occupe}</div>}
       {erreur && <div style={{ fontSize: 12, color: C.rouge }}>⚠️ {erreur}</div>}
       {charge && <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Chargement…</div>}
 
-      {!charge && onglet === "patrons" && collections.map(col => (
-        <div key={col} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.gold }}>{col}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 8 }}>{patrons.filter(p => (p.collection || "Sans collection") === col).map(c => <Carte key={c.id} c={c} />)}</div>
+      {!charge && onglet !== "packs" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <Filtre titre="1 · Support" valeur={fSupport} onChange={v => { setFSupport(v); setFTheme("__tous"); }} options={supportsPresents.map(k => [k, k === "autre" ? "Autres" : `${supportDe(k)?.ico || ""} ${supportDe(k)?.libelle || k}`])} />
+          <Filtre titre="2 · Thème" valeur={fTheme} onChange={setFTheme} options={themesPresents.map(k => [k, k === "__aucun" ? "Sans thème" : themeDe(k)?.libelle || k])} />
+          {couleursPresentes.length > 0 && <Filtre titre="3 · Couleur" valeur={fCouleur} onChange={setFCouleur} options={couleursPresentes.map(k => [k, COULEURS.find(c => c.id === k)?.libelle || k])} />}
         </div>
-      ))}
+      )}
+      {!charge && onglet === "patrons" && [...supportsPresents].sort((a, b) => SUPPORTS.findIndex(s => s.id === a) - SUPPORTS.findIndex(s => s.id === b)).filter(sp => fSupport === "__tous" || sp === fSupport).map(sp => {
+        const items = tousPatrons.filter(p => supportDe_(p) === sp && filtre(p));
+        if (!items.length) return null;
+        return <div key={sp} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.gold }}>{sp === "autre" ? "Autres supports" : `${supportDe(sp)?.ico} ${supportDe(sp)?.libelle}`} ({items.length})</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 8 }}>{items.map(c => <Carte key={c.id} c={c} />)}</div>
+        </div>;
+      })}
       {!charge && onglet === "mes" && (mes.length === 0
         ? <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Aucune création — duplique un patron (⧉) ou crée un pack client.</div>
         : parClient.map(([client, items]) => (
@@ -243,6 +267,12 @@ export default function EventsAtelierPapeterie() {
         )))}
 
       {onglet === "packs" && <PacksAchetes />}
+      {assistant && <AssistantPack etat={assistant} setEtat={setAssistant} patrons={tousPatrons} onPreparer={(prop: Proposition, ids: string[]) => {
+        setPack({ client: assistant.client || assistant.prenom || "", prenom: assistant.prenom, age: assistant.age, date: "", lieu: "", rsvp: "", titre: prop.titre, message: prop.message, theme: prop.theme?.libelle || "", themeId: prop.theme?.id || null,
+          banderoleTexte: "", banderoleMode: "lettres", police: prop.police, couleurs: prop.couleurs, motif: prop.fond ? null : prop.motif, imageFond: prop.fond?.url || null, image: prop.personnage?.url || null,
+          ids, collection: collections[0] });
+        setAssistant(null);
+      }} />}
 
       {pack && (
         <Feuille titre="🎁 Créer mon kit" onFermer={() => setPack(null)}>
@@ -266,6 +296,7 @@ export default function EventsAtelierPapeterie() {
             ))}
           </div>
           <select style={champ} value={pack.police} onChange={e => setPack({ ...pack, police: e.target.value })}>{POLICES.map(p => <option key={p} value={p}>Police des titres : {p}</option>)}</select>
+          <select style={champ} value={pack.motif || ""} onChange={e => setPack({ ...pack, motif: e.target.value || null })}><option value="">Décor généré (si pas d'image de fond) : aucun</option>{([["confettis", "Confettis"], ["etoiles", "Étoiles"], ["pois", "Pois"], ["coeurs", "Cœurs"], ["vagues", "Vagues"], ["triangles", "Géométrique"]] as const).map(([v, l]) => <option key={v} value={v}>Décor généré : {l}</option>)}</select>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {([["imageFond", "choixFond", "🌄 Image de fond / motif"], ["image", "choixImage", "🧸 Personnage / photo"]] as const).map(([k, choix, l]) => (
               <div key={k} style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -339,9 +370,66 @@ const paramsBoite = (n: any) => n.type === "gable"
   ? { largeur: Number(n.bl) || 80, profondeur: Number(n.bp) || 50, hauteur: Number(n.bh) || 80, toit: Number(n.bt) || 45 }
   : { largeur: Number(n.bl) || 65, profondeur: Number(n.bp) || 65, hauteur: Number(n.bh) || 110 };
 
+function Filtre({ titre, valeur, onChange, options }: { titre: string; valeur: string; onChange: (v: string) => void; options: string[][] }) {
+  if (options.length < 2) return null;
+  return <div style={{ display: "flex", gap: 5, alignItems: "center", overflowX: "auto", paddingBottom: 2 }}>
+    <span style={{ ...lbl, whiteSpace: "nowrap", minWidth: 74 }}>{titre}</span>
+    <button style={{ ...bouton(valeur === "__tous"), padding: "4px 9px", fontSize: 11, flexShrink: 0 }} onClick={() => onChange("__tous")}>Tous</button>
+    {options.map(([v, l]) => <button key={v} style={{ ...bouton(valeur === v), padding: "4px 9px", fontSize: 11, flexShrink: 0 }} onClick={() => onChange(v)}>{l}</button>)}
+  </div>;
+}
+
+// ── 🪄 Assistant : demande client → pack complet proposé ─────
+function AssistantPack({ etat, setEtat, patrons, onPreparer }: { etat: any; setEtat: (e: any) => void; patrons: Creation[]; onPreparer: (p: Proposition, ids: string[]) => void }) {
+  const [medias, setMedias] = useState<any[] | null>(null);
+  const [choix, setChoix] = useState<Set<string> | null>(null);
+  useEffect(() => { sbSelect("events_medias", "select=id,url,theme,type_support,couleurs,nature,largeur,hauteur&limit=5000").then(setMedias).catch(() => setMedias([])); }, []);
+  const prop = useMemo(() => etat.demande?.trim() && medias ? proposerPack(etat, medias) : null, [etat, medias]);
+  const proposes = useMemo(() => prop ? patrons.filter(p => prop.supports.includes(supportDuPatron(p.type_support) || "")) : [], [prop, patrons]);
+  useEffect(() => { setChoix(new Set(proposes.map(p => p.id))); }, [proposes.map(p => p.id).join()]);
+  const maj = (p: any) => setEtat({ ...etat, ...p });
+  return (
+    <Feuille titre="🪄 Proposer un pack selon la demande" onFermer={() => setEtat(null)}>
+      <div style={{ fontSize: 11, color: C.muted }}>Colle ou résume la demande du client. Bellaïa en déduit le thème, la palette, la police, les supports adaptés et cherche tes visuels correspondants — même sans image du thème, le pack est proposé avec un décor généré.</div>
+      <textarea style={{ ...champ, minHeight: 70 }} placeholder="Ex. « Anniversaire licorne pour Léa, 6 ans, en rose et doré, 15 enfants »" value={etat.demande} onChange={e => maj({ demande: e.target.value })} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 6 }}>
+        <input style={champ} placeholder="Client" value={etat.client} onChange={e => maj({ client: e.target.value })} />
+        <input style={champ} placeholder="Prénom (fêté·e)" value={etat.prenom} onChange={e => maj({ prenom: e.target.value })} />
+        <input style={champ} placeholder="Âge" value={etat.age} onChange={e => maj({ age: e.target.value })} />
+        <select style={champ} value={etat.prestation} onChange={e => maj({ prestation: e.target.value })}><option value="">Prestation : détectée</option>{PRESTATIONS.map(p => <option key={p.id} value={p.id}>{p.libelle}</option>)}</select>
+      </div>
+      {!medias && <div style={{ fontSize: 12, color: C.muted }}>Lecture de ta médiathèque…</div>}
+      {prop && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, background: C.card, border: `1px solid ${C.gold}44`, borderRadius: 12, padding: 12 }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div><div style={lbl}>Thème</div><div style={{ fontSize: 15, fontWeight: 800, color: C.cream }}>{prop.theme?.libelle || "Non reconnu"}</div></div>
+            <div><div style={lbl}>Prestation</div><div style={{ fontSize: 13, color: C.cream }}>{prop.prestation.libelle}</div></div>
+            <div><div style={lbl}>Palette</div><div style={{ display: "flex", gap: 4 }}>{Object.values(prop.couleurs).map((c, i) => <span key={i} style={{ width: 22, height: 22, borderRadius: 6, background: c, border: "1px solid rgba(255,255,255,0.3)" }} />)}</div></div>
+            <div><div style={lbl}>Police</div><div style={{ fontSize: 16, color: C.cream, fontFamily: prop.police }}>{prop.titre}</div></div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {([["Fond", prop.fond], ["Personnage / image", prop.personnage]] as const).map(([l, m]) => <div key={l} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {m ? <img src={m.url} alt="" style={{ width: 48, height: 48, objectFit: "contain", background: "#fff", borderRadius: 6 }} /> : <span style={{ width: 48, height: 48, borderRadius: 6, border: `1px dashed ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: C.muted }}>{l === "Fond" ? "décor" : "—"}</span>}
+              <span style={{ fontSize: 11, color: C.muted }}>{l}{!m && l === "Fond" ? " : décor généré" : ""}</span>
+            </div>)}
+          </div>
+          {prop.notes.map((n, i) => <div key={i} style={{ fontSize: 11, color: C.gold }}>• {n}</div>)}
+          <div style={lbl}>Supports proposés ({choix?.size || 0}/{proposes.length})</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 4, maxHeight: 220, overflowY: "auto" }}>
+            {proposes.map(p => <label key={p.id} style={{ fontSize: 12, color: C.cream, display: "flex", gap: 6, alignItems: "center" }}>
+              <input type="checkbox" checked={!!choix?.has(p.id)} onChange={e => setChoix(sx => { const n = new Set(sx); e.target.checked ? n.add(p.id) : n.delete(p.id); return n; })} />{supportDe(supportDuPatron(p.type_support))?.ico} {nomCourt(p.nom)}
+            </label>)}
+          </div>
+          <button style={bouton(true)} disabled={!choix?.size} onClick={() => onPreparer(prop, [...(choix || [])])}>Préparer ce pack → vérifier puis créer</button>
+        </div>
+      )}
+    </Feuille>
+  );
+}
+
 // ── Mode remplissage : la liste des zones à compléter ────────
 function ZonesARemplir({ doc, majCalque, choisirImage }: { doc: ContenuPapeterie; majCalque: (id: string, p: any, memo?: boolean) => void; choisirImage: (id: string) => void }) {
-  const zones = doc.calques.filter(k => k.zone && k.zone !== "FOND");
+  const zones = doc.calques.filter(k => k.zone && !["FOND", "DECOR", "CARTOUCHE", "FOND_COULEUR"].includes(k.zone));
   return (
     <div style={{ background: C.card, border: `1px solid ${C.gold}55`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ fontSize: 12, fontWeight: 800, color: C.gold }}>🔒 Mode remplissage — seules ces zones se modifient</div>
