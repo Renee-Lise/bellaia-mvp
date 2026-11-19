@@ -1,4 +1,4 @@
-# Bellaïa — Checklist générale (mise à jour du 19/11/2026 — production 3aef807)
+# Bellaïa — Checklist générale (mise à jour du 19/11/2026 — production 2978fd8 ; branche de prévisualisation en avance)
 
 Statuts : ✅ **Opérationnel** (développé, testé, appliqué en base et déployé ; « validé » = validé par la fondatrice) · 🟦 **Développé, non déployé** (prévisualisation) · 🟨 **Préparé, non exécuté** · 🔄 **En cours** · ⏳ **En attente de validation / de données** · ⬜ **À faire**
 
@@ -57,6 +57,7 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ **Réductions** : codes promo (%, €, période, minimum, utilisations, une par cliente), réduction manuelle sur une commande (en production ; aucun code actif)
 - ⬜ Moteur de promotions étendu : promotions automatiques, lots, coffrets, anniversaire, parrainage, fidélité, livraison offerte, règles de cumul, simulateur de rentabilité
 - ✅ **Allergènes automatiques** sur les commandes (site et sur-mesure), affichés avant l'achat ; « à vérifier » si inconnus (en production)
+- 🟦 **Assistant de régularisation des allergènes** (Allergènes → 🧭 Assistant) : indices par source (fiche produit, recette, sous-recettes, ingrédients, documents de la bibliothèque), inconnus, contradictions, 14 allergènes à choisir explicitement, sources consultées, validation individuelle par la fondatrice — fiches `food_allergenes_fiches` + règle de blocage appliquées en base (✅, 8 tests), serveur de commande mis à jour (🟦)
 - ✅ **Blocage des commandes** sans allergènes obligatoires (appliqué en base + boutique + serveur, testé : 3 cas) — 3 produits commandables / 116, 113 « Fiche produit en cours de finalisation » · compteurs recalculés à chaque ouverture (nouvelles recettes incluses)
 - ⬜ Assistant de régularisation recette par recette (scan des emballages, soumission, validation, réactivation)
 - ✅ Blocage vérifié sur tous les chemins : route serveur (testée), panier non conservé, message WhatsApp envoyé seulement après acceptation serveur, commande insérée directement = « à vérifier » non payable
@@ -121,9 +122,9 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⬜ Tests sur le vrai iPhone · notifications push · validation générale de la production
 
 ## 13. Administration — Studio de papeterie et packs administratifs multi-univers (demandé le 19/11)
-- ⬜ Analyse des références (modèle de facture et livre des recettes / achats / marge Massena, 3 visuels d'exemple) : champs, tableaux, formules, mentions obligatoires
-- ⬜ Packs par univers (référentiel dynamique, Vil'Dor indépendant en simulation) : identité graphique (logo en haut à droite, palette, typographies, motifs, en-tête, pied de page)
-- ⬜ Documents commerciaux, logistiques, financiers, clientèle, communication + documents spécifiques (Food / Vil'Dor, Events, BSH, Odyssée, Vilo'Assistance)
-- ⬜ Génération depuis les données réelles, numérotation existante, conformité Guyane, intégrité des pièces émises
-- ⬜ Studio « Packs administratifs » / « Mes modèles » (éditeur iPhone, versions, modèle par défaut), import de modèles, exports PDF / PNG / Word / Sheets / ZIP
-- ⏳ Modèles en prévisualisation → validation graphique de la fondatrice avant activation
+- 🔄 Analyse des références (modèle de facture et livre des recettes / achats / marge Massena, 3 visuels d'exemple) : champs, tableaux et mentions repris dans le moteur ; formules du livre de marge à intégrer
+- 🟦 Moteur de packs par univers (7 thèmes : Studio, BSH, Food, Even's, Odyssée, Vilo'Assistance, Vil'Dor en simulation + thème généré pour tout autre univers) : logo officiel en haut à droite, palette, typographie, ornement, bandeau, pied de page légal, filigrane SIMULATION — table `bellaia_packs_admin` appliquée en base (✅)
+- 🟦 5 premiers documents par univers : devis, facture, bon de commande, fiche de vente (« ne vaut pas facture »), bon de livraison — 35 PDF générés depuis les catalogues réels, contrôlés avec un lecteur PDF indépendant, envoyés à la fondatrice avec aperçus iPhone
+- 🟦 Onglet Administration → 🎨 Packs administratifs : choix univers / document / données (catalogue réel ou pièce existante), aperçu, PDF / partage, personnalisation en brouillon, historique et retour à la version précédente, validation graphique (testé : brouillon + validation)
+- ⏳ Validation graphique des 7 packs par la fondatrice → puis activation pour les NOUVELLES pièces uniquement (pièces émises inchangées)
+- ⬜ Autres documents (acompte, avoir, reçu, bons d'achat / transport, bordereaux, courriers, documents spécifiques par univers), exports PNG / Word / Sheets / ZIP, import de modèles
