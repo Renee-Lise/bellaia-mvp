@@ -1,4 +1,4 @@
-# Bellaïa — Checklist générale (mise à jour du 19/11/2026 — production 563fbab ; branche de prévisualisation en avance)
+# Bellaïa — Checklist générale (mise à jour du 19/11/2026 — production 0bfd765 ; branche de prévisualisation en avance)
 
 Statuts : ✅ **Opérationnel** (développé, testé, appliqué en base et déployé ; « validé » = validé par la fondatrice) · 🟦 **Développé, non déployé** (prévisualisation) · 🟨 **Préparé, non exécuté** · 🔄 **En cours** · ⏳ **En attente de validation / de données** · ⬜ **À faire**
 
@@ -140,7 +140,9 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 ## 14. Programme premium (demandé le 19/11) — phases 1 à 8
 - 🟦 Phase 1 · Design system : identités des 15 univers (palettes, typographies, rayons, dégradés, ambiances ; jeunesse et indépendant signalés), composants communs (surfaces, boutons, titres, indicateurs, puces, logos), bandeau informatif + carrousel (auto / manuel, pause, réduction des animations testée)
 - 🟦 Phase 1 · Portail fondatrice « Centre de direction » (indicateurs réels, Actions requises, univers en cartes, raccourcis personnalisables, stocks, agenda) — aperçu /apercu/portail
-- ⬜ Phase 1 · Portail assistante · espaces partenaires / prestataires · portail client
+- 🟦 Phase 1 · Portail assistante (outils affichés selon les seules permissions accordées, missions personnelles, à valider, historique, temps déclaré) — aperçu /apercu/assistante · testé iPhone : sans permission → seul « Mes missions »
+- 🟦 Phase 1 · Portail cliente « Ma maison Bellaïa » (commandes, événements, univers en 3 sections séparées : boutiques / jeunesse et famille / espace privé adulte, favoris de l'appareil, préférences ; fidélité et abonnements « bientôt ») — aperçu /apercu/cliente · testé : BSH invisible pour une mineure ou un âge inconnu, verrouillé pour une adulte non membre
+- ⬜ Phase 1 · Espaces partenaires / prestataires · ⏳ décision : l'appli actuelle ouvre l'espace fondatrice au rôle « assistante » (les données restent protégées en base) — voir Actions requises
 - 🟦 Phase 2 · Bella'Food en identité gastronomique premium (olive, crème, doré) · ⬜ autres univers commerciaux, bannières pilotées par le studio
 - ⬜ Phase 3 · Panier sélectif (cases, totaux sélectionné / général, paiement partiel, persistance multi-appareils, vérifications serveur, séparation BellaStudio / Vil'Dor) · favoris et wishlists persistants
 - ⬜ Phase 4 · Studio de merchandising (bannières, photos, collections, ordre des sections, campagnes saisonnières, programmation, brouillon / publication / versions)
@@ -148,3 +150,43 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⬜ Phase 6 · Abonnements BSH Members et Odyssée Privilege (tarifs proposés en BROUILLON), espaces membres, étude des paiements récurrents (Stripe, SumUp, PayPal) sans activation
 - ⬜ Phase 7 · Promotions, fidélité, parrainage (règles de cumul, alerte de marge)
 - ⬜ Phase 8 · Tests complets iPhone et rapport
+
+## 15. BSH Secret Stories (demandé le 19/11) — studio éditorial privé + bibliothèque adulte
+Étude complète, paiements, conditions IA et voix, coûts : `docs/SECRET_STORIES_ETUDE.md`
+
+**Opérationnel**
+- ✅ Tests de la migration 0129 sur base PostgreSQL locale jetable : 94/94 conformes (8 profils demandés + tentatives d'accès direct aux fichiers, API et ouvrages non achetés ; achats conservés après résiliation ; rejouable ; retour arrière vérifié)
+
+**Développé (prévisualisation, non déployé)**
+- 🟦 Studio fondatrice — Fondatrice › Bella'Secret Home › « Secret Stories (aperçu) » et /apercu/secret-stories, en simulation tant que 0129 n'est pas appliquée :
+  - création depuis une idée, un synopsis, un import ou un manuscrit, avec paramètres (genre, ambiance, public adulte, point de vue, longueur, chapitres, style) et avertissements ;
+  - chapitres avec sauvegarde automatique, versions et validation un par un ;
+  - personnages et relations, chronologie, mémoire narrative ;
+  - extraits gratuits configurables (pages, chapitre, durée audio, passage personnalisé — toujours une copie séparée) ;
+  - studio audio (narration féminine, masculine ou alternée, émotions, rythme, pauses, prononciations, ambiances, voix des personnages, coût estimé par chapitre et pour le livre complet) ;
+  - formats et prix en brouillon ;
+  - file IA avec coût estimé et approbation.
+- 🟦 Bibliothèque cliente — /apercu/secret-stories-bibliotheque :
+  - accès réservé aux adultes vérifiées ;
+  - découverte (couverture, synopsis, personnages, saga ou collection, durée, longueur, avertissements, extraits écrit et audio) ;
+  - formats achetables et « ma bibliothèque » ;
+  - l'achat crée une **demande**, aucun paiement.
+- 🟦 Lecteur iPhone : clair, sombre ou sépia, taille du texte, sommaire, marque-pages, surlignage, notes privées, progression, reprise testée.
+- 🟦 Lecteur audio : lecture et pause, chapitres, −15 / +30 s, vitesse, minuterie de sommeil, reprise, commandes d'écran verrouillé (Media Session) — testé.
+- 🟦 Contrôle d'accès au studio : fondatrice ou permission « secret_stories.studio » accordée à la main.
+
+**En préparation**
+- 🟨 Migration 0129 + retour arrière : 18 tables, RLS, garde-fous de publication, de commerce et de génération, bucket privé — **non appliquée**, accord requis.
+- 🟨 Étude des paiements : Stripe interdit les contenus adultes (cas des romances non graphiques à faire trancher par écrit), PayPal soumet ces contenus à approbation, SumUp les juge incompatibles — aucune activation.
+- 🟨 Coûts estimés :
+  - écriture : ≈ 0,07 € (Sonnet 5.5) ou ≈ 0,13 € (Opus 5.5) par chapitre ;
+  - livre audio de 70 000 mots : ≈ 31 € (multilingue) ou ≈ 15 € (Flash), reprises en sus.
+
+**À faire**
+- ⬜ Branchement serveur de l'IA (clé côté serveur, quota, file avec reprise) et de la synthèse vocale : aucune intégration vocale n'existe dans l'application.
+- ⬜ Production et découpe réelles des extraits audio · assemblage du livre audio complet · export EPUB / PDF · import de documents (DOCX / PDF) dans l'atelier.
+- ⬜ Création de couvertures (atelier visuel), formules d'abonnement, codes promo, offres de lancement, remises membres (tables prêtes, écrans à faire).
+- ⬜ Suivi des ventes et revenus · intégration éventuelle à BSH Members · étude de l'écoute hors connexion protégée.
+- ⬜ Tests iPhone sur base réelle une fois 0129 appliquée (mêmes 8 profils).
+- ⏳ Documents attendus : fichier éditorial, *Les Enfants d'Hélios* (manuscrit intégral et version condensée ElevenLabs, à conserver séparément ; classement soumis à validation), logo noir et or de Bella'Odyssée (variante, sans changer le logo actif), derniers documents Bella'Food — introuvables dans le Drive au 19/11.
+
