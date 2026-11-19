@@ -5,9 +5,10 @@
 //   (règle d'accès en base : created_by = elle-même).
 // • Dossiers Bella'Even's : RPC client_mes_dossiers_events (sans les
 //   notes internes de la fondatrice).
-// • Univers : Bella'Secret Home n'apparaît JAMAIS pour une personne
-//   mineure ou d'âge inconnu ; accès réel seulement si l'âge est vérifié
-//   ET l'adhésion validée par la fondatrice (contrôles serveur existants).
+// • Univers : uniquement ceux qui ont déjà un espace client. Les espaces
+//   adultes (Bella'Secret Home) n'apparaissent JAMAIS pour une mineure ;
+//   l'entrée dans BSH garde ses contrôles existants (confirmation de
+//   majorité, adhésion validée par la fondatrice), sans changement.
 // • Favoris : ceux enregistrés sur cet appareil (synchronisation entre
 //   appareils = phase 3, table dédiée à valider).
 // • Fidélité, abonnements, parrainage : affichés « bientôt », aucun
@@ -26,13 +27,14 @@ const age = (d?: string | null) => { if (!d) return null; const n = new Date(d),
 const STATUT_CMD: Record<string, [string, "neutre" | "ok" | "alerte" | "accent"]> = {
   brouillon: ["Enregistrée", "neutre"], nouvelle: ["Reçue", "accent"], en_attente: ["En attente", "alerte"], confirmee: ["Confirmée", "ok"], en_preparation: ["En préparation", "accent"], prete: ["Prête", "ok"], livree: ["Remise", "ok"], terminee: ["Terminée", "ok"], annulee: ["Annulée", "neutre"],
 };
-const UNIVERS_CLIENT = ["STUDIO", "BSH", "ODYSSEE", "EVENTS", "FOOD", "VILO", "EDITIONS", "MOTIPY", "VILDOR"];
+// Univers proposés : uniquement ceux qui disposent déjà d'un espace client dans l'application (aucun univers annoncé sans écran réel).
+const UNIVERS_CLIENT = ["BSH", "ODYSSEE", "EVENTS", "FOOD", "VILO", "EDITIONS", "MOTIPY"];
 const ACCROCHES: Record<string, string> = {
   STUDIO: "Créations et papeterie", BSH: "Espace privé, adultes uniquement", ODYSSEE: "Beauté et bien-être", EVENTS: "Vos événements sur mesure", FOOD: "Cuisine gastronomique",
   VILO: "Assistance et services", EDITIONS: "Livres et histoires", MOTIPY: "Univers jeunesse", VILDOR: "Pâtisserie artisanale (partenaire)",
 };
 
-export default function PortailClient({ onOuvrir }: { onOuvrir?: (cle: string) => void }) {
+export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { onOuvrir?: (cle: string) => void; ouverts?: string[]; onDeconnexion?: () => void }) {
   const m = { ...MARQUES.STUDIO, nom: "Bellaïa", logo: MARQUES.GENERAL.logo };
   const [d, setD] = useState<any>(null);
   const [favs, setFavs] = useState<Record<string, string[]>>({});
@@ -49,11 +51,12 @@ export default function PortailClient({ onOuvrir }: { onOuvrir?: (cle: string) =
   })(); }, []);
 
   const a = age(d?.p?.date_naissance);
-  const majeure = a != null && a >= 18;
-  const bshOuvert = majeure && !!d?.p?.age_verifi && ["member", "founding_member"].includes(d?.p?.membership_status);
+  const mineure = a != null && a < 18;
+  const bshOuvert = !mineure && ["member", "founding_member"].includes(d?.p?.membership_status);
+  // Espaces adultes : jamais visibles pour une mineure. Âge inconnu : l'espace existant applique
+  // ses propres contrôles (confirmation de majorité à l'entrée de Bella'Secret Home), inchangés.
   const univers = useMemo(() => (d?.unites || []).filter((u: any) => UNIVERS_CLIENT.includes(u.code) && u.statut !== "archive")
-    .filter((u: any) => u.code !== "BSH" || majeure)              // jamais visible pour une mineure ou un âge inconnu
-    .filter((u: any) => !(a != null && a < 18 && marqueDe(u.code).adulte)), [d, majeure, a]);
+    .filter((u: any) => !(mineure && marqueDe(u.code).adulte)), [d, mineure]);
   const enCours = (d?.cmd || []).filter((c: any) => !/annul|termin|livr/i.test(c.statut || ""));
   const nbFavs = Object.values(favs).reduce((s, l) => s + l.length, 0);
   const bannieres: Banniere[] = useMemo(() => !d || d.horsSession ? [] : [
@@ -66,13 +69,13 @@ export default function PortailClient({ onOuvrir }: { onOuvrir?: (cle: string) =
   if (d.horsSession) return <div style={{ background: m.fond, minHeight: "100vh", color: m.texte, padding: 30, fontFamily: m.sans }}>
     <LogoMarque m={m} taille={56} /><Titre m={m} sur="Mon espace">Connectez-vous pour retrouver vos commandes</Titre>
     <div style={{ color: m.doux, fontSize: 14 }}>Votre espace personnel n'est visible qu'une fois connectée.</div></div>;
-  const carteUnivers = (u: any) => { const mq = marqueDe(u.code, u); const verrou = u.code === "BSH" && !bshOuvert; const bientot = u.statut === "en développement"; return (
+  const carteUnivers = (u: any) => { const mq = marqueDe(u.code, u); const verrou = false; const bientot = ouverts ? !ouverts.includes(u.code) : u.statut === "en développement"; return (
     <div key={u.code} onClick={() => !verrou && !bientot && onOuvrir?.(`univers:${u.code}`)} style={{ position: "relative", borderRadius: mq.rayon, overflow: "hidden", background: mq.degrade, color: "#fff", minHeight: 118, padding: 12, display: "flex", flexDirection: "column", justifyContent: "space-between", cursor: verrou || bientot ? "default" : "pointer", boxShadow: m.ombre }}>
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,0.42) 100%)" }} />
       <div style={{ position: "relative" }}><LogoMarque m={mq} taille={30} /></div>
       <div style={{ position: "relative", textShadow: "0 1px 2px rgba(0,0,0,0.35)" }}>
         <div style={{ fontFamily: mq.serif, fontSize: 18, fontWeight: 600, lineHeight: 1.1 }}>{mq.nom}</div>
-        <div style={{ fontSize: 11.5, opacity: 0.92, marginTop: 2 }}>{verrou ? (d.p.membership_status === "member_pending" ? "Adhésion en cours d'examen" : "Sur adhésion, réservé aux adultes") : bientot ? "Bientôt disponible" : ACCROCHES[u.code] || ""}</div>
+        <div style={{ fontSize: 11.5, opacity: 0.92, marginTop: 2 }}>{bientot ? "Bientôt disponible" : u.code === "BSH" && !bshOuvert ? (d.p.membership_status === "member_pending" ? "Adhésion en cours d'examen" : "Réservé aux adultes") : ACCROCHES[u.code] || ""}</div>
       </div>
     </div>); };
   const heure = new Date().getHours(); const salut = heure < 12 ? "Bonjour" : heure < 18 ? "Bel après-midi" : "Bonsoir";
@@ -125,7 +128,7 @@ export default function PortailClient({ onOuvrir }: { onOuvrir?: (cle: string) =
 
         <Surface m={m}>
           <Titre m={m} sur="Mes envies" niveau={3}>Favoris</Titre>
-          {nbFavs ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{Object.entries(favs).filter(([k]) => k !== "BSH" || bshOuvert).map(([k, l]) => <Puce key={k} m={m} ton="accent">{marqueDe(k).nom} · {l.length}</Puce>)}</div>
+          {nbFavs ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{Object.entries(favs).filter(([k]) => !(mineure && marqueDe(k).adulte)).map(([k, l]) => <Puce key={k} m={m} ton="accent">{marqueDe(k).nom} · {l.length}</Puce>)}</div>
             : <div style={{ color: m.doux, fontSize: 13.5 }}>Touchez le cœur d'un article dans une boutique pour le retrouver ici.</div>}
           <div style={{ fontSize: 11.5, color: m.doux, marginTop: 8 }}>Favoris enregistrés sur cet appareil.</div>
         </Surface>
@@ -139,6 +142,7 @@ export default function PortailClient({ onOuvrir }: { onOuvrir?: (cle: string) =
           <Titre m={m} sur="Mon compte" niveau={3}>Préférences</Titre>
           {[["profil", "Mes informations"], ["notifications", "Notifications"], ["confidentialite", "Confidentialité et mes données"], ["aide", "Aide et contact"]].map(([k, l]) =>
             <div key={k} onClick={() => onOuvrir?.(k)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderTop: `1px solid ${m.ligne}`, fontSize: 14.5, cursor: "pointer" }}><span>{l}</span><span style={{ color: m.doux }}>›</span></div>)}
+          {onDeconnexion && <div onClick={onDeconnexion} style={{ padding: "12px 0", borderTop: `1px solid ${m.ligne}`, fontSize: 14.5, cursor: "pointer", color: "#b4523f" }}>Se déconnecter</div>}
         </Surface>
       </div>
     </div>

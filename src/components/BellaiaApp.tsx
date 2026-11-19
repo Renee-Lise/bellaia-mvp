@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import BellaiaLogo from "@/components/BellaiaLogo";
+import { PREMIUM_ACTIF, COQUE_PREMIUM } from "@/design/premium";
 import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/modules/push/pushClient";
 import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction } from "@/modules/food/catalogueApi";
@@ -7676,6 +7677,83 @@ function CentreHotesWrapper() {
   return <div style={{margin:"0 -16px"}}><Comp/></div>;
 }
 
+// ═══ Visuels premium (prévisualisation ; voir src/design/premium.ts) ═══
+// Centre de direction fondatrice : remplace le tableau de bord quand PREMIUM_ACTIF.
+// Chaque raccourci ouvre l'écran existant correspondant (aucune fonction retirée).
+const PORTAIL_F_VERS_PAGE: Record<string,string> = {
+  commandes:"finances", administratif:"administratif", food:"food", bsh:"bsh", events:"events", actions:"actions", equipe:"equipe", agenda:"calendrier",
+  "univers:STUDIO":"studio", "univers:BSH":"bsh", "univers:ODYSSEE":"odyssee", "univers:EVENTS":"events", "univers:FOOD":"food", "univers:VILO":"vilo",
+  "univers:STRUCTURE":"struct", "univers:EDITIONS":"editions", "univers:MOTIPY":"motipy", "univers:VILDOR":"partenaires", "univers:GENERAL":"dashboard",
+};
+function PortailFondatriceWrapper({ user, goto }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/portails/PortailFondatrice").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:COQUE_PREMIUM.doux,padding:40}}>Préparation de votre centre de direction…</div>;
+  return <Comp prenom={user?.prenom || undefined} onOuvrir={(k: string) => { const page = PORTAIL_F_VERS_PAGE[k]; if (page && page !== "dashboard") goto(page); }}/>;
+}
+
+// Accueil cliente premium « Ma maison Bellaïa » : chaque univers ouvre l'espace client EXISTANT
+// (mêmes boutiques, commandes, paiements et contrôles d'accès qu'aujourd'hui).
+const UNIVERS_PREMIUM_VERS_CLIENT: Record<string,string> = { BSH:"bsh", ODYSSEE:"bo", EVENTS:"bev", FOOD:"bfd", VILO:"vilo", EDITIONS:"bse", MOTIPY:"mtp" };
+function EspaceClientPremium({ user, produits, evenements, onLogout, onNewCommande }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  const [ouvert, setOuvert] = React.useState<{ univers: string | null } | null>(null);
+  React.useEffect(() => { import("../modules/portails/PortailClient").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { window.scrollTo(0, 0); }, [ouvert]);
+  if (ouvert) return <>
+    {!ouvert.univers && <button onClick={()=>setOuvert(null)} style={{position:"sticky",top:0,zIndex:50,width:"100%",textAlign:"left",padding:"calc(env(safe-area-inset-top,0px) + 10px) 16px 10px",background:"#faf6ef",border:"none",borderBottom:"1px solid rgba(28,34,70,0.1)",color:"#1c2246",fontSize:14,fontWeight:700,fontFamily:"-apple-system,system-ui,sans-serif"}}>‹ Ma maison Bellaïa</button>}
+    <PortailClient user={user} produits={produits} evenements={evenements} onLogout={onLogout} onNewCommande={onNewCommande} initialUnivers={ouvert.univers} onRetourAccueil={()=>setOuvert(null)}/>
+  </>;
+  if (!Comp) return <div style={{minHeight:"100vh",background:"#faf6ef",color:"rgba(28,34,70,0.6)",padding:30,fontFamily:"-apple-system,system-ui,sans-serif"}}>Ouverture de votre espace…</div>;
+  return <Comp ouverts={Object.keys(UNIVERS_PREMIUM_VERS_CLIENT)} onDeconnexion={onLogout} onOuvrir={(k: string) => {
+    if (k.startsWith("univers:")) { const u = UNIVERS_PREMIUM_VERS_CLIENT[k.slice(8)]; if (u) setOuvert({ univers: u }); return; }
+    if (k === "events") { setOuvert({ univers: "bev" }); return; }
+    if (k === "univers") return;
+    setOuvert({ univers: null });   // commandes, profil, notifications, confidentialité, aide : espace détaillé existant
+  }}/>;
+}
+
+// Espace assistante : portail dédié + LISTE BLANCHE stricte des écrans ouvrables.
+// Aucune page de l'espace fondatrice n'est atteignable (ni par défaut, ni par navigation).
+const OUTILS_ASSISTANTE_VERS_VUE: Record<string,string> = {
+  missions:"equipe", equipe_gerer:"equipe", messagerie:"messagerie", notifications:"notifications",
+  food_catalogue:"food_equipe", food_commande:"food_equipe", food_recette:"food_equipe", bibliotheque:"food_equipe", revente:"food_equipe",
+};
+function EspaceAssistanteApp({ user, onLogout }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  const [vue, setVue] = React.useState<string | null>(null);
+  const [info, setInfo] = React.useState("");
+  React.useEffect(() => { import("../modules/portails/PortailAssistante").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { window.scrollTo(0, 0); }, [vue]);
+  if (vue) {
+    const contenu = vue === "equipe" ? <EquipeWrapper user={user} role="assistante"/>
+      : vue === "food_equipe" ? <FoodEquipeWrapper user={user}/>
+      : vue === "messagerie" ? <MessagerieWrapper user={user}/>
+      : vue === "notifications" ? <NotificationsF user={user}/> : null;
+    return <div style={{minHeight:"100vh",background:COQUE_PREMIUM.fond,color:COQUE_PREMIUM.texte,fontFamily:SA}}>
+      <div style={{position:"sticky",top:0,zIndex:50,display:"flex",alignItems:"center",gap:10,padding:"calc(env(safe-area-inset-top,0px) + 10px) 14px 10px",background:COQUE_PREMIUM.barre,borderBottom:"1px solid "+COQUE_PREMIUM.ligne}}>
+        <button onClick={()=>setVue(null)} style={{background:"none",border:"none",color:COQUE_PREMIUM.or,fontSize:14,fontWeight:700,minHeight:40,fontFamily:SA}}>‹ Mon espace</button>
+      </div>
+      <div style={{padding:"14px 12px 40px"}}>{contenu}</div>
+    </div>;
+  }
+  if (!Comp) return <div style={{minHeight:"100vh",background:"#faf6ef",color:"rgba(28,34,70,0.6)",padding:30,fontFamily:SA}}>Préparation de votre espace…</div>;
+  return <>
+    <Comp prenom={user?.prenom || undefined} onDeconnexion={onLogout} onOuvrir={(k: string) => { const v = OUTILS_ASSISTANTE_VERS_VUE[k]; if (v) setVue(v); else { setInfo("Cet outil sera bientôt disponible dans votre portail."); setTimeout(()=>setInfo(""), 3000); } }}/>
+    {info && <div style={{position:"fixed",left:16,right:16,bottom:22,background:"#1c2246",color:"#fff",borderRadius:14,padding:12,fontSize:13.5,zIndex:60,fontFamily:SA}}>{info}</div>}
+  </>;
+}
+
+// Rôle non prévu : aucun accès par défaut.
+function EspaceRoleInconnu({ onLogout }: any) {
+  return <div style={{minHeight:"100vh",background:COQUE_PREMIUM.fond,color:COQUE_PREMIUM.texte,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,textAlign:"center",fontFamily:SA}}>
+    <BellaiaLogo size={56}/>
+    <div style={{fontFamily:COQUE_PREMIUM.serif,fontSize:26,margin:"16px 0 8px"}}>Votre espace est en préparation</div>
+    <div style={{fontSize:14,color:COQUE_PREMIUM.doux,lineHeight:1.5,maxWidth:340}}>Votre compte n'a pas encore d'espace attribué. La fondatrice vous l'ouvrira dès que vos accès seront définis.</div>
+    <button onClick={onLogout} style={{marginTop:22,minHeight:44,padding:"10px 20px",borderRadius:99,border:"1px solid "+COQUE_PREMIUM.ligne,background:"transparent",color:COQUE_PREMIUM.or,fontWeight:700,fontFamily:SA}}>Se déconnecter</button>
+  </div>;
+}
+
 // BSH Secret Stories — studio éditorial privé (aperçu ; simulation tant que 0129 n'est pas appliquée).
 function SecretStoriesWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
@@ -8243,8 +8321,10 @@ function EcranConnexion({ onConnecte }) {
 // ═══════════════════════════════════════════════════════════
 // PORTAIL CLIENT CONNECTÉ — données isolées par user_id
 // ═══════════════════════════════════════════════════════════
-function PortailClient({ user, produits, evenements, onLogout, onNewCommande }) {
-  const [activeUnivers, setActiveUnivers] = useState<string|null>(null);
+function PortailClient({ user, produits, evenements, onLogout, onNewCommande, initialUnivers = null, onRetourAccueil = null }: any) {
+  const [activeUnivers, setActiveUnivers] = useState<string|null>(initialUnivers);
+  // Ouvert depuis l'accueil premium sur un univers : le retour de l'univers ramène à l'accueil premium.
+  useEffect(() => { if (onRetourAccueil && initialUnivers && activeUnivers === null) onRetourAccueil(); }, [activeUnivers]);
   const [autresUniversOuvert, setAutresUniversOuvert] = useState(false);
   const [mesCommandes, setMesCommandes]     = useState<any[]>([]);
   const [mesNotifs, setMesNotifs]           = useState<any[]>([]);
@@ -14477,7 +14557,7 @@ export default function BellaiaApp() {
     } catch {} })();
     return () => { vivant = false; };
   }, [roleNav, activeF === "actions"]);
-  const [preview, setPreview] = useState(null);
+  const [previewDemande, setPreview] = useState(null);
   const [activeUnivers, setActiveUnivers] = useState(null);
   const [hydrated, setHydrated] = useState(false);
   // Badge notifications (nouvelles commandes site, etc.) visible dans
@@ -14535,9 +14615,9 @@ export default function BellaiaApp() {
   // Bloque les écritures Supabase (REST + Storage) tant que l'aperçu
   // utilisateur est actif — jamais l'auth (voir setApercuActif).
   useEffect(() => {
-    setApercuActif(!!preview);
+    setApercuActif(!!previewDemande);
     return () => setApercuActif(false);
-  }, [preview]);
+  }, [previewDemande]);
 
   // BSH — Supabase avec fallback localStorage
   // Clientes et visiteurs : vue catalogue publique (SANS prix d'achat).
@@ -14604,12 +14684,19 @@ export default function BellaiaApp() {
   if (!user) return <EcranConnexion onConnecte={setUser}/>;
 
   const role = user.role;
+  // Sécurité (19/11) : seul le rôle « fondatrice » ouvre l'espace fondatrice.
+  // L'assistante a son propre portail ; tout rôle inconnu est refusé par
+  // défaut (auparavant, un rôle non prévu tombait dans l'espace fondatrice).
+  // Les données restent protégées en base (RLS) dans tous les cas.
   const espaceEffectif =
-    (role === "assistante")                   ? "fondatrice"
+    (role === "fondatrice")                     ? "fondatrice"
+    : (role === "assistante")                   ? "assistante"
     : (role === "cliente" || role === "client") ? "client"
     : (role === "prestataire" || role === "hote") ? "hote"
     : (role === "partenaire")                   ? "partenaire"
-    : role; // "fondatrice" → passe directement
+    : "inconnu";
+  // Les aperçus « voir comme » sont réservés à la fondatrice.
+  const preview = role === "fondatrice" ? previewDemande : null;
 
   // ── Prévisualisations fondatrice
   // ── Bandeau retour fondatrice en mode aperçu
@@ -14659,8 +14746,11 @@ export default function BellaiaApp() {
 
   // ── Routage par rôle
   if (espaceEffectif === "client")
-    return <PortailClient user={user} produits={bshProd} evenements={bshEvts}
+    return PREMIUM_ACTIF
+      ? <EspaceClientPremium user={user} produits={bshProd} evenements={bshEvts} onLogout={deconnexion} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/>
+      : <PortailClient user={user} produits={bshProd} evenements={bshEvts}
       onLogout={deconnexion} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/>;
+  if (espaceEffectif === "assistante") return <EspaceAssistanteApp user={user} onLogout={deconnexion}/>;
   if (espaceEffectif === "hote") {
     const univHote = user?.univers || user?.module || "";
     if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
@@ -14673,10 +14763,11 @@ export default function BellaiaApp() {
   }
   if (espaceEffectif === "partenaire")
     return <EspacePartenaireUnifie user={user} onLogout={deconnexion}/>;
+  if (espaceEffectif !== "fondatrice") return <EspaceRoleInconnu onLogout={deconnexion}/>;
 
   // ── Espace Fondatrice
   const views = {
-    dashboard:   <DashF user={user} goto={setActiveF}/>,
+    dashboard:   PREMIUM_ACTIF ? <PortailFondatriceWrapper user={user} goto={allerA}/> : <DashF user={user} goto={setActiveF}/>,
     crm:         <CrmF user={user}/>,
     finances:    <FinancesP1 user={user}/>,
     compta:      <ComptaWrapper user={user}/>,
@@ -14728,20 +14819,22 @@ export default function BellaiaApp() {
     motipy:          <MoTiPeyiWrapper user={user}/>,
   };
 
+  // Coque fondatrice : identité premium (nuit, or champagne) en prévisualisation ; inchangée en production.
+  const K: any = PREMIUM_ACTIF ? { ...B, night: COQUE_PREMIUM.fond, deep: COQUE_PREMIUM.barre, border: COQUE_PREMIUM.ligne, gold: COQUE_PREMIUM.or, muted: COQUE_PREMIUM.doux, mutedL: COQUE_PREMIUM.doux, cream: COQUE_PREMIUM.texte } : B;
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream,overflowX:"hidden"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:K.night,fontFamily:SA,color:K.cream,overflowX:"hidden"}}>
 
       {/* Header Fondatrice — padding haut tenant compte de l'encoche/Dynamic
           Island (sinon l'horloge du téléphone chevauche le logo), et
           groupe de boutons défilable horizontalement (sinon, avec le
           bouton "Activer" push en plus, certains boutons sortaient de
           l'écran et devenaient inatteignables sur iPhone). */}
-      <div style={{padding:"calc(10px + env(safe-area-inset-top,0px)) 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0,gap:8}}>
+      <div style={{padding:"calc(10px + env(safe-area-inset-top,0px)) 14px 8px",borderBottom:"1px solid "+(K.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:K.deep,flexShrink:0,gap:8}}>
         <div style={{display:"flex",alignItems:"center",gap:9,minWidth:0,flexShrink:1}}>
           <BellaiaLogo size={32}/>
           <div style={{minWidth:0,overflow:"hidden"}}>
-            <div style={{fontSize:13,fontWeight:900,color:B.cream,fontFamily:FS,whiteSpace:"nowrap"}}>Bellaïa</div>
-            <div style={{fontSize:7,color:B.muted,letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            <div style={{fontSize:13,fontWeight:900,color:K.cream,fontFamily:FS,whiteSpace:"nowrap"}}>Bellaïa</div>
+            <div style={{fontSize:7,color:K.muted,letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
               {role==="assistante"?"Assistante":"Fondatrice"} · {user.prenom||user.nom||user.email}
             </div>
           </div>
@@ -14749,12 +14842,12 @@ export default function BellaiaApp() {
         <div style={{display:"flex",gap:3,alignItems:"center",overflowX:"auto",WebkitOverflowScrolling:"touch",flexShrink:0,maxWidth:"62%",paddingBottom:2}}>
           {pushPret && (
             <button onClick={activerPush} disabled={pushActivation} title="Activer les notifications push sur cet appareil"
-              style={{flexShrink:0,background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:pushActivation?"wait":"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>
+              style={{flexShrink:0,background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",borderRadius:6,padding:"4px 7px",color:K.gold,cursor:pushActivation?"wait":"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>
               {pushActivation?"…":"🔔+ Activer"}
             </button>
           )}
           <button onClick={()=>setActiveF("notifications")} title="Notifications"
-            style={{flexShrink:0,position:"relative",background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:notifsNonLues>0?B.gold:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
+            style={{flexShrink:0,position:"relative",background:"none",border:"1px solid "+(K.border),borderRadius:6,padding:"4px 7px",color:notifsNonLues>0?K.gold:K.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>
             🔔
             {notifsNonLues>0 && (
               <span style={{position:"absolute",top:-5,right:-5,background:"#ef4444",color:"#fff",borderRadius:99,minWidth:15,height:15,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>
@@ -14763,39 +14856,39 @@ export default function BellaiaApp() {
             )}
           </button>
           <button onClick={()=>{setPreview("client");setActiveUnivers(null);}} title="Prévisualiser espace client"
-            style={{flexShrink:0,background:"rgba(107,26,43,0.2)",border:"1px solid rgba(107,26,43,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>👁 Client</button>
+            style={{flexShrink:0,background:"rgba(107,26,43,0.2)",border:"1px solid rgba(107,26,43,0.4)",borderRadius:6,padding:"4px 7px",color:K.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>👁 Client</button>
           <button onClick={()=>{setPreview("assistante");setActiveUnivers(null);}} title="Prévisualiser le profil assistante"
-            style={{flexShrink:0,background:"rgba(201,169,110,0.15)",border:"1px solid rgba(201,169,110,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>Assistante</button>
+            style={{flexShrink:0,background:"rgba(201,169,110,0.15)",border:"1px solid rgba(201,169,110,0.4)",borderRadius:6,padding:"4px 7px",color:K.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>Assistante</button>
           <button onClick={()=>{setPreview("hote");setActiveUnivers("bsh");}} title="Prévisualiser espace hôte BSH"
             style={{flexShrink:0,background:"rgba(13,148,136,0.15)",border:"1px solid rgba(13,148,136,0.35)",borderRadius:6,padding:"4px 7px",color:"#0d9488",cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>Hôte</button>
           <button onClick={deconnexion} title="Déconnexion"
-            style={{flexShrink:0,background:"none",border:"1px solid "+(B.border),borderRadius:6,padding:"4px 7px",color:B.muted,cursor:"pointer",fontSize:9,fontFamily:SA}}>✕</button>
+            style={{flexShrink:0,background:"none",border:"1px solid "+(K.border),borderRadius:6,padding:"4px 7px",color:K.muted,cursor:"pointer",fontSize:9,fontFamily:SA}}>✕</button>
         </div>
       </div>
 
       {/* Contenu */}
       {groupeActif && groupeActif.pages.length > 1 && (
-        <div style={{display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch",padding:"8px 12px",borderBottom:"1px solid "+(B.border),background:B.deep,flexShrink:0}}>
+        <div style={{display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch",padding:"8px 12px",borderBottom:"1px solid "+(K.border),background:K.deep,flexShrink:0}}>
           {groupeActif.pages.map(([id,l])=>(
             <button key={id} onClick={()=>allerA(id)}
-              style={{flexShrink:0,minHeight:36,padding:"6px 12px",borderRadius:99,border:"1px solid "+(activeF===id?B.gold:B.border),background:activeF===id?"rgba(201,168,76,0.15)":"transparent",color:activeF===id?B.gold:B.mutedL,fontSize:12,fontWeight:700,fontFamily:SA,cursor:"pointer",whiteSpace:"nowrap"}}>
+              style={{flexShrink:0,minHeight:36,padding:"6px 12px",borderRadius:99,border:"1px solid "+(activeF===id?K.gold:K.border),background:activeF===id?"rgba(201,168,76,0.15)":"transparent",color:activeF===id?K.gold:K.mutedL,fontSize:12,fontWeight:700,fontFamily:SA,cursor:"pointer",whiteSpace:"nowrap"}}>
               {l}{id==="actions"&&nbActions>0?` · ${nbActions}`:""}
             </button>
           ))}
         </div>
       )}
-      <div style={{flex:1,overflowY:"auto",padding:activeF==="bsh"?"0":"14px 12px 84px"}}>
+      <div style={{flex:1,overflowY:"auto",padding:activeF==="bsh"||(PREMIUM_ACTIF&&activeF==="dashboard")?"0 0 70px":"14px 12px 84px"}}>
         {views[activeF] ?? <PlaceholderModule ico="🔧" nom={activeF} desc="Module en construction"/>}
       </div>
 
       {/* Bottom nav fixe — scrollable horizontalement pour 10 modules */}
-      <div style={{position:"fixed",bottom:0,left:0,width:"100%",borderTop:"1px solid "+(B.border),background:B.deep,padding:"5px 0 calc(5px + env(safe-area-inset-bottom))",zIndex:100,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      <div style={{position:"fixed",bottom:0,left:0,width:"100%",borderTop:"1px solid "+(K.border),background:K.deep,padding:"5px 0 calc(5px + env(safe-area-inset-bottom))",zIndex:100,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         <div style={{display:"flex",minWidth:"max-content",padding:"0 4px"}}>
           {groupes.map(g=>{ const on = groupeActif?.id===g.id; return (
             <button key={g.id} onClick={()=>allerA(dernierePage.current[g.id] || g.pages[0][0])}
-              style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"3px 10px",minWidth:58,minHeight:44,WebkitTapHighlightColor:"transparent",borderBottom:on?"2px solid "+(B.gold):"2px solid transparent"}}>
-              <span style={{fontSize:17,color:on?B.gold:B.muted,transition:"color 0.15s"}}>{g.ico}</span>
-              <span style={{fontSize:9,color:on?B.gold:B.muted,fontWeight:700,letterSpacing:"0.02em",whiteSpace:"nowrap"}}>{g.l}</span>
+              style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"3px 10px",minWidth:58,minHeight:44,WebkitTapHighlightColor:"transparent",borderBottom:on?"2px solid "+(K.gold):"2px solid transparent"}}>
+              <span style={{fontSize:17,color:on?K.gold:K.muted,transition:"color 0.15s"}}>{g.ico}</span>
+              <span style={{fontSize:9,color:on?K.gold:K.muted,fontWeight:700,letterSpacing:"0.02em",whiteSpace:"nowrap"}}>{g.l}</span>
               {g.id==="g_accueil" && nbActions>0 && <span style={{position:"absolute",top:0,right:8,background:"#ef4444",color:"#fff",borderRadius:99,minWidth:15,height:15,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{nbActions>9?"9+":nbActions}</span>}
             </button>
           );})}

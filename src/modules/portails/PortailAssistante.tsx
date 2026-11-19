@@ -20,6 +20,8 @@ import { monIdentifiant } from "./portailsLib";
 // Outils : [clé d'ouverture, libellé, icône, permission requise (null = toujours), univers]
 const OUTILS: [string, string, string, string | null, string][] = [
   ["missions", "Mes missions", "✓", null, "*"],
+  ["messagerie", "Messages", "💬", null, "*"],
+  ["notifications", "Notifications", "🔔", null, "*"],
   ["equipe_gerer", "Attribuer des missions", "👥", "missions.gerer", "*"],
   ["food_catalogue", "Plats et recettes", "🍽", "food.consulter", "FOOD"],
   ["food_commande", "Prendre une commande", "🧾", "food.commandes", "FOOD"],
@@ -36,7 +38,7 @@ const STATUTS: Record<string, [string, "neutre" | "ok" | "alerte" | "accent"]> =
 const dateFr = (d?: string | null) => d ? new Date(d.length <= 10 ? d + "T12:00:00" : d).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }) : "Sans échéance";
 const duree = (min: number) => min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}` : `${min} min`;
 
-export default function PortailAssistante({ prenom, onOuvrir }: { prenom?: string; onOuvrir?: (cle: string) => void }) {
+export default function PortailAssistante({ prenom, onOuvrir, onDeconnexion }: { prenom?: string; onOuvrir?: (cle: string) => void; onDeconnexion?: () => void }) {
   const m = MARQUES.STUDIO;
   const [acces, setAcces] = useState<Acces | null>(null);
   const [missions, setMissions] = useState<any[] | null>(null);
@@ -83,10 +85,11 @@ export default function PortailAssistante({ prenom, onOuvrir }: { prenom?: strin
       <div style={{ background: m.degrade, color: "#fff", padding: "22px 16px 26px", borderRadius: "0 0 26px 26px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <LogoMarque m={m} taille={44} />
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, letterSpacing: 2.6, textTransform: "uppercase", color: "#e9d6a8", fontWeight: 700 }}>Espace assistante</div>
             <div style={{ fontFamily: m.serif, fontSize: 28, fontWeight: 600, lineHeight: 1.05 }}>{salut}{nom ? `, ${nom}` : ""}</div>
           </div>
+          {onDeconnexion && <button onClick={onDeconnexion} aria-label="Se déconnecter" style={{ alignSelf: "flex-start", minHeight: 36, padding: "6px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.35)", background: "rgba(0,0,0,0.18)", color: "#fff", fontSize: 12, fontWeight: 700, fontFamily: m.sans }}>Quitter</button>}
         </div>
         <div style={{ marginTop: 14, fontSize: 13.5, opacity: 0.88, lineHeight: 1.4 }}>
           {st.urgentes ? `${st.urgentes} mission${st.urgentes > 1 ? "s" : ""} urgente${st.urgentes > 1 ? "s" : ""} à traiter en priorité.` : st.ouvertes.length ? "Vos missions du moment sont prêtes ci-dessous." : "Aucune mission ouverte pour l'instant."}
