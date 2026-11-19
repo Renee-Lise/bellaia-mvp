@@ -94,8 +94,8 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 ## 7. Bella'Secret Home — P4
 - 🟦 Espace hôte / hôtesse (16 rubriques : tableau de bord, profil, parcours, disponibilités, planning, missions acceptées / refusées, événements, invitations, présences, comptes rendus, rémunérations, documents, messagerie, formations, charte, signalements) — prévisualisation, données de simulation, captures envoyées
 - 🟦 Centre de gestion fondatrice (candidatures, hôtes et autorisations individuelles, événements, missions, disponibilités et équipes, invitations, présences, incidents, documents, rémunérations en simulation, suspension / révocation, historique) — prévisualisation
-- 🟨 Migration 0128 (tables, RLS, garde-fous missions réelles / rémunérations) préparée + retour arrière ; ⏳ application par la fondatrice dans Supabase (2 confirmations restées sans réponse ; fichiers transmis)
-- ⬜ Tests de permissions après 0128 · transmission sécurisée des documents · billets / QR · jeux et modération côté hôte
+- ✅ Migration 0128 appliquée par la fondatrice (vérifiée : tables, RLS, garde-fous, 3 profils intacts) · ✅ 24 tests de permissions réussis (anonyme, cliente, hôte, fondatrice ; missions réelles et rémunérations refusées sans autorisation) · aucune permission accordée
+- ⬜ Transmission sécurisée des documents · billets / QR · jeux et modération côté hôte
 - ✅ Audit des salons
 - ✅ Interface sécurisée (jetons, pseudonymes, modération, signalement) — en production
 - ✅ Activation en base (0115 + 0115b) et tests de sécurité (17 tests)
@@ -136,3 +136,15 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ Bella'Structure : 3 modèles sans fichier masqués du catalogue client (rien supprimé) · ⬜ vrais modèles modifiables
 - ⏳ Validation graphique des 7 packs par la fondatrice → puis activation pour les NOUVELLES pièces uniquement (pièces émises inchangées)
 - ⬜ Autres documents (acompte, avoir, reçu, bons d'achat / transport, bordereaux, courriers, documents spécifiques par univers), exports PNG / Word / Sheets / ZIP, import de modèles
+
+## 14. Programme premium (demandé le 19/11) — phases 1 à 8
+- 🟦 Phase 1 · Design system : identités des 15 univers (palettes, typographies, rayons, dégradés, ambiances ; jeunesse et indépendant signalés), composants communs (surfaces, boutons, titres, indicateurs, puces, logos), bandeau informatif + carrousel (auto / manuel, pause, réduction des animations testée)
+- 🟦 Phase 1 · Portail fondatrice « Centre de direction » (indicateurs réels, Actions requises, univers en cartes, raccourcis personnalisables, stocks, agenda) — aperçu /apercu/portail
+- ⬜ Phase 1 · Portail assistante · espaces partenaires / prestataires · portail client
+- 🟦 Phase 2 · Bella'Food en identité gastronomique premium (olive, crème, doré) · ⬜ autres univers commerciaux, bannières pilotées par le studio
+- ⬜ Phase 3 · Panier sélectif (cases, totaux sélectionné / général, paiement partiel, persistance multi-appareils, vérifications serveur, séparation BellaStudio / Vil'Dor) · favoris et wishlists persistants
+- ⬜ Phase 4 · Studio de merchandising (bannières, photos, collections, ordre des sections, campagnes saisonnières, programmation, brouillon / publication / versions)
+- ⬜ Phase 5 · Moteur de notifications et e-mails (déclencheurs, anti-doublons, préférences, consentements, confidentialité BSH) + studio des communications — aucun envoi réel sans GO
+- ⬜ Phase 6 · Abonnements BSH Members et Odyssée Privilege (tarifs proposés en BROUILLON), espaces membres, étude des paiements récurrents (Stripe, SumUp, PayPal) sans activation
+- ⬜ Phase 7 · Promotions, fidélité, parrainage (règles de cumul, alerte de marge)
+- ⬜ Phase 8 · Tests complets iPhone et rapport
