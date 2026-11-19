@@ -14586,25 +14586,32 @@ export default function BellaiaApp() {
 
   // ── Prévisualisations fondatrice
   // ── Bandeau retour fondatrice en mode aperçu
-  const BandeauApercu = () => (
-    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:"linear-gradient(90deg,#9d2539,#c9a84c)",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+  // Sur iPhone, le haut de l'écran est sous l'encoche / la barre d'état :
+  // le bandeau commence sous la zone sûre, passe au-dessus de tout écran
+  // d'aperçu, et un second bouton reste toujours accessible en bas.
+  const BandeauApercu = () => (<>
+    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:2147483000,background:"linear-gradient(90deg,#9d2539,#c9a84c)",padding:"calc(env(safe-area-inset-top, 0px) + 8px) 14px 8px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
       <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>👁 Mode aperçu utilisateur</div>
       <button onClick={()=>{setPreview(null);setActiveUnivers(null);}}
         style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,padding:"4px 12px",color:"#fff",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"Inter,system-ui,sans-serif"}}>
         ← Retour fondatrice
       </button>
     </div>
-  );
+    <button onClick={()=>{setPreview(null);setActiveUnivers(null);}} aria-label="Retour à l'espace fondatrice"
+      style={{position:"fixed",left:12,bottom:"calc(env(safe-area-inset-bottom, 0px) + 14px)",zIndex:2147483000,minHeight:44,padding:"10px 16px",borderRadius:99,border:"1px solid rgba(255,255,255,0.35)",background:"rgba(157,37,57,0.95)",color:"#fff",fontWeight:800,fontSize:13,fontFamily:"Inter,system-ui,sans-serif",boxShadow:"0 6px 20px rgba(0,0,0,0.45)",cursor:"pointer"}}>
+      ← Fondatrice
+    </button>
+  </>);
 
   if (preview === "client") {
-    if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:36}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
+    if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
       onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/></div></>;
-    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:36}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}} user={user}/></div></>;
-    if (activeUnivers==="bo")     return <ClientOdyssee user={{...user,role:"cliente"}} rdvs={[]} onBack={()=>setActiveUnivers(null)}/>;
-    if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:36}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
-    if (activeUnivers==="struct") return <ClientStructurePortail onBack={()=>setActiveUnivers(null)}/>;
-    return <PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/>;
+    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}} user={user}/></div></>;
+    if (activeUnivers==="bo")     return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientOdyssee user={{...user,role:"cliente"}} rdvs={[]} onBack={()=>setActiveUnivers(null)}/></div></>;
+    if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
+    if (activeUnivers==="struct") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientStructurePortail onBack={()=>setActiveUnivers(null)}/></div></>;
+    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/></div></>;
   }
   if (preview === "hote") {
     // activeUnivers vient du choix fait dans Mode aperçu (ApercuUXF) —
@@ -14612,16 +14619,16 @@ export default function BellaiaApp() {
     // champs du compte de la fondatrice elle-même (jamais "bsh").
     const univHote = activeUnivers || user?.univers || user?.module || "";
     if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
-      return <><BandeauApercu/><div style={{paddingTop:36}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
+      return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
     }
     if (univHote === "bsh" || user?.pole === "BSH") {
-      return <><BandeauApercu/><div style={{paddingTop:36}}><HoteBSH user={user} onBack={()=>setPreview(null)}/></div></>;
+      return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><HoteBSH user={user} onBack={()=>setPreview(null)}/></div></>;
     }
-    return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
+    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
   }
-  if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
-  if (preview === "partenaire_vildor") return <><BandeauApercu/><div style={{paddingTop:36}}><div style={{maxWidth:860,margin:"0 auto",padding:"12px"}}><ModuleEquipe nom="EspaceVildor" props={{ user, mode: "partenaire" }} libelle="de l'espace partenaire"/></div></div></>;
-  if (preview === "assistante") return <><BandeauApercu/><div style={{paddingTop:36}}><ApercuAssistanteWrapper user={user}/></div></>;
+  if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
+  if (preview === "partenaire_vildor") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><div style={{maxWidth:860,margin:"0 auto",padding:"12px"}}><ModuleEquipe nom="EspaceVildor" props={{ user, mode: "partenaire" }} libelle="de l'espace partenaire"/></div></div></>;
+  if (preview === "assistante") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ApercuAssistanteWrapper user={user}/></div></>;
 
   // ── Routage par rôle
   if (espaceEffectif === "client")

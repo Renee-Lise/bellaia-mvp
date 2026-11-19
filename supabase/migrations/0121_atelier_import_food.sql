@@ -1,5 +1,6 @@
 -- ═══════════════════════════════════════════════════════════
 -- 0121_atelier_import_food.sql — Atelier d'import intelligent Bella'Food
+-- STATUT: APPLIQUÉ le 19/11 (autorisé par la fondatrice après erreur de bouton), complément file d'attente inclus
 -- (même principe que la médiathèque Bella'Events, classement alimentaire)
 --  • bibliotheque_fiches : rubrique proposée / retenue (modules Food),
 --    confiance, recette ou image associée proposée, lot d'import.
@@ -53,3 +54,49 @@ do $$ begin
     create policy ia_conso_fondatrice on public.ia_consommation for select to authenticated using (public.is_fondatrice());
   end if;
 end $$;
+
+-- ── Complément (validé le 19/11 : « mettre autorisé ») ─────────────
+-- File d'attente PERSISTANTE (indépendante de toute session) : chaque
+-- document est un élément de file avec son état, ses tentatives et un
+-- verrou de traitement (reprise automatique après interruption).
+alter table public.bibliotheque_fiches add column if not exists etat text not null default 'recu';
+alter table public.bibliotheque_fiches add column if not exists tentatives integer not null default 0;
+alter table public.bibliotheque_fiches add column if not exists derniere_erreur text;
+alter table public.bibliotheque_fiches add column if not exists verrou_le timestamptz;
+alter table public.bibliotheque_fiches add column if not exists source_url text;
+alter table public.bibliotheque_fiches add column if not exists texte_extrait text;
+alter table public.bibliotheque_fiches add column if not exists methode text;          -- sans_ia | ia_vision | ia_texte | jsonld …
+alter table public.bibliotheque_fiches add column if not exists cout_estime_eur numeric;
+alter table public.bibliotheque_fiches add column if not exists taille_octets bigint;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'bibliotheque_fiches_etat_valide') then
+    alter table public.bibliotheque_fiches add constraint bibliotheque_fiches_etat_valide check (etat in
+      ('recu','en_attente','analyse','extraite','doublon','a_classer','a_completer','a_valider','valide','erreur','suspendu'));
+  end if;
+end $$;
+create index if not exists bibliotheque_fiches_etat on public.bibliotheque_fiches (etat, created_at);
+-- Les 119 fiches Drive déjà inventoriées : en attente ; les 8 extraites : à valider.
+update public.bibliotheque_fiches set etat = case when recette_id is not null or extraction is not null then 'a_valider' else 'en_attente' end where etat = 'recu';
+
+alter table public.food_import_lots add column if not exists budget_eur numeric;
+alter table public.food_import_lots add column if not exists cout_estime_eur numeric;
+alter table public.food_import_lots add column if not exists cout_reel_eur numeric not null default 0;
+
+-- Limites IA configurables (une ligne par espace) + alerte budgétaire.
+create table if not exists public.ia_limites (
+  espace text primary key,
+  appels_jour integer not null default 200,
+  budget_mensuel_eur numeric not null default 20,
+  alerte_pct integer not null default 80,
+  prix_entree_mtok numeric not null default 3,     -- estimation, à ajuster selon la facturation réelle
+  prix_sortie_mtok numeric not null default 15,
+  suspendu boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+alter table public.ia_limites enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='ia_limites' and policyname='ia_limites_fondatrice') then
+    create policy ia_limites_fondatrice on public.ia_limites for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice());
+  end if;
+end $$;
+insert into public.ia_limites (espace) values ('BELLAFOOD'), ('VILDOR'), ('GENERAL') on conflict (espace) do nothing;
