@@ -15,6 +15,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { sbFoodGet, sbFoodPatch, sbFoodPost } from "./foodApi";
 import { deposerPrive, ouvrirPrive, nomFichierSur } from "../equipe/equipeLib";
+import AtelierImport from "./AtelierImport";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c" };
@@ -198,25 +199,7 @@ export default function BibliothequeFiches() {
         {!charge && !visibles.length && <div style={{ color: C.doux, textAlign: "center", padding: 20 }}>Aucune fiche dans ce filtre.</div>}
       </>}
 
-      {onglet === "import" && <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={carte}>
-          <b>Fichiers (PDF, Word, ZIP, images) — un ou plusieurs</b>
-          <div style={{ fontSize: 12, color: C.doux, margin: "4px 0 8px" }}>Sur iPhone, le bouton ouvre « Fichiers » : Google Drive y apparaît comme emplacement si l'application Drive est installée.</div>
-          <input type="file" multiple accept=".pdf,.doc,.docx,.zip,image/*,application/pdf" onChange={e => { importer(e.target.files); e.target.value = ""; }} style={{ color: C.texte, fontSize: 14 }} />
-          <div style={{ fontSize: 12, color: C.doux, margin: "10px 0 4px" }}>Ou un dossier entier (ordinateur) :</div>
-          <input type="file" multiple {...({ webkitdirectory: "", directory: "" } as any)} onChange={e => { importer(e.target.files); e.target.value = ""; }} style={{ color: C.texte, fontSize: 14 }} />
-        </div>
-        <div style={carte}>
-          <b>Photographier ou scanner une fiche papier</b>
-          <div style={{ marginTop: 8 }}><input type="file" accept="image/*" capture="environment" onChange={e => importer(e.target.files)} style={{ color: C.texte, fontSize: 14 }} /></div>
-        </div>
-        <div style={carte}>
-          <b>Coller une recette</b>
-          <textarea value={colle} onChange={e => setColle(e.target.value)} rows={6} style={{ ...champ, marginTop: 8, minHeight: 120 }} placeholder="Collez ici le texte d'une recette…" />
-          <button style={{ ...btn(true), marginTop: 8 }} onClick={collerRecette}>Enregistrer</button>
-        </div>
-        <div style={{ fontSize: 12, color: C.doux }}>Originaux conservés dans le stockage privé (jamais publiés). Doublons détectés par empreinte du fichier.</div>
-      </div>}
+      {onglet === "import" && <AtelierImport espace="BELLAFOOD" sourceId={null} />}
 
       {onglet === "droits" && sources.map(s => (
         <div key={s.id} style={{ ...carte, display: "flex", flexDirection: "column", gap: 8 }}>

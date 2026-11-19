@@ -23,7 +23,7 @@ const NON_VISIBLE = [
 ];
 
 export default function ApercuAssistante({ user }: { user: any }) {
-  const [onglet, setOnglet] = useState<"missions" | "messages" | "notifications">("missions");
+  const [onglet, setOnglet] = useState<"missions" | "messages" | "notifications" | "food">("missions");
   const [membres, setMembres] = useState<any[]>([]);
   const [voirComme, setVoirComme] = useState<string>("");
 
@@ -37,7 +37,7 @@ export default function ApercuAssistante({ user }: { user: any }) {
   }, []);
 
   const nomVu = membres.find(m => m.id === voirComme)?.nom;
-  const ONGLETS: [typeof onglet, string][] = [["missions", "🤝 Mes missions"], ["messages", "💬 Messages"], ["notifications", "🔔 Notifications"]];
+  const ONGLETS: [typeof onglet, string][] = [["missions", "🤝 Mes missions"], ["messages", "💬 Messages"], ["notifications", "🔔 Notifications"], ["food", "🍽 Bella'Food"]];
 
   return (
     <div style={{ fontFamily: SA, color: C.texte, maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12, padding: "12px 12px 40px" }}>
@@ -66,6 +66,11 @@ export default function ApercuAssistante({ user }: { user: any }) {
         <div style={{ ...carte, fontSize: 13, color: C.doux, lineHeight: 1.6 }}>
           L'assistante voit ici <b style={{ color: C.texte }}>uniquement ses propres conversations</b> (avec vous et l'équipe), ainsi que les fils de commentaires de ses missions.
           {nomVu ? <> Les conversations de {nomVu} ne sont pas affichées dans l'aperçu : elles restent privées.</> : null}
+        </div>
+      )}
+      {onglet === "food" && (
+        <div style={{ ...carte, fontSize: 13, color: C.doux, lineHeight: 1.6 }}>
+          Selon les permissions que vous lui accordez (Accès & permissions) : <b style={{ color: C.texte }}>découvrir</b> les plats et recettes validés (sans coûts ni marges), <b style={{ color: C.texte }}>prendre une commande</b> pour une cliente (prix et allergènes contrôlés par le serveur), <b style={{ color: C.texte }}>proposer une fiche recette</b> (statut « proposée », à valider par vous). Sans permission, elle voit un message l'invitant à vous demander l'accès.
         </div>
       )}
       {onglet === "notifications" && (

@@ -1,0 +1,14 @@
+-- ═══════════════════════════════════════════════════════════
+-- 0122_acces_food_equipe.sql — STATUT: APPLIQUÉ le 19/11
+-- Accès minimum de l'assistante à Bella'Food (demande du 19/11),
+-- UNIQUEMENT par permissions accordées par la fondatrice :
+--  • food.consulter        → food_recettes_equipe() : recettes actives
+--    SANS coût, prix de revient, marge, fournisseur ni note interne.
+--  • food.recettes.proposer → food_proposer_recette(j) : fiche créée
+--    au statut « proposee » (jamais active / publiée), à valider.
+--  • food.commandes        → prise de commande pour une cliente via la
+--    route serveur existante (prix et allergènes contrôlés côté serveur).
+-- Aucune permission accordée automatiquement.
+-- (corps des fonctions : voir l'exécution du 19/11 ; security definer,
+--  search_path fixé, contrôle is_fondatrice() ou a_permission(...))
+-- ═══════════════════════════════════════════════════════════

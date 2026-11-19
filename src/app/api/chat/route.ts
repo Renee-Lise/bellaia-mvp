@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { permisUtilisateur } from "@/lib/permissions";
+import { verifierQuota, journaliserIA, coutEstime } from "@/lib/iaUsage";
 
 // Relais vers l'IA (clé Anthropic côté serveur).
 // Réservé à l'équipe : fondatrice, ou personne ayant reçu la permission
@@ -45,6 +46,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ content: [{ type: "text", text: "⚠️ Conversation trop longue : commencez-en une nouvelle." }] }, { status: 413 });
   }
 
+  // Quotas et budget IA (table ia_limites, espace GENERAL) + journal des coûts.
+  const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY) : null;
+  const quota = admin ? await verifierQuota(admin, user.id, "GENERAL") : null;
+  if (quota && !quota.ok) return NextResponse.json({ content: [{ type: "text", text: "⚠️ " + quota.raison }] }, { status: 429 });
+
   let response: Response;
   try {
     response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -70,6 +76,10 @@ export async function POST(req: NextRequest) {
     const texte = detail || fallback[response.status] || `Erreur HTTP ${response.status}.`;
     return NextResponse.json({ content: [{ type: "text", text: "⚠️ " + texte }] }, { status: response.status });
   }
-  try { return NextResponse.json(JSON.parse(raw)); }
+  try {
+    const d = JSON.parse(raw);
+    if (admin && quota) { const e = d?.usage?.input_tokens || 0, so = d?.usage?.output_tokens || 0; await journaliserIA(admin, { userId: user.id, route: "chat", modele: "claude-sonnet-5-5", entree: e, sortie: so, cout: coutEstime(quota.limites, e, so) }); }
+    return NextResponse.json(d);
+  }
   catch { return NextResponse.json({ content: [{ type: "text", text: "⚠️ Réponse illisible." }] }, { status: 500 }); }
 }

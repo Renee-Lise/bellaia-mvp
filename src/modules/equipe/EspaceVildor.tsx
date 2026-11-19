@@ -18,6 +18,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { sbSelect, sbInsert, sbUpdate, sbRpc } from "../events/eventsAtelierLib";
 import { C, SA, btn, champ, lbl, carte, euros, versCentimes, heure, sha256, nomFichierSur, deposerPrive, ouvrirPrive, ALLERGENES, STATUTS_ALLERGENE } from "./equipeLib";
 import EspaceEquipe from "./EspaceEquipe";
+import AtelierImport from "../food/AtelierImport";
 
 const STATUTS_ORG: [string, string, string][] = [
   ["en_creation", "Entreprise en création", C.orange], ["immatriculation_en_cours", "Immatriculation en cours", C.orange],
@@ -39,7 +40,7 @@ const DOCS: [string, string][] = [
 ];
 const STATUTS_DOC: Record<string, [string, string]> = { a_verifier: ["À vérifier", C.orange], valide: ["Validé", C.ok], refuse: ["Refusé", C.rouge], expire: ["Expiré", C.rouge] };
 
-type Onglet = "accueil" | "entreprise" | "documents" | "produits" | "commandes" | "missions";
+type Onglet = "accueil" | "entreprise" | "documents" | "produits" | "commandes" | "missions" | "atelier";
 
 export default function EspaceVildor({ user, mode = "partenaire", orgId }: { user?: any; mode?: "partenaire" | "fondatrice"; orgId?: string }) {
   const fond = mode === "fondatrice";
@@ -88,7 +89,7 @@ export default function EspaceVildor({ user, mode = "partenaire", orgId }: { use
           Les ventes réelles, les missions effectives et les versements restent désactivés jusqu'à la vérification de chaque autorisation par la fondatrice.
         </div>)}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {([["accueil", "Accueil"], ["entreprise", "Mon entreprise et mes autorisations"], ["documents", `Documents (${docs.length})`], ["produits", "Mes produits & tarifs"], ["commandes", "Commandes reçues"], ["missions", "Mes missions"]] as [Onglet, string][]).map(([k, l]) =>
+        {([["accueil", "Accueil"], ["entreprise", "Mon entreprise et mes autorisations"], ["documents", `Documents (${docs.length})`], ["produits", "Mes produits & tarifs"], ["commandes", "Commandes reçues"], ["missions", "Mes missions"], ["atelier", "Atelier : importer mes fichiers"]] as [Onglet, string][]).map(([k, l]) =>
           <button key={k} style={btn(onglet === k)} onClick={() => setOnglet(k)}>{l}</button>)}
       </div>
       {msg && <div style={{ fontSize: 13, color: msg.startsWith("❌") ? C.rouge : C.ok }}>{msg}</div>}
@@ -99,6 +100,8 @@ export default function EspaceVildor({ user, mode = "partenaire", orgId }: { use
       {onglet === "produits" && <Produits fond={fond} setMsg={setMsg} />}
       {onglet === "commandes" && <Commandes fond={fond} setMsg={setMsg} />}
       {onglet === "missions" && <EspaceEquipe user={user} role={fond ? "fondatrice" : "partenaire"} />}
+      {/* Même moteur d'import que Bella'Food, espace VILDOR : données strictement séparées (stockage et lignes de SON organisation). */}
+      {onglet === "atelier" && org?.id && <AtelierImport espace="VILDOR" organisationId={org.id} />}
     </div>
   );
 }

@@ -13931,6 +13931,9 @@ const NAV_GROUPES_ASSISTANTE = [
   // seuls ses missions et ses messages lui sont ouverts (vérifié en base).
   {id:"g_equipe", ico:"🤝", l:"Mes missions", pages:[["equipe","Mes missions"]] as [string,string][]},
   {id:"g_msg",    ico:"💬", l:"Messages",     pages:[["messagerie","Messages"],["notifications","Notifications"]] as [string,string][]},
+  // Bella'Food : contenu selon les permissions accordées par la fondatrice
+  // (découvrir sans coûts, prendre une commande, proposer une fiche).
+  {id:"g_food",   ico:"🍽", l:"Bella'Food",   pages:[["food_equipe","Bella'Food"]] as [string,string][]},
 ];
 const groupeDe = (groupes: typeof NAV_GROUPES, page: string) => groupes.find(g => g.pages.some(([id]) => id === page));
 
@@ -14352,6 +14355,12 @@ function ActionsRequisesWrapper() {
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement des actions…</div>;
   return <Comp/>;
 }
+function FoodEquipeWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/food/EspaceFoodEquipe").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de Bella'Food…</div>;
+  return <Comp boutique={<ClientFood user={user} onBack={()=>{}}/>}/>;
+}
 function ApercuAssistanteWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => { import("../modules/equipe/ApercuAssistante").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
@@ -14657,6 +14666,7 @@ export default function BellaiaApp() {
     actions:     <ActionsRequisesWrapper/>,
     reductions:  <ModuleEquipe nom="ReductionsF" props={{}} libelle="des réductions"/>,
     equipe:      <EquipeWrapper user={user} role={role}/>,
+    food_equipe: <FoodEquipeWrapper user={user}/>,
     partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
     acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,
     calendrier:  <CalendrierP1 user={user}/>,

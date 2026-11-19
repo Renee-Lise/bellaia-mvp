@@ -15,7 +15,7 @@ import FoodHoraires     from "./FoodHoraires";
 import FoodStocks       from "./FoodStocks";
 import FoodMateriel     from "./FoodMateriel";
 import FoodCalculateur  from "./FoodCalculateur";
-import FoodImport       from "./FoodImport";
+import AtelierImport    from "./AtelierImport";  // remplace l'ancien FoodImport (qui n'enregistrait rien)
 import FoodCourses      from "./FoodCourses";
 import FoodAssistant    from "./FoodAssistant";
 import FoodMenus        from "./FoodMenus";
@@ -210,7 +210,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="courses"       && <FoodCourses/>}
         {(section==="materiel"||section==="consommables") && <FoodMateriel onglet={section==="consommables"?"consommables":"materiel"}/>}
         {section==="calculateur"   && <FoodCalculateur/>}
-        {section==="import"        && <FoodImport onImporter={r=>alert("✅ Importée : "+(r.nom||"Sans nom"))}/>}
+        {section==="import"        && <AtelierImport espace="BELLAFOOD"/>}
         {section==="assistant"     && <FoodAssistant/>}
       </div>
     </div>
