@@ -144,7 +144,7 @@ export async function getCatalogueFoodPublic(): Promise<{ produits: ProduitPubli
   const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!SB_URL || !SB_KEY) return { produits: [], diagnostic: "Configuration manquante." };
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/v_catalogue_food_public?select=id,nom,categorie_slug,sous_categorie,description_courte,prix,tags,galerie_photos&order=ordre.asc,nom.asc&limit=200`, {
+    const r = await fetch(`${SB_URL}/rest/v1/v_catalogue_food_public?select=id,nom,categorie_slug,sous_categorie,description_courte,prix,tags,galerie_photos,commandable,mention&order=ordre.asc,nom.asc&limit=200`, {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
       cache: "no-store",
     });
@@ -160,6 +160,8 @@ export async function getCatalogueFoodPublic(): Promise<{ produits: ProduitPubli
         sousCat: row.sous_categorie ?? undefined, description: row.description_courte ?? undefined,
         prix: row.prix ?? null, tags: row.tags ?? undefined,
         photo: Array.isArray(row.galerie_photos) ? row.galerie_photos[0] : undefined,
+        // Commande bloquée tant que les allergènes obligatoires manquent.
+        commandable: row.commandable !== false, mention: row.mention ?? undefined,
       })),
       diagnostic: null,
     };

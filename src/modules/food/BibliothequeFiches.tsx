@@ -55,7 +55,7 @@ export default function BibliothequeFiches() {
         sbFoodGet<any>("bibliotheque_sources", "select=*&order=nom.asc"),
       ]);
       setFiches(f); setSources(s);
-      const ids = f.map((x: any) => x.recette_id).filter(Boolean);
+      const ids = Array.from(new Set(f.flatMap((x: any) => [x.recette_id, x.doublon_recette_id]).filter(Boolean)));
       if (ids.length) {
         const r = await sbFoodGet<any>("food_recettes", `id=in.(${ids.join(",")})&select=id,nom,statut,categorie,ingredients,nb_parts,rendement,temps_prepa,temps_cuisson,temps_repos,temperature,etapes,astuces,materiel,conservation,notes,allergenes`);
         setRecettes(Object.fromEntries(r.map((x: any) => [x.id, x])));
@@ -152,6 +152,12 @@ export default function BibliothequeFiches() {
               <span style={{ fontSize: 11, fontWeight: 800, color: sc }}>{sl}</span>
             </div>
             <div style={{ fontSize: 12, color: C.doux }}>{sourceNom(f.source_id)} · {f.origine === "drive" ? "Google Drive" : f.origine} · espace {f.espace === "BELLAFOOD" ? "Bella'Food (privé)" : f.espace === "VILDOR" ? "Vil'Dor (privé)" : "partagé"}{r ? ` · ${(r.ingredients || []).length} ingrédient(s), ${(r.etapes || []).length} étape(s)` : ""}</div>
+            {(!!(f.contradictions || []).length || f.doublon_recette_id || !!(f.informations_manquantes || []).length) && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {!!(f.contradictions || []).length && <span style={{ fontSize: 11, fontWeight: 800, color: C.rouge, border: `1px solid ${C.rouge}66`, borderRadius: 99, padding: "2px 8px" }}>⚠️ {f.contradictions.length} contradiction(s) dans la fiche</span>}
+                {f.doublon_recette_id && <span style={{ fontSize: 11, fontWeight: 800, color: C.orange, border: `1px solid ${C.orange}66`, borderRadius: 99, padding: "2px 8px" }}>⧉ Doublon potentiel</span>}
+                {(f.informations_manquantes || []).map((m: string) => <span key={m} style={{ fontSize: 11, color: C.doux, border: `1px solid ${C.ligne}`, borderRadius: 99, padding: "2px 8px" }}>Manque : {m}</span>)}
+              </div>)}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <select style={{ ...champ, width: "auto", minHeight: 36, fontSize: 14 }} value={f.categorie || ""} onChange={e => reclasser(f, e.target.value)}>
                 <option value="">Catégorie…</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -163,6 +169,21 @@ export default function BibliothequeFiches() {
             </div>
             {ouverte === f.id && r && (
               <div style={{ fontSize: 13, lineHeight: 1.55, borderTop: `1px solid ${C.ligne}`, paddingTop: 8 }}>
+                {(f.contradictions || []).map((c: any, k: number) => (
+                  <div key={k} style={{ border: `1px solid ${C.rouge}55`, background: `${C.rouge}10`, borderRadius: 10, padding: 10, marginBottom: 8 }}>
+                    <b style={{ color: C.rouge }}>⚠️ {c.sujet} — à trancher par vous (non corrigé)</b>
+                    <div style={{ fontSize: 12, color: C.doux, margin: "2px 0 4px" }}>Extraits de la fiche originale :</div>
+                    {(c.extraits || []).map((x: string, i: number) => <div key={i} style={{ fontSize: 13, fontStyle: "italic", marginLeft: 8 }}>{x}</div>)}
+                  </div>))}
+                {f.doublon_recette_id && recettes[f.doublon_recette_id] && (() => { const d = recettes[f.doublon_recette_id]; return (
+                  <div style={{ border: `1px solid ${C.orange}55`, background: `${C.orange}10`, borderRadius: 10, padding: 10, marginBottom: 8 }}>
+                    <b style={{ color: C.orange }}>⧉ Comparaison avec la recette existante « {d.nom} »</b>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6, fontSize: 12 }}>
+                      <div><div style={{ fontWeight: 800, marginBottom: 2 }}>Existante</div>{(d.ingredients || []).map((i: any, k: number) => <div key={k}>{i.quantite ?? ""} {i.unite || ""} {i.nom}</div>)}<div style={{ color: C.doux, marginTop: 4 }}>{(d.etapes || []).length} étape(s)</div></div>
+                      <div><div style={{ fontWeight: 800, marginBottom: 2 }}>Fiche importée</div>{(r.ingredients || []).map((i: any, k: number) => <div key={k}>{i.quantite ?? ""} {i.unite || ""} {i.nom}</div>)}<div style={{ color: C.doux, marginTop: 4 }}>{(r.etapes || []).length} étape(s)</div></div>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.doux, marginTop: 6 }}>Décision attendue : conserver séparément, fusionner (compléter l'existante) ou rejeter l'import. Rien n'est fusionné sans votre validation.</div>
+                  </div>); })()}
                 <div style={{ color: C.doux }}>{[r.rendement, r.temps_prepa && `préparation ${r.temps_prepa} min`, r.temps_cuisson && `cuisson ${r.temps_cuisson} min`, r.temps_repos && `repos ${r.temps_repos} min`, r.temperature && `${r.temperature} °C`].filter(Boolean).join(" · ")}</div>
                 <b>Ingrédients</b>
                 <ul style={{ margin: "4px 0", paddingLeft: 18 }}>{(r.ingredients || []).map((i: any, k: number) => <li key={k}>{i.quantite ?? ""} {i.unite || ""} {i.nom}{i.notes ? ` (${i.notes})` : ""}</li>)}</ul>
@@ -181,7 +202,9 @@ export default function BibliothequeFiches() {
         <div style={carte}>
           <b>Fichiers (PDF, Word, ZIP, images) — un ou plusieurs</b>
           <div style={{ fontSize: 12, color: C.doux, margin: "4px 0 8px" }}>Sur iPhone, le bouton ouvre « Fichiers » : Google Drive y apparaît comme emplacement si l'application Drive est installée.</div>
-          <input type="file" multiple accept=".pdf,.doc,.docx,.zip,image/*,application/pdf" onChange={e => importer(e.target.files)} style={{ color: C.texte, fontSize: 14 }} />
+          <input type="file" multiple accept=".pdf,.doc,.docx,.zip,image/*,application/pdf" onChange={e => { importer(e.target.files); e.target.value = ""; }} style={{ color: C.texte, fontSize: 14 }} />
+          <div style={{ fontSize: 12, color: C.doux, margin: "10px 0 4px" }}>Ou un dossier entier (ordinateur) :</div>
+          <input type="file" multiple {...({ webkitdirectory: "", directory: "" } as any)} onChange={e => { importer(e.target.files); e.target.value = ""; }} style={{ color: C.texte, fontSize: 14 }} />
         </div>
         <div style={carte}>
           <b>Photographier ou scanner une fiche papier</b>

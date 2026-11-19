@@ -1,11 +1,12 @@
 # Bellaïa — Checklist générale (mise à jour du 19/11/2026 — production 3aef807)
 
-Statuts : ✅ **Opérationnel** (en production) · 🟦 **Développé, non déployé** (prévisualisation) · 🟨 **Préparé, non exécuté** · 🔄 **En cours** · ⏳ **En attente de validation / de données** · ⬜ **À faire**
+Statuts : ✅ **Opérationnel** (développé, testé, appliqué en base et déployé ; « validé » = validé par la fondatrice) · 🟦 **Développé, non déployé** (prévisualisation) · 🟨 **Préparé, non exécuté** · 🔄 **En cours** · ⏳ **En attente de validation / de données** · ⬜ **À faire**
 
 Note : la base Supabase est commune à la production et à la prévisualisation. Une modification de base marquée ✅ est donc active pour tous ; le code marqué 🟦 ne l'est qu'en prévisualisation.
 
 ## 1. Infrastructure et administration
-- ✅ Administration → Outils & déclarations : modèle de facture et livre des recettes / achats / marge (copies modifiables dans votre Drive), 2 guides de déclaration (base ✅, écran 🟦 branche 40f3668)
+- ✅ Administration → Outils & déclarations déployé (GO 19/11) : modèle de facture et livre des recettes / achats / marge (copies modifiables dans votre Drive), 2 guides
+- ⬜ Livre des recettes alimenté par les données Bellaïa (export compatible Google Sheets) · contrôle de conformité du modèle de facture
 - ✅ Adresse officielle : bellaia-11-azure.vercel.app
 - ✅ Profil juridique et émetteurs (logos, en-têtes) — mentions fiscales ⏳ régime à confirmer
 - ✅ Configuration Supabase / Vercel
@@ -33,7 +34,7 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⬜ Test réel d'un paiement SumUp
 
 ## 3. Organisation et équipe — P1
-- 🟦 Aperçu « profil assistante » (menu, missions, messages tels que vus par l'assistante, « Voir comme », lecture seule, liste de ce qu'elle ne voit pas) — branche 40f3668
+- ✅ Aperçus des profils déployés (GO 19/11) : cliente, assistante, hôte / hôtesse, prestataire, partenaire Vil'Dor — lecture seule, aucune action au nom d'une autre personne
 - ✅ Base : comptes multirôles, organisations, missions, fil, stockage privé
 - ✅ Écrans : Accès & permissions, espace équipe, missions, livrables, commentaires / corrections, planning (en production)
 - ✅ Univers de mission évolutifs (0116 appliquée et testée : 15 univers, « pole » conservé en compatibilité, aucun droit créé automatiquement)
@@ -54,7 +55,8 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ **Réductions** : codes promo (%, €, période, minimum, utilisations, une par cliente), réduction manuelle sur une commande (en production ; aucun code actif)
 - ⬜ Moteur de promotions étendu : promotions automatiques, lots, coffrets, anniversaire, parrainage, fidélité, livraison offerte, règles de cumul, simulateur de rentabilité
 - ✅ **Allergènes automatiques** sur les commandes (site et sur-mesure), affichés avant l'achat ; « à vérifier » si inconnus (en production)
-- ⏳ 216 recettes sans allergènes, dont 112 produits en vente (Actions requises) · ⬜ validation humaine par fiche · ⬜ blocage de commande (décision attendue)
+- ✅ **Blocage des commandes** sans allergènes obligatoires (appliqué en base + boutique + serveur, testé : 3 cas) — 3 produits commandables / 116, 113 « Fiche produit en cours de finalisation » · compteurs recalculés à chaque ouverture (nouvelles recettes incluses)
+- ⬜ Assistant de régularisation recette par recette (scan des emballages, soumission, validation, réactivation)
 - ✅ Correctif de l'import de recette par photo
 - ⏳ Validation des 14 prix de revente · parfums · fiches allergènes · recettes incomplètes · barquette · coûts réels
 - ⬜ Publication du catalogue validé
@@ -62,9 +64,16 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 ## 5 bis. Bibliothèque professionnelle (fiches techniques)
 - ✅ Base : sources et droits (Massena Formations : utilisation interne + adaptation, confirmation du 19/11), inventaire, espaces Bella'Food / Vil'Dor / partagé séparés, variantes de recette, validation humaine
 - ✅ Inventaire : 119 documents Google Drive distincts (160 liens, 41 doublons)
-- 🔄 Extraction en recettes : 8 / 119 (« à valider », rien d'inventé, allergènes non indiqués = inconnus)
-- 🟦 Écran Bibliothèque (recherche nom / code / ingrédient / catégorie, reclassement, validation, import multiple PDF / Word / ZIP / photo / scan / texte collé, stockage privé, doublons par empreinte, justificatif des droits) — branche 40f3668, non en ligne
+- 🔄 Extraction en recettes : 8 / 119 — lot 1 (« à valider », rien d'inventé, allergènes non indiqués = inconnus) · contradictions avec extraits originaux (Madeleine, Spritz, Financier, Cigarette russe, Cookies) · doublon Cookies signalé · plus de création de doublon (appliqué en base)
+- ✅ Écran Bibliothèque déployé (GO 19/11) : recherche, reclassement, validation, contradictions avec extraits, comparaison des doublons, import multiple et de dossiers, stockage privé, justificatif des droits — confidentialité testée (visiteur / cliente / assistante / partenaire : 0)
 - ⬜ Extraction automatique des fichiers importés depuis l'iPhone · calculs (portions, coûts Bella'Food, courses, production, étiquettes, PDF) branchés sur les recettes validées · bibliothèque Vil'Dor dans son espace
+
+## 5 ter. Atelier d'import intelligent Bella'Food (et Vil'Dor) — demandé le 19/11
+- ⬜ Même principe que Bella'Events, classement alimentaire : sélection multiple, dossiers, ZIP, Word, PDF, photos, scans, affiches, Google Drive / iPhone
+- ⬜ Analyse du contenu (IA) et rubrique proposée : recettes / sous-recettes, plats, desserts, pâtisseries, boissons, en-cas, ingrédients, fournisseurs, achats, stocks, coûts et marges, menus, hygiène, allergènes, traçabilité, communication et merchandising · rubrique « À classer » · reclassement manuel
+- ⬜ Alimentation directe des modules · recette existante complétée sans doublon (infos + images) · sinon nouvelle recette « à valider » · association d'images proposée · comparaison des versions
+- ⬜ Originaux conservés et privés jusqu'à validation · historique des imports · reprise des traitements interrompus · suivi des coûts IA et quotas · séparation Vil'Dor
+- 🟨 Migration 0121 (historique et reprise des imports, rubriques, journal de consommation IA) préparée — **refusée à l'exécution le 19/11, non appliquée**
 
 ## 6. Hygiène et traçabilité — P3
 - ✅ Documents partenaires privés (empreinte, doublons, expiration)

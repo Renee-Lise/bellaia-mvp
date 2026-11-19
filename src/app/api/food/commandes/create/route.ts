@@ -185,6 +185,13 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(rec?.allergenes)) allergenes = [...allergenes, ...rec!.allergenes.filter(Boolean)];
     }
     allergenes = Array.from(new Set(allergenes.map((a: string) => String(a).trim()).filter(Boolean)));
+    // Blocage réglementaire : aucune commande d'un produit dont les
+    // informations allergènes obligatoires manquent ou restent à
+    // déterminer (même règle que v_catalogue_food_public.commandable).
+    const ambigu = /(à déterminer|a determiner|inconnu|à vérifier|a verifier|selon (composition|fabrication))/i;
+    if (allergenes.length === 0 || allergenes.some(a => ambigu.test(a))) {
+      return NextResponse.json({ error: `« ${produit.nom} » : fiche produit en cours de finalisation (informations allergènes obligatoires manquantes). Ce produit ne peut pas encore être commandé.`, code: "ALLERGENES_MANQUANTS" }, { status: 409 });
+    }
     lignesVerifiees.push({ libelle, qte, prixUnitaire: prixReel, total: parseFloat((prixReel * qte).toFixed(2)), allergenes, allergenesAVerifier: allergenes.length === 0 });
   }
 

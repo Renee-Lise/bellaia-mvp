@@ -3166,7 +3166,7 @@ function ClientFood({ user, onBack }) {
       if (!actif) return;
       const mapped = produits.map(p => {
         const catInfo = FOOD_CATEGORIES.find(c => c.id === p.categorie);
-        return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [], photo: p.photo || null, variantes: [] };
+        return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [], photo: p.photo || null, variantes: [], commandable: (p as any).commandable !== false, mention: (p as any).mention || null };
       });
       setCatalogueFood(mapped);
       setCatalogueDiag(diagnostic);
@@ -3211,7 +3211,10 @@ function ClientFood({ user, onBack }) {
     return () => { actif = false; };
   }, [user]);
 
+  // Commande impossible tant que les allergènes obligatoires manquent
+  // (règle en base : v_catalogue_food_public.commandable ; revérifiée par le serveur).
   const ajouterPanier = (p) => setPanier(prev => {
+    if (p?.commandable === false) return prev;
     const idx = prev.findIndex(x=>x.id===p.id);
     if (idx>=0) return prev.map((x,i)=>i===idx?{...x,qte:x.qte+1}:x);
     return [...prev, {...p, qte:1}];
@@ -3222,6 +3225,7 @@ function ClientFood({ user, onBack }) {
   // propre ligne de panier (id composite, pour ne jamais fusionner
   // deux tailles différentes du même produit).
   const ajouterPanierVariante = (p, v) => {
+    if (p?.commandable === false) return;
     const baseId = baseFritesChoisie[p.id];
     const baseLabel = baseId ? BASES_FRITES.find(b=>b.id===baseId)?.l : null;
     ajouterPanier({
@@ -3382,9 +3386,12 @@ function ClientFood({ user, onBack }) {
                           {p.prix ? (
                             <>
                               <div style={{fontSize:13,fontWeight:700,color:"#c9a96e",marginBottom:4}}>{fmtPx(p.prix)}</div>
+                              {p.commandable === false ? (
+                                <div style={{fontSize:10,fontStyle:"italic",color:"rgba(201,169,110,0.85)",maxWidth:120,lineHeight:1.3}}>{p.mention || "Fiche produit en cours de finalisation"}</div>
+                              ) : (
                               <button onClick={()=>ajouterPanier(p)} style={{background:"linear-gradient(135deg,"+FC+",#16a34a)",border:"none",borderRadius:8,padding:"5px 11px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA}}>
                                 + Ajouter
-                              </button>
+                              </button>)}
                             </>
                           ) : (
                             // Produit sans prix de base ET sans variante chargée : soit un
@@ -3412,7 +3419,7 @@ function ClientFood({ user, onBack }) {
                         ) : (
                           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                             {p.variantes.map(v=>(
-                              <button key={v.id} onClick={()=>ajouterPanierVariante(p,v)} style={{background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.35)",borderRadius:8,padding:"6px 10px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+                              <button key={v.id} disabled={p.commandable === false} onClick={()=>ajouterPanierVariante(p,v)} style={{opacity:p.commandable === false ? 0.45 : 1,background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.35)",borderRadius:8,padding:"6px 10px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
                                 <span>{v.nom}</span>
                                 <span style={{color:"#c9a96e"}}>{fmtPx(v.prix)}</span>
                               </button>
@@ -3425,7 +3432,7 @@ function ClientFood({ user, onBack }) {
                     {p.nom !== "Frites maison" && p.variantes?.length > 0 && (
                       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                         {p.variantes.map(v=>(
-                          <button key={v.id} onClick={()=>ajouterPanierVariante(p,v)} style={{background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.35)",borderRadius:8,padding:"6px 10px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+                          <button key={v.id} disabled={p.commandable === false} onClick={()=>ajouterPanierVariante(p,v)} style={{opacity:p.commandable === false ? 0.45 : 1,background:"rgba(21,128,61,0.15)",border:"1px solid rgba(21,128,61,0.35)",borderRadius:8,padding:"6px 10px",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:SA,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
                             <span>{v.nom}</span>
                             <span style={{color:"#c9a96e"}}>{fmtPx(v.prix)}</span>
                           </button>
@@ -3685,7 +3692,10 @@ function setApercuActif(actif: boolean) {
       const estEcriture = methode !== "GET" && methode !== "HEAD";
       let chemin = url;
       try { chemin = new URL(url, window.location.origin).pathname; } catch {}
-      const estDonneesSupabase = !!SB_URL && url.startsWith(SB_URL) && (url.includes("/rest/v1/") || url.includes("/storage/v1/"));
+      // Fonctions de LECTURE seule autorisées pendant l'aperçu (POST technique,
+      // aucune écriture) : sans elles les écrans d'aperçu restent vides.
+      const rpcLecture = /\/rest\/v1\/rpc\/(fondatrice_equipe|mes_acces|food_allergenes_produits|reduction_apercu|partenaire_mes_produits|partenaire_mes_commandes|mes_commandes_missions|client_mes_dossiers_events|histoires_catalogue)(\?|$)/.test(url);
+      const estDonneesSupabase = !!SB_URL && url.startsWith(SB_URL) && (url.includes("/rest/v1/") || url.includes("/storage/v1/")) && !rpcLecture;
       const estApiInterne = chemin.startsWith("/api/") && !APERCU_API_EXCEPTIONS.includes(chemin);
       if (apercuEcrituresBloquees && estEcriture && (estDonneesSupabase || estApiInterne)) {
         alert("Action désactivée en mode aperçu.");
@@ -13958,6 +13968,20 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
       preview: "client", univers: null,
     },
     {
+      id: "prestataire",
+      ico: "🧰", label: "Prestataire",
+      desc: "Espace prestataire : missions, documents, interventions",
+      couleur: "#0d9488",
+      preview: "hote", univers: "prestataire",
+    },
+    {
+      id: "partenaire_vildor",
+      ico: "✨", label: "Partenaire Vil'Dor Pâtisse",
+      desc: "Espace de l'entreprise partenaire (mode préparation) — sans données internes Bella'Food",
+      couleur: "#c9a96e",
+      preview: "partenaire_vildor", univers: null,
+    },
+    {
       id: "assistante",
       ico: "🤝", label: "Profil assistante",
       desc: "Ce que voit une assistante : ses missions, ses messages — sans finances ni clientes",
@@ -14596,6 +14620,7 @@ export default function BellaiaApp() {
     return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
   }
   if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
+  if (preview === "partenaire_vildor") return <><BandeauApercu/><div style={{paddingTop:36}}><div style={{maxWidth:860,margin:"0 auto",padding:"12px"}}><ModuleEquipe nom="EspaceVildor" props={{ user, mode: "partenaire" }} libelle="de l'espace partenaire"/></div></div></>;
   if (preview === "assistante") return <><BandeauApercu/><div style={{paddingTop:36}}><ApercuAssistanteWrapper user={user}/></div></>;
 
   // ── Routage par rôle
