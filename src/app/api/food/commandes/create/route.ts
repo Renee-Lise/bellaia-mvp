@@ -185,14 +185,19 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(rec?.allergenes)) allergenes = [...allergenes, ...rec!.allergenes.filter(Boolean)];
     }
     allergenes = Array.from(new Set(allergenes.map((a: string) => String(a).trim()).filter(Boolean)));
+    // Fiche allergènes validée par la fondatrice (assistant de régularisation) :
+    // elle fait foi, y compris « aucun des 14 allergènes » validé explicitement.
+    const { data: valides } = await SB.rpc("food_allergenes_valides", { p_produit: produit.id });
+    const ficheValidee = Array.isArray(valides);
+    if (ficheValidee) allergenes = (valides as string[]).filter(Boolean);
     // Blocage réglementaire : aucune commande d'un produit dont les
     // informations allergènes obligatoires manquent ou restent à
     // déterminer (même règle que v_catalogue_food_public.commandable).
     const ambigu = /(à déterminer|a determiner|inconnu|à vérifier|a verifier|selon (composition|fabrication))/i;
-    if (allergenes.length === 0 || allergenes.some(a => ambigu.test(a))) {
+    if (!ficheValidee && (allergenes.length === 0 || allergenes.some(a => ambigu.test(a)))) {
       return NextResponse.json({ error: `« ${produit.nom} » : fiche produit en cours de finalisation (informations allergènes obligatoires manquantes). Ce produit ne peut pas encore être commandé.`, code: "ALLERGENES_MANQUANTS" }, { status: 409 });
     }
-    lignesVerifiees.push({ libelle, qte, prixUnitaire: prixReel, total: parseFloat((prixReel * qte).toFixed(2)), allergenes, allergenesAVerifier: allergenes.length === 0 });
+    lignesVerifiees.push({ libelle, qte, prixUnitaire: prixReel, total: parseFloat((prixReel * qte).toFixed(2)), allergenes, allergenesAVerifier: !ficheValidee && allergenes.length === 0 });
   }
 
   const totalAvantRemise = parseFloat(lignesVerifiees.reduce((s, l) => s + l.total, 0).toFixed(2));

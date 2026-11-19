@@ -38,6 +38,16 @@ import FoodPredictif    from "./FoodPredictif";
 import FoodExports      from "./FoodExports";
 import ReventeCollection from "./ReventeCollection";
 import AllergenesTableau from "./AllergenesTableau";
+import AssistantAllergenes from "./AssistantAllergenes";
+
+function SectionAllergenes() {
+  const [vue, setVue] = React.useState<"assistant" | "suivi">("assistant");
+  const b = (a: boolean): React.CSSProperties => ({ minHeight: 40, padding: "8px 12px", borderRadius: 10, border: `1px solid ${a ? "#c9a96e" : "rgba(255,255,255,0.12)"}`, background: a ? "#c9a96e22" : "rgba(255,255,255,0.05)", color: a ? "#c9a96e" : "#f1ece0", fontSize: 13, fontWeight: 700, cursor: "pointer" });
+  return <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", gap: 8 }}><button style={b(vue === "assistant")} onClick={() => setVue("assistant")}>🧭 Assistant de régularisation</button><button style={b(vue === "suivi")} onClick={() => setVue("suivi")}>📋 Suivi par recette</button></div>
+    {vue === "assistant" ? <AssistantAllergenes /> : <AllergenesTableau />}
+  </div>;
+}
 import BibliothequeFiches from "./BibliothequeFiches";
 
 type Section =
@@ -192,7 +202,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="recherche"     && <FoodRecherche/>}
         {section==="commandes"     && <FoodCommandes/>}
         {section==="revente"       && <ReventeCollection/>}
-        {section==="allergenes"    && <AllergenesTableau/>}
+        {section==="allergenes"    && <SectionAllergenes/>}
         {section==="bibliotheque"  && <BibliothequeFiches/>}
         {section==="horaires" && <FoodHoraires/>}
         {section==="devis"         && <FoodDevis/>}
