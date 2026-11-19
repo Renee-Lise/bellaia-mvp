@@ -92,7 +92,7 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src={t.logo} alt="" style={{ width: 36, height: 36, borderRadius: t.code === "ODYSSEE" ? 0 : 99, objectFit: "cover", border: `1px solid ${t.ligne}` }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: t.titres, fontSize: t.code === "ODYSSEE" ? 17 : 18, fontWeight: t.code === "FOOD" ? 900 : 600, letterSpacing: t.code === "ODYSSEE" ? 3 : 0.3, textTransform: t.code === "ODYSSEE" ? "uppercase" : "none", color: t.code === "FOOD" ? "#fff" : sombre ? t.accent2 : t.texte }}>{t.nom}</div>
+            <div style={{ fontFamily: t.titres, fontSize: t.code === "ODYSSEE" ? 17 : 18, fontWeight: 600, letterSpacing: t.code === "ODYSSEE" ? 3 : 0.3, textTransform: t.code === "ODYSSEE" ? "uppercase" : "none", color: t.code === "FOOD" ? "#fff" : sombre ? t.accent2 : t.texte }}>{t.nom}</div>
             <div style={{ fontSize: 10.5, color: t.code === "FOOD" ? "rgba(255,255,255,0.85)" : t.doux }}>{t.accroche}</div>
           </div>
           <button onClick={() => { setVoirFavs(v => !v); aller(); }} style={{ background: "none", border: "none", fontSize: 21, color: t.code === "FOOD" ? "#fff" : voirFavs ? t.accent : t.texte }}>{voirFavs ? "♥" : "♡"}</button>
@@ -101,14 +101,14 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
         <input value={q} onChange={e => setQ(e.target.value)} placeholder={t.code === "FOOD" ? "Une envie ? Burger, barquette, jus…" : t.code === "EVENTS" ? "Faire-part, urne, décoration…" : "Rechercher un produit"} style={{ marginTop: 9, width: "100%", boxSizing: "border-box", height: 40, borderRadius: t.code === "ODYSSEE" ? 0 : 99, border: `1px solid ${t.code === "FOOD" ? "transparent" : t.ligne}`, background: sombre ? "rgba(255,255,255,0.06)" : "#fff", color: t.texte, padding: "0 14px", fontSize: 16, fontFamily: t.corps }} />
       </div>
       {/* Bandeau réassurance */}
-      <div style={{ display: "flex", gap: 18, justifyContent: "center", padding: "7px 10px", fontSize: 11, fontWeight: 700, letterSpacing: 0.4, background: sombre ? "#1a0a10" : t.code === "FOOD" ? t.accent2 : t.code === "ODYSSEE" ? "#151014" : t.accent, color: sombre ? t.accent : t.code === "FOOD" ? t.texte : "#fff", overflowX: "auto", whiteSpace: "nowrap" }}>{t.bandeau.map(b => <span key={b}>✓ {b}</span>)}</div>
+      <div style={{ display: "flex", gap: 18, justifyContent: "center", padding: "7px 10px", fontSize: 11, fontWeight: 700, letterSpacing: 0.4, background: sombre ? "#1a0a10" : t.code === "FOOD" ? "#3f4a20" : t.code === "ODYSSEE" ? "#151014" : t.accent, color: sombre ? t.accent : t.code === "FOOD" ? "#efe2b8" : "#fff", overflowX: "auto", whiteSpace: "nowrap" }}>{t.bandeau.map(b => <span key={b}>✓ {b}</span>)}</div>
 
       {/* Bannières */}
       <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory", padding: "12px 14px 4px", WebkitOverflowScrolling: "touch" }}>
         {t.bannieres.map(b => <div key={b.titre} onClick={() => aller(b.filtre)} style={{ flex: "none", width: "86%", scrollSnapAlign: "center", position: "relative", borderRadius: t.code === "ODYSSEE" ? 0 : t.rayon + 6, overflow: "hidden", minHeight: 170, cursor: "pointer", background: `linear-gradient(120deg, ${b.palette[0]}, ${b.palette[1]})` }}>
           <div style={{ position: "absolute", right: -18, bottom: -18, opacity: 0.95 }}><Illustration motif={b.motif} palette={[b.palette[1], b.palette[0], b.palette[2]]} graine={b.titre} taille={170} rond={999} /></div>
           <div style={{ position: "relative", padding: 16, maxWidth: "62%", color: t.code === "ODYSSEE" && b.palette[0] === "#f7d9e3" ? "#151014" : "#fff" }}>
-            <div style={{ fontFamily: t.titres, fontSize: t.code === "FOOD" ? 24 : 22, fontWeight: t.code === "FOOD" ? 900 : 600, lineHeight: 1.1, textTransform: t.code === "FOOD" ? "uppercase" : "none" }}>{b.titre}</div>
+            <div style={{ fontFamily: t.titres, fontSize: 23, fontWeight: 600, lineHeight: 1.1 }}>{b.titre}</div>
             <div style={{ fontSize: 12.5, marginTop: 6, opacity: 0.9 }}>{b.sous}</div>
             <span style={{ display: "inline-block", marginTop: 12, padding: "8px 14px", borderRadius: t.code === "ODYSSEE" ? 0 : 99, background: t.code === "FOOD" ? "#fff" : sombre ? t.accent : "rgba(255,255,255,0.92)", color: t.code === "FOOD" ? t.accent : sombre ? "#1a0a10" : "#151014", fontWeight: 900, fontSize: 12.5, textTransform: t.code === "ODYSSEE" ? "uppercase" : "none", letterSpacing: t.code === "ODYSSEE" ? 1.5 : 0 }}>{b.cta}</span>
           </div>
@@ -124,13 +124,13 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
 
       {/* Collections */}
       {t.collections.map(col => { const l = filtrer(col.filtre).slice(0, 10); if (l.length < 2) return null; return <div key={col.titre} style={{ marginTop: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 14px" }}><div style={{ fontFamily: t.titres, fontSize: t.code === "FOOD" ? 19 : 18, fontWeight: t.code === "FOOD" ? 900 : 600, textTransform: t.code === "ODYSSEE" ? "uppercase" : "none", letterSpacing: t.code === "ODYSSEE" ? 2 : 0 }}>{col.titre}</div><span style={{ fontSize: 12, color: t.accent, fontWeight: 700 }}>{filtrer(col.filtre).length} articles</span></div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 14px" }}><div style={{ fontFamily: t.titres, fontSize: t.code === "FOOD" ? 19 : 18, fontWeight: 600, textTransform: t.code === "ODYSSEE" ? "uppercase" : "none", letterSpacing: t.code === "ODYSSEE" ? 2 : 0 }}>{col.titre}</div><span style={{ fontSize: 12, color: t.accent, fontWeight: 700 }}>{filtrer(col.filtre).length} articles</span></div>
         <div style={{ display: "flex", gap: 10, overflowX: "auto", padding: "8px 14px 4px" }}>{l.map(p => <Carte key={p.id} p={p} large />)}</div></div>; })}
 
       {/* Tous les produits */}
       <div ref={refGrille} style={{ padding: "18px 14px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <div style={{ fontFamily: t.titres, fontSize: 19, fontWeight: t.code === "FOOD" ? 900 : 600 }}>{voirFavs ? "Mes favoris" : cat === "tous" ? (t.code === "FOOD" ? "Toute la carte" : "Tous les produits") : info(cat).libelle} <span style={{ fontSize: 12, color: t.doux, fontWeight: 400 }}>({visibles.length})</span></div>
+          <div style={{ fontFamily: t.titres, fontSize: 19, fontWeight: 600 }}>{voirFavs ? "Mes favoris" : cat === "tous" ? (t.code === "FOOD" ? "Toute la carte" : "Tous les produits") : info(cat).libelle} <span style={{ fontSize: 12, color: t.doux, fontWeight: 400 }}>({visibles.length})</span></div>
           <select value={tri} onChange={e => setTri(e.target.value)} style={{ height: 34, borderRadius: 99, border: `1px solid ${t.ligne}`, background: t.surface, color: t.texte, fontSize: 13, padding: "0 10px" }}>
             <option value="pertinence">Pertinence</option><option value="nouveautes">Nouveautés</option><option value="prix_asc">Prix croissant</option><option value="prix_desc">Prix décroissant</option></select>
         </div>
@@ -147,7 +147,7 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
       {fiche && <Feuille t={t} fermer={() => setFiche(null)}>
         <div style={{ borderRadius: t.rayon, overflow: "hidden" }}><Visuel p={fiche} /></div>
         <div style={{ fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: t.doux, marginTop: 12 }}>{info(fiche.categorie).libelle}</div>
-        <div style={{ fontFamily: t.titres, fontSize: 22, fontWeight: t.code === "FOOD" ? 900 : 600, lineHeight: 1.2, marginTop: 2 }}>{fiche.nom}</div>
+        <div style={{ fontFamily: t.titres, fontSize: 22, fontWeight: 600, lineHeight: 1.2, marginTop: 2 }}>{fiche.nom}</div>
         <div style={{ marginTop: 8 }}><Prix p={fiche} gros /></div>
         {fiche.description && <div style={{ fontSize: 14, color: t.doux, marginTop: 10, lineHeight: 1.5 }}>{fiche.description}</div>}
         {!fiche.commandable && fiche.mention && <div style={{ marginTop: 10, fontSize: 13, padding: 10, borderRadius: 10, background: t.ligne }}>{fiche.mention} — ce produit sera commandable dès que sa fiche sera complète.</div>}
@@ -160,7 +160,7 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
 
       {/* Panier */}
       {ouvrirPanier && <Feuille t={t} fermer={() => setOuvrirPanier(false)}>
-        <div style={{ fontFamily: t.titres, fontSize: 22, fontWeight: t.code === "FOOD" ? 900 : 600 }}>{t.code === "EVENTS" ? "Ma demande" : "Mon panier"}</div>
+        <div style={{ fontFamily: t.titres, fontSize: 22, fontWeight: 600 }}>{t.code === "EVENTS" ? "Ma demande" : "Mon panier"}</div>
         {!nbPanier && <div style={{ color: t.doux, marginTop: 12 }}>Votre panier est vide.</div>}
         {Object.entries(panier).map(([id, n]) => { const p = produits.find(x => x.id === id); if (!p) return null; return <div key={id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${t.ligne}` }}>
           <div style={{ width: 56, flex: "none" }}><Visuel p={p} /></div><div style={{ flex: 1 }}><div style={{ fontSize: 13.5, fontWeight: 600 }}>{p.nom}</div><Prix p={p} /></div>
