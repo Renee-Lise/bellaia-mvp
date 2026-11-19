@@ -1,0 +1,103 @@
+préparation ebook → ACCEPTÉ
+préparation audio → ACCEPTÉ
+préparation resiliee → ACCEPTÉ
+préparation fondatrice → 
+préparation fondatrice → 
+préparation fondatrice → 
+statut forcé par la cliente →  confirme/true,confirme/true,confirme/true
+✅ visiteur : catalogue → psql:<stdin>:2: ERROR:  permission denied for function ss_catalogue
+✅ visiteur : chapitre intégral → psql:<stdin>:2: ERROR:  permission denied for function ss_lire_chapitre
+✅ visiteur : fichier livre.epub → 0
+✅ visiteur : fichier livre.mp3 → 0
+✅ visiteur : extrait audio séparé → 0
+✅ visiteur : manuscrit privé (table) → -1
+✅ sans_achat : catalogue → 1
+✅ sans_achat : chapitre intégral → (rien)
+✅ sans_achat : fichier livre.epub → 0
+✅ sans_achat : fichier livre.mp3 → 0
+✅ sans_achat : extrait audio séparé → 1
+✅ sans_achat : manuscrit privé (table) → 0
+✅ ebook : catalogue → 1
+✅ ebook : chapitre intégral → Texte intégral du chapitre un
+✅ ebook : fichier livre.epub → 1
+✅ ebook : fichier livre.mp3 → 0
+✅ ebook : extrait audio séparé → 1
+✅ ebook : manuscrit privé (table) → 0
+✅ audio : catalogue → 1
+✅ audio : chapitre intégral → (rien)
+✅ audio : fichier livre.epub → 0
+✅ audio : fichier livre.mp3 → 1
+✅ audio : extrait audio séparé → 1
+✅ audio : manuscrit privé (table) → 0
+✅ abonnee : catalogue → 1
+✅ abonnee : chapitre intégral → Texte intégral du chapitre un
+✅ abonnee : fichier livre.epub → 1
+✅ abonnee : fichier livre.mp3 → 1
+✅ abonnee : extrait audio séparé → 1
+✅ abonnee : manuscrit privé (table) → 0
+✅ expiree : catalogue → 1
+✅ expiree : chapitre intégral → (rien)
+✅ expiree : fichier livre.epub → 0
+✅ expiree : fichier livre.mp3 → 0
+✅ expiree : extrait audio séparé → 1
+✅ expiree : manuscrit privé (table) → 0
+✅ fondatrice : catalogue → 1
+✅ fondatrice : chapitre intégral → Texte intégral du chapitre un
+✅ fondatrice : fichier livre.epub → 1
+✅ fondatrice : fichier livre.mp3 → 1
+✅ fondatrice : extrait audio séparé → 1
+✅ fondatrice : manuscrit privé (table) → 1
+✅ mineure : catalogue → 0
+✅ mineure : chapitre intégral → (rien)
+✅ mineure : fichier livre.epub → 0
+✅ mineure : fichier livre.mp3 → 0
+✅ mineure : extrait audio séparé → 0
+✅ mineure : manuscrit privé (table) → 0
+✅ non_verifiee : catalogue → 0
+✅ non_verifiee : chapitre intégral → (rien)
+✅ non_verifiee : fichier livre.epub → 0
+✅ non_verifiee : fichier livre.mp3 → 0
+✅ non_verifiee : extrait audio séparé → 0
+✅ non_verifiee : manuscrit privé (table) → 0
+✅ fichiers détenus — acheteuse ebook → [{"type": "epub", "titre": null, "chemin": "oeuvres/o1/livre.epub", "format": "ebook", "duree_s": null, "chapi
+✅ fichiers détenus — l'acheteuse ebook ne reçoit pas l'audio → false
+✅ fichiers détenus — sans achat → []
+✅ fichiers détenus — manuscrit privé → []
+✅ fichiers détenus — mineure → []
+✅ fondatrice-résiliation : abonnement résilié → 
+✅ résiliée : ebook acheté toujours lisible → Texte intégral du chapitre un
+✅ résiliée : audio (abonnement) retiré → 0
+✅ résiliée : bibliothèque → [{"titre": "Œuvre publiée", "format": "ebook", "origine": "achat", "oeuvre_id": "10000000-0000-0000-0000-00000
+✅ expirée : bibliothèque vide → []
+✅ abonnée : origine des droits → [{"titre": "Œuvre publiée", "format": "ebook", "origine": "abonnement", "oeuvre_id": "10000000-0000-0000-0000-
+✅ collaboratrice autorisée : manuscrit privé → 1
+✅ collaboratrice : publier → REFUSÉ: Publication réservée à la fondatrice
+✅ collaboratrice : voir les achats → 0
+✅ assistante (autre permission) : manuscrits → 0
+✅ cliente : lire la table des chapitres → 0
+✅ acheteuse : passer son achat en remboursé/modifier → 
+✅ … formats réellement détenus → {audio}
+✅ cliente : achat au nom d'une autre → REFUSÉ: Demande au nom d'une autre personne refusée
+✅ cliente : offre en brouillon → REFUSÉ: Offre indisponible
+✅ mineure : demande d'achat → REFUSÉ: Espace réservé aux adultes vérifiés
+✅ cliente : s'activer un abonnement → ACCEPTÉ
+✅ … statut réel de cette demande → en_attente
+✅ … et droits obtenus → (rien)
+✅ renouvellement auto non validé → REFUSÉ: Renouvellement automatique non validé pour cette formule
+✅ ebook : progression privée écrite → ACCEPTÉ
+✅ fondatrice : lire les habitudes de lecture → 0
+✅ autre cliente : lire cette progression → 0
+✅ visiteur : extrait texte → psql:<stdin>:2: ERROR:  permission denied for function ss_extrait
+✅ mineure : extrait texte → (rien)
+✅ génération payante sans coût estimé → REFUSÉ: Coût estimé requis avant toute génération payante
+✅ génération payante, quota à 0 → REFUSÉ: Quota mensuel IA insuffisant
+✅ génération approuvée par collaboratrice → REFUSÉ: Approbation de la fondatrice requise
+✅ voix réelle sans autorisation → REFUSÉ: Voix réelle : autorisation écrite requise
+✅ génération en attente (gratuite tant que non lancée) → ACCEPTÉ
+✅ cliente : téléverser un fichier → REFUSÉ: new row violates row-level security policy for table "objects"
+✅ collaboratrice : supprimer les fichiers → 
+✅ … fichiers encore présents → 5
+✅ fondatrice : historique de versions après réécriture → 1 version(s) archivée(s), version actuelle 2
+✅ extrait audio hors dossier extraits/ → REFUSÉ: new row for relation "ss_extraits" violates check constraint "ss_extra
+
+94/94 conformes
