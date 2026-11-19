@@ -8,28 +8,28 @@ import { defPiece, calculerTotaux, totalLigne, euros, dateFr, MENTION_TVA_DEFAUT
 
 const W = 595.28, H = 841.89, M = 40;
 type Op =
-  | { t: "texte"; x: number; y: number; s: string; taille: number; gras: boolean; couleur: string }
+  | { t: "texte"; x: number; y: number; s: string; taille: number; gras: boolean; couleur: string; serif?: boolean }
   | { t: "rect"; x: number; y: number; w: number; h: number; fond?: string; trait?: string; ep?: number }
   | { t: "ligne"; x1: number; y1: number; x2: number; y2: number; couleur: string; ep: number }
   | { t: "image"; x: number; y: number; w: number; h: number; img: { jpeg: Uint8Array; source: HTMLCanvasElement; lp: number; hp: number } };
 
 let ctxMesure: CanvasRenderingContext2D | null = null;
-function mesurer(s: string, taille: number, gras: boolean) {
+export function mesurer(s: string, taille: number, gras: boolean, serif = false) {
   if (!ctxMesure) ctxMesure = document.createElement("canvas").getContext("2d");
-  ctxMesure!.font = `${gras ? "bold " : ""}${taille}px Helvetica, Arial, "Liberation Sans", sans-serif`;
+  ctxMesure!.font = serif ? `${gras ? "bold " : ""}${taille}px "Times New Roman", Times, "Liberation Serif", serif` : `${gras ? "bold " : ""}${taille}px Helvetica, Arial, "Liberation Sans", sans-serif`;
   return ctxMesure!.measureText(s).width;
 }
 const rgb = (hex: string) => { const h = (hex || "#000").replace("#", ""); const n = parseInt(h.length === 3 ? h.split("").map(c => c + c).join("") : h.slice(0, 6), 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => (v / 255).toFixed(3)).join(" "); };
 
-class Mise {
+export class Mise {
   pages: Op[][] = [[]];
   y = M;
   get ops() { return this.pages[this.pages.length - 1]; }
   nouvellePage() { this.pages.push([]); this.y = M; }
-  texte(x: number, y: number, s: string, taille = 9, o: { gras?: boolean; couleur?: string; align?: "g" | "d" | "c" } = {}) {
-    const larg = mesurer(s, taille, !!o.gras);
+  texte(x: number, y: number, s: string, taille = 9, o: { gras?: boolean; couleur?: string; align?: "g" | "d" | "c"; serif?: boolean } = {}) {
+    const larg = mesurer(s, taille, !!o.gras, !!o.serif);
     const xx = o.align === "d" ? x - larg : o.align === "c" ? x - larg / 2 : x;
-    this.ops.push({ t: "texte", x: xx, y, s, taille, gras: !!o.gras, couleur: o.couleur || "#222222" });
+    this.ops.push({ t: "texte", x: xx, y, s, taille, gras: !!o.gras, couleur: o.couleur || "#222222", serif: !!o.serif });
   }
   rect(x: number, y: number, w: number, h: number, o: { fond?: string; trait?: string; ep?: number } = {}) { this.ops.push({ t: "rect", x, y, w, h, ...o }); }
   ligne(x1: number, y1: number, x2: number, y2: number, couleur = "#cccccc", ep = 0.6) { this.ops.push({ t: "ligne", x1, y1, x2, y2, couleur, ep }); }
@@ -56,7 +56,7 @@ class Mise {
   place(h: number) { if (this.y + h > H - 60) this.nouvellePage(); }
 }
 
-async function chargerLogo(url?: string | null) {
+export async function chargerLogo(url?: string | null) {
   if (!url) return null;
   try {
     const img = await new Promise<HTMLImageElement>((ok, ko) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = ko; i.src = url; });
@@ -229,18 +229,20 @@ function chainePdf(s: string) {
   return o + ")";
 }
 
-function versPdf(m: Mise): Blob {
+export function versPdf(m: Mise): Blob {
   const objets: (string | Uint8Array)[][] = []; // chaque objet = morceaux
   const ajouter = (parts: (string | Uint8Array)[]) => { objets.push(parts); return objets.length; };
   const fonte = ajouter(["<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"]);
   const fonteG = ajouter(["<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"]);
+  const fonteS = ajouter(["<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>"]);
+  const fonteSG = ajouter(["<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>"]);
   const images = new Map<any, { n: number; nom: string }>();
   const pagesIds: number[] = [];
   const idPages = ajouter([""]); // rempli à la fin
   m.pages.forEach(ops => {
     let flux = "";
     for (const o of ops) {
-      if (o.t === "texte") flux += `BT /${o.gras ? "F2" : "F1"} ${o.taille} Tf ${rgb(o.couleur)} rg ${o.x.toFixed(2)} ${(H - o.y).toFixed(2)} Td ${chainePdf(o.s)} Tj ET\n`;
+      if (o.t === "texte") flux += `BT /${o.serif ? (o.gras ? "F4" : "F3") : (o.gras ? "F2" : "F1")} ${o.taille} Tf ${rgb(o.couleur)} rg ${o.x.toFixed(2)} ${(H - o.y).toFixed(2)} Td ${chainePdf(o.s)} Tj ET\n`;
       else if (o.t === "rect") { if (o.fond) flux += `${rgb(o.fond)} rg ${o.x.toFixed(2)} ${(H - o.y - o.h).toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re f\n`; if (o.trait) flux += `${rgb(o.trait)} RG ${o.ep || 0.6} w ${o.x.toFixed(2)} ${(H - o.y - o.h).toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re S\n`; }
       else if (o.t === "ligne") flux += `${rgb(o.couleur)} RG ${o.ep} w ${o.x1.toFixed(2)} ${(H - o.y1).toFixed(2)} m ${o.x2.toFixed(2)} ${(H - o.y2).toFixed(2)} l S\n`;
       else if (o.t === "image") {
@@ -251,7 +253,7 @@ function versPdf(m: Mise): Blob {
     const octets = new Uint8Array([...flux].map(ch => ch.charCodeAt(0) & 255));
     const contenu = ajouter([`<< /Length ${octets.length} >>\nstream\n`, octets, "\nendstream"]);
     const xobj = [...images.values()].map(i => `/${i.nom} ${i.n} 0 R`).join(" ");
-    pagesIds.push(ajouter([`<< /Type /Page /Parent ${idPages} 0 R /MediaBox [0 0 ${W} ${H}] /Contents ${contenu} 0 R /Resources << /Font << /F1 ${fonte} 0 R /F2 ${fonteG} 0 R >>${xobj ? ` /XObject << ${xobj} >>` : ""} >> >>`]));
+    pagesIds.push(ajouter([`<< /Type /Page /Parent ${idPages} 0 R /MediaBox [0 0 ${W} ${H}] /Contents ${contenu} 0 R /Resources << /Font << /F1 ${fonte} 0 R /F2 ${fonteG} 0 R /F3 ${fonteS} 0 R /F4 ${fonteSG} 0 R >>${xobj ? ` /XObject << ${xobj} >>` : ""} >> >>`]));
   });
   objets[idPages - 1] = [`<< /Type /Pages /Kids [${pagesIds.map(i => i + " 0 R").join(" ")}] /Count ${pagesIds.length} >>`];
   const catalogue = ajouter([`<< /Type /Catalog /Pages ${idPages} 0 R >>`]);
@@ -272,7 +274,7 @@ export function dessinerPage(m: Mise, i: number, cv: HTMLCanvasElement, largeurP
   cv.width = Math.round(largeurPx * dpr); cv.height = Math.round(H * k * dpr); cv.style.width = largeurPx + "px"; cv.style.height = H * k + "px";
   const x = cv.getContext("2d")!; x.setTransform(k * dpr, 0, 0, k * dpr, 0, 0); x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
   for (const o of m.pages[i] || []) {
-    if (o.t === "texte") { x.font = `${o.gras ? "bold " : ""}${o.taille}px Helvetica, Arial, "Liberation Sans", sans-serif`; x.fillStyle = o.couleur; x.fillText(o.s, o.x, o.y); }
+    if (o.t === "texte") { x.font = o.serif ? `${o.gras ? "bold " : ""}${o.taille}px "Times New Roman", Times, "Liberation Serif", serif` : `${o.gras ? "bold " : ""}${o.taille}px Helvetica, Arial, "Liberation Sans", sans-serif`; x.fillStyle = o.couleur; x.fillText(o.s, o.x, o.y); }
     else if (o.t === "rect") { if (o.fond) { x.fillStyle = o.fond; x.fillRect(o.x, o.y, o.w, o.h); } if (o.trait) { x.strokeStyle = o.trait; x.lineWidth = o.ep || 0.6; x.strokeRect(o.x, o.y, o.w, o.h); } }
     else if (o.t === "ligne") { x.strokeStyle = o.couleur; x.lineWidth = o.ep; x.beginPath(); x.moveTo(o.x1, o.y1); x.lineTo(o.x2, o.y2); x.stroke(); }
     else if (o.t === "image") x.drawImage(o.img.source, o.x, o.y, o.w, o.h);

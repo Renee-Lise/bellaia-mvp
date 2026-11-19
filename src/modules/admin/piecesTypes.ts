@@ -5,7 +5,7 @@
 
 export type TypePiece =
   | "devis" | "facture" | "facture_acompte" | "avoir" | "bon_commande" | "bon_achat" | "bon_livraison"
-  | "bon_transport" | "bon_envoi" | "bordereau_envoi" | "bordereau_expedition" | "recu" | "courrier";
+  | "bon_transport" | "bon_envoi" | "bordereau_envoi" | "bordereau_expedition" | "recu" | "courrier" | "fiche_vente";
 
 export type Ligne = { designation: string; detail?: string; qte: number; unite: string; pu: number; remise_pct?: number; tva_pct?: number };
 export type Champ = { cle: string; libelle: string; type?: "texte" | "date" | "nombre" | "zone"; aide?: string };
@@ -58,6 +58,10 @@ export const PIECES: DefPiece[] = [
   { id: "recu", libelle: "Reçu de paiement", titre: "REÇU", ico: "✅", famille: "vente", prix: false, lignes: false, numeroAuto: "creation",
     champs: [{ cle: "montant", libelle: "Montant reçu (€)", type: "nombre" }, { cle: "mode_paiement", libelle: "Mode de paiement", type: "texte" }, { cle: "pour", libelle: "En règlement de", type: "texte", aide: "ex. facture FAC-2026-0003" }],
     conversions: [] },
+  // Fiche de vente : support commercial décoratif — NE VAUT PAS FACTURE (pas de numérotation fiscale).
+  { id: "fiche_vente", libelle: "Fiche de vente", titre: "FICHE DE VENTE", ico: "🛍", famille: "vente", prix: true, lignes: true, numeroAuto: "validation",
+    champs: [{ cle: "date_prestation", libelle: "Date / occasion", type: "texte" }, { cle: "mode_paiement", libelle: "Règlement prévu", type: "texte" }],
+    conversions: ["bon_commande", "facture"], conditions: "Document commercial récapitulatif — ne vaut pas facture. Une facture conforme est émise sur demande et pour toute vente à un professionnel." },
   { id: "courrier", libelle: "Courrier / lettre", titre: "", ico: "✉️", famille: "courrier", prix: false, lignes: false, numeroAuto: "creation",
     champs: [{ cle: "lieu", libelle: "Lieu (ex. Cayenne)", type: "texte" }, { cle: "civilite", libelle: "Formule d'appel (ex. Madame, Monsieur,)", type: "texte" }, { cle: "corps", libelle: "Texte du courrier", type: "zone" }, { cle: "formule", libelle: "Formule de politesse", type: "zone" }, { cle: "signataire", libelle: "Signataire", type: "texte" }, { cle: "pj", libelle: "Pièces jointes", type: "texte" }],
     conversions: [] },
