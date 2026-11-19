@@ -1,6 +1,6 @@
 # Bellaïa — Checklist générale (mise à jour du 19/11/2026 — production 0bfd765 ; branche de prévisualisation en avance)
 
-Statuts : ✅ **Opérationnel** (développé, testé, appliqué en base et déployé ; « validé » = validé par la fondatrice) · 🟦 **Développé, non déployé** (prévisualisation) · 🟨 **Préparé, non exécuté** · 🔄 **En cours** · ⏳ **En attente de validation / de données** · ⬜ **À faire**
+Statuts : ✅ **Opérationnel** (développé, testé, appliqué en base et déployé ; « validé » = validé par la fondatrice) · 🧪 **En simulation** (fonctionne sans rien enregistrer) · 🟦 **Développé, non déployé** (prévisualisation) · 🟨 **Préparé, non exécuté** · 🔄 **En cours** · ⏳ **En attente de validation / de données** · ⬜ **À faire**
 
 Note : la base Supabase est commune à la production et à la prévisualisation. Une modification de base marquée ✅ est donc active pour tous ; le code marqué 🟦 ne l'est qu'en prévisualisation.
 
@@ -112,9 +112,22 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 
 ## 10. Qualité technique — P7
 - 🟦 Inventaire TypeScript reproductible (`node scripts/ts-inventaire.mjs`)
+- ✅ Inventaire du 19/11 (`docs/qualite/INVENTAIRE_TYPESCRIPT.md`), par gravité, module et dépendance :
+  - **1 416 erreurs** : 403 dans 40 fichiers jamais chargés, 1 013 dans le code chargé ;
+  - parmi le code chargé : 1 à risque élevé, 16 moyennes, 996 faibles (props non typées du fichier principal) ;
+  - écart avec l'inventaire précédent (1 411) : +5, à identifier au lot 3.
+- ✅ Corrigés le 19/11 :
+  - notification après paiement Stripe (`.catch` inexistant ; sans effet aujourd'hui, Stripe étant désactivé) ;
+  - titre manquant de la Bibliothèque Bella'Food.
+- ⏳ Plan en 5 lots :
+  1. route Stripe avant toute réactivation ;
+  2. archivage du code mort, après accord ;
+  3. 16 erreurs moyennes ;
+  4. typage des composants partagés ;
+  5. extraction progressive du monolithe.
 - ✅ Analyse des fichiers non chargés (`docs/qualite/FICHIERS_NON_CHARGES.md`) — rien supprimé
 - ✅ Corrections : 2 plantages paiement, import recette, appel IA, argument superflu
-- 🟦 Build réussi · 1 411 erreurs (3 critiques en code chargé, routes Stripe désactivées)
+- 🟦 Build réussi le 19/11 (erreurs TypeScript ignorées par le build : la réussite ne prouve pas que le code est sain)
 - ⏳ Archivage des doublons Events (accord) · recâblage du moteur de l'assistant
 - ⬜ Contrôle TypeScript obligatoire avant mise en production
 
@@ -139,10 +152,18 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 
 ## 14. Programme premium (demandé le 19/11) — phases 1 à 8
 - 🟦 Phase 1 · Design system : identités des 15 univers (palettes, typographies, rayons, dégradés, ambiances ; jeunesse et indépendant signalés), composants communs (surfaces, boutons, titres, indicateurs, puces, logos), bandeau informatif + carrousel (auto / manuel, pause, réduction des animations testée)
-- 🟦 Phase 1 · Portail fondatrice « Centre de direction » (indicateurs réels, Actions requises, univers en cartes, raccourcis personnalisables, stocks, agenda) — aperçu /apercu/portail
-- 🟦 Phase 1 · Portail assistante (outils affichés selon les seules permissions accordées, missions personnelles, à valider, historique, temps déclaré) — aperçu /apercu/assistante · testé iPhone : sans permission → seul « Mes missions »
-- 🟦 Phase 1 · Portail cliente « Ma maison Bellaïa » (commandes, événements, univers en 3 sections séparées : boutiques / jeunesse et famille / espace privé adulte, favoris de l'appareil, préférences ; fidélité et abonnements « bientôt ») — aperçu /apercu/cliente · testé : BSH invisible pour une mineure ou un âge inconnu, verrouillé pour une adulte non membre
-- ⬜ Phase 1 · Espaces partenaires / prestataires · ⏳ décision : l'appli actuelle ouvre l'espace fondatrice au rôle « assistante » (les données restent protégées en base) — voir Actions requises
+- 🟦 Phase 1 · Portail fondatrice « Centre de direction » (indicateurs réels, Actions requises, univers en cartes, raccourcis personnalisables, stocks, agenda) — **branché dans l'application** (accueil fondatrice) en prévisualisation, coque nuit et or ; production inchangée tant que l'interrupteur `PREMIUM_PRODUCTION` est à false (src/design/premium.ts) · testé sur l'application réelle (iPhone)
+- 🟦 Phase 1 · Portail assistante (outils affichés selon les seules permissions accordées, missions personnelles, à valider, historique, temps déclaré, messages, notifications) — **branché dans l'application** : l'assistante arrive sur son portail ; les outils ouvrent uniquement une liste blanche d'écrans (missions, Bella'Food selon permissions, messages, notifications) · testé sur l'application réelle
+- 🟦 Phase 1 · Portail cliente « Ma maison Bellaïa » (commandes, événements, univers en 3 sections séparées : boutiques / jeunesse et famille / espace privé adulte, favoris de l'appareil, préférences, déconnexion ; fidélité et abonnements « bientôt ») — **branché dans l'application** en prévisualisation : chaque univers ouvre l'espace client EXISTANT (commandes et paiements inchangés) ; seuls les univers disposant d'un écran réel sont proposés · BSH jamais visible pour une mineure ; âge inconnu → contrôle d'entrée existant de BSH conservé · testé sur l'application réelle
+- ⬜ Phase 1 · Intérieur des boutiques en visuel premium : la vitrine premium n'a pas encore de validation de commande — raccordement au vrai panier (phase 3) avant de remplacer les boutiques actuelles
+- 🟦 Sécurité des portails (19/11, préparée sur la branche, en production seulement après GO) :
+  - seul le rôle « fondatrice » ouvre l'espace fondatrice ;
+  - l'assistante a son portail dédié ;
+  - partenaires, prestataires, hôtes et hôtesses gardent leurs espaces dédiés ;
+  - **tout rôle inconnu est refusé par défaut** (auparavant, il tombait dans l'espace fondatrice) ;
+  - aperçus « voir comme » et pages `/apercu/*` réservés à la fondatrice (vérifié en base, y compris en saisissant l'adresse) ;
+  - testé : fondatrice, assistante, cliente et rôle inconnu sur l'application réelle.
+- ⬜ Phase 1 · Espaces partenaires / prestataires en visuel premium · espace hôte BSH premium (l'espace actuel, relié aux vraies données, est conservé tant que le nouveau n'a pas toutes ses fonctions)
 - 🟦 Phase 2 · Bella'Food en identité gastronomique premium (olive, crème, doré) · ⬜ autres univers commerciaux, bannières pilotées par le studio
 - ⬜ Phase 3 · Panier sélectif (cases, totaux sélectionné / général, paiement partiel, persistance multi-appareils, vérifications serveur, séparation BellaStudio / Vil'Dor) · favoris et wishlists persistants
 - ⬜ Phase 4 · Studio de merchandising (bannières, photos, collections, ordre des sections, campagnes saisonnières, programmation, brouillon / publication / versions)
@@ -155,7 +176,7 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 Étude complète, paiements, conditions IA et voix, coûts : `docs/SECRET_STORIES_ETUDE.md`
 
 **Opérationnel**
-- ✅ Tests de la migration 0129 sur base PostgreSQL locale jetable : 94/94 conformes (8 profils demandés + tentatives d'accès direct aux fichiers, API et ouvrages non achetés ; achats conservés après résiliation ; rejouable ; retour arrière vérifié)
+- ✅ Tests de la migration 0129 sur base PostgreSQL locale jetable : 100/100 conformes (94 + 6 traductions et droits) (8 profils demandés + tentatives d'accès direct aux fichiers, API et ouvrages non achetés ; achats conservés après résiliation ; rejouable ; retour arrière vérifié)
 
 **Développé (prévisualisation, non déployé)**
 - 🟦 Studio fondatrice — Fondatrice › Bella'Secret Home › « Secret Stories (aperçu) » et /apercu/secret-stories, en simulation tant que 0129 n'est pas appliquée :
@@ -176,7 +197,7 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - 🟦 Contrôle d'accès au studio : fondatrice ou permission « secret_stories.studio » accordée à la main.
 
 **En préparation**
-- 🟨 Migration 0129 + retour arrière : 18 tables, RLS, garde-fous de publication, de commerce et de génération, bucket privé — **non appliquée**, accord requis.
+- 🟨 Migration 0129 + retour arrière : 20 tables (dont traductions et droits), dossier complet `supabase/dossiers/0129_bsh_secret_stories/` (prérequis vérifiés sur Supabase en lecture seule : 10/10), RLS, garde-fous de publication, de commerce et de génération, bucket privé — **non appliquée**, accord requis.
 - 🟨 Étude des paiements : Stripe interdit les contenus adultes (cas des romances non graphiques à faire trancher par écrit), PayPal soumet ces contenus à approbation, SumUp les juge incompatibles — aucune activation.
 - 🟨 Coûts estimés :
   - écriture : ≈ 0,07 € (Sonnet 5.5) ou ≈ 0,13 € (Opus 5.5) par chapitre ;
@@ -189,4 +210,18 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⬜ Suivi des ventes et revenus · intégration éventuelle à BSH Members · étude de l'écoute hors connexion protégée.
 - ⬜ Tests iPhone sur base réelle une fois 0129 appliquée (mêmes 8 profils).
 - ⏳ Documents attendus : fichier éditorial, *Les Enfants d'Hélios* (manuscrit intégral et version condensée ElevenLabs, à conserver séparément ; classement soumis à validation), logo noir et or de Bella'Odyssée (variante, sans changer le logo actif), derniers documents Bella'Food — introuvables dans le Drive au 19/11.
+
+## 16. Paiements Secret Stories et documents attendus (19/11)
+- 🟨 Courriers de demande écrite à Stripe et PayPal prêts, **non envoyés** (`docs/paiements/DEMANDES_PRESTATAIRES_SECRET_STORIES.md`) :
+  - activité présentée fidèlement, catégories distinguées (boutique adulte, romances non explicites, abonnement, univers tout public) ;
+  - Guyane : Stripe et PayPal acceptent les entreprises guyanaises ;
+  - TVA non applicable en Guyane (art. 294 CGI) ; traitement des ventes numériques hors Guyane à confirmer par l'expert-comptable ;
+  - Stripe désactivé dans l'application depuis le 18/11.
+- 🟨 Procédure de réception des documents (`docs/documentation/RECEPTION_DOCUMENTS.md`) :
+  - documents complémentaires, jamais en remplacement automatique ;
+  - contradictions soumises dans Actions requises ;
+  - empreintes contre les doublons ;
+  - *Les Enfants d'Hélios* en documentation éditoriale privée, séparément de Secret Stories.
+- 🟨 Emplacement de variante prêt pour le logo noir et doré Bella'Odyssée (`LOGOS_VARIANTES`) ; logo actif inchangé.
+- ⏳ Fichiers attendus de la fondatrice : logo noir et or, fichier éditorial, Hélios (deux versions), derniers documents Bella'Food.
 
