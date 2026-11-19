@@ -30,7 +30,7 @@ export const THEMES_PACKS: ThemePack[] = [
   { code: "EVENTS", nom: "Bella'Even's", slogan: "Décoration · Papeterie · Événements sur mesure", logo: "/branding/bella-evenes.jpg", principale: "#7a4a5c", secondaire: "#8a9a7b", accent: "#c6a15b", fond: "#fbf3f0", texteBandeau: "#fbe9ee", serif: true, ornement: "pois", cadreDouble: true },
   { code: "ODYSSEE", nom: "Bella'Odyssée", slogan: "Beauté · Soins · Mise en valeur", logo: "/branding/bella-odyssee-logo.png", principale: "#5b1e4a", secondaire: "#c46a8e", accent: "#c6a15b", fond: "#fbf0f4", texteBandeau: "#f7d7e3", serif: true, ornement: "losanges", cadreDouble: true },
   { code: "VILO", nom: "Vilo'Assistance", slogan: "Assistance administrative · Accompagnement des démarches", logo: "/branding/vilo-assistance-logo.png", principale: "#14213d", secondaire: "#2b3d63", accent: "#c6a15b", fond: "#f3f5f9", texteBandeau: "#ffffff", serif: false, ornement: "filets", cadreDouble: false },
-  { code: "VILDOR", nom: "Vil'Dor Pâtisse", slogan: "Pâtisserie artisanale", logo: null, monogramme: "VD", principale: "#4a2c1d", secondaire: "#8b5e3c", accent: "#c6a15b", fond: "#f7efe1", texteBandeau: "#f7efe1", serif: true, ornement: "pois", cadreDouble: true, simulation: true },
+  { code: "VILDOR", nom: "Vil'Dor Pâtisse", slogan: "Pâtisserie artisanale", logo: "/branding/vildor-patisse.jpg", monogramme: "VD", principale: "#110c07", secondaire: "#5a4318", accent: "#d4af37", fond: "#f8f1e0", texteBandeau: "#f3e3b5", serif: true, ornement: "pois", cadreDouble: true, simulation: true },
 ];
 /** Univers du référentiel sans pack dédié : thème généré à partir de sa couleur (pack prêt à personnaliser). */
 export function themeDe(code: string, unite?: { nom?: string; couleur?: string } | null): ThemePack {
