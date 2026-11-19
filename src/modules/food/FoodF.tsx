@@ -127,6 +127,7 @@ export default function FoodF({ user }: { user?: any }) {
     production:"Production", haccp:"HACCP", alertes:"Alertes",
     versions:"Versions de recettes", pertes:"Pertes",
     etiquettes:"Étiquettes", predictif:"Assistant prédictif", exports:"Exports",
+    bibliotheque:"Bibliothèque",
   };
 
   return (

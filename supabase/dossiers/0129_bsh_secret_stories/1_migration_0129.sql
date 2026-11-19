@@ -32,6 +32,7 @@
 --   • Tarifs, offres, formules : « brouillon » par défaut.
 --   • Progression, marque-pages, notes, surlignages : visibles de la
 --     cliente SEULE (pas même de la fondatrice) : habitudes de lecture privées.
+--   • Traductions : studio ; droits (contrats, cessions) : fondatrice seule.
 --   • Fichiers : bucket PRIVÉ « secret-stories-prive », lecture via URL
 --     signée courte, autorisée seulement si la personne détient le droit.
 --   • IA / audio : file de génération persistante ; toute génération payante
@@ -176,6 +177,37 @@ create table if not exists public.ss_chronologie (
   moment text, evenement text not null, lieu text,
   personnages uuid[] not null default '{}',
   chapitre_id uuid references public.ss_chapitres(id) on delete set null,
+  created_at timestamptz not null default now(),
+  check (oeuvre_id is not null or collection_id is not null)
+);
+
+-- ── Traductions (œuvre entière ou chapitre) ───────────────
+create table if not exists public.ss_traductions (
+  id uuid primary key default gen_random_uuid(),
+  oeuvre_id uuid not null references public.ss_oeuvres(id) on delete cascade,
+  chapitre_id uuid references public.ss_chapitres(id) on delete cascade,   -- null = titre / synopsis de l'œuvre
+  langue text not null check (langue ~ '^[a-z]{2}(-[A-Z]{2})?$'),          -- ex. en, es, pt-BR
+  titre text, synopsis text, texte text,
+  origine text not null default 'humaine' check (origine in ('humaine', 'ia_relue', 'ia')),
+  traducteur text,
+  statut text not null default 'brouillon' check (statut in ('brouillon', 'relecture', 'valide')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (oeuvre_id, chapitre_id, langue)
+);
+
+-- ── Droits (auteur, traduction, audio, illustration, voix, adaptation) ──
+create table if not exists public.ss_droits (
+  id uuid primary key default gen_random_uuid(),
+  oeuvre_id uuid references public.ss_oeuvres(id) on delete cascade,
+  collection_id uuid references public.ss_collections(id) on delete cascade,
+  nature text not null check (nature in ('auteur', 'traduction', 'audio', 'illustration', 'couverture', 'voix', 'adaptation', 'autre')),
+  titulaire text not null,
+  cession text,                                            -- étendue des droits cédés ou concédés
+  territoire text, langues text[], debut date, fin date,
+  remuneration text,                                       -- texte libre (pourcentage, forfait…) ; aucun paiement ici
+  document_chemin text,                                    -- contrat signé (bucket privé)
+  statut text not null default 'a_verifier' check (statut in ('a_verifier', 'valide', 'expire', 'litige')),
   created_at timestamptz not null default now(),
   check (oeuvre_id is not null or collection_id is not null)
 );
@@ -413,10 +445,12 @@ alter table public.ss_lecture enable row level security;
 alter table public.ss_generations enable row level security;
 alter table public.ss_quotas enable row level security;
 alter table public.ss_voix_autorisations enable row level security;
+alter table public.ss_traductions enable row level security;
+alter table public.ss_droits enable row level security;
 
 do $$ declare t text; begin
   -- Contenu éditorial : studio (fondatrice + collaborateurs autorisés)
-  foreach t in array array['ss_collections', 'ss_oeuvres', 'ss_chapitres', 'ss_personnages', 'ss_chronologie', 'ss_extraits', 'ss_fichiers', 'ss_generations'] loop
+  foreach t in array array['ss_collections', 'ss_oeuvres', 'ss_chapitres', 'ss_personnages', 'ss_chronologie', 'ss_extraits', 'ss_fichiers', 'ss_generations', 'ss_traductions'] loop
     execute format('drop policy if exists %I on public.%I', t || '_studio', t);
     execute format('create policy %I on public.%I for all to authenticated using (public.ss_studio()) with check (public.ss_studio())', t || '_studio', t);
   end loop;
@@ -424,7 +458,7 @@ do $$ declare t text; begin
   drop policy if exists ss_chapitres_versions_lecture on public.ss_chapitres_versions;
   create policy ss_chapitres_versions_lecture on public.ss_chapitres_versions for select to authenticated using (public.ss_studio());
   -- Commerce, quotas, voix : fondatrice seule
-  foreach t in array array['ss_offres', 'ss_codes_promo', 'ss_formules', 'ss_formules_contenus', 'ss_quotas', 'ss_voix_autorisations'] loop
+  foreach t in array array['ss_offres', 'ss_codes_promo', 'ss_formules', 'ss_formules_contenus', 'ss_quotas', 'ss_voix_autorisations', 'ss_droits'] loop
     execute format('drop policy if exists %I on public.%I', t || '_fondatrice', t);
     execute format('create policy %I on public.%I for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice())', t || '_fondatrice', t);
   end loop;
@@ -444,7 +478,7 @@ end $$;
 
 revoke all on public.ss_collections, public.ss_oeuvres, public.ss_chapitres, public.ss_chapitres_versions, public.ss_personnages, public.ss_chronologie,
   public.ss_extraits, public.ss_fichiers, public.ss_offres, public.ss_codes_promo, public.ss_formules, public.ss_formules_contenus, public.ss_achats,
-  public.ss_abonnements, public.ss_lecture, public.ss_generations, public.ss_quotas, public.ss_voix_autorisations from anon;
+  public.ss_abonnements, public.ss_lecture, public.ss_generations, public.ss_quotas, public.ss_voix_autorisations, public.ss_traductions, public.ss_droits from anon;
 
 -- ── Droits calculés ────────────────────────────────────────
 -- Un ouvrage est « visible clientes » s'il est publié, validé, non privé.

@@ -165,14 +165,16 @@ export async function POST(req: NextRequest) {
           })
           .eq("stripe_checkout_session_id", session_id);
 
-        // Notifier la fondatrice
-        await sbAdmin.from("bellaia_notifications").insert({
+        // Notifier la fondatrice (non bloquant). Le constructeur de requête Supabase
+        // n'a pas de .catch() : l'ancien appel levait une erreur APRÈS l'enregistrement
+        // du paiement et renvoyait « erreur » à la cliente.
+        try { await sbAdmin.from("bellaia_notifications").insert({
           user_id: user.id,
           type:    "paiement",
           titre:   "Paiement confirmé par Stripe",
           contenu: `Commande ${session.metadata?.commande_id || ""} — ${(session.amount_total || 0) / 100}€`,
           lu:      false,
-        }).catch(() => {});
+        }); } catch { /* notification facultative */ }
       }
 
       return NextResponse.json({

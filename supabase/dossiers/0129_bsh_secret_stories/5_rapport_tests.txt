@@ -99,5 +99,11 @@ statut forcé par la cliente →  confirme/true,confirme/true,confirme/true
 ✅ … fichiers encore présents → 5
 ✅ fondatrice : historique de versions après réécriture → 1 version(s) archivée(s), version actuelle 2
 ✅ extrait audio hors dossier extraits/ → REFUSÉ: new row for relation "ss_extraits" violates check constraint "ss_extra
+✅ collaboratrice : ajouter une traduction → ACCEPTÉ
+✅ collaboratrice : lire les contrats de droits → 0
+✅ collaboratrice : créer un contrat de droits → REFUSÉ: new row violates row-level security policy for table "ss_droits"
+✅ fondatrice : enregistrer un contrat de droits → ACCEPTÉ
+✅ cliente abonnée : lire traductions / droits → 0
+✅ traduction : code de langue invalide → REFUSÉ: new row for relation "ss_traductions" violates check constraint "ss_tr
 
-94/94 conformes
+100/100 conformes

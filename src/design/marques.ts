@@ -76,3 +76,9 @@ export function marqueDe(code: string, unite?: { nom?: string; couleur?: string 
   const p = unite?.couleur || "#1c2246";
   return { ...MARQUES.STUDIO, code, nom: unite?.nom || code, logo: null, monogramme: (unite?.nom || code).replace(/[^A-Za-zÀ-ÿ]/g, "").slice(0, 2).toUpperCase(), principale: p, degrade: `linear-gradient(135deg, ${p} 0%, #1c2246 100%)` };
 }
+
+/** Bibliothèque graphique : VARIANTES de logos (le logo actif de chaque marque reste celui de MARQUES, inchangé).
+ *  Une variante n'est utilisée que là où la fondatrice la choisit explicitement. */
+export const LOGOS_VARIANTES: Record<string, { cle: string; nom: string; fichier: string | null; statut: "attendu" | "disponible"; usage: string }[]> = {
+  ODYSSEE: [{ cle: "noir_or", nom: "Bella'Odyssée — noir et doré", fichier: null, statut: "attendu", usage: "Variante (fonds sombres, supports premium) — fichier à fournir par la fondatrice" }],
+};

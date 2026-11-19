@@ -1,14 +1,14 @@
 # Dossier de migration 0129 — BSH Secret Stories
 
-**Statut : PRÉPARÉE — NON APPLIQUÉE.** Rien ne doit être exécuté sur Supabase sans l'autorisation explicite de la fondatrice. La migration 0128 n'est ni modifiée ni réexécutée par ce dossier.
+**Statut : PRÉPARÉE — NON APPLIQUÉE.** 20 tables `ss_*` (dont traductions et droits, ajoutées le 19/11). Rien ne doit être exécuté sur Supabase sans l'autorisation explicite de la fondatrice. La migration 0128 n'est ni modifiée ni réexécutée par ce dossier.
 
 | Fichier | Rôle |
 |---|---|
-| `1_migration_0129.sql` | La migration (copie exacte de `supabase/migrations/0129_bsh_secret_stories.sql`, empreinte SHA-256 `9f676400e22ff339…`) |
-| `2_retour_arriere_0129.sql` | Retour arrière (copie exacte de `supabase/migrations/rollback/…`, empreinte `4ef24f05997560c2…`) — **jamais collé en même temps que la migration** |
+| `1_migration_0129.sql` | La migration (copie exacte de `supabase/migrations/0129_bsh_secret_stories.sql`, empreinte SHA-256 `d75e64f0f1c444ff…`) |
+| `2_retour_arriere_0129.sql` | Retour arrière (copie exacte de `supabase/migrations/rollback/…`, empreinte `a4c9bdf2f2afcfa0…`) — **jamais collé en même temps que la migration** |
 | `3_verifications_avant.sql` | Contrôles en lecture seule à exécuter avant |
 | `4_verifications_apres.sql` | Contrôles en lecture seule à exécuter après |
-| `5_rapport_tests_94.txt` | Rapport des 94 tests de profils (base locale jetable) |
+| `5_rapport_tests.txt` | Rapport des 100 tests de profils (base locale jetable) |
 
 ## Prérequis — vérifiés sur Supabase le 19/11/2026 (lecture seule) : 10/10 OK
 - fonctions `is_fondatrice()` et `a_permission(p, u)` ;
@@ -26,12 +26,12 @@ Photographie de référence : 8 profils, 0 permission, 3 hôtes BSH, 4 commandes
 2. Nouvel onglet : coller **uniquement** `1_migration_0129.sql` → Run.
    - Si Supabase demande une confirmation (« opération destructive » ou autre), lisez le message.
    - La migration ne supprime rien. Confirmez seulement si le message concerne les `drop policy if exists` / `drop trigger if exists` de ce fichier ; sinon arrêtez et transmettez le message.
-3. Nouvel onglet : coller **`4_verifications_apres.sql`** → 11 lignes « OK », photographie **identique** à l'étape 1.
+3. Nouvel onglet : coller **`4_verifications_apres.sql`** → 11 lignes « OK » (dont 20 tables), photographie **identique** à l'étape 1.
 4. Prévenir Claude : les tests de profils seront refaits sur Supabase (comptes de test temporaires, supprimés ensuite ; aucune donnée réelle touchée).
 5. En cas d'anomalie : coller `2_retour_arriere_0129.sql` **seul**, après décision de la fondatrice. Il supprime uniquement les tables `ss_*` et leurs fonctions ; les fichiers du bucket restent à vider à la main.
 
 ## Rapport de tests (base PostgreSQL 16 locale, jeu d'essai fictif)
-- **94/94 conformes** (19/11, rejoués sur la copie de ce dossier).
+- **100/100 conformes** (19/11, sur la copie de ce dossier) : les 94 tests initiaux + 6 tests traductions et droits (traductions : studio ; contrats de droits : fondatrice seule ; codes de langue contrôlés).
 - 8 profils : visiteur, cliente sans achat, acheteuse ebook, acheteuse audio, abonnée active, abonnée expirée, fondatrice, mineure / âge non vérifié.
 - Tentatives d'accès direct aux fichiers, API et ouvrages non achetés : refusées.
 - Achats conservés après résiliation ; droits d'abonnement seuls retirés.

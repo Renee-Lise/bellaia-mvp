@@ -6,8 +6,8 @@ Document de décision pour la fondatrice. Rien n'est activé : aucune migration 
 
 | Élément | État | Où |
 |---|---|---|
-| Migration 0129 (18 tables `ss_*`, contrôles serveur, bucket privé) + retour arrière | 🟨 préparée, **non appliquée** | `supabase/migrations/0129_bsh_secret_stories.sql` |
-| Tests des profils (base PostgreSQL locale jetable, jeu d'essai fictif) | ✅ 94/94 conformes | `supabase/tests/0129_secret_stories/` |
+| Migration 0129 (20 tables `ss_*`, contrôles serveur, bucket privé) + retour arrière | 🟨 préparée, **non appliquée** | `supabase/migrations/0129_bsh_secret_stories.sql` |
+| Tests des profils (base PostgreSQL locale jetable, jeu d'essai fictif) | ✅ 100/100 conformes (dont traductions et droits) | `supabase/tests/0129_secret_stories/` |
 | Studio éditorial fondatrice | 🟦 aperçu (simulation tant que 0129 n'est pas appliquée) | Fondatrice › Bella'Secret Home › « Secret Stories (aperçu) », `/apercu/secret-stories` |
 | Bibliothèque cliente, lecteur, lecteur audio | 🟦 aperçu | `/apercu/secret-stories-bibliotheque` |
 

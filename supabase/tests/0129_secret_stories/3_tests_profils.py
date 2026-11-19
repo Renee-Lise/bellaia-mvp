@@ -76,6 +76,12 @@ t('collaboratrice : supprimer les fichiers','collab',"delete from storage.object
 t('… fichiers encore présents','fondatrice',"select count(*) from storage.objects",'5')
 t('fondatrice : historique de versions après réécriture','fondatrice',f"update ss_chapitres set texte='Nouveau texte' where oeuvre_id='{O1}' and ordre=2; select count(*)||' version(s) archivée(s), version actuelle '||(select version from ss_chapitres where oeuvre_id='{O1}' and ordre=2) from ss_chapitres_versions",'1 version')
 t('extrait audio hors dossier extraits/','fondatrice',E(f"insert into ss_extraits (oeuvre_id, type, audio_chemin) values ('{O1}','audio','oeuvres/o1/livre.mp3')"),'REFUSÉ')
+t('collaboratrice : ajouter une traduction','collab',E(f"insert into ss_traductions (oeuvre_id, langue, titre) values ('{O1}','en','Title')"),'ACCEPTÉ')
+t('collaboratrice : lire les contrats de droits','collab',N("select 1 from ss_droits"),'0')
+t('collaboratrice : créer un contrat de droits','collab',E(f"insert into ss_droits (oeuvre_id, nature, titulaire) values ('{O1}','auteur','X')"),'REFUSÉ')
+t('fondatrice : enregistrer un contrat de droits','fondatrice',E(f"insert into ss_droits (oeuvre_id, nature, titulaire) values ('{O1}','auteur','Titulaire fictif')"),'ACCEPTÉ')
+t('cliente abonnée : lire traductions / droits','abonnee',N("select 1 from ss_traductions union all select 1 from ss_droits"),'0')
+t('traduction : code de langue invalide','fondatrice',E(f"insert into ss_traductions (oeuvre_id, langue) values ('{O1}','anglais')"),'REFUSÉ')
 ok=0
 for lbl,u,q,att in T:
     if lbl.startswith('visiteur : extrait'): u=None

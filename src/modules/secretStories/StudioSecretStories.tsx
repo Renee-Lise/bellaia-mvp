@@ -52,7 +52,7 @@ export default function StudioSecretStories({ initial }: { initial?: { oeuvres: 
   const [base, setBase] = useState<boolean | null>(initial ? false : null);
   const [oeuvres, setOeuvres] = useState<Oeuvre[]>(initial?.oeuvres || []);
   const [chapitres, setChapitres] = useState<Chapitre[]>(initial?.chapitres || []);
-  const [annexes, setAnnexes] = useState<Record<string, any[]>>({ ss_personnages: initial?.personnages || [], ss_chronologie: initial?.chronologie || [], ss_extraits: [], ss_generations: [] });
+  const [annexes, setAnnexes] = useState<Record<string, any[]>>({ ss_personnages: initial?.personnages || [], ss_chronologie: initial?.chronologie || [], ss_extraits: [], ss_generations: [], ss_traductions: [], ss_droits: [] });
   const [vue, setVue] = useState<{ e: "accueil" } | { e: "nouveau" } | { e: "oeuvre"; id: string; onglet: string } | { e: "chapitre"; id: string }>({ e: "accueil" });
   const [message, setMessage] = useState("");
   const [autorise, setAutorise] = useState<boolean>(true);
@@ -65,9 +65,9 @@ export default function StudioSecretStories({ initial }: { initial?: { oeuvres: 
   const ouvrir = async (id: string, onglet = "chapitres") => {
     setVue({ e: "oeuvre", id, onglet });
     if (!simul && base) {
-      const [c, p, t, x] = await Promise.all([studio.chapitres(id), studio.liste("ss_personnages", id), studio.liste("ss_chronologie", id), studio.liste("ss_extraits", id)].map(pr => pr.catch(() => [])));
+      const [c, p, t, x, tr, dr] = await Promise.all([studio.chapitres(id), studio.liste("ss_personnages", id), studio.liste("ss_chronologie", id), studio.liste("ss_extraits", id), studio.liste("ss_traductions", id), studio.liste("ss_droits", id)].map(pr => pr.catch(() => [])));
       setChapitres(l => [...l.filter(z => z.oeuvre_id !== id), ...(c as Chapitre[])]);
-      setAnnexes(a => ({ ...a, ss_personnages: [...a.ss_personnages.filter(z => z.oeuvre_id !== id), ...p], ss_chronologie: [...a.ss_chronologie.filter(z => z.oeuvre_id !== id), ...t], ss_extraits: [...a.ss_extraits.filter(z => z.oeuvre_id !== id), ...x] }));
+      setAnnexes(a => ({ ...a, ss_personnages: [...a.ss_personnages.filter(z => z.oeuvre_id !== id), ...p], ss_chronologie: [...a.ss_chronologie.filter(z => z.oeuvre_id !== id), ...t], ss_extraits: [...a.ss_extraits.filter(z => z.oeuvre_id !== id), ...x], ss_traductions: [...a.ss_traductions.filter(z => z.oeuvre_id !== id), ...tr], ss_droits: [...a.ss_droits.filter(z => z.oeuvre_id !== id), ...dr] }));
     }
   };
   const ajouterAnnexe = async (table: string, ligne: any) => {
@@ -147,7 +147,7 @@ export default function StudioSecretStories({ initial }: { initial?: { oeuvres: 
   const ch = chapsDe(oeuvre.id); const motsTotal = ch.reduce((s, c) => s + motsDe(c.texte), 0);
   const cible = MOTS_LONGUEUR[oeuvre.parametres?.longueur] || 40000;
   const pers = annexes.ss_personnages.filter(p => p.oeuvre_id === oeuvre.id); const chrono = annexes.ss_chronologie.filter(p => p.oeuvre_id === oeuvre.id); const extraits = annexes.ss_extraits.filter(p => p.oeuvre_id === oeuvre.id);
-  const ONGLETS = [["chapitres", "Chapitres"], ["personnages", "Personnages"], ["chronologie", "Chronologie"], ["memoire", "Mémoire"], ["extraits", "Extraits"], ["audio", "Audio"], ["commerce", "Vente"]];
+  const ONGLETS = [["chapitres", "Chapitres"], ["personnages", "Personnages"], ["chronologie", "Chronologie"], ["memoire", "Mémoire"], ["extraits", "Extraits"], ["audio", "Audio"], ["traductions", "Traductions"], ["droits", "Droits"], ["commerce", "Vente"]];
   return page(<>
     {entete(oeuvre.titre, () => setVue({ e: "accueil" }), `${OPTIONS.type.find(t => t[0] === oeuvre.type)?.[1]} · ${oeuvre.prive ? "🔒 Privé" : "Visible"}`)}
     {bandeauSimul}
@@ -186,6 +186,16 @@ export default function StudioSecretStories({ initial }: { initial?: { oeuvres: 
       {onglet === "extraits" && <Extraits ch={ch} extraits={extraits} onAjouter={v => ajouterAnnexe("ss_extraits", { oeuvre_id: oeuvre.id, ...v })} />}
 
       {onglet === "audio" && <Audio ch={ch} pers={pers} onDemande={async g => { const r = simul ? { id: uid(), ...g, statut: "en_attente" } : await studio.demanderGeneration({ ...g, oeuvre_id: oeuvre.id }).catch((e: any) => { flash("Refusé : " + e.message); return null; }); if (r) flash(`Narration ajoutée à la file : ${eur(g.cout_estime_centimes / 100)} estimés, en attente de votre approbation.`); }} />}
+
+      {onglet === "traductions" && <ListeAnnexe titre="Traductions" lignes={annexes.ss_traductions.filter(x => x.oeuvre_id === oeuvre.id)} vide="Aucune traduction. Chaque traduction reste un brouillon jusqu'à votre validation."
+        rendu={x => <><div style={{ fontWeight: 700, fontSize: 14 }}>{(x.langue || "").toUpperCase()} · {x.titre || "Titre à traduire"}</div><div style={{ fontSize: 12, color: m.doux, marginTop: 2 }}>{x.origine === "humaine" ? "Traduction humaine" : x.origine === "ia_relue" ? "IA relue" : "IA"}{x.traducteur ? ` · ${x.traducteur}` : ""} · {x.statut || "brouillon"}</div></>}
+        champs={[["langue", "Langue (code : en, es, pt-BR…)"], ["titre", "Titre traduit"], ["traducteur", "Traductrice / traducteur"], ["synopsis", "Synopsis traduit", true]]}
+        onAjouter={v => ajouterAnnexe("ss_traductions", { oeuvre_id: oeuvre.id, ...v, langue: String(v.langue || "").trim(), origine: "humaine" })} />}
+
+      {onglet === "droits" && <ListeAnnexe titre="Droits et contrats" lignes={annexes.ss_droits.filter(x => x.oeuvre_id === oeuvre.id)} vide="Aucun droit enregistré. Contrats visibles par la fondatrice seule."
+        rendu={x => <><div style={{ fontWeight: 700, fontSize: 14 }}>{x.nature} · {x.titulaire}</div><div style={{ fontSize: 12, color: m.doux, marginTop: 2 }}>{[x.cession, x.territoire, x.fin ? `jusqu'au ${x.fin}` : ""].filter(Boolean).join(" · ") || "Étendue à préciser"} · {x.statut === "valide" ? "validé" : "à vérifier"}</div></>}
+        champs={[["nature", "Nature (auteur, traduction, audio, illustration, couverture, voix…)"], ["titulaire", "Titulaire"], ["cession", "Droits cédés ou concédés", true], ["territoire", "Territoire"]]}
+        onAjouter={v => ajouterAnnexe("ss_droits", { oeuvre_id: oeuvre.id, ...v, nature: ["auteur", "traduction", "audio", "illustration", "couverture", "voix", "adaptation"].includes(String(v.nature || "").trim().toLowerCase()) ? String(v.nature).trim().toLowerCase() : "autre" })} />}
 
       {onglet === "commerce" && <Commerce oeuvre={oeuvre} />}
     </div>
