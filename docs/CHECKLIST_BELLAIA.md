@@ -34,6 +34,8 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⬜ Test réel d'un paiement SumUp
 
 ## 3. Organisation et équipe — P1
+- 🟦 Assistante → Bella'Food selon permissions (découvrir sans coûts, prendre une commande, proposer une fiche « proposée ») — testé en base : sans permission refus, 0 champ financier, fiche jamais active, aucune lecture directe des tables
+- 🟦 Aperçus : bouton de retour accessible sur iPhone (zone sûre + bouton flottant en bas), bandeau sur tous les aperçus clients
 - ✅ Aperçus des profils déployés (GO 19/11) : cliente, assistante, hôte / hôtesse, prestataire, partenaire Vil'Dor — lecture seule, aucune action au nom d'une autre personne
 - ✅ Base : comptes multirôles, organisations, missions, fil, stockage privé
 - ✅ Écrans : Accès & permissions, espace équipe, missions, livrables, commentaires / corrections, planning (en production)
@@ -57,6 +59,7 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ **Allergènes automatiques** sur les commandes (site et sur-mesure), affichés avant l'achat ; « à vérifier » si inconnus (en production)
 - ✅ **Blocage des commandes** sans allergènes obligatoires (appliqué en base + boutique + serveur, testé : 3 cas) — 3 produits commandables / 116, 113 « Fiche produit en cours de finalisation » · compteurs recalculés à chaque ouverture (nouvelles recettes incluses)
 - ⬜ Assistant de régularisation recette par recette (scan des emballages, soumission, validation, réactivation)
+- ✅ Blocage vérifié sur tous les chemins : route serveur (testée), panier non conservé, message WhatsApp envoyé seulement après acceptation serveur, commande insérée directement = « à vérifier » non payable
 - ✅ Correctif de l'import de recette par photo
 - ⏳ Validation des 14 prix de revente · parfums · fiches allergènes · recettes incomplètes · barquette · coûts réels
 - ⬜ Publication du catalogue validé
@@ -68,12 +71,14 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ Écran Bibliothèque déployé (GO 19/11) : recherche, reclassement, validation, contradictions avec extraits, comparaison des doublons, import multiple et de dossiers, stockage privé, justificatif des droits — confidentialité testée (visiteur / cliente / assistante / partenaire : 0)
 - ⬜ Extraction automatique des fichiers importés depuis l'iPhone · calculs (portions, coûts Bella'Food, courses, production, étiquettes, PDF) branchés sur les recettes validées · bibliothèque Vil'Dor dans son espace
 
-## 5 ter. Atelier d'import intelligent Bella'Food (et Vil'Dor) — demandé le 19/11
-- ⬜ Même principe que Bella'Events, classement alimentaire : sélection multiple, dossiers, ZIP, Word, PDF, photos, scans, affiches, Google Drive / iPhone
-- ⬜ Analyse du contenu (IA) et rubrique proposée : recettes / sous-recettes, plats, desserts, pâtisseries, boissons, en-cas, ingrédients, fournisseurs, achats, stocks, coûts et marges, menus, hygiène, allergènes, traçabilité, communication et merchandising · rubrique « À classer » · reclassement manuel
-- ⬜ Alimentation directe des modules · recette existante complétée sans doublon (infos + images) · sinon nouvelle recette « à valider » · association d'images proposée · comparaison des versions
-- ⬜ Originaux conservés et privés jusqu'à validation · historique des imports · reprise des traitements interrompus · suivi des coûts IA et quotas · séparation Vil'Dor
-- 🟨 Migration 0121 (historique et reprise des imports, rubriques, journal de consommation IA) préparée — **refusée à l'exécution le 19/11, non appliquée**
+## 5 ter. Atelier d'import intelligent Bella'Food / Vil'Dor (moteur unique) — 19/11
+- ✅ Base : file d'attente persistante (reçu, en attente, analyse en cours, extraction terminée, doublon potentiel, à classer, à compléter, à valider, validé, erreur), historique des lots, limites IA configurables (200 analyses/jour, 20 €/mois, alerte 80 %), journal des coûts — 0121 appliquée (111 fiches Drive en attente, 8 à valider)
+- 🟦 Écran unique (remplace l'ancien « Import recette », qui n'enregistrait rien) : fichiers multiples, photos multiples, scan, dossier, ZIP (protégé : 300 fichiers, 300 Mo, chemins suspects refusés), Word .docx, PDF, texte, dictée, liens · estimation du coût avant analyse · pause / reprise · reclassement · historique — captures iPhone ✅
+- 🟦 Analyse serveur : recette structurée des sites lue SANS IA ; IA pour PDF, images, texte ; rien d'inventé ; doublon → pas de création ; recette « à valider » ; association d'image proposée — testé : droits (401/403), séparation Vil'Dor, SSRF (adresses internes refusées) · ⬜ test réel avec la clé IA en production
+- 🟦 Vil'Dor : onglet « Atelier » dans son espace, stockage et lignes de SON organisation, jamais dans les recettes Bella'Food
+- ⏳ Réseaux sociaux (Pinterest, Instagram, TikTok, YouTube) : lecture si la page publique le permet, sinon alternatives proposées (capture, description, transcription) — aucune API contournée
+- ⬜ Transcription audio / vidéo (aucun service de transcription branché : dictée iPhone ou transcription collée en attendant) · .doc ancien (conservé, à convertir) · import direct par lien Google Drive (via l'app Fichiers en attendant)
+- 🔄 111 fiches Drive restantes (8 / 119)
 
 ## 6. Hygiène et traçabilité — P3
 - ✅ Documents partenaires privés (empreinte, doublons, expiration)
@@ -112,3 +117,11 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ Écran (priorités, échéances, historique, dépendances, pièces jointes) — 39 actions dont 38 ouvertes
 - ✅ Tests simulés des permissions · 🟦 tests des écrans au format iPhone
 - ⬜ Tests sur le vrai iPhone · notifications push · validation générale de la production
+
+## 13. Administration — Studio de papeterie et packs administratifs multi-univers (demandé le 19/11)
+- ⬜ Analyse des références (modèle de facture et livre des recettes / achats / marge Massena, 3 visuels d'exemple) : champs, tableaux, formules, mentions obligatoires
+- ⬜ Packs par univers (référentiel dynamique, Vil'Dor indépendant en simulation) : identité graphique (logo en haut à droite, palette, typographies, motifs, en-tête, pied de page)
+- ⬜ Documents commerciaux, logistiques, financiers, clientèle, communication + documents spécifiques (Food / Vil'Dor, Events, BSH, Odyssée, Vilo'Assistance)
+- ⬜ Génération depuis les données réelles, numérotation existante, conformité Guyane, intégrité des pièces émises
+- ⬜ Studio « Packs administratifs » / « Mes modèles » (éditeur iPhone, versions, modèle par défaut), import de modèles, exports PDF / PNG / Word / Sheets / ZIP
+- ⏳ Modèles en prévisualisation → validation graphique de la fondatrice avant activation
