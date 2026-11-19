@@ -6348,7 +6348,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   };
   const ca=commandes.filter(c=>c.statut==="Paiement complet reçu"||c.statut==="Terminée").reduce((s,c)=>s+(parseFloat(c.montant)||0),0);
   const crit=produits.filter(p=>p.stock<=p.min);
-  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"agenda",l:"🗓",t:"Secret Agenda"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"experiences",l:"💎",t:"Experiences"},{id:"params",l:"⚙",t:"Réglages"}];
+  const SECS=[{id:"dash",l:"🏠",t:"Accueil"},{id:"agenda",l:"🗓",t:"Secret Agenda"},{id:"cmds",l:"🧾",t:"Commandes"},{id:"crm",l:"👥",t:"Clientes"},{id:"stock",l:"📦",t:"Stock"},{id:"evts",l:"📅",t:"Events"},{id:"hotes",l:"👤",t:"Hôtes"},{id:"centre_hotes",l:"✨",t:"Centre hôtes (aperçu)"},{id:"jeux",l:"🎲",t:"Jeux"},{id:"docs",l:"🗂",t:"Documents"},{id:"com",l:"📢",t:"Communication"},{id:"fin",l:"€",t:"Finances"},{id:"experiences",l:"💎",t:"Experiences"},{id:"params",l:"⚙",t:"Réglages"}];
 
   // ── Communication BSH (annonces, notifications, publications) ──
   // Phase 1 de la mission "BSH Communications & Automatisations" :
@@ -7218,6 +7218,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
           })()}
         </div>}
         {sec==="agenda"&&<BshAgendaWrapper/>}
+        {sec==="centre_hotes"&&<CentreHotesWrapper/>}
         {sec==="experiences"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
           <ExperiencesBSHWrapper/>
         </div>}
@@ -7664,6 +7665,14 @@ function BshAgendaWrapper() {
   if (err) return <div style={{color:"#f87171",fontSize:12,padding:16}}>⚠️ Chargement impossible : {err}</div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du Secret Agenda…</div>;
   return <Comp experiences={<ExperiencesBSHWrapper/>}/>;
+}
+
+// ── Centre des hôtes BSH (prévisualisation ; simulation tant que 0128 n'est pas appliquée)
+function CentreHotesWrapper() {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/bshHotes/CentreHotesBSH").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du centre des hôtes…</div>;
+  return <div style={{margin:"0 -16px"}}><Comp/></div>;
 }
 
 function ExperiencesBSHWrapper() {
