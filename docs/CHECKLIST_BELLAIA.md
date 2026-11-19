@@ -34,8 +34,8 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⬜ Test réel d'un paiement SumUp
 
 ## 3. Organisation et équipe — P1
-- 🟦 Assistante → Bella'Food selon permissions (découvrir sans coûts, prendre une commande, proposer une fiche « proposée ») — testé en base : sans permission refus, 0 champ financier, fiche jamais active, aucune lecture directe des tables
-- 🟦 Aperçus : bouton de retour accessible sur iPhone (zone sûre + bouton flottant en bas), bandeau sur tous les aperçus clients
+- ✅ Déployé — assistante → Bella'Food selon permissions (aucune accordée automatiquement) (découvrir sans coûts, prendre une commande, proposer une fiche « proposée ») — testé en base : sans permission refus, 0 champ financier, fiche jamais active, aucune lecture directe des tables
+- ✅ Déployé — aperçus : bouton de retour accessible sur iPhone (zone sûre + bouton flottant en bas), bandeau sur tous les aperçus clients
 - ✅ Aperçus des profils déployés (GO 19/11) : cliente, assistante, hôte / hôtesse, prestataire, partenaire Vil'Dor — lecture seule, aucune action au nom d'une autre personne
 - ✅ Base : comptes multirôles, organisations, missions, fil, stockage privé
 - ✅ Écrans : Accès & permissions, espace équipe, missions, livrables, commentaires / corrections, planning (en production)
@@ -73,12 +73,14 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 
 ## 5 ter. Atelier d'import intelligent Bella'Food / Vil'Dor (moteur unique) — 19/11
 - ✅ Base : file d'attente persistante (reçu, en attente, analyse en cours, extraction terminée, doublon potentiel, à classer, à compléter, à valider, validé, erreur), historique des lots, limites IA configurables (200 analyses/jour, 20 €/mois, alerte 80 %), journal des coûts — 0121 appliquée (111 fiches Drive en attente, 8 à valider)
-- 🟦 Écran unique (remplace l'ancien « Import recette », qui n'enregistrait rien) : fichiers multiples, photos multiples, scan, dossier, ZIP (protégé : 300 fichiers, 300 Mo, chemins suspects refusés), Word .docx, PDF, texte, dictée, liens · estimation du coût avant analyse · pause / reprise · reclassement · historique — captures iPhone ✅
-- 🟦 Analyse serveur : recette structurée des sites lue SANS IA ; IA pour PDF, images, texte ; rien d'inventé ; doublon → pas de création ; recette « à valider » ; association d'image proposée — testé : droits (401/403), séparation Vil'Dor, SSRF (adresses internes refusées) · ⬜ test réel avec la clé IA en production
-- 🟦 Vil'Dor : onglet « Atelier » dans son espace, stockage et lignes de SON organisation, jamais dans les recettes Bella'Food
+- ✅ Déployé (GO 19/11, 7579b94 + 2978fd8) — écran unique (remplace l'ancien « Import recette », qui n'enregistrait rien) : fichiers multiples, photos multiples, scan, dossier, ZIP (protégé : 300 fichiers, 300 Mo, chemins suspects refusés), Word .docx, PDF, texte, dictée, liens · estimation du coût avant analyse · pause / reprise · reclassement · historique — captures iPhone ✅
+- ✅ Déployé — analyse serveur : recette structurée des sites lue SANS IA ; IA pour PDF, images, texte ; rien d'inventé ; doublon → pas de création ; recette « à valider » ; association d'image proposée — testé : droits (401/403), séparation Vil'Dor, SSRF (adresses internes refusées) · ⬜ test réel avec la clé IA en production
+- ✅ Déployé — Vil'Dor : onglet « Atelier » dans son espace, stockage et lignes de SON organisation, jamais dans les recettes Bella'Food
 - ⏳ Réseaux sociaux (Pinterest, Instagram, TikTok, YouTube) : lecture si la page publique le permet, sinon alternatives proposées (capture, description, transcription) — aucune API contournée
 - ⬜ Transcription audio / vidéo (aucun service de transcription branché : dictée iPhone ou transcription collée en attendant) · .doc ancien (conservé, à convertir) · import direct par lien Google Drive (via l'app Fichiers en attendant)
-- 🔄 111 fiches Drive restantes (8 / 119)
+- ✅ Fiches Drive partagées par lien : téléchargées par le serveur (original conservé en privé), traitées par la file — sans session Claude · 🔄 111 en attente : premier lot à lancer (plafond de test 2 €)
+- ✅ Budget IA : réservation atomique côté serveur (analyses simultanées, testé 6 cas) · écran Coûts IA (consommation jour / mois, coût moyen, restant, alertes, par univers et fonctionnalité, limites modifiables, suspension) — plafond de test Bella'Food 2 € / 30 analyses par jour
+- ⏳ Test réel en production à faire par la fondatrice (Actions requises) avant de déclarer chaque source opérationnelle
 
 ## 6. Hygiène et traçabilité — P3
 - ✅ Documents partenaires privés (empreinte, doublons, expiration)
