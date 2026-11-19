@@ -10,6 +10,11 @@
 --  • Les hôtes ne voient que leurs propres données ; leurs actions passent
 --    par des fonctions contrôlées.
 
+-- ── Copie de sécurité des profils hôtes existants (accès serveur uniquement)
+create table if not exists public.zz_sauvegarde_0128_bsh_hotes as select now() as sauvegarde_le, h.* from public.bsh_hotes h;
+alter table public.zz_sauvegarde_0128_bsh_hotes enable row level security;
+revoke all on public.zz_sauvegarde_0128_bsh_hotes from anon, authenticated;
+
 -- ── Profil hôte : champs complémentaires
 alter table public.bsh_hotes add column if not exists pseudo_scene text;
 alter table public.bsh_hotes add column if not exists ville text;
