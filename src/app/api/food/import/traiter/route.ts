@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { permisUtilisateur } from "@/lib/permissions";
-import { verifierQuota, journaliserIA, coutEstime } from "@/lib/iaUsage";
+import { limitesIA, reserverIA, solderIA, coutEstime } from "@/lib/iaUsage";
 import { recupererPage, recetteJsonLd, texteDeHtml, meta } from "@/lib/urlSure";
 
 export const maxDuration = 60;
@@ -134,12 +134,16 @@ export async function POST(req: NextRequest) {
     if (!resultat) {
       if (!contenu.length) { if (!texte.trim()) throw new Error("Aucun contenu lisible."); contenu.push({ type: "text", text: `Document « ${fiche.titre || fiche.nom_fichier || ""} » :\n\n${texte.slice(0, 60000)}` }); methode = methode || "ia_texte"; }
       else contenu.push({ type: "text", text: `Nom du fichier : ${fiche.nom_fichier || fiche.titre || "inconnu"}` });
-      const q = await verifierQuota(admin, user.id, espaceIA);
-      if (!q.ok) { await admin.from("bibliotheque_fiches").update({ etat: "en_attente", verrou_le: null, derniere_erreur: q.raison }).eq("id", id); return NextResponse.json({ ok: false, suspendu: true, message: q.raison }, { status: 429 }); }
-      const apiKey = process.env.ANTHROPIC_API_KEY; if (!apiKey) throw new Error("Clé IA non configurée.");
-      const ia = await appelIA(contenu, apiKey);
-      cout = coutEstime(q.limites, ia.entree, ia.sortie);
-      await journaliserIA(admin, { userId: user.id, route: "food/import/traiter", modele: MODELE, entree: ia.entree, sortie: ia.sortie, cout, cible: id });
+      const lim = await limitesIA(admin, espaceIA);
+      const coutMax = coutEstime(lim, 60000, 4000);   // plafond réservé (document maximal + réponse maximale)
+      const resa = await reserverIA(admin, espaceIA, user.id, "food/import/traiter", coutMax);
+      if (!resa.ok) { await admin.from("bibliotheque_fiches").update({ etat: "en_attente", verrou_le: null, derniere_erreur: resa.raison }).eq("id", id); return NextResponse.json({ ok: false, suspendu: true, message: resa.raison }, { status: 429 }); }
+      const apiKey = process.env.ANTHROPIC_API_KEY; if (!apiKey) { await solderIA(admin, resa.id, { entree: 0, sortie: 0, cout: 0, modele: MODELE, cible: id, ok: false }); throw new Error("Clé IA non configurée."); }
+      let ia;
+      try { ia = await appelIA(contenu, apiKey); }
+      catch (e) { await solderIA(admin, resa.id, { entree: 0, sortie: 0, cout: 0, modele: MODELE, cible: id, ok: false }); throw e; }
+      cout = coutEstime(lim, ia.entree, ia.sortie);
+      await solderIA(admin, resa.id, { entree: ia.entree, sortie: ia.sortie, cout, modele: MODELE, cible: id, ok: true });
       resultat = ia.resultat;
     }
 

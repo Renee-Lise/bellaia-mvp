@@ -1,0 +1,12 @@
+-- ═══════════════════════════════════════════════════════════
+-- 0123_budget_ia_atomique.sql — STATUT: APPLIQUÉ le 19/11, testé (6 cas)
+-- Plafond IA contrôlé CÔTÉ SERVEUR, y compris en cas d'analyses
+-- simultanées : ia_reserver() prend un verrou consultatif, vérifie la
+-- suspension, le quota du jour et le budget du mois (réservations en
+-- cours comprises), puis réserve le coût maximal ; ia_solder() remplace
+-- la réservation par le coût calculé sur les jetons réels (ou l'annule
+-- en cas d'échec). Aucun dépassement automatique du budget.
+-- Colonnes ajoutées à ia_consommation : espace, statut
+-- (reservation | reel | annule), cout_reserve_eur.
+-- Fonctions réservées au serveur (garde current_user).
+-- ═══════════════════════════════════════════════════════════

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { permisUtilisateur } from "@/lib/permissions";
-import { verifierQuota, journaliserIA, coutEstime } from "@/lib/iaUsage";
+import { limitesIA, reserverIA, solderIA, coutEstime } from "@/lib/iaUsage";
 
 // Relais vers l'IA (clé Anthropic côté serveur).
 // Réservé à l'équipe : fondatrice, ou personne ayant reçu la permission
@@ -48,8 +48,10 @@ export async function POST(req: NextRequest) {
 
   // Quotas et budget IA (table ia_limites, espace GENERAL) + journal des coûts.
   const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY) : null;
-  const quota = admin ? await verifierQuota(admin, user.id, "GENERAL") : null;
-  if (quota && !quota.ok) return NextResponse.json({ content: [{ type: "text", text: "⚠️ " + quota.raison }] }, { status: 429 });
+  const lim = admin ? await limitesIA(admin, "GENERAL") : null;
+  const resa = admin && lim ? await reserverIA(admin, "GENERAL", user.id, "chat", coutEstime(lim, 60000 / 3.5, 1024)) : null;
+  if (resa && !resa.ok) return NextResponse.json({ content: [{ type: "text", text: "⚠️ " + resa.raison }] }, { status: 429 });
+  const resaId = resa && resa.ok ? resa.id : null;
 
   let response: Response;
   try {
@@ -59,10 +61,12 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 1024, system: system || "Tu es Bellaïa, assistante de Bella'Studio. Réponds en français.", messages }),
     });
   } catch {
+    if (admin && resaId) await solderIA(admin, resaId, { entree: 0, sortie: 0, cout: 0, modele: "claude-sonnet-5-5", ok: false });
     return NextResponse.json({ content: [{ type: "text", text: "⚠️ Réseau inaccessible." }] }, { status: 502 });
   }
 
   const raw = await response.text();
+  if (!response.ok && admin && resaId) await solderIA(admin, resaId, { entree: 0, sortie: 0, cout: 0, modele: "claude-sonnet-5-5", ok: false });
   if (!response.ok) {
     console.log(`[api/chat] ${response.status}`);
     let detail = "";
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
   }
   try {
     const d = JSON.parse(raw);
-    if (admin && quota) { const e = d?.usage?.input_tokens || 0, so = d?.usage?.output_tokens || 0; await journaliserIA(admin, { userId: user.id, route: "chat", modele: "claude-sonnet-5-5", entree: e, sortie: so, cout: coutEstime(quota.limites, e, so) }); }
+    if (admin && lim && resaId) { const e = d?.usage?.input_tokens || 0, so = d?.usage?.output_tokens || 0; await solderIA(admin, resaId, { entree: e, sortie: so, cout: coutEstime(lim, e, so), modele: "claude-sonnet-5-5", ok: true }); }
     return NextResponse.json(d);
   }
   catch { return NextResponse.json({ content: [{ type: "text", text: "⚠️ Réponse illisible." }] }, { status: 500 }); }

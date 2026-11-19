@@ -46,3 +46,20 @@ export async function journaliserIA(admin: any, e: { userId: string | null; rout
     await admin.from("ia_consommation").insert({ user_id: e.userId, route: e.route, modele: e.modele || null, jetons_entree: e.entree || 0, jetons_sortie: e.sortie || 0, cout_estime_eur: e.cout ?? null, cible: e.cible || null, ok: e.ok !== false });
   } catch { /* journal best-effort */ }
 }
+
+// ── Réservation ATOMIQUE (fonction SQL ia_reserver, verrou consultatif) :
+// plusieurs analyses lancées en même temps ne peuvent pas dépasser le
+// quota du jour ni le budget du mois. Le coût maximal est réservé AVANT
+// l'appel IA, puis remplacé par le coût calculé sur les jetons réels.
+export async function reserverIA(admin: any, espace: string, userId: string | null, route: string, coutMaxEur: number): Promise<{ ok: true; id: string } | { ok: false; raison: string }> {
+  const { data, error } = await admin.rpc("ia_reserver", { p_espace: espace, p_user: userId, p_route: route, p_cout_max: coutMaxEur });
+  if (!error && data) return { ok: true, id: data };
+  const m = String(error?.message || "");
+  if (m.includes("IA_SUSPENDUE")) return { ok: false, raison: "Traitement IA suspendu par la fondatrice (Coûts IA)." };
+  if (m.includes("IA_QUOTA_JOUR")) return { ok: false, raison: "Limite quotidienne d'analyses IA atteinte." };
+  if (m.includes("IA_BUDGET")) return { ok: false, raison: "Budget IA du mois atteint : rien n'est dépensé au-delà." };
+  return { ok: false, raison: "Contrôle du budget IA indisponible : analyse non lancée par prudence." };
+}
+export async function solderIA(admin: any, id: string, e: { entree: number; sortie: number; cout: number; modele: string; cible?: string; ok: boolean }) {
+  try { await admin.rpc("ia_solder", { p_id: id, p_entree: e.entree, p_sortie: e.sortie, p_cout: e.cout, p_modele: e.modele, p_cible: e.cible || null, p_ok: e.ok }); } catch { /* best-effort */ }
+}
