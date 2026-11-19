@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   if (fiche.espace === "VILDOR") {
     if (fiche.organisation_id) { const { data } = await sb.rpc("membre_organisation", { org: fiche.organisation_id }); autorise = data === true; }
     autorise = autorise || profil?.role === "fondatrice";
-  } else autorise = await permisUtilisateur(sb, "bibliotheque.gerer", "*", profil?.role);
+  } else autorise = await permisUtilisateur(sb, "bibliotheque.gerer", "FOOD", profil?.role);
   if (!autorise) return NextResponse.json({ error: "Accès non autorisé à cet espace." }, { status: 403 });
 
   // ── Verrou (reprise si interruption > 5 min)
