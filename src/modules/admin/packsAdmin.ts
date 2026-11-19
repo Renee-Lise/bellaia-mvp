@@ -138,7 +138,7 @@ export async function composerPack(p: any, em: any, th: ThemePack) {
       if (p.acompte && p.type !== "facture_acompte") lt.push(["Acompte versé", "− " + euros(p.acompte), false], ["RESTE À PAYER", euros(t.ttc - p.acompte), true]);
       if (p.type === "devis" && c.acompte_pct) lt.push([`Acompte à la commande (${c.acompte_pct} %)`, euros(t.ttc * Number(c.acompte_pct) / 100), false]);
       m.place(lt.length * 18 + 8);
-      const xT = W - M - 240; m.rect(xT, m.y, 240, lt.length * 18 + 4, { trait: th.accent, ep: 0.8 });
+      const xT = W - M - 240; m.rect(xT, m.y, 240, lt.length * 18, { trait: th.accent, ep: 0.8 });
       lt.forEach(([l, v, g]) => { if (g) m.rect(xT, m.y, 240, 18, { fond: th.principale }); m.texte(xT + 8, m.y + 12.5, l, 9, { gras: g, couleur: g ? th.texteBandeau : "#222222" }); m.texte(W - M - 8, m.y + 12.5, v, g ? 10.5 : 9, { gras: g, align: "d", couleur: g ? th.texteBandeau : "#222222" }); m.y += 18; });
       m.y += 14;
     }

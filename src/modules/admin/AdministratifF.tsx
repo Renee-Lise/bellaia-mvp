@@ -11,6 +11,7 @@
 // Table : bellaia_pieces, bellaia_emetteurs (migration 0108).
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import StudioPacks from "./StudioPacks";
 import { sbSelect, sbInsert, sbUpdate, sbDelete, sbRpc, SB_URL, SB_KEY, jeton, partagerFichier, telecharger, slug, uploadStorage, compresserImage } from "../events/eventsAtelierLib";
 import { PIECES, defPiece, STATUTS, UNITES, calculerTotaux, totalLigne, euros, dateFr, normaliserLignes, MENTION_TVA_DEFAUT, PENALITES_DEFAUT, type Ligne, type TypePiece } from "./piecesTypes";
 import { miseEnPage, pdfPiece, dessinerPage, type MiseEnPage } from "./pdfPiece";
@@ -53,7 +54,7 @@ function nouvellePiece(type: TypePiece, bu = "GENERAL", em?: any): any {
 }
 
 export default function AdministratifF() {
-  const [onglet, setOnglet] = useState<"docs" | "emetteurs" | "outils">("docs");
+  const [onglet, setOnglet] = useState<"docs" | "emetteurs" | "outils" | "packs">("docs");
   const [pieces, setPieces] = useState<any[]>([]);
   const [emetteurs, setEmetteurs] = useState<any[]>([]);
   const [ouverte, setOuverte] = useState<any>(null);
@@ -88,10 +89,12 @@ export default function AdministratifF() {
         <button style={btn(onglet === "docs")} onClick={() => setOnglet("docs")}>📄 Documents ({pieces.length})</button>
         <button style={btn(onglet === "emetteurs")} onClick={() => setOnglet("emetteurs")}>⚙️ Mes informations légales</button>
         <button style={btn(onglet === "outils")} onClick={() => setOnglet("outils")}>🗂 Outils & déclarations</button>
+        <button style={btn(onglet === "packs")} onClick={() => setOnglet("packs")}>🎨 Packs administratifs</button>
       </div>
       {msg && <div style={{ fontSize: 13, color: msg.startsWith("⚠️") ? C.rouge : C.ok }}>{msg}</div>}
       {onglet === "emetteurs" && <Emetteurs emetteurs={emetteurs} setEmetteurs={setEmetteurs} />}
       {onglet === "outils" && <OutilsAdministratifs />}
+      {onglet === "packs" && <StudioPacks />}
       {onglet === "docs" && <>
         {emetteurs.length > 0 && !emetteurs.some(e => e.siret) && <div style={{ fontSize: 12, color: C.or, background: `${C.or}14`, border: `1px solid ${C.or}44`, borderRadius: 10, padding: 10 }}>ℹ️ Complète « Mes informations légales » (SIRET, adresse, IBAN, logo) : elles apparaissent automatiquement sur tous tes documents.</div>}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
