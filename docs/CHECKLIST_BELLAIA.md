@@ -1,10 +1,11 @@
-# Bellaïa — Checklist générale (mise à jour du 18/11/2026, soir — production 6945bb8)
+# Bellaïa — Checklist générale (mise à jour du 19/11/2026 — production 3aef807)
 
 Statuts : ✅ **Opérationnel** (en production) · 🟦 **Développé, non déployé** (prévisualisation) · 🟨 **Préparé, non exécuté** · 🔄 **En cours** · ⏳ **En attente de validation / de données** · ⬜ **À faire**
 
 Note : la base Supabase est commune à la production et à la prévisualisation. Une modification de base marquée ✅ est donc active pour tous ; le code marqué 🟦 ne l'est qu'en prévisualisation.
 
 ## 1. Infrastructure et administration
+- ✅ Administration → Outils & déclarations : modèle de facture et livre des recettes / achats / marge (copies modifiables dans votre Drive), 2 guides de déclaration (base ✅, écran 🟦 branche 40f3668)
 - ✅ Adresse officielle : bellaia-11-azure.vercel.app
 - ✅ Profil juridique et émetteurs (logos, en-têtes) — mentions fiscales ⏳ régime à confirmer
 - ✅ Configuration Supabase / Vercel
@@ -24,13 +25,15 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ✅ Fermeture des prix d'achat BSH / Odyssée et des coûts / marges Food (0117 appliquée ; boutique BSH vérifiée en ligne : prix de vente seuls) · 4 anciennes commandes clientes marquées « à vérifier »
 - ✅ Contrôle exhaustif des accès (toutes tables et vues, 5 profils : visiteur, cliente, assistante, partenaire, fondatrice) — 18/11
 - ✅ 0119 appliquée : notes fournisseur masquées dans le catalogue public (355 produits), prompt IA réservé à l'équipe, listing des fichiers publics réservé à l'équipe
-- 🟦 API : `/api/chat` réservé à l'équipe (clé IA), alertes push anti-spam, références de paiement non devinables, session jointe aux appels internes — **non testé, non déployé**
+- ✅ API : `/api/chat` réservé à l'équipe (clé IA), alertes push anti-spam, références de paiement non devinables, session jointe aux appels internes — 12 tests passés, en production (3aef807)
+- ✅ **P0 terminé** (19/11)
 - ⬜ Anciennes tables de messagerie (règle en boucle, inaccessibles, non utilisées) : corriger ou archiver
 - ⏳ Protection contre les mots de passe compromis (réglage Supabase — Actions requises)
 - ✅ Mise en production corrective P0 (déploiement 6945bb8 « Ready », aucune erreur serveur)
 - ⬜ Test réel d'un paiement SumUp
 
 ## 3. Organisation et équipe — P1
+- 🟦 Aperçu « profil assistante » (menu, missions, messages tels que vus par l'assistante, « Voir comme », lecture seule, liste de ce qu'elle ne voit pas) — branche 40f3668
 - ✅ Base : comptes multirôles, organisations, missions, fil, stockage privé
 - ✅ Écrans : Accès & permissions, espace équipe, missions, livrables, commentaires / corrections, planning (en production)
 - ✅ Univers de mission évolutifs (0116 appliquée et testée : 15 univers, « pole » conservé en compatibilité, aucun droit créé automatiquement)
@@ -56,12 +59,20 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⏳ Validation des 14 prix de revente · parfums · fiches allergènes · recettes incomplètes · barquette · coûts réels
 - ⬜ Publication du catalogue validé
 
+## 5 bis. Bibliothèque professionnelle (fiches techniques)
+- ✅ Base : sources et droits (Massena Formations : utilisation interne + adaptation, confirmation du 19/11), inventaire, espaces Bella'Food / Vil'Dor / partagé séparés, variantes de recette, validation humaine
+- ✅ Inventaire : 119 documents Google Drive distincts (160 liens, 41 doublons)
+- 🔄 Extraction en recettes : 8 / 119 (« à valider », rien d'inventé, allergènes non indiqués = inconnus)
+- 🟦 Écran Bibliothèque (recherche nom / code / ingrédient / catégorie, reclassement, validation, import multiple PDF / Word / ZIP / photo / scan / texte collé, stockage privé, doublons par empreinte, justificatif des droits) — branche 40f3668, non en ligne
+- ⬜ Extraction automatique des fichiers importés depuis l'iPhone · calculs (portions, coûts Bella'Food, courses, production, étiquettes, PDF) branchés sur les recettes validées · bibliothèque Vil'Dor dans son espace
+
 ## 6. Hygiène et traçabilité — P3
 - ✅ Documents partenaires privés (empreinte, doublons, expiration)
 - ✅ Référentiel des 14 allergènes (collection) et blocage des publications non conformes
 - ⬜ Plan de maîtrise sanitaire, HACCP, lots, températures, nettoyage, incidents, retrait / rappel, dossier de contrôle PDF / ZIP
 
 ## 7. Bella'Secret Home — P4
+- ⏳ Espace hôte / hôtesse validé (tableau de bord, planning, disponibilités, missions acceptées / refusées, consignes, invitations, billets et QR codes, présences, jeux, modération, messagerie, documents, rémunérations, historique) + gestion côté fondatrice — à développer (lot suivant)
 - ✅ Audit des salons
 - ✅ Interface sécurisée (jetons, pseudonymes, modération, signalement) — en production
 - ✅ Activation en base (0115 + 0115b) et tests de sécurité (17 tests)
