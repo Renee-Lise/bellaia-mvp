@@ -92,7 +92,10 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - ⬜ Plan de maîtrise sanitaire, HACCP, lots, températures, nettoyage, incidents, retrait / rappel, dossier de contrôle PDF / ZIP
 
 ## 7. Bella'Secret Home — P4
-- ⏳ Espace hôte / hôtesse validé (tableau de bord, planning, disponibilités, missions acceptées / refusées, consignes, invitations, billets et QR codes, présences, jeux, modération, messagerie, documents, rémunérations, historique) + gestion côté fondatrice — à développer (lot suivant)
+- 🟦 Espace hôte / hôtesse (16 rubriques : tableau de bord, profil, parcours, disponibilités, planning, missions acceptées / refusées, événements, invitations, présences, comptes rendus, rémunérations, documents, messagerie, formations, charte, signalements) — prévisualisation, données de simulation, captures envoyées
+- 🟦 Centre de gestion fondatrice (candidatures, hôtes et autorisations individuelles, événements, missions, disponibilités et équipes, invitations, présences, incidents, documents, rémunérations en simulation, suspension / révocation, historique) — prévisualisation
+- 🟨 Migration 0128 (tables, RLS, garde-fous missions réelles / rémunérations) préparée + retour arrière ; ⏳ application par la fondatrice dans Supabase (2 confirmations restées sans réponse ; fichiers transmis)
+- ⬜ Tests de permissions après 0128 · transmission sécurisée des documents · billets / QR · jeux et modération côté hôte
 - ✅ Audit des salons
 - ✅ Interface sécurisée (jetons, pseudonymes, modération, signalement) — en production
 - ✅ Activation en base (0115 + 0115b) et tests de sécurité (17 tests)
@@ -100,11 +103,12 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 
 ## 8. Refonte commerciale — P5
 - ✅ Cahier des charges et inspirations
-- ⬜ Accueil client, boutiques par univers, recherche, panier multi-univers, fidélité
+- 🟦 Moteur de boutiques refondues BSH / Food / Even's / Odyssée (bannières, catégories illustrées, collections, nouveautés, recherche, tri, favoris, fiches, recommandations, panier) — données réelles, illustrations originales, captures envoyées ; aperçu /apercu/boutiques (désactivé en production)
+- ⬜ Branchement de la commande sur le nouveau panier · panier multi-univers · fidélité et parrainage · photos Concorde Pro
 
 ## 9. Studio de merchandising — P6
 - ✅ Cahier des charges
-- ⬜ Éditeur de bannières, collections, promotions, calendrier, aperçu, lien atelier
+- 🟨 Configuration de merchandising par univers prête dans le moteur (bannières, collections, catégories, bandeau) · ⬜ éditeur fondatrice (brouillon → publication), promotions, calendrier
 
 ## 10. Qualité technique — P7
 - 🟦 Inventaire TypeScript reproductible (`node scripts/ts-inventaire.mjs`)
