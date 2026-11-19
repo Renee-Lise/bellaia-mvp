@@ -15,7 +15,14 @@ import { Surface, Titre, Indicateur, Puce, LogoMarque, Carrousel, BandeauInfo, t
 const euros = (n: number) => (Number(n) || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const RACCOURCIS_DEFAUT: [string, string, string][] = [["commandes", "Commandes", "🧾"], ["administratif", "Administration", "📄"], ["food", "Bella'Food", "🍽"], ["bsh", "Secret Home", "🗝"], ["events", "Even's", "🎀"], ["actions", "Actions requises", "✓"], ["equipe", "Équipe", "👥"], ["agenda", "Agenda", "🗓"]];
 
-export default function PortailFondatrice({ prenom = "Renée-Lise", onOuvrir }: { prenom?: string; onOuvrir?: (cle: string) => void }) {
+export default function PortailFondatrice({ prenom = "Renée-Lise", onOuvrir: ouvrirParent, ouvrables }: { prenom?: string; onOuvrir?: (cle: string) => void; ouvrables?: string[] }) {
+  const [info, setInfo] = useState("");
+  // Chaque bouton ouvre un écran réel, ou affiche clairement son état (jamais de clic sans effet).
+  const onOuvrir = (k: string) => {
+    if (k === "univers") { document.getElementById("pf-univers")?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    if (ouvrables && !ouvrables.includes(k)) { setInfo(k.startsWith("univers:") ? "Cet univers n'a pas encore d'espace de gestion dédié : il est en préparation." : "Cet écran n'est pas encore disponible."); setTimeout(() => setInfo(""), 3200); return; }
+    ouvrirParent?.(k);
+  };
   const m = MARQUES.GENERAL;
   const [d, setD] = useState<any>(null);
   const [raccourcis, setRaccourcis] = useState<string[]>(RACCOURCIS_DEFAUT.slice(0, 6).map(r => r[0]));
@@ -58,10 +65,10 @@ export default function PortailFondatrice({ prenom = "Renée-Lise", onOuvrir }: 
         <Carrousel m={m} bannieres={bannieres} hauteur={200} onAller={b => onOuvrir?.(b.destination || "")} />
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <Indicateur m={m} libelle="Facturé ce mois" valeur={euros(d.fin.ca_facture_mois)} detail={`Encaissé ${euros(d.fin.encaisse_mois)}`} />
-          <Indicateur m={m} libelle="En attente de paiement" valeur={euros(d.fin.total_en_attente)} detail={d.fin.nb_factures_retard ? `${d.fin.nb_factures_retard} facture(s) en retard` : "Aucun retard"} tendance={d.fin.nb_factures_retard ? "bas" : null} />
+          <Indicateur m={m} libelle="Facturé ce mois" valeur={euros(d.fin.ca_facture_mois)} detail={`Encaissé ${euros(d.fin.encaisse_mois)}`} onClick={() => onOuvrir("finances")} />
+          <Indicateur m={m} libelle="En attente de paiement" valeur={euros(d.fin.total_en_attente)} detail={d.fin.nb_factures_retard ? `${d.fin.nb_factures_retard} facture(s) en retard` : "Aucun retard"} tendance={d.fin.nb_factures_retard ? "bas" : null} onClick={() => onOuvrir("finances")} />
           <Indicateur m={m} libelle="Commandes du mois" valeur={String(d.cmd.length)} detail={`${euros(caMois)} commandés`} onClick={() => onOuvrir?.("commandes")} />
-          <Indicateur m={m} libelle="Clientes actives" valeur={String(d.crm.nb_clientes_actives ?? 0)} detail={`${d.crm.nb_prospects ?? 0} prospects`} />
+          <Indicateur m={m} libelle="Clientes actives" valeur={String(d.crm.nb_clientes_actives ?? 0)} detail={`${d.crm.nb_prospects ?? 0} prospects`} onClick={() => onOuvrir("clientes")} />
         </div>
 
         <Surface m={m} style={{ background: m.surface2 }}>
@@ -82,23 +89,25 @@ export default function PortailFondatrice({ prenom = "Renée-Lise", onOuvrir }: 
         </div>
 
         <div>
-          <Titre m={m} niveau={3} sur="La maison Bellaïa">Mes univers</Titre>
+          <div id="pf-univers" style={{ scrollMarginTop: 12 }}><Titre m={m} niveau={3} sur="La maison Bellaïa">Mes univers</Titre></div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {(d.unites || []).filter((u: any) => u.code !== "GENERAL").map((u: any) => { const mu = marqueDe(u.code, u); return (
+            {(d.unites || []).filter((u: any) => u.code !== "GENERAL").map((u: any) => { const mu = marqueDe(u.code, u); const bientot = !!ouvrables && !ouvrables.includes("univers:" + u.code); return (
               <button key={u.code} onClick={() => onOuvrir?.("univers:" + u.code)} style={{ position: "relative", overflow: "hidden", border: "none", borderRadius: m.rayon, padding: 0, minHeight: 112, background: mu.degrade, textAlign: "left", cursor: "pointer", boxShadow: m.ombre }}>
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.45))" }} />
                 <div style={{ position: "absolute", top: 10, left: 10 }}><LogoMarque m={mu} taille={34} /></div>
                 {mu.jeunesse && <div style={{ position: "absolute", top: 12, right: 10 }}><Puce m={m}>Jeunesse</Puce></div>}
                 {mu.independant && <div style={{ position: "absolute", top: 12, right: 10 }}><Puce m={m}>Indépendant</Puce></div>}
+                {bientot && !mu.jeunesse && !mu.independant && <div style={{ position: "absolute", top: 12, right: 10 }}><Puce m={m}>Bientôt</Puce></div>}
                 <div style={{ position: "absolute", bottom: 10, left: 12, right: 10, color: "#fff", fontFamily: m.serif, fontSize: 17, fontWeight: 600, lineHeight: 1.1 }}>{mu.nom}</div>
               </button>); })}
           </div>
         </div>
 
+        {info && <div role="status" style={{ position: "fixed", left: 16, right: 16, bottom: 86, zIndex: 120, background: m.surface2, border: `1px solid ${m.accent}`, color: m.texte, borderRadius: 14, padding: 12, fontSize: 13.5 }}>{info}</div>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-          <Surface m={m}><Titre m={m} niveau={3} sur="Stocks">Sous le seuil d'alerte</Titre>
+          <Surface m={m} onClick={() => onOuvrir("stocks")}><Titre m={m} niveau={3} sur="Stocks">Sous le seuil d'alerte</Titre>
             {d.stocks.length ? d.stocks.slice(0, 5).map((s: any) => <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderTop: `1px solid ${m.ligne}`, fontSize: 13.5 }}><span>{s.nom}</span><span style={{ color: m.secondaire }}>{s.quantite} / {s.quantite_min}</span></div>) : <div style={{ fontSize: 13, color: m.doux }}>Aucun stock critique.</div>}</Surface>
-          <Surface m={m}><Titre m={m} niveau={3} sur="Agenda">Prochaines échéances</Titre>
+          <Surface m={m} onClick={() => onOuvrir("agenda")}><Titre m={m} niveau={3} sur="Agenda">Prochaines échéances</Titre>
             {d.agenda.length ? d.agenda.map((e: any) => <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderTop: `1px solid ${m.ligne}`, fontSize: 13.5 }}><span>{e.titre}</span><span style={{ color: m.doux }}>{e.countdown_label || new Date(e.date_debut).toLocaleDateString("fr-FR")}</span></div>) : <div style={{ fontSize: 13, color: m.doux }}>Rien de prévu prochainement.</div>}</Surface>
         </div>
       </div>

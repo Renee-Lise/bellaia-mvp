@@ -20,6 +20,7 @@ import { sbSelect, sbRpc } from "../events/eventsAtelierLib";
 import { MARQUES, marqueDe } from "../../design/marques";
 import { Surface, Titre, Puce, LogoMarque, Carrousel, Bouton, type Banniere } from "../../design/composants";
 import { monIdentifiant, favorisLocaux } from "./portailsLib";
+import CalendrierPremium from "../calendrier/CalendrierPremium";
 
 const euros = (n: number) => (Number(n) || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const dateFr = (d?: string | null) => d ? new Date(d.length <= 10 ? d + "T12:00:00" : d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
@@ -47,7 +48,7 @@ export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { on
       sbRpc<any[]>("client_mes_dossiers_events", {}).catch(() => []),
       sbSelect<any>("business_units", "select=code,nom,couleur,statut,ordre&order=ordre.asc").catch(() => []),
     ]);
-    setD({ p: p[0] || {}, cmd, dossiers: Array.isArray(dossiers) ? dossiers : [], unites });
+    setD({ id, p: p[0] || {}, cmd, dossiers: Array.isArray(dossiers) ? dossiers : [], unites });
   })(); }, []);
 
   const a = age(d?.p?.date_naissance);
@@ -90,7 +91,7 @@ export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { on
         </div>
       </div>
       <div style={{ padding: "8px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
-        <Carrousel m={m} bannieres={bannieres} hauteur={190} onAller={b => onOuvrir?.(b.destination || "")} />
+        <Carrousel m={m} bannieres={bannieres} hauteur={190} onAller={b => b.destination === "univers" ? document.getElementById("pc-univers")?.scrollIntoView({ behavior: "smooth", block: "start" }) : onOuvrir?.(b.destination || "")} />
 
         <Surface m={m}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -109,6 +110,8 @@ export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { on
             : <div style={{ color: m.doux, fontSize: 13.5 }}>Aucune commande pour l'instant.</div>}
         </Surface>
 
+        <CalendrierPremium m={m} role="cliente" userId={d.id} titre="Mon agenda" />
+
         {!!d.dossiers.length && <Surface m={m}>
           <Titre m={m} sur="Bella'Even's" niveau={3}>Mes événements</Titre>
           {d.dossiers.slice(0, 3).map((x: any) => (
@@ -121,7 +124,7 @@ export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { on
         {[["Nos univers", "Boutiques et services", univers.filter((u: any) => !marqueDe(u.code).adulte && !marqueDe(u.code).jeunesse)],
           ["Famille", "Jeunesse et famille", univers.filter((u: any) => marqueDe(u.code).jeunesse)],
           ["Espace privé", "Réservé aux adultes", univers.filter((u: any) => marqueDe(u.code).adulte)]].filter(([, , l]) => (l as any[]).length).map(([sur, titre, l]) => (
-          <div key={sur as string}>
+          <div key={sur as string} id={sur === "Nos univers" ? "pc-univers" : undefined} style={{ scrollMarginTop: 12 }}>
             <Titre m={m} sur={sur as string} niveau={3}>{titre}</Titre>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{(l as any[]).map(carteUnivers)}</div>
           </div>))}

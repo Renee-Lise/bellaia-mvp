@@ -20,6 +20,7 @@ import { monIdentifiant } from "./portailsLib";
 // Outils : [clé d'ouverture, libellé, icône, permission requise (null = toujours), univers]
 const OUTILS: [string, string, string, string | null, string][] = [
   ["missions", "Mes missions", "✓", null, "*"],
+  ["agenda", "Mon agenda", "🗓", null, "*"],
   ["messagerie", "Messages", "💬", null, "*"],
   ["notifications", "Notifications", "🔔", null, "*"],
   ["equipe_gerer", "Attribuer des missions", "👥", "missions.gerer", "*"],

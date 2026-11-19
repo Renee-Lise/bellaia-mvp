@@ -7681,7 +7681,7 @@ function CentreHotesWrapper() {
 // Centre de direction fondatrice : remplace le tableau de bord quand PREMIUM_ACTIF.
 // Chaque raccourci ouvre l'écran existant correspondant (aucune fonction retirée).
 const PORTAIL_F_VERS_PAGE: Record<string,string> = {
-  commandes:"finances", administratif:"administratif", food:"food", bsh:"bsh", events:"events", actions:"actions", equipe:"equipe", agenda:"calendrier",
+  commandes:"finances", finances:"finances", clientes:"crm", stocks:"stocks", administratif:"administratif", food:"food", bsh:"bsh", events:"events", actions:"actions", equipe:"equipe", agenda:"calendrier",
   "univers:STUDIO":"studio", "univers:BSH":"bsh", "univers:ODYSSEE":"odyssee", "univers:EVENTS":"events", "univers:FOOD":"food", "univers:VILO":"vilo",
   "univers:STRUCTURE":"struct", "univers:EDITIONS":"editions", "univers:MOTIPY":"motipy", "univers:VILDOR":"partenaires", "univers:GENERAL":"dashboard",
 };
@@ -7689,7 +7689,7 @@ function PortailFondatriceWrapper({ user, goto }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => { import("../modules/portails/PortailFondatrice").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:COQUE_PREMIUM.doux,padding:40}}>Préparation de votre centre de direction…</div>;
-  return <Comp prenom={user?.prenom || undefined} onOuvrir={(k: string) => { const page = PORTAIL_F_VERS_PAGE[k]; if (page && page !== "dashboard") goto(page); }}/>;
+  return <Comp prenom={user?.prenom || undefined} ouvrables={Object.keys(PORTAIL_F_VERS_PAGE).filter(k => PORTAIL_F_VERS_PAGE[k] !== "dashboard")} onOuvrir={(k: string) => { const page = PORTAIL_F_VERS_PAGE[k]; if (page && page !== "dashboard") goto(page); }}/>;
 }
 
 // Accueil cliente premium « Ma maison Bellaïa » : chaque univers ouvre l'espace client EXISTANT
@@ -7716,7 +7716,7 @@ function EspaceClientPremium({ user, produits, evenements, onLogout, onNewComman
 // Espace assistante : portail dédié + LISTE BLANCHE stricte des écrans ouvrables.
 // Aucune page de l'espace fondatrice n'est atteignable (ni par défaut, ni par navigation).
 const OUTILS_ASSISTANTE_VERS_VUE: Record<string,string> = {
-  missions:"equipe", equipe_gerer:"equipe", messagerie:"messagerie", notifications:"notifications",
+  missions:"equipe", equipe_gerer:"equipe", messagerie:"messagerie", notifications:"notifications", agenda:"agenda",
   food_catalogue:"food_equipe", food_commande:"food_equipe", food_recette:"food_equipe", bibliotheque:"food_equipe", revente:"food_equipe",
 };
 function EspaceAssistanteApp({ user, onLogout }: any) {
@@ -7729,7 +7729,8 @@ function EspaceAssistanteApp({ user, onLogout }: any) {
     const contenu = vue === "equipe" ? <EquipeWrapper user={user} role="assistante"/>
       : vue === "food_equipe" ? <FoodEquipeWrapper user={user}/>
       : vue === "messagerie" ? <MessagerieWrapper user={user}/>
-      : vue === "notifications" ? <NotificationsF user={user}/> : null;
+      : vue === "notifications" ? <NotificationsF user={user}/>
+      : vue === "agenda" ? <AgendaAssistante user={user}/> : null;
     return <div style={{minHeight:"100vh",background:COQUE_PREMIUM.fond,color:COQUE_PREMIUM.texte,fontFamily:SA}}>
       <div style={{position:"sticky",top:0,zIndex:50,display:"flex",alignItems:"center",gap:10,padding:"calc(env(safe-area-inset-top,0px) + 10px) 14px 10px",background:COQUE_PREMIUM.barre,borderBottom:"1px solid "+COQUE_PREMIUM.ligne}}>
         <button onClick={()=>setVue(null)} style={{background:"none",border:"none",color:COQUE_PREMIUM.or,fontSize:14,fontWeight:700,minHeight:40,fontFamily:SA}}>‹ Mon espace</button>
@@ -7742,6 +7743,23 @@ function EspaceAssistanteApp({ user, onLogout }: any) {
     <Comp prenom={user?.prenom || undefined} onDeconnexion={onLogout} onOuvrir={(k: string) => { const v = OUTILS_ASSISTANTE_VERS_VUE[k]; if (v) setVue(v); else { setInfo("Cet outil sera bientôt disponible dans votre portail."); setTimeout(()=>setInfo(""), 3000); } }}/>
     {info && <div style={{position:"fixed",left:16,right:16,bottom:22,background:"#1c2246",color:"#fff",borderRadius:14,padding:12,fontSize:13.5,zIndex:60,fontFamily:SA}}>{info}</div>}
   </>;
+}
+
+// Calendrier permanent fondatrice (grille jour/semaine/mois même vide) ; la liste à compte à rebours reste accessible.
+function CalendrierFondatriceWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  const [liste, setListe] = React.useState(false);
+  React.useEffect(() => { import("../modules/calendrier/CalendrierPremium").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  return <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{display:"flex",gap:6}}>{[["grille","📅 Calendrier"],["liste","⏳ Liste et comptes à rebours"]].map(([k,l])=><button key={k} onClick={()=>setListe(k==="liste")} style={{minHeight:36,padding:"6px 12px",borderRadius:99,border:"1px solid "+((liste?k==="liste":k==="grille")?COQUE_PREMIUM.or:COQUE_PREMIUM.ligne),background:(liste?k==="liste":k==="grille")?"rgba(215,192,143,0.15)":"transparent",color:COQUE_PREMIUM.texte,fontSize:12.5,fontWeight:700,fontFamily:SA}}>{l}</button>)}</div>
+    {liste ? <CalendrierP1 user={user}/> : Comp ? <Comp role="fondatrice" userId={user?.id} titre="Calendrier" creation disponibilites sombre/> : <div style={{color:COQUE_PREMIUM.doux,padding:20}}>Chargement du calendrier…</div>}
+  </div>;
+}
+
+function AgendaAssistante({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/calendrier/CalendrierPremium").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  return Comp ? <Comp role="assistante" userId={user?.id} titre="Mon agenda" disponibilites sombre/> : <div style={{color:COQUE_PREMIUM.doux,padding:20}}>Chargement…</div>;
 }
 
 // Rôle non prévu : aucun accès par défaut.
@@ -14778,7 +14796,7 @@ export default function BellaiaApp() {
     food_equipe: <FoodEquipeWrapper user={user}/>,
     partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
     acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,
-    calendrier:  <CalendrierP1 user={user}/>,
+    calendrier:  PREMIUM_ACTIF ? <CalendrierFondatriceWrapper user={user}/> : <CalendrierP1 user={user}/>,
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
     bsh:         <BSHF produits={bshProd} setProduits={setBshProd} commandes={bshCmds} setCommandes={setBshCmds} clientes={bshCli} setClientes={setBshCli} evenements={bshEvts} setEvenements={setBshEvts}/>,
