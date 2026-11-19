@@ -112,6 +112,7 @@ const ONGLETS = [
   {id:"stats",     ico:"📊", label:"Stats"},
   {id:"histoires", ico:"🌙", label:"Albums & histoires"},
   {id:"registre",  ico:"🗂", label:"Registre & lexique"},
+  {id:"ticolibri", ico:"🐦", label:"Éditions pédagogiques"},
 ];
 
 // Gestion « Histoires du soir » chargée à la demande (module séparé)
@@ -120,16 +121,22 @@ function HistoiresGestionLazy() {
   useEffect(() => { import("../histoires/HistoiresGestion").then(m => setComp(() => m.default)).catch(() => {}); }, []);
   return Comp ? <Comp espace="jeunesse" /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
 }
+// Éditions pédagogiques › Ti-Colibri (16 tomes, médiathèque à identifier, éditeur de livres)
+function TiColibriLazy() {
+  const [Comp, setComp] = useState<any>(null);
+  useEffect(() => { import("../editionsPedagogiques/TiColibriEditions").then(m => setComp(() => m.default)).catch(() => {}); }, []);
+  return Comp ? <Comp /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
+}
 function RegistreLazy() {
   const [Comp, setComp] = useState<any>(null);
   useEffect(() => { import("../histoires/EditionsRegistre").then(m => setComp(() => m.default)).catch(() => {}); }, []);
-  return Comp ? <Comp collections={[{ id:"ti-colibri", titre:"Ti-Colibri", tomes:10 }, { id:"le-ptit-lion", titre:"Le P’tit Lion", tomes:10 }]} /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
+  return Comp ? <Comp collections={[{ id:"ti-colibri", titre:"Ti-Colibri", tomes:16 }, { id:"le-ptit-lion", titre:"Le P’tit Lion", tomes:10 }]} /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
 }
 
 export default function MoTiPeyiF({ user }: { user?: any }) {
   const [cartes,   setCartes]   = useState<Carte[]>([]);
   const [commandes,setCommandes]= useState<Commande[]>([]);
-  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires"|"registre">("catalogue");
+  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires"|"registre"|"ticolibri">("catalogue");
   const [modal,    setModal]    = useState<"carte"|"commande"|null>(null);
   const [formCarte, setFormCarte] = useState<Partial<Carte>>({famille:"deplacements",niveau:"PS",statut:"brouillon"});
   const [formCmd,   setFormCmd]   = useState<Partial<Commande>>({clientNom:"",produit:PRODUITS[0].nom,qte:1,prix:PRODUITS[0].prix,statut:"en_attente",date:today()});
@@ -298,6 +305,7 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
 
       {onglet==="histoires" && <HistoiresGestionLazy/>}
       {onglet==="registre" && <RegistreLazy/>}
+      {onglet==="ticolibri" && <TiColibriLazy/>}
 
       {/* ── Catalogue cartes ── */}
       {onglet==="catalogue" && (
