@@ -35,6 +35,34 @@ type Prepare = { nom: string; dossier: string; blob: Blob; type: string; texte?:
 
 async function jeton() { try { return localStorage.getItem("bellaia_token") || ""; } catch { return ""; } }
 
+const IA_AUTORISEE = false; // décision fondatrice du 19/11 : analyse gratuite uniquement
+
+function Extraction({ d }: { d: any }) {
+  if (d.erreur) return <div style={{ fontSize: 12, color: C.rouge }}>{d.erreur}</div>;
+  const r = d.recette; const L: React.CSSProperties = { fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase", marginTop: 8 };
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 10, fontSize: 13 }}>
+      {d.storage_path && <div style={{ fontSize: 12, color: C.ok }}>📎 Original conservé dans le stockage privé</div>}
+      {r ? <>
+        {d.recetteNom && <div style={{ fontSize: 12, color: C.doux }}>{d.doublon ? "Recette existante (doublon) : " : "Recette créée (à valider) : "}<b>{d.recetteNom}</b></div>}
+        <div style={L}>Rendement · durées</div>
+        <div>{r.rendement || "—"} · préparation {r.temps_prepa ?? "—"} min · cuisson {r.temps_cuisson ?? "—"} min{r.temps_repos ? ` · repos ${r.temps_repos} min` : ""}{r.temperature ? ` · ${r.temperature} °C` : ""}</div>
+        <div style={L}>Ingrédients ({(r.ingredients || []).length})</div>
+        {(r.ingredients || []).map((i: any, k: number) => <div key={k}>• {i.quantite ?? ""} {i.unite || ""} {i.nom}{i.notes ? <span style={{ color: C.orange }}> ({i.notes})</span> : null}</div>)}
+        <div style={L}>Étapes ({(r.etapes || []).length})</div>
+        {(r.etapes || []).map((e: string, k: number) => <div key={k}>{k + 1}. {e}</div>)}
+        {!!(r.materiel || []).length && <><div style={L}>Matériel</div><div>{r.materiel.join(" · ")}</div></>}
+        {!!(r.astuces || []).length && <><div style={L}>Astuces</div><div>{r.astuces.join(" ")}</div></>}
+      </> : <div style={{ color: C.doux }}>Aucune recette extraite.</div>}
+      {!!(d.contradictions || []).length && <><div style={L}>Contradictions</div>{d.contradictions.map((c: any, k: number) => <div key={k} style={{ color: C.orange }}>⚠️ {c.sujet} : {(c.extraits || []).join(" / ")}</div>)}</>}
+      {!!(d.informations_manquantes || []).length && <><div style={L}>Informations manquantes</div><div style={{ color: C.doux }}>{d.informations_manquantes.join(" · ")}</div></>}
+      <div style={L}>Historique</div>
+      {(d.historique || []).map((h: any, k: number) => <div key={k} style={{ fontSize: 12, color: C.doux }}>{new Date(h.le).toLocaleString("fr-FR")} — {h.action}{h.methode ? ` (${h.methode})` : ""}</div>)}
+      {d.texte_extrait && <details style={{ marginTop: 8 }}><summary style={{ fontSize: 12, color: C.doux }}>Texte lu dans le PDF</summary><pre style={{ whiteSpace: "pre-wrap", fontSize: 11, color: C.doux }}>{String(d.texte_extrait).slice(0, 6000)}</pre></details>}
+    </div>
+  );
+}
+
 export default function AtelierImport({ espace = "BELLAFOOD", organisationId = null, sourceId = null }: Props) {
   const [file, setFile] = useState<any[]>([]);
   const [lots, setLots] = useState<any[]>([]);
@@ -50,6 +78,8 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
   const [bilan, setBilan] = useState({ sansIA: 0, ia: 0, iaRequise: 0, erreurs: 0, doublons: 0, cout: 0 });
   const [filtre, setFiltre] = useState("tous");
   const cleLot = `bellaia_lot_import_${espace}_${organisationId || ""}`;
+  const [ouvert, setOuvert] = useState<string | null>(null);
+  const [detail, setDetail] = useState<any>(null);
   const pauseRef = useRef(false);
   const refFichiers = useRef<HTMLInputElement>(null), refPhotos = useRef<HTMLInputElement>(null), refScan = useRef<HTMLInputElement>(null), refDossier = useRef<HTMLInputElement>(null);
   const filtreEspace = `espace=eq.${espace}${organisationId ? `&organisation_id=eq.${organisationId}` : ""}`;
@@ -57,7 +87,7 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
 
   const charger = async () => {
     try {
-      setFile(await sbFoodGet<any>("bibliotheque_fiches", `${filtreEspace}&select=id,titre,nom_fichier,etat,rubrique,rubrique_proposee,confiance,derniere_erreur,methode,cout_estime_eur,type_mime,recette_id,recette_proposee_id,drive_id,source_url,created_at,traite_le&order=created_at.desc&limit=1000`));
+      setFile(await sbFoodGet<any>("bibliotheque_fiches", `${filtreEspace}&select=id,titre,nom_fichier,etat,rubrique,rubrique_proposee,confiance,derniere_erreur,methode,cout_estime_eur,type_mime,recette_id,recette_proposee_id,doublon_recette_id,informations_manquantes,drive_id,source_url,storage_path,created_at,traite_le&order=created_at.desc&limit=1000`));
       setRecettes(Object.fromEntries((await sbFoodGet<any>("food_recettes", "select=id,nom&limit=3000").catch(() => [])).map((r: any) => [r.id, r.nom])));
       setLots(await sbFoodGet<any>("food_import_lots", `${filtreEspace}&select=*&order=created_at.desc&limit=20`).catch(() => []));
     } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
@@ -138,9 +168,9 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
   //    mis de côté (« IA nécessaire »). Mode « IA » : lecture sans IA
   //    d'abord, IA seulement si nécessaire, dans la limite du plafond.
   const aTraiter = (m: string, l = file) => l.filter(f => ["recu", "en_attente", "erreur"].includes(f.etat) || (m === "ia" && f.etat === "suspendu"));
-  const analyser = async (auto = false, modeForce?: "sans_ia" | "ia") => {
-    const m = modeForce || mode;
-    const liste = aTraiter(m);
+  const analyser = async (auto = false, modeForce?: "sans_ia" | "ia", limite = 0) => {
+    const m = IA_AUTORISEE ? (modeForce || mode) : "sans_ia";
+    const toute = aTraiter(m); const liste = limite ? toute.slice(0, limite) : toute;
     if (!liste.length) { if (!auto) setMsg("Rien en attente."); try { localStorage.removeItem(cleLot); } catch {} return; }
     if (!auto) {
       const est = m === "ia" ? estimerCout(liste.map(f => ({ type: f.type_mime || (f.drive_id ? "application/pdf" : f.titre?.startsWith("http") ? "lien" : "text/plain"), taille: 300_000 }))) : 0;
@@ -149,7 +179,7 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
         : `Analyser ${liste.length} élément(s) SANS IA (0 €) ?\n\nLes documents que l'on ne peut pas lire sans IA seront mis de côté (« IA nécessaire »).\nAucune recette n'est publiée : tout reste « à valider ».`;
       if (!confirm(txt)) return;
     }
-    try { localStorage.setItem(cleLot, JSON.stringify({ mode: m, depuis: new Date().toISOString() })); } catch {}
+    if (!limite) try { localStorage.setItem(cleLot, JSON.stringify({ mode: m, depuis: new Date().toISOString() })); } catch {}
     setTravail("analyse"); pauseRef.current = false; setProg({ fait: 0, total: liste.length });
     const t = await jeton(); let arret = "";
     for (const f of liste) {
@@ -166,7 +196,7 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
       setProg(x => ({ ...x, fait: x.fait + 1 }));
     }
     if (!arret && !pauseRef.current) try { localStorage.removeItem(cleLot); } catch {}
-    setMsg(arret || (pauseRef.current ? "⏸ En pause." : "✅ Lot terminé."));
+    setMsg(arret || (pauseRef.current ? "⏸ En pause." : limite ? `✅ Lot d'essai terminé (${liste.length} document(s)). Ouvrez chaque document ci-dessous (« Voir l'extraction ») pour contrôler la qualité avant de lancer le reste.` : "✅ Lot terminé."));
     setTravail(pauseRef.current || arret ? "pause" : "repos"); await charger();
   };
   // Reprise automatique d'un lot interrompu (fermeture, réseau, plafond du jour)
@@ -177,6 +207,17 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
     if (lot && aTraiter(lot.mode).length) { repris.current = true; setMode(lot.mode); setMsg("▶️ Reprise automatique du lot en cours…"); analyser(true, lot.mode); }
   }, [file]);
 
+  const voir = async (f: any) => {
+    if (ouvert === f.id) { setOuvert(null); return; }
+    setOuvert(f.id); setDetail(null);
+    try {
+      const [x] = await sbFoodGet<any>("bibliotheque_fiches", `id=eq.${f.id}&select=extraction,informations_manquantes,contradictions,historique,storage_path,methode,texte_extrait`);
+      const rid = f.recette_id || f.doublon_recette_id;
+      const r = rid ? (await sbFoodGet<any>("food_recettes", `id=eq.${rid}&select=nom,statut,rendement,temps_prepa,temps_cuisson,temps_repos,temperature,ingredients,etapes,materiel,astuces`))[0] : null;
+      setDetail({ ...x, recette: x?.extraction || r, recetteNom: r?.nom, recetteStatut: r?.statut, doublon: !!f.doublon_recette_id });
+    } catch (e: any) { setDetail({ erreur: String(e?.message || e) }); }
+  };
+
   const reclasser = async (f: any, rubrique: string) => {
     const r = await sbFoodPatch("bibliotheque_fiches", f.id, { rubrique, etat: rubrique === "a_classer" ? "a_classer" : f.etat === "a_classer" ? "a_valider" : f.etat });
     if (r.ok) setFile(l => l.map(x => x.id === f.id ? { ...x, rubrique } : x)); else setMsg("❌ " + r.error);
@@ -184,7 +225,9 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
 
   const occupe = travail === "envoi" || travail === "analyse";
   const TRAITES = ["a_valider", "valide", "doublon", "a_classer", "a_completer", "extraite"];
-  const suivi = { traites: file.filter(f => TRAITES.includes(f.etat)).length, attente: file.filter(f => ["recu", "en_attente", "analyse"].includes(f.etat)).length,
+  const PARTIEL = (f: any) => (f.informations_manquantes || []).some((x: string) => !/allerg|conservation/i.test(x)) || f.etat === "a_completer";
+  const suivi = { traites: file.filter(f => TRAITES.includes(f.etat)).length, partiels: file.filter(f => TRAITES.includes(f.etat) && PARTIEL(f)).length,
+    aValider: file.filter(f => f.etat === "a_valider").length, valides: file.filter(f => f.etat === "valide").length, attente: file.filter(f => ["recu", "en_attente", "analyse"].includes(f.etat)).length,
     iaRequise: file.filter(f => f.etat === "suspendu").length, erreurs: file.filter(f => f.etat === "erreur").length, doublons: file.filter(f => f.etat === "doublon").length,
     cout: file.reduce((s, f) => s + (Number(f.cout_estime_eur) || 0), 0) };
   const fileFiltree = file.filter(f => filtre === "tous" || (filtre === "attente" && ["recu", "en_attente", "analyse"].includes(f.etat)) || (filtre === "traites" && TRAITES.includes(f.etat))
@@ -250,15 +293,20 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
 
       <div style={{ ...carte, display: "flex", flexDirection: "column", gap: 8 }}>
         <b>📚 Traitement de toute la bibliothèque</b>
-        <div style={{ fontSize: 13 }}>{suivi.traites} / {file.length} documents traités · {suivi.attente} en attente · {suivi.iaRequise} « IA nécessaire » · {suivi.erreurs} erreur(s) · {suivi.doublons} doublon(s) · coût cumulé {suivi.cout.toFixed(2)} €</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+          {[["Répertoriés", file.length, C.texte], ["Analysés", suivi.traites, C.bleu], ["Partiels", suivi.partiels, C.orange], ["À valider", suivi.aValider, C.or], ["Validés", suivi.valides, C.ok], ["IA nécessaire", suivi.iaRequise, C.doux], ["En attente", suivi.attente, C.doux], ["Doublons", suivi.doublons, C.orange], ["Erreurs", suivi.erreurs, C.rouge]].map(([l, n, c]: any) =>
+            <div key={l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "6px 8px" }}><div style={{ fontSize: 18, fontWeight: 800, color: c }}>{n}</div><div style={{ fontSize: 11, color: C.doux }}>{l}</div></div>)}
+        </div>
+        <div style={{ fontSize: 12, color: C.doux }}>Coût cumulé : {suivi.cout.toFixed(2)} €</div>
         <div style={{ height: 8, background: C.ligne, borderRadius: 99 }}><div style={{ height: 8, width: `${file.length ? Math.round(suivi.traites / file.length * 100) : 0}%`, background: C.ok, borderRadius: 99 }} /></div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        {IA_AUTORISEE ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           <button style={petit(mode === "sans_ia", C.ok)} onClick={() => setMode("sans_ia")} disabled={occupe}>Sans IA (0 €)</button>
           <button style={petit(mode === "ia", C.bleu)} onClick={() => setMode("ia")} disabled={occupe}>Sans IA puis IA si besoin</button>
-        </div>
-        <button style={petit(true, mode === "ia" ? C.bleu : C.ok)} onClick={() => analyser()} disabled={occupe || !aTraiter(mode).length}>✨ Analyser toutes les fiches en attente ({aTraiter(mode).length})</button>
+        </div> : <div style={{ fontSize: 12, color: C.ok }}>Mode « Sans IA » uniquement (0 €) — aucune analyse payante n'est déclenchée, même si la lecture gratuite échoue.</div>}
+        <button style={petit(false, C.ok)} onClick={() => analyser(false, "sans_ia", 5)} disabled={occupe || !aTraiter("sans_ia").length}>🧪 Lot d'essai : 5 documents</button>
+        <button style={petit(true, C.ok)} onClick={() => analyser()} disabled={occupe || !aTraiter(IA_AUTORISEE ? mode : "sans_ia").length}>✨ Analyser toutes les fiches en attente ({aTraiter(IA_AUTORISEE ? mode : "sans_ia").length})</button>
         {(bilan.sansIA + bilan.ia + bilan.iaRequise + bilan.erreurs) > 0 && <div style={{ fontSize: 12, color: C.doux }}>Ce lot : {bilan.sansIA} lue(s) sans IA · {bilan.ia} par IA · {bilan.iaRequise} IA nécessaire · {bilan.doublons} doublon(s) · {bilan.erreurs} erreur(s) · {bilan.cout.toFixed(3)} €</div>}
-        <div style={{ fontSize: 11, color: C.doux }}>Le traitement continue fiche par fiche, s'arrête au plafond IA (jamais augmenté automatiquement) et reprend tout seul à la prochaine ouverture. Les recettes créées restent « à valider » : rien n'est publié.</div>
+        <div style={{ fontSize: 11, color: C.doux }}>Le traitement continue fiche par fiche et reprend tout seul à la prochaine ouverture. Original PDF conservé en privé. Doublons détectés (aucune recette en double), recettes créées « à valider » : rien n'est publié. Validation dans Bibliothèque → recettes à valider.</div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -278,6 +326,9 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
             {(f.recette_id || f.recette_proposee_id) && <span style={{ fontSize: 11, color: C.ok }}>🍽 {recettes[f.recette_id || f.recette_proposee_id] || "recette liée"}{!f.recette_id ? " (proposée)" : ""}</span>}
           </div>
           {f.derniere_erreur && <div style={{ fontSize: 12, color: f.etat === "erreur" ? C.rouge : C.orange }}>{f.derniere_erreur}</div>}
+          {f.doublon_recette_id && <div style={{ fontSize: 12, color: C.orange }}>Doublon potentiel de « {recettes[f.doublon_recette_id] || "recette existante"} » : aucune recette créée.</div>}
+          {(f.traite_le || f.storage_path) && <button style={{ ...petit(), alignSelf: "flex-start", minHeight: 34 }} onClick={() => voir(f)}>{ouvert === f.id ? "Masquer" : "🔎 Voir l'extraction et l'historique"}</button>}
+          {ouvert === f.id && detail && <Extraction d={detail} />}
         </div>); })}
       {!!lots.length && <div style={{ ...carte }}>
         <b>Historique des imports</b>

@@ -109,7 +109,7 @@ export function lireFicheStructuree(texte: string, meta: { titre?: string | null
   return {
     rubrique: categorie === "patisserie" ? "patisserie" : categorie === "dessert" ? "dessert" : categorie === "boisson" ? "boisson" : categorie === "sauce" ? "sauce" : categorie === "plat" ? "plat" : "recette",
     confiance: Math.min(0.95, 0.55 + lus * 0.1), resume: `Fiche technique lue sans IA (${ingredients.length} ingrédients, ${etapes.length} étapes).`, plat_represente: null,
-    recette: { nom, code: meta.code || null, categorie, rendement: rend ? rend[1].replace(/\s+/g, " ").trim() : null, nb_parts: null, temps_prepa, temps_cuisson, temps_repos, temperature: tempM ? `${tempM[1]} °C` : null,
+    recette: { nom, code: meta.code || null, categorie, rendement: rend ? rend[1].replace(/\s+/g, " ").trim() : null, nb_parts: null, temps_prepa, temps_cuisson, temps_repos, temperature: tempM ? Number(tempM[1]) : null,
       ingredients, etapes, astuces: astuces ? [astuces] : [], materiel, conservation, allergenes_fiche: allergenes },
     manquant, contradictions,
   };

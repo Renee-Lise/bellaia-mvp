@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   let body: any; try { body = await req.json(); } catch { return NextResponse.json({ error: "Requête invalide." }, { status: 400 }); }
   const id = String(body?.fiche_id || "");
-  const avecIA = body?.ia !== false;   // false : lecture sans IA uniquement (0 €)
+  const avecIA = body?.ia === true;   // IA seulement si explicitement demandée (par défaut : sans IA, 0 €)
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "Élément invalide." }, { status: 400 });
   const { data: fiche } = await admin.from("bibliotheque_fiches").select("*").eq("id", id).maybeSingle();
   if (!fiche) return NextResponse.json({ error: "Élément introuvable." }, { status: 404 });
@@ -186,7 +186,8 @@ export async function POST(req: NextRequest) {
     }
     let etat = rubrique === "a_classer" ? "a_classer" : "a_valider";
     if (rec && RECETTE_LIKE.has(rubrique)) {
-      const j = { ...rec, code: rec.code || fiche.code || null, cat_biblio: fiche.categorie || null, manquant: patch.informations_manquantes, contradictions: patch.contradictions, allergenes_fiche: patch.allergenes_fiche, lot: null };
+      const entier = (v: any) => { const m = String(v ?? "").match(/\d+/); return m ? Number(m[0]) : null; };
+      const j = { ...rec, temperature: entier(rec.temperature), temps_prepa: entier(rec.temps_prepa), temps_cuisson: entier(rec.temps_cuisson), temps_repos: entier(rec.temps_repos), nb_parts: entier(rec.nb_parts), code: rec.code || fiche.code || null, cat_biblio: fiche.categorie || null, manquant: patch.informations_manquantes, contradictions: patch.contradictions, allergenes_fiche: patch.allergenes_fiche, lot: null };
       if (fiche.espace === "VILDOR") {
         // Recettes Vil'Dor : JAMAIS dans les recettes Bella'Food. Extraction conservée sur la fiche de SON espace.
         patch.extraction = j; patch.titre = rec.nom;
