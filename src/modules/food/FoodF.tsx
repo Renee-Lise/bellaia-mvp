@@ -38,6 +38,7 @@ import FoodPredictif    from "./FoodPredictif";
 import FoodExports      from "./FoodExports";
 import ReventeCollection from "./ReventeCollection";
 import AllergenesTableau from "./AllergenesTableau";
+import BibliothequeFiches from "./BibliothequeFiches";
 
 type Section =
   | "dashboard" | "catalogue" | "recettes" | "recherche"
@@ -46,7 +47,7 @@ type Section =
   | "calculateur" | "import" | "courses" | "assistant"
   | "fournisseurs" | "achats"
   | "inventaire" | "production" | "haccp" | "alertes"
-  | "versions" | "pertes" | "etiquettes" | "predictif" | "exports" | "revente" | "allergenes";
+  | "versions" | "pertes" | "etiquettes" | "predictif" | "exports" | "revente" | "allergenes" | "bibliotheque";
 
 const NAV = [
   {groupe:"PILOTAGE",   items:[
@@ -72,6 +73,7 @@ const NAV = [
     {id:"etiquettes"  as Section, ico:"🏷",  label:"Étiquettes"},
     {id:"haccp"       as Section, ico:"✅", label:"HACCP"},
     {id:"allergenes"  as Section, ico:"⚠️", label:"Allergènes"},
+    {id:"bibliotheque" as Section, ico:"📚", label:"Bibliothèque"},
   ]},
   {groupe:"ACHATS",     items:[
     {id:"achats"       as Section, ico:"🛒", label:"Achats"},
@@ -191,6 +193,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="commandes"     && <FoodCommandes/>}
         {section==="revente"       && <ReventeCollection/>}
         {section==="allergenes"    && <AllergenesTableau/>}
+        {section==="bibliotheque"  && <BibliothequeFiches/>}
         {section==="horaires" && <FoodHoraires/>}
         {section==="devis"         && <FoodDevis/>}
         {section==="menus"         && <FoodMenus/>}

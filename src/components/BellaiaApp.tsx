@@ -13958,6 +13958,13 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }) {
       preview: "client", univers: null,
     },
     {
+      id: "assistante",
+      ico: "🤝", label: "Profil assistante",
+      desc: "Ce que voit une assistante : ses missions, ses messages — sans finances ni clientes",
+      couleur: B.gold,
+      preview: "assistante", univers: null,
+    },
+    {
       id: "cliente_bsh",
       ico: "✦", label: "Cliente BSH",
       desc: "Boutique Bella'Secret Home avec contrôle +18",
@@ -14321,6 +14328,12 @@ function ActionsRequisesWrapper() {
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement des actions…</div>;
   return <Comp/>;
 }
+function ApercuAssistanteWrapper({ user }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/equipe/ApercuAssistante").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de l'aperçu assistante…</div>;
+  return <Comp user={user}/>;
+}
 function EquipeWrapper({ user, role }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => { import("../modules/equipe/EspaceEquipe").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
@@ -14583,6 +14596,7 @@ export default function BellaiaApp() {
     return <><BandeauApercu/><div style={{paddingTop:36}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
   }
   if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:36}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
+  if (preview === "assistante") return <><BandeauApercu/><div style={{paddingTop:36}}><ApercuAssistanteWrapper user={user}/></div></>;
 
   // ── Routage par rôle
   if (espaceEffectif === "client")
@@ -14690,6 +14704,8 @@ export default function BellaiaApp() {
           </button>
           <button onClick={()=>{setPreview("client");setActiveUnivers(null);}} title="Prévisualiser espace client"
             style={{flexShrink:0,background:"rgba(107,26,43,0.2)",border:"1px solid rgba(107,26,43,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>👁 Client</button>
+          <button onClick={()=>{setPreview("assistante");setActiveUnivers(null);}} title="Prévisualiser le profil assistante"
+            style={{flexShrink:0,background:"rgba(201,169,110,0.15)",border:"1px solid rgba(201,169,110,0.4)",borderRadius:6,padding:"4px 7px",color:B.gold,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>Assistante</button>
           <button onClick={()=>{setPreview("hote");setActiveUnivers("bsh");}} title="Prévisualiser espace hôte BSH"
             style={{flexShrink:0,background:"rgba(13,148,136,0.15)",border:"1px solid rgba(13,148,136,0.35)",borderRadius:6,padding:"4px 7px",color:"#0d9488",cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700,whiteSpace:"nowrap"}}>Hôte</button>
           <button onClick={deconnexion} title="Déconnexion"

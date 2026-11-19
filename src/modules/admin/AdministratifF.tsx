@@ -53,7 +53,7 @@ function nouvellePiece(type: TypePiece, bu = "GENERAL", em?: any): any {
 }
 
 export default function AdministratifF() {
-  const [onglet, setOnglet] = useState<"docs" | "emetteurs">("docs");
+  const [onglet, setOnglet] = useState<"docs" | "emetteurs" | "outils">("docs");
   const [pieces, setPieces] = useState<any[]>([]);
   const [emetteurs, setEmetteurs] = useState<any[]>([]);
   const [ouverte, setOuverte] = useState<any>(null);
@@ -87,9 +87,11 @@ export default function AdministratifF() {
         <div style={{ fontSize: 17, fontWeight: 800, flex: "1 1 100%" }}>🧾 Administratif</div>
         <button style={btn(onglet === "docs")} onClick={() => setOnglet("docs")}>📄 Documents ({pieces.length})</button>
         <button style={btn(onglet === "emetteurs")} onClick={() => setOnglet("emetteurs")}>⚙️ Mes informations légales</button>
+        <button style={btn(onglet === "outils")} onClick={() => setOnglet("outils")}>🗂 Outils & déclarations</button>
       </div>
       {msg && <div style={{ fontSize: 13, color: msg.startsWith("⚠️") ? C.rouge : C.ok }}>{msg}</div>}
       {onglet === "emetteurs" && <Emetteurs emetteurs={emetteurs} setEmetteurs={setEmetteurs} />}
+      {onglet === "outils" && <OutilsAdministratifs />}
       {onglet === "docs" && <>
         {emetteurs.length > 0 && !emetteurs.some(e => e.siret) && <div style={{ fontSize: 12, color: C.or, background: `${C.or}14`, border: `1px solid ${C.or}44`, borderRadius: 10, padding: 10 }}>ℹ️ Complète « Mes informations légales » (SIRET, adresse, IBAN, logo) : elles apparaissent automatiquement sur tous tes documents.</div>}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -441,6 +443,47 @@ function Emetteurs({ emetteurs, setEmetteurs }: any) {
         <button style={{ ...btn(true), opacity: envoi ? 0.6 : 1, minHeight: 46, fontSize: 15 }} onClick={sauver} disabled={envoi}>{envoi ? "⏳ Enregistrement…" : "💾 Enregistrer"}</button>
         {msg ? <div style={{ fontSize: 14, fontWeight: 700, color: msg.startsWith("⚠️") ? C.rouge : C.ok }}>{msg}</div>
           : derniere && <div style={{ fontSize: 12, color: C.doux }}>Dernier enregistrement : {new Date(derniere).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>}
+      </div>
+    </div>
+  );
+}
+
+
+// ── Outils & déclarations : documents de travail MODIFIABLES (copies
+// dans le Google Drive de la fondatrice : facture, livre des recettes /
+// achats / marge) et guides de déclaration. Liens ajoutables.
+function OutilsAdministratifs() {
+  const [docs, setDocs] = useState<any[]>([]);
+  const [titre, setTitre] = useState("");
+  const [lien, setLien] = useState("");
+  const [msg, setMsg] = useState("");
+  const charger = async () => { try { setDocs(await sbSelect("bellaia_documents", "module=eq.administratif&categorie=in.(outil,guide)&select=id,titre,categorie,fichier_url,notes&order=categorie.desc,titre.asc")); } catch (e: any) { setMsg("❌ " + String(e?.message || e)); } };
+  useEffect(() => { charger(); }, []);
+  const ajouter = async () => {
+    if (!titre.trim() || !/^https:\/\//.test(lien.trim())) { setMsg("Titre et lien https:// requis."); return; }
+    try { await sbInsert("bellaia_documents", { titre: titre.trim(), module: "administratif", categorie: "outil", type_fichier: "lien", fichier_url: lien.trim(), statut: "actif" }); setTitre(""); setLien(""); setMsg("✅ Document ajouté."); charger(); }
+    catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
+  };
+  const groupe = (c: string, t: string) => { const l = docs.filter(d => d.categorie === c); return !l.length ? null : (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontWeight: 800, fontSize: 14 }}>{t}</div>
+      {l.map(d => (
+        <div key={d.id} style={{ background: C.card, border: `1px solid ${C.ligne}`, borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 200 }}><div style={{ fontWeight: 700 }}>{d.titre}</div>{d.notes && <div style={{ fontSize: 12, color: C.doux, marginTop: 2 }}>{d.notes}</div>}</div>
+          <a href={d.fichier_url} target="_blank" rel="noopener noreferrer" style={{ ...btn(true), textDecoration: "none", display: "inline-flex", alignItems: "center" }}>{c === "outil" ? "✏️ Ouvrir et modifier" : "📖 Consulter"}</a>
+        </div>))}
+    </div>); };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ fontSize: 13, color: C.doux, lineHeight: 1.5 }}>Vos documents de travail pour les déclarations et démarches. Les modèles s'ouvrent dans votre Google Drive, où vous pouvez les modifier librement (copies personnelles : les originaux de la formation restent intacts).</div>
+      {msg && <div style={{ fontSize: 13 }}>{msg}</div>}
+      {groupe("outil", "✏️ Documents modifiables")}
+      {groupe("guide", "📖 Guides et obligations")}
+      <div style={{ background: C.card, border: `1px solid ${C.ligne}`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ fontWeight: 700 }}>Ajouter un document (lien Google Drive, Sheets, Docs…)</div>
+        <input style={champ} value={titre} onChange={e => setTitre(e.target.value)} placeholder="Titre" />
+        <input style={champ} value={lien} onChange={e => setLien(e.target.value)} placeholder="https://…" />
+        <button style={btn(true)} onClick={ajouter}>Ajouter</button>
       </div>
     </div>
   );

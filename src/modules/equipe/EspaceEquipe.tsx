@@ -35,10 +35,13 @@ const PRIOS: [number, string][] = [[1, "Urgente"], [2, "Normale"], [3, "Quand po
 const aujourdhui = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 const dateFr = (d?: string) => d ? new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }) : "Sans date";
 
-export default function EspaceEquipe({ user, role }: { user?: any; role?: string }) {
+// apercu : la fondatrice voit l'écran EXACTEMENT comme une assistante
+// (aucun droit de gestion, uniquement les missions de la personne choisie),
+// en lecture seule (écritures bloquées par le mode aperçu).
+export default function EspaceEquipe({ user, role, apercu, voirComme }: { user?: any; role?: string; apercu?: boolean; voirComme?: string | null }) {
   const [acces, setAcces] = useState<Acces | null>(null);
-  const gere = role === "fondatrice" || aPerm(acces, "missions.gerer");
-  const fondatrice = role === "fondatrice" || !!acces?.fondatrice;
+  const gere = !apercu && (role === "fondatrice" || aPerm(acces, "missions.gerer"));
+  const fondatrice = !apercu && (role === "fondatrice" || !!acces?.fondatrice);
   const [missions, setMissions] = useState<any[]>([]);
   const [membres, setMembres] = useState<any[]>([]);
   const [charge, setCharge] = useState(true);
@@ -63,11 +66,12 @@ export default function EspaceEquipe({ user, role }: { user?: any; role?: string
   };
   useEffect(() => { charger(); /* eslint-disable-next-line */ }, []);
 
-  const nomMembre = (id?: string) => !id ? "Non attribuée" : id === user?.id ? "Moi" : membres.find(m => m.id === id)?.nom || "Équipe";
-  const filtrees = useMemo(() => missions.filter(m => (!type || m.type === type) &&
-    (vue === "faites" ? ["fait", "annule"].includes(m.statut) : vue === "a_valider" ? m.statut === "a_valider" : !["fait", "annule"].includes(m.statut))), [missions, vue, type]);
-  const nbValider = missions.filter(m => m.statut === "a_valider").length;
-  const duJour = missions.filter(m => (m.date_prevue || m.echeance) === aujourdhui() && !["fait", "annule"].includes(m.statut)).length;
+  const nomMembre = (id?: string) => !id ? "Non attribuée" : (id === user?.id || (apercu && id === voirComme)) ? "Moi" : membres.find(m => m.id === id)?.nom || "Équipe";
+  const missionsVues = useMemo(() => apercu ? missions.filter(m => voirComme ? m.assigne_a === voirComme : !m.assigne_a) : missions, [missions, apercu, voirComme]);
+  const filtrees = useMemo(() => missionsVues.filter(m => (!type || m.type === type) &&
+    (vue === "faites" ? ["fait", "annule"].includes(m.statut) : vue === "a_valider" ? m.statut === "a_valider" : !["fait", "annule"].includes(m.statut))), [missionsVues, vue, type]);
+  const nbValider = missionsVues.filter(m => m.statut === "a_valider").length;
+  const duJour = missionsVues.filter(m => (m.date_prevue || m.echeance) === aujourdhui() && !["fait", "annule"].includes(m.statut)).length;
 
   const changerStatut = async (m: any, statut: string, note?: string) => {
     try {
