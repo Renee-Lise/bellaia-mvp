@@ -23,7 +23,7 @@ const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", tex
 const ETATS: Record<string, [string, string]> = {
   recu: ["Reçu", C.doux], en_attente: ["En attente", C.doux], analyse: ["Analyse en cours", C.bleu], extraite: ["Extraction terminée", C.bleu],
   doublon: ["Doublon potentiel", C.orange], a_classer: ["À classer", C.orange], a_completer: ["À compléter", C.orange], a_valider: ["À valider", C.or],
-  valide: ["Validé", C.ok], erreur: ["Erreur", C.rouge], suspendu: ["Suspendu", C.doux],
+  valide: ["Validé", C.ok], erreur: ["Erreur", C.rouge], suspendu: ["IA nécessaire", C.doux],
 };
 const gros = (fort = false, c = C.or): React.CSSProperties => ({ minHeight: 56, padding: "12px 14px", borderRadius: 14, border: `1px solid ${fort ? c : C.ligne}`, background: fort ? `${c}22` : C.card, color: fort ? c : C.texte, fontSize: 15, fontWeight: 800, fontFamily: SA, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left" });
 const petit = (fort = false, c = C.or): React.CSSProperties => ({ minHeight: 40, padding: "8px 12px", borderRadius: 10, border: `1px solid ${fort ? c : C.ligne}`, background: fort ? `${c}22` : C.card, color: fort ? c : C.texte, fontSize: 13, fontWeight: 700, fontFamily: SA, cursor: "pointer" });
@@ -45,6 +45,11 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
   const [travail, setTravail] = useState<"repos" | "envoi" | "analyse" | "pause">("repos");
   const [prog, setProg] = useState({ fait: 0, total: 0 });
   const [dicte, setDicte] = useState(false);
+  const [recettes, setRecettes] = useState<Record<string, string>>({});
+  const [mode, setMode] = useState<"sans_ia" | "ia">("sans_ia");
+  const [bilan, setBilan] = useState({ sansIA: 0, ia: 0, iaRequise: 0, erreurs: 0, doublons: 0, cout: 0 });
+  const [filtre, setFiltre] = useState("tous");
+  const cleLot = `bellaia_lot_import_${espace}_${organisationId || ""}`;
   const pauseRef = useRef(false);
   const refFichiers = useRef<HTMLInputElement>(null), refPhotos = useRef<HTMLInputElement>(null), refScan = useRef<HTMLInputElement>(null), refDossier = useRef<HTMLInputElement>(null);
   const filtreEspace = `espace=eq.${espace}${organisationId ? `&organisation_id=eq.${organisationId}` : ""}`;
@@ -52,7 +57,8 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
 
   const charger = async () => {
     try {
-      setFile(await sbFoodGet<any>("bibliotheque_fiches", `${filtreEspace}&select=id,titre,nom_fichier,etat,rubrique,rubrique_proposee,confiance,derniere_erreur,methode,cout_estime_eur,type_mime,recette_proposee_id,created_at&order=created_at.desc&limit=300`));
+      setFile(await sbFoodGet<any>("bibliotheque_fiches", `${filtreEspace}&select=id,titre,nom_fichier,etat,rubrique,rubrique_proposee,confiance,derniere_erreur,methode,cout_estime_eur,type_mime,recette_id,recette_proposee_id,drive_id,source_url,created_at,traite_le&order=created_at.desc&limit=1000`));
+      setRecettes(Object.fromEntries((await sbFoodGet<any>("food_recettes", "select=id,nom&limit=3000").catch(() => [])).map((r: any) => [r.id, r.nom])));
       setLots(await sbFoodGet<any>("food_import_lots", `${filtreEspace}&select=*&order=created_at.desc&limit=20`).catch(() => []));
     } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
   };
@@ -127,26 +133,49 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
     setDicte(true); rec.start(); (window as any).__dictee = rec;
   };
 
-  // ── Analyse de la file (reprend où elle s'est arrêtée)
-  const analyser = async () => {
-    const liste = file.filter(f => ["recu", "en_attente", "erreur"].includes(f.etat));
-    if (!liste.length) { setMsg("Rien en attente."); return; }
-    const est = estimerCout(liste.map(f => ({ type: f.type_mime || (f.titre?.startsWith("http") ? "lien" : "text/plain"), taille: 300_000 })));
-    if (!confirm(`Analyser ${liste.length} élément(s) ?\nCoût IA estimé : ${est.toFixed(2)} € maximum (les liens avec recette structurée sont gratuits).`)) return;
+  // ── Analyse par lots de TOUTE la file (reprend où elle s'est arrêtée)
+  //    Mode « sans IA » : 0 €, les documents illisibles sans IA sont
+  //    mis de côté (« IA nécessaire »). Mode « IA » : lecture sans IA
+  //    d'abord, IA seulement si nécessaire, dans la limite du plafond.
+  const aTraiter = (m: string, l = file) => l.filter(f => ["recu", "en_attente", "erreur"].includes(f.etat) || (m === "ia" && f.etat === "suspendu"));
+  const analyser = async (auto = false, modeForce?: "sans_ia" | "ia") => {
+    const m = modeForce || mode;
+    const liste = aTraiter(m);
+    if (!liste.length) { if (!auto) setMsg("Rien en attente."); try { localStorage.removeItem(cleLot); } catch {} return; }
+    if (!auto) {
+      const est = m === "ia" ? estimerCout(liste.map(f => ({ type: f.type_mime || (f.drive_id ? "application/pdf" : f.titre?.startsWith("http") ? "lien" : "text/plain"), taille: 300_000 }))) : 0;
+      const txt = m === "ia"
+        ? `Analyser ${liste.length} élément(s) ?\n\nLecture sans IA d'abord (gratuite). IA uniquement pour les documents illisibles sans IA.\nCoût IA maximal estimé : ${est.toFixed(2)} € — le traitement s'arrête automatiquement au plafond IA (non modifié).\nAucune recette n'est publiée : tout reste « à valider ».`
+        : `Analyser ${liste.length} élément(s) SANS IA (0 €) ?\n\nLes documents que l'on ne peut pas lire sans IA seront mis de côté (« IA nécessaire »).\nAucune recette n'est publiée : tout reste « à valider ».`;
+      if (!confirm(txt)) return;
+    }
+    try { localStorage.setItem(cleLot, JSON.stringify({ mode: m, depuis: new Date().toISOString() })); } catch {}
     setTravail("analyse"); pauseRef.current = false; setProg({ fait: 0, total: liste.length });
-    const t = await jeton();
+    const t = await jeton(); let arret = "";
     for (const f of liste) {
       if (pauseRef.current) break;
       try {
-        const r = await fetch("/api/food/import/traiter", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ fiche_id: f.id }) });
+        const r = await fetch("/api/food/import/traiter", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ fiche_id: f.id, ia: m === "ia" }) });
         const d = await r.json().catch(() => ({}));
-        if (r.status === 429) { setMsg("⏸ " + (d.message || "Limite IA atteinte.")); break; }
-        if (d.message) setMsg(d.message);
-      } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
+        if (r.status === 429) { arret = "⏸ " + (d.message || "Plafond IA atteint.") + " Le traitement reprendra automatiquement à la prochaine ouverture (plafond non modifié)."; break; }
+        if (r.status === 401) { arret = "Session expirée : reconnectez-vous, le traitement reprendra."; break; }
+        setBilan(b => ({ sansIA: b.sansIA + (/sans_ia/.test(d.methode || "") ? 1 : 0), ia: b.ia + (/^ia_/.test(d.methode || "") ? 1 : 0), iaRequise: b.iaRequise + (d.ia_requise ? 1 : 0),
+          erreurs: b.erreurs + (r.ok ? 0 : 1), doublons: b.doublons + (d.etat === "doublon" ? 1 : 0), cout: b.cout + (Number(d.cout) || 0) }));
+        setFile(l => l.map(x => x.id === f.id ? { ...x, etat: d.etat || (r.ok ? x.etat : "erreur"), methode: d.methode || x.methode, cout_estime_eur: d.cout ?? x.cout_estime_eur, derniere_erreur: r.ok ? (d.ia_requise ? d.message : null) : (d.error || x.derniere_erreur) } : x));
+      } catch (e: any) { arret = "❌ Connexion interrompue : " + String(e?.message || e) + " — reprise automatique à la prochaine ouverture."; break; }
       setProg(x => ({ ...x, fait: x.fait + 1 }));
     }
-    setTravail(pauseRef.current ? "pause" : "repos"); await charger();
+    if (!arret && !pauseRef.current) try { localStorage.removeItem(cleLot); } catch {}
+    setMsg(arret || (pauseRef.current ? "⏸ En pause." : "✅ Lot terminé."));
+    setTravail(pauseRef.current || arret ? "pause" : "repos"); await charger();
   };
+  // Reprise automatique d'un lot interrompu (fermeture, réseau, plafond du jour)
+  const repris = useRef(false);
+  useEffect(() => {
+    if (repris.current || !file.length || travail !== "repos") return;
+    let lot: any = null; try { lot = JSON.parse(localStorage.getItem(cleLot) || "null"); } catch {}
+    if (lot && aTraiter(lot.mode).length) { repris.current = true; setMode(lot.mode); setMsg("▶️ Reprise automatique du lot en cours…"); analyser(true, lot.mode); }
+  }, [file]);
 
   const reclasser = async (f: any, rubrique: string) => {
     const r = await sbFoodPatch("bibliotheque_fiches", f.id, { rubrique, etat: rubrique === "a_classer" ? "a_classer" : f.etat === "a_classer" ? "a_valider" : f.etat });
@@ -154,6 +183,12 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
   };
 
   const occupe = travail === "envoi" || travail === "analyse";
+  const TRAITES = ["a_valider", "valide", "doublon", "a_classer", "a_completer", "extraite"];
+  const suivi = { traites: file.filter(f => TRAITES.includes(f.etat)).length, attente: file.filter(f => ["recu", "en_attente", "analyse"].includes(f.etat)).length,
+    iaRequise: file.filter(f => f.etat === "suspendu").length, erreurs: file.filter(f => f.etat === "erreur").length, doublons: file.filter(f => f.etat === "doublon").length,
+    cout: file.reduce((s, f) => s + (Number(f.cout_estime_eur) || 0), 0) };
+  const fileFiltree = file.filter(f => filtre === "tous" || (filtre === "attente" && ["recu", "en_attente", "analyse"].includes(f.etat)) || (filtre === "traites" && TRAITES.includes(f.etat))
+    || (filtre === "ia" && f.etat === "suspendu") || (filtre === "erreur" && f.etat === "erreur") || (filtre === "doublon" && f.etat === "doublon"));
   const pct = prog.total ? Math.round(prog.fait / prog.total * 100) : 0;
   const coutPrepares = estimerCout(prepares.map(p => ({ type: p.type, taille: p.blob.size, texte: p.texte?.length })));
 
@@ -209,22 +244,38 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
           <div style={{ height: 8, background: C.ligne, borderRadius: 99 }}><div style={{ height: 8, width: `${pct}%`, background: C.or, borderRadius: 99 }} /></div>
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             {occupe && <button style={petit()} onClick={() => { pauseRef.current = true; }}>⏸ Pause</button>}
-            {travail === "pause" && <button style={petit(true)} onClick={analyser}>▶️ Reprendre</button>}
+            {travail === "pause" && <button style={petit(true)} onClick={() => analyser(true)}>▶️ Reprendre</button>}
           </div>
         </div>) : null}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <b>File d'attente ({file.length})</b>
-        {enAttente.length > 0 && <button style={petit(true, C.bleu)} onClick={analyser} disabled={occupe}>✨ Analyser {enAttente.length} élément(s)</button>}
+      <div style={{ ...carte, display: "flex", flexDirection: "column", gap: 8 }}>
+        <b>📚 Traitement de toute la bibliothèque</b>
+        <div style={{ fontSize: 13 }}>{suivi.traites} / {file.length} documents traités · {suivi.attente} en attente · {suivi.iaRequise} « IA nécessaire » · {suivi.erreurs} erreur(s) · {suivi.doublons} doublon(s) · coût cumulé {suivi.cout.toFixed(2)} €</div>
+        <div style={{ height: 8, background: C.ligne, borderRadius: 99 }}><div style={{ height: 8, width: `${file.length ? Math.round(suivi.traites / file.length * 100) : 0}%`, background: C.ok, borderRadius: 99 }} /></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <button style={petit(mode === "sans_ia", C.ok)} onClick={() => setMode("sans_ia")} disabled={occupe}>Sans IA (0 €)</button>
+          <button style={petit(mode === "ia", C.bleu)} onClick={() => setMode("ia")} disabled={occupe}>Sans IA puis IA si besoin</button>
+        </div>
+        <button style={petit(true, mode === "ia" ? C.bleu : C.ok)} onClick={() => analyser()} disabled={occupe || !aTraiter(mode).length}>✨ Analyser toutes les fiches en attente ({aTraiter(mode).length})</button>
+        {(bilan.sansIA + bilan.ia + bilan.iaRequise + bilan.erreurs) > 0 && <div style={{ fontSize: 12, color: C.doux }}>Ce lot : {bilan.sansIA} lue(s) sans IA · {bilan.ia} par IA · {bilan.iaRequise} IA nécessaire · {bilan.doublons} doublon(s) · {bilan.erreurs} erreur(s) · {bilan.cout.toFixed(3)} €</div>}
+        <div style={{ fontSize: 11, color: C.doux }}>Le traitement continue fiche par fiche, s'arrête au plafond IA (jamais augmenté automatiquement) et reprend tout seul à la prochaine ouverture. Les recettes créées restent « à valider » : rien n'est publié.</div>
       </div>
-      {file.slice(0, 120).map(f => { const [l, c] = ETATS[f.etat] || [f.etat, C.doux]; return (
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <b>Suivi par document ({fileFiltree.length})</b>
+        <select style={{ ...champ, width: "auto", minHeight: 38, fontSize: 14 }} value={filtre} onChange={e => setFiltre(e.target.value)}>
+          {[["tous", "Tous"], ["attente", "En attente"], ["traites", "Traités"], ["ia", "IA nécessaire"], ["erreur", "Erreurs"], ["doublon", "Doublons"]].map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </div>
+      {fileFiltree.slice(0, 200).map(f => { const [l, c] = ETATS[f.etat] || [f.etat, C.doux]; return (
         <div key={f.id} style={{ ...carte, borderLeft: `4px solid ${c}`, display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b style={{ fontSize: 14, wordBreak: "break-word" }}>{f.titre || f.nom_fichier}</b><span style={{ fontSize: 11, fontWeight: 800, color: c, whiteSpace: "nowrap" }}>{l}</span></div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <select style={{ ...champ, width: "auto", minHeight: 38, fontSize: 14 }} value={f.rubrique || f.rubrique_proposee || "a_classer"} onChange={e => reclasser(f, e.target.value)}>
               {RUBRIQUES_FOOD.map(([k, n]) => <option key={k} value={k}>{n}{!f.rubrique && f.rubrique_proposee === k ? " (proposé)" : ""}</option>)}
             </select>
-            {f.methode && <span style={{ fontSize: 11, color: C.doux }}>{f.methode === "jsonld_sans_ia" ? "lu sans IA" : f.methode}{f.cout_estime_eur ? ` · ${Number(f.cout_estime_eur).toFixed(3)} €` : ""}</span>}
+            {f.methode && <span style={{ fontSize: 11, color: C.doux }}>{/sans_ia/.test(f.methode) ? "lu sans IA" : f.methode === "ia_requise" ? "IA nécessaire" : f.methode}{` · ${Number(f.cout_estime_eur || 0).toFixed(3)} €`}</span>}
+            {(f.recette_id || f.recette_proposee_id) && <span style={{ fontSize: 11, color: C.ok }}>🍽 {recettes[f.recette_id || f.recette_proposee_id] || "recette liée"}{!f.recette_id ? " (proposée)" : ""}</span>}
           </div>
           {f.derniere_erreur && <div style={{ fontSize: 12, color: f.etat === "erreur" ? C.rouge : C.orange }}>{f.derniere_erreur}</div>}
         </div>); })}

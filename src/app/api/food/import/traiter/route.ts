@@ -16,6 +16,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { permisUtilisateur } from "@/lib/permissions";
 import { limitesIA, reserverIA, solderIA, coutEstime } from "@/lib/iaUsage";
+import { extraireTextePdf } from "@/lib/pdfTexte";
+import { lireFicheStructuree } from "@/lib/ficheMassena";
 import { recupererPage, recupererFichier, recetteJsonLd, texteDeHtml, meta } from "@/lib/urlSure";
 
 export const maxDuration = 60;
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
 
   let body: any; try { body = await req.json(); } catch { return NextResponse.json({ error: "Requête invalide." }, { status: 400 }); }
   const id = String(body?.fiche_id || "");
+  const avecIA = body?.ia !== false;   // false : lecture sans IA uniquement (0 €)
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "Élément invalide." }, { status: 400 });
   const { data: fiche } = await admin.from("bibliotheque_fiches").select("*").eq("id", id).maybeSingle();
   if (!fiche) return NextResponse.json({ error: "Élément introuvable." }, { status: 404 });
@@ -94,7 +97,7 @@ export async function POST(req: NextRequest) {
   // ── Verrou (reprise si interruption > 5 min)
   const limite = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const { data: verrou } = await admin.from("bibliotheque_fiches").update({ etat: "analyse", verrou_le: new Date().toISOString() })
-    .eq("id", id).in("etat", ["recu", "en_attente", "erreur", "a_classer", "a_completer", "analyse"]).or(`verrou_le.is.null,verrou_le.lt."${limite}"`).select("id");
+    .eq("id", id).in("etat", ["recu", "en_attente", "erreur", "a_classer", "a_completer", "analyse", "suspendu"]).or(`verrou_le.is.null,verrou_le.lt."${limite}"`).select("id");
   if (!verrou?.length) return NextResponse.json({ error: "Élément déjà en cours de traitement ou déjà traité." }, { status: 409 });
 
   const fin = async (patch: any) => { await admin.from("bibliotheque_fiches").update({ ...patch, verrou_le: null, tentatives: (fiche.tentatives || 0) + 1, traite_le: new Date().toISOString(), updated_at: new Date().toISOString(), historique: [...(fiche.historique || []), { le: new Date().toISOString(), action: patch.etat, methode: patch.methode || null }] }).eq("id", id); };
@@ -102,7 +105,8 @@ export async function POST(req: NextRequest) {
 
   try {
     let resultat: any = null; let methode = ""; let cout = 0; let texte = fiche.texte_extrait || "";
-    const contenu: any[] = [];
+    const contenu: any[] = []; let pdfB64 = ""; let pdfMethode = "";
+    const lirePdf = (octets: Buffer) => { try { const r = extraireTextePdf(octets); if (r.texte.replace(/\s/g, "").length > 150) texte = r.texte; } catch { /* PDF illisible sans IA */ } };
 
     if (fiche.source_url) {
       const hote = (() => { try { return new URL(fiche.source_url).hostname; } catch { return ""; } })();
@@ -125,17 +129,16 @@ export async function POST(req: NextRequest) {
       if (errUp) throw new Error("Conservation de l'original impossible : " + errUp.message);
       await admin.from("bibliotheque_fiches").update({ storage_path: chemin, type_mime: f.type, taille_octets: f.octets.length }).eq("id", id);
       const b64 = f.octets.toString("base64");
-      if (f.type === "application/pdf") contenu.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } });
-      else if (/^image\//.test(f.type)) contenu.push({ type: "image", source: { type: "base64", media_type: f.type, data: b64 } });
+      if (f.type === "application/pdf") { lirePdf(f.octets); pdfB64 = b64; pdfMethode = "ia_pdf_drive"; }
+      else if (/^image\//.test(f.type)) { contenu.push({ type: "image", source: { type: "base64", media_type: f.type, data: b64 } }); methode = "ia_vision_drive"; }
       else throw new Error("Format Drive non pris en charge.");
-      methode = f.type === "application/pdf" ? "ia_pdf_drive" : "ia_vision_drive";
     } else if (fiche.storage_path) {
       const { data: blob, error } = await admin.storage.from(BUCKET).download(fiche.storage_path);
       if (error || !blob) throw new Error("Fichier original introuvable dans le stockage privé.");
       const type = String(fiche.type_mime || blob.type || "");
       const b64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
       if (/^image\/(jpeg|png|webp|gif)$/.test(type)) { if (b64.length > 7_000_000) throw new Error("Image trop lourde (5 Mo max) : réduisez-la."); contenu.push({ type: "image", source: { type: "base64", media_type: type, data: b64 } }); methode = "ia_vision"; }
-      else if (type === "application/pdf") { if (b64.length > 20_000_000) throw new Error("PDF trop lourd (15 Mo max)."); contenu.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }); methode = "ia_pdf"; }
+      else if (type === "application/pdf") { lirePdf(Buffer.from(b64, "base64")); if (b64.length <= 20_000_000) { pdfB64 = b64; pdfMethode = "ia_pdf"; } else if (!texte) throw new Error("PDF trop lourd (15 Mo max) et sans texte lisible."); }
       else if (/^text\//.test(type)) { texte = Buffer.from(b64, "base64").toString("utf-8").slice(0, 60000); }
       else if (/^(audio|video)\//.test(type)) {
         const msg = "Fichier audio / vidéo conservé. La transcription automatique n'est pas encore branchée : utilisez la dictée vocale de l'iPhone, collez la transcription ou les sous-titres, ou importez une capture.";
@@ -143,6 +146,17 @@ export async function POST(req: NextRequest) {
       } else if (!texte) throw new Error(`Format non pris en charge (${type || "inconnu"}).`);
     }
 
+    // ── Lecture SANS IA d'abord (fiche technique structurée) : 0 €
+    if (!resultat && !contenu.length && texte.trim().length >= 150) {
+      const lu = lireFicheStructuree(texte, { titre: fiche.titre, code: fiche.code, categorie: fiche.categorie });
+      if (lu) { resultat = lu; methode = pdfB64 ? "pdf_texte_sans_ia" : "texte_sans_ia"; }
+    }
+    if (!resultat && !avecIA) {
+      const msg = "Lecture sans IA impossible pour ce document (structure non reconnue ou document scanné) : analyse IA nécessaire.";
+      await fin({ etat: "suspendu", methode: "ia_requise", texte_extrait: texte ? texte.slice(0, 20000) : fiche.texte_extrait, derniere_erreur: msg });
+      return NextResponse.json({ ok: true, etat: "suspendu", ia_requise: true, message: msg });
+    }
+    if (!resultat && !contenu.length && pdfB64 && texte.trim().length < 300) { contenu.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfB64 } }); methode = pdfMethode; }
     if (!resultat) {
       if (!contenu.length) { if (!texte.trim()) throw new Error("Aucun contenu lisible."); contenu.push({ type: "text", text: `Document « ${fiche.titre || fiche.nom_fichier || ""} » :\n\n${texte.slice(0, 60000)}` }); methode = methode || "ia_texte"; }
       else contenu.push({ type: "text", text: `Nom du fichier : ${fiche.nom_fichier || fiche.titre || "inconnu"}` });
