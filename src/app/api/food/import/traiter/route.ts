@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { permisUtilisateur } from "@/lib/permissions";
 import { limitesIA, reserverIA, solderIA, coutEstime } from "@/lib/iaUsage";
-import { recupererPage, recetteJsonLd, texteDeHtml, meta } from "@/lib/urlSure";
+import { recupererPage, recupererFichier, recetteJsonLd, texteDeHtml, meta } from "@/lib/urlSure";
 
 export const maxDuration = 60;
 const MODELE = "claude-sonnet-5-5";
@@ -34,7 +34,7 @@ const CONSIGNE = `Tu analyses un document importé dans l'atelier professionnel 
 5. Si c'est une photo de plat ou un visuel, indique le nom du plat représenté s'il est lisible ou évident (sinon null).
 Réponds UNIQUEMENT par un objet JSON valide :
 {"rubrique":"...","confiance":0.0-1.0,"resume":"une phrase","plat_represente":null,
- "recette":null | {"nom":"...","categorie":"patisserie|dessert|plat|boisson|sauce|street_food|accompagnement|autre","rendement":null,"nb_parts":null,"temps_prepa":null,"temps_cuisson":null,"temps_repos":null,"temperature":null,
+ "recette":null | {"nom":"...","code":"code de la fiche s'il est écrit (ex. FT037, FR47) sinon null","categorie":"patisserie|dessert|plat|boisson|sauce|street_food|accompagnement|autre","rendement":null,"nb_parts":null,"temps_prepa":null,"temps_cuisson":null,"temps_repos":null,"temperature":null,
    "ingredients":[{"nom":"...","quantite":null,"unite":null,"notes":null}],"etapes":["..."],"astuces":["..."],"materiel":["..."],"conservation":null,"allergenes_fiche":null},
  "manquant":["..."],"contradictions":[{"sujet":"...","extraits":["« ... »","« ... »"]}]}`;
 
@@ -117,6 +117,18 @@ export async function POST(req: NextRequest) {
         texte = [meta(page.html, "og:title"), meta(page.html, "og:description"), texteDeHtml(page.html, 30000)].filter(Boolean).join("\n");
         if (RESEAUX.test(hote) && texte.length < 400) { await fin({ etat: "a_completer", methode: "lien", texte_extrait: texte.slice(0, 20000), derniere_erreur: ALTERNATIVES }); return NextResponse.json({ ok: true, etat: "a_completer", message: ALTERNATIVES }); }
       }
+    } else if (fiche.drive_id && !fiche.storage_path) {
+      // Fiche Google Drive partagée par lien : téléchargée par le serveur, ORIGINAL conservé en privé.
+      const f = await recupererFichier(`https://drive.usercontent.google.com/download?id=${encodeURIComponent(fiche.drive_id)}&export=download&confirm=t`);
+      const chemin = `bibliotheque/drive/${fiche.drive_id}.${f.type === "application/pdf" ? "pdf" : "bin"}`;
+      const { error: errUp } = await admin.storage.from(BUCKET).upload(chemin, f.octets, { contentType: f.type, upsert: true });
+      if (errUp) throw new Error("Conservation de l'original impossible : " + errUp.message);
+      await admin.from("bibliotheque_fiches").update({ storage_path: chemin, type_mime: f.type, taille_octets: f.octets.length }).eq("id", id);
+      const b64 = f.octets.toString("base64");
+      if (f.type === "application/pdf") contenu.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } });
+      else if (/^image\//.test(f.type)) contenu.push({ type: "image", source: { type: "base64", media_type: f.type, data: b64 } });
+      else throw new Error("Format Drive non pris en charge.");
+      methode = f.type === "application/pdf" ? "ia_pdf_drive" : "ia_vision_drive";
     } else if (fiche.storage_path) {
       const { data: blob, error } = await admin.storage.from(BUCKET).download(fiche.storage_path);
       if (error || !blob) throw new Error("Fichier original introuvable dans le stockage privé.");
@@ -160,7 +172,7 @@ export async function POST(req: NextRequest) {
     }
     let etat = rubrique === "a_classer" ? "a_classer" : "a_valider";
     if (rec && RECETTE_LIKE.has(rubrique)) {
-      const j = { ...rec, code: fiche.code || null, cat_biblio: fiche.categorie || null, manquant: patch.informations_manquantes, contradictions: patch.contradictions, allergenes_fiche: patch.allergenes_fiche, lot: null };
+      const j = { ...rec, code: rec.code || fiche.code || null, cat_biblio: fiche.categorie || null, manquant: patch.informations_manquantes, contradictions: patch.contradictions, allergenes_fiche: patch.allergenes_fiche, lot: null };
       if (fiche.espace === "VILDOR") {
         // Recettes Vil'Dor : JAMAIS dans les recettes Bella'Food. Extraction conservée sur la fiche de SON espace.
         patch.extraction = j; patch.titre = rec.nom;

@@ -83,3 +83,27 @@ export function texteDeHtml(html: string, max = 60000): string {
 }
 
 export const meta = (html: string, prop: string) => html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']*)["']`, "i"))?.[1] || html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${prop}["']`, "i"))?.[1] || null;
+
+/** Téléchargement d'un FICHIER public (ex. Google Drive partagé « tous les utilisateurs disposant du lien »),
+ *  mêmes protections SSRF, taille plafonnée, types autorisés uniquement. */
+export async function recupererFichier(brute: string, maxOctets = 25_000_000): Promise<{ octets: Buffer; type: string }> {
+  let courant = await verifierUrl(brute);
+  for (let saut = 0; saut <= 4; saut++) {
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 25_000);
+    let r: Response;
+    try { r = await fetch(courant.toString(), { redirect: "manual", signal: ctrl.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; BellaiaImport/1.0)" } }); }
+    finally { clearTimeout(t); }
+    if (r.status >= 300 && r.status < 400) { const loc = r.headers.get("location"); if (!loc) throw new Error("Redirection invalide."); courant = await verifierUrl(new URL(loc, courant).toString()); continue; }
+    if (!r.ok) throw new Error(`Fichier inaccessible (HTTP ${r.status}).`);
+    const type = (r.headers.get("content-type") || "").split(";")[0].trim();
+    if (/text\/html/.test(type)) throw new Error("Le fichier n'est pas public : partagez-le en lecture « Tous les utilisateurs disposant du lien », ou importez-le depuis l'app Fichiers.");
+    if (!/^(application\/pdf|image\/(jpeg|png|webp|gif)|application\/octet-stream)$/.test(type)) throw new Error(`Type de fichier non pris en charge (${type || "inconnu"}).`);
+    const lecteur = r.body?.getReader(); if (!lecteur) throw new Error("Réponse vide.");
+    const morceaux: Buffer[] = []; let total = 0;
+    for (;;) { const { done, value } = await lecteur.read(); if (done) break; total += value.length; if (total > maxOctets) { lecteur.cancel(); throw new Error("Fichier trop volumineux."); } morceaux.push(Buffer.from(value)); }
+    const octets = Buffer.concat(morceaux);
+    const typeReel = octets.subarray(0, 4).toString() === "%PDF" ? "application/pdf" : type;
+    return { octets, type: typeReel };
+  }
+  throw new Error("Trop de redirections.");
+}

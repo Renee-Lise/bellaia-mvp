@@ -52,7 +52,7 @@ export default function AtelierImport({ espace = "BELLAFOOD", organisationId = n
 
   const charger = async () => {
     try {
-      setFile(await sbFoodGet<any>("bibliotheque_fiches", `${filtreEspace}&origine=neq.drive&select=id,titre,nom_fichier,etat,rubrique,rubrique_proposee,confiance,derniere_erreur,methode,cout_estime_eur,type_mime,recette_proposee_id,created_at&order=created_at.desc&limit=300`));
+      setFile(await sbFoodGet<any>("bibliotheque_fiches", `${filtreEspace}&select=id,titre,nom_fichier,etat,rubrique,rubrique_proposee,confiance,derniere_erreur,methode,cout_estime_eur,type_mime,recette_proposee_id,created_at&order=created_at.desc&limit=300`));
       setLots(await sbFoodGet<any>("food_import_lots", `${filtreEspace}&select=*&order=created_at.desc&limit=20`).catch(() => []));
     } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
   };

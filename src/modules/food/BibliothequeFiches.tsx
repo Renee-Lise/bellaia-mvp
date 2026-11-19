@@ -16,6 +16,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { sbFoodGet, sbFoodPatch, sbFoodPost } from "./foodApi";
 import { deposerPrive, ouvrirPrive, nomFichierSur } from "../equipe/equipeLib";
 import AtelierImport from "./AtelierImport";
+import CoutsIA from "./CoutsIA";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c" };
@@ -45,7 +46,7 @@ export default function BibliothequeFiches() {
   const [msg, setMsg] = useState("");
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [colle, setColle] = useState("");
-  const [onglet, setOnglet] = useState<"fiches" | "import" | "droits">("fiches");
+  const [onglet, setOnglet] = useState<"fiches" | "import" | "droits" | "couts">("fiches");
   const [charge, setCharge] = useState(true);
 
   const charger = async () => {
@@ -129,7 +130,7 @@ export default function BibliothequeFiches() {
         </div>
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {([["fiches", "📄 Fiches"], ["import", "⬆️ Importer"], ["droits", "⚖️ Sources & droits"]] as const).map(([k, l]) => <button key={k} style={btn(onglet === k)} onClick={() => setOnglet(k)}>{l}</button>)}
+        {([["fiches", "📄 Fiches"], ["import", "⬆️ Importer"], ["droits", "⚖️ Sources & droits"], ["couts", "💶 Coûts IA"]] as const).map(([k, l]) => <button key={k} style={btn(onglet === k)} onClick={() => setOnglet(k)}>{l}</button>)}
       </div>
       {msg && <div style={{ ...carte, fontSize: 13 }}>{msg}</div>}
 
@@ -200,6 +201,7 @@ export default function BibliothequeFiches() {
       </>}
 
       {onglet === "import" && <AtelierImport espace="BELLAFOOD" sourceId={null} />}
+      {onglet === "couts" && <CoutsIA />}
 
       {onglet === "droits" && sources.map(s => (
         <div key={s.id} style={{ ...carte, display: "flex", flexDirection: "column", gap: 8 }}>
