@@ -1,0 +1,37 @@
+// Validation des photos BSH (fondatrice) : chargement, filtres, sélection par lot, aperçu, écriture, annulation.
+const { chromium, devices } = require('playwright'); const { execFileSync } = require('child_process'); const crypto = require('crypto'); const fs = require('fs');
+const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('base64url'); return `${b({ alg: 'HS256' })}.${b({ role: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 7200 })}.x`; };
+(async () => { const out = process.argv[2]; const R = []; const ok = (n, v) => R.push(n + ' : ' + (v ? 'OK' : 'ÉCHEC'));
+  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 13'] }); const id = '00000000-0000-0000-0000-0000000000f0';
+  await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id, role: 'fondatrice', prenom: 'Renée-Lise' }, jwt(id)]);
+  const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message)); p.on('dialog', d => d.accept());
+  await p.route('https://www.concordepro.com/**', async route => { const u = route.request().url(); const f = out + '/cache_img/' + crypto.createHash('md5').update(u).digest('hex') + '.jpg';
+    try { if (!fs.existsSync(f)) execFileSync('curl', ['-s', '-f', '-m', '30', '-o', f, u]); await route.fulfill({ status: 200, contentType: 'image/jpeg', body: fs.readFileSync(f) }); } catch { await route.abort(); } });
+  await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 120000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await p.waitForTimeout(2500);
+  // Ouvrir BSH puis Paramètres
+  await p.waitForSelector('text=Centre de direction'); await p.evaluate(() => { const e = [...document.querySelectorAll('button')].find(x => /🗝/.test(x.textContent || '') && /Secret Home/.test(x.textContent || '')); e.scrollIntoView(); e.click(); }); await p.waitForTimeout(3000);
+  await p.evaluate(() => { const e = [...document.querySelectorAll('button')].find(x => /Réglages/.test(x.textContent || '') || /⚙/.test(x.textContent || '')); e && e.click(); }); await p.waitForTimeout(1500); await p.screenshot({ path: out + '/0_reglages.png' });
+  const btn = p.locator('text=Valider les photos produit par produit'); ok('bouton de validation présent dans BSH › Paramètres', await btn.count() > 0);
+  await btn.first().click(); await p.waitForTimeout(8000);
+  const t = await p.evaluate(() => document.body.innerText);
+  ok('compteurs chargés (Prêts 170 · Introuvables 111)', /Prêts \(170\)/.test(t) && /Introuvables \(111\)/.test(t));
+  await p.locator('button:has-text("Prix provisoires")').click(); await p.waitForTimeout(600);
+  ok('prix provisoires non sélectionnables', await p.evaluate(() => [...document.querySelectorAll('input[type=checkbox][aria-label^="Sélectionner"]')].every(c => c.disabled)));
+  await p.locator('button:has-text("Prêts (")').click(); await p.waitForTimeout(600);
+  await p.screenshot({ path: out + '/1_liste.png' });
+  const cases = p.locator('input[type=checkbox][aria-label^="Sélectionner"]'); for (let i = 0; i < 3; i++) await cases.nth(i).check();
+  await p.locator('button:has-text("Aperçu des modifications")').click(); await p.waitForTimeout(800);
+  const ap = await p.evaluate(() => document.querySelector('[role=dialog]')?.innerText || '');
+  ok('aperçu : 3 fiches, avertissement « déjà en boutique »', /3 fiche\(s\) seront modifiées/.test(ap) && /déjà en boutique/.test(ap));
+  await p.screenshot({ path: out + '/2_apercu.png' });
+  let ecr = await (await fetch('http://localhost:54337/rest/v1/__ecritures')).json(); ok('aucune écriture avant validation', ecr.length === 0);
+  await p.locator('button:has-text("Valider 3 fiche")').click(); await p.waitForTimeout(2500);
+  ecr = await (await fetch('http://localhost:54337/rest/v1/__ecritures')).json();
+  ok('3 écritures, uniquement image_url (+ date)', ecr.length === 3 && ecr.every(e => Object.keys(e).sort().join() === 'id,image_url,updated_at' && /concordepro\.com\/img\/p\//.test(e.image_url)));
+  ok('message de confirmation', /3 fiches mises à jour/.test(await p.evaluate(() => document.body.innerText)));
+  await p.locator('button:has-text("Annuler le dernier lot")').click(); await p.waitForTimeout(2500);
+  ecr = await (await fetch('http://localhost:54337/rest/v1/__ecritures')).json();
+  ok('annulation : 3 fiches remises à « sans photo »', ecr.length === 6 && ecr.slice(3).every(e => e.image_url === null));
+  ok('aucune erreur JavaScript', err.length === 0);
+  console.log(R.join('\n')); console.log(R.filter(x => x.endsWith('OK')).length + '/' + R.length);
+  await b.close(); })();

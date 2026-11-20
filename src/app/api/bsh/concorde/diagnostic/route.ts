@@ -11,7 +11,7 @@
 // ═══════════════════════════════════════════════════════════
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { analyserExport } from "@/lib/concordeExport";
+import { analyserExport, lignesExport, propositionsBSH } from "@/lib/concordeExport";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   if (!SOURCE) return NextResponse.json({ ok: false, etape: "configuration", message: "La variable serveur CONCORDE_PRO_CATALOG_URL n'est pas définie dans cet environnement (elle n'existe qu'en production)." });
 
   // Références BSH (lecture sous les droits de la fondatrice)
-  const { data: stocks } = await sb.from("stocks").select("notes").or("univers.ilike.%bsh%,branche.ilike.%bsh%").limit(5000);
+  const { data: stocks } = await sb.from("stocks").select("id,nom,nom_produit,notes,prix_vente,prix_achat,quantite,statut,categorie,image_url,usage_conseils").or("univers.ilike.%bsh%,branche.ilike.%bsh%").limit(5000);
   const refs = (stocks || []).map((s: any) => (String(s.notes || "").match(/R[ée]f\.?\s?([0-9A-Za-z\-]+)/) || [])[1]).filter(Boolean) as string[];
 
   let texte = "", statut = 0, type = "";
@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
   }
   if (/<html/i.test(texte.slice(0, 500))) return NextResponse.json({ ok: false, etape: "flux", http: statut, type, message: "Le flux a renvoyé une page HTML au lieu d'un fichier CSV (jeton invalide ou export désactivé ?)." });
 
+  // Mode « propositions » : rattachements proposés produit par produit (lecture seule ; la fondatrice valide dans l'interface)
+  if (req.nextUrl.searchParams.get("propositions") === "1") {
+    const props = propositionsBSH(lignesExport(texte), (stocks || []).map((s: any) => ({ ...s, nom: s.nom_produit || s.nom })));
+    const compte = (c: string) => props.filter(p => p.classe === c).length;
+    return NextResponse.json({ ok: true, genere_le: new Date().toISOString(), resume: { pret: compte("pret"), incomplet: compte("incomplet"), attente: compte("attente"), introuvable: compte("introuvable") }, propositions: props });
+  }
   const a = analyserExport(texte, refs);
   // Accès aux images : en-têtes seulement, sans rien enregistrer ; avec et sans « Referer » (blocage du hotlinking)
   const origine = process.env.NEXT_PUBLIC_APP_URL || "https://bellaia.app";

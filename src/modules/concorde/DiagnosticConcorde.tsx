@@ -4,10 +4,12 @@
 // côté serveur et n'est jamais affichée. Aucune image n'est enregistrée.
 import React, { useState } from "react";
 import { jeton } from "../events/eventsAtelierLib";
+import ValidationPhotosBSH from "./ValidationPhotosBSH";
 
 export default function DiagnosticConcorde({ couleur = "#c9a96e", doux = "rgba(241,236,224,0.65)" }: { couleur?: string; doux?: string }) {
   const [etat, setEtat] = useState<"" | "cours" | "fini">("");
   const [r, setR] = useState<any>(null);
+  const [validation, setValidation] = useState(false);
   const lancer = async () => {
     setEtat("cours"); setR(null);
     try {
@@ -23,6 +25,10 @@ export default function DiagnosticConcorde({ couleur = "#c9a96e", doux = "rgba(2
       <button onClick={lancer} disabled={etat === "cours"} style={{ minHeight: 40, padding: "8px 12px", borderRadius: 10, border: `1px solid ${couleur}`, background: `${couleur}22`, color: couleur, fontWeight: 700, fontSize: 12 }}>
         {etat === "cours" ? "Analyse du flux…" : "🔎 Diagnostiquer le flux et les photos (lecture seule)"}
       </button>
+      <button onClick={() => setValidation(v => !v)} style={{ minHeight: 40, padding: "8px 12px", marginLeft: 8, marginTop: 8, borderRadius: 10, border: `1px solid ${couleur}`, background: validation ? `${couleur}33` : "transparent", color: couleur, fontWeight: 700, fontSize: 12 }}>
+        🖼 {validation ? "Fermer la validation des photos" : "Valider les photos produit par produit"}
+      </button>
+      {validation && <div style={{ marginTop: 10 }}><ValidationPhotosBSH /></div>}
       {r && <div style={{ marginTop: 8, fontSize: 11, lineHeight: 1.5 }}>
         {!r.ok ? <div style={{ color: "#fb923c" }}>{r.error || r.message}</div> : <>
           {ligne("Format", r.format)}

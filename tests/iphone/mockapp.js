@@ -11,6 +11,8 @@ const CAT_FOOD = [
   { id: 'cp1', reference: 'F-1', business_unit: 'FOOD', categorie_slug: 'patisserie', nom: 'Tarte coco (test)', description_courte: 'Test', prix: 4.5, allergenes: ['Gluten', 'Œufs'], galerie_photos: [], statut: 'actif', visible_client: true, disponible: true },
   { id: 'cp2', reference: 'F-2', business_unit: 'FOOD', categorie_slug: 'repas', nom: 'Colombo de poulet (test)', description_courte: '', prix: 12, allergenes: [], galerie_photos: [], statut: 'actif', visible_client: true, disponible: true },
   { id: 'cp3', reference: 'F-3', business_unit: 'FOOD', categorie_slug: 'boissons', nom: 'Jus maison (test)', description_courte: '', prix: null, allergenes: [], galerie_photos: [], statut: 'actif', visible_client: true, disponible: true }];
+const STOCKS_BSH = require('fs').existsSync(__dirname + '/stocks_bsh_test.json') ? JSON.parse(require('fs').readFileSync(__dirname + '/stocks_bsh_test.json', 'utf8')) : null;
+const ECRITURES = [];
 const D = {
   catalogue_produits: CAT_FOOD, v_catalogue_food_public: [{ id: 'cp1', commandable: true }, { id: 'cp2', commandable: false }],
   ...JEUX,
@@ -40,13 +42,16 @@ http.createServer(async (q, r) => {
     r.writeHead(200, h2); return r.end(JSON.stringify(obj ? (res[0] || null) : res));
   }
   let out = D[t] || [];
-  if (t === 'v_catalogue_public' && qs.includes('univers=eq.BSH') && require('fs').existsSync(__dirname + '/apercu_bsh_produits.json')) out = JSON.parse(require('fs').readFileSync(__dirname + '/apercu_bsh_produits.json', 'utf8'));
+  if (t === 'v_catalogue_public' && qs.includes('univers=eq.BSH')) out = JSON.parse(require('fs').readFileSync(__dirname + '/apercu_bsh_produits.json', 'utf8'));
   if (t === 'bsh_jeux_cartes' && (qs.includes('97991d2d') || qs.includes('id=eq.av'))) out = CARTES_AV.filter(c => !qs.includes('nom=eq.') || qs.includes('nom=eq.' + c.nom)).filter(c => !qs.includes('id=eq.av') || qs.includes('id=eq.' + c.id));
   if (t === 'mes_acces') out = { fondatrice: role === 'fondatrice', roles: [], permissions: role === 'assistante' ? ['food.consulter:FOOD', 'food.commandes:FOOD'] : [], hote_bsh: false };
   else if (t === 'bellaia_missions') out = role === 'assistante' && qs.includes('assigne_a=eq.' + sub) ? missions : [];
   else if (t === 'profiles') out = role === 'cliente' ? [{ prenom: null, role: 'cliente', membership_status: 'customer', age_verifi: false, date_naissance: null }] : [{ prenom: null, role }];
   else if (t === 'bellaia_commandes') out = role === 'cliente' && qs.includes('created_by=eq.') ? [{ id: 'c1', reference: 'BF-DEMO-0001', bu: 'FOOD', statut: 'BROUILLON', total: 37, created_at: sem(-1) }] : role === 'fondatrice' ? [{ id: 'c1', bu: 'FOOD', total: 37, statut: 'BROUILLON', created_at: sem(-1) }] : [];
   else if (['v_dashboard_finances', 'v_dashboard_crm', 'v_stocks_critiques', 'bellaia_actions'].includes(t) && role !== 'fondatrice') out = [];
+  else if (t === 'stocks' && q.method === 'PATCH' && role === 'fondatrice') { const b = await corps(q); const id = (u.searchParams.get('id') || '').replace('eq.', ''); ECRITURES.push({ id, ...b }); const row = (STOCKS_BSH || []).find(x => x.id === id); if (row) Object.assign(row, b); out = row ? [row] : []; }
+  else if (t === 'stocks' && STOCKS_BSH) out = role === 'fondatrice' ? STOCKS_BSH : [];
+  else if (t === '__ecritures') out = ECRITURES;
   else if (t === 'stocks') out = role === 'fondatrice' ? ['514038001020', '597218003020', '501001', '999999999999'].map(r => ({ notes: 'Import Concorde Pro — Réf ' + r + ' — test' })) : [];
   else if (t === 'client_mes_dossiers_events') out = [];
   else if (t.startsWith('ss_') || t === 'rpc') out = [];
