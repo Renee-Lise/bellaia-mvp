@@ -7303,6 +7303,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             <div style={{fontSize:9,color:BSH.cremeD,marginTop:8,lineHeight:1.6}}>
               Catalogue Concorde Pro consultable manuellement. Une vraie synchronisation automatique (stock/prix/commandes) dépend de ce que leur service commercial propose réellement — rien n'est branché tant que ce n'est pas confirmé.
             </div>
+            <DiagnosticConcordeLazy/>
           </div>
         </div>}
       </div>
@@ -7773,6 +7774,12 @@ function EspaceRoleInconnu({ onLogout }: any) {
 }
 
 // BSH Secret Stories — studio éditorial privé (aperçu ; simulation tant que 0129 n'est pas appliquée).
+function DiagnosticConcordeLazy() {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/concorde/DiagnosticConcorde").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  return Comp ? <Comp/> : null;
+}
+
 function SecretStoriesWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => { import("../modules/secretStories/StudioSecretStories").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
