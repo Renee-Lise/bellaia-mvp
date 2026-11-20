@@ -121,10 +121,12 @@ export default function CalendrierPremium({ m = MARQUES.GENERAL, role = "fondatr
       <div style={{ fontFamily: m.serif, fontSize: 24, fontWeight: 600 }}>{titre}</div>
       <div style={{ display: "flex", gap: 4 }}><button aria-label="Période précédente" onClick={() => decaler(-1)} style={{ ...pill(false), padding: "5px 10px" }}>‹</button><button onClick={() => { const d = new Date(); d.setHours(0, 0, 0, 0); setRef(d); }} style={pill(false)}>Aujourd'hui</button><button aria-label="Période suivante" onClick={() => decaler(1)} style={{ ...pill(false), padding: "5px 10px" }}>›</button></div>
     </div>
-    <div style={{ fontSize: 13.5, color: doux, margin: "4px 0 10px", textTransform: "capitalize" }}>{libellePeriode}</div>
-    <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
-      {(["jour", "semaine", "mois"] as Vue[]).map(v => <button key={v} onClick={() => setVue(v)} style={pill(vue === v)}>{v === "jour" ? "Jour" : v === "semaine" ? "Semaine" : "Mois"}</button>)}
-      <span style={{ width: 8, flex: "none" }} />
+    <div style={{ fontSize: 13.5, color: doux, margin: "4px 0 10px" }}>{libellePeriode.charAt(0).toUpperCase() + libellePeriode.slice(1)}</div>
+    <div style={{ display: "flex", gap: 6 }}>
+      {(["jour", "semaine", "mois"] as Vue[]).map(v => <button key={v} onClick={() => setVue(v)} style={{ ...pill(vue === v), flex: 1 }}>{v === "jour" ? "Jour" : v === "semaine" ? "Semaine" : "Mois"}</button>)}
+    </div>
+    {/* Filtres par univers : ligne défilante séparée (aucune pastille coupée sous les vues) */}
+    <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 0 4px", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
       <button onClick={() => setFiltre("tous")} style={pill(filtre === "tous")}>Tous les univers</button>
       {univers.map(u => <button key={u} onClick={() => setFiltre(u)} style={pill(filtre === u)}>{marqueDe(u).nom}</button>)}
     </div>

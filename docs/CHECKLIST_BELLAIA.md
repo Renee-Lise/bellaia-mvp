@@ -225,3 +225,13 @@ Note : la base Supabase est commune à la production et à la prévisualisation.
 - 🟨 Emplacement de variante prêt pour le logo noir et doré Bella'Odyssée (`LOGOS_VARIANTES`) ; logo actif inchangé.
 - ⏳ Fichiers attendus de la fondatrice : logo noir et or, fichier éditorial, Hélios (deux versions), derniers documents Bella'Food.
 
+
+## 17. Reprise du 20/11 (branche de prévisualisation)
+
+- [x] Concorde Pro : route de diagnostic fondatrice (lecture seule, jeton jamais exposé) + bouton BSH › Paramètres — testée en local (401 / 403 cliente / 403 assistante / fondatrice OK, jeton absent des réponses et journaux). Fonctionnera en production uniquement (variable serveur).
+- [x] Images BSH : 279/390 produits rapprochés, 1 035 images testées accessibles (HTTP 200, pas de blocage hotlink). **0 image affichée en boutique** : rattachement préparé, non exécuté (droits + accord requis).
+- [x] BSH Secret Games : bouton Retour (en-tête + flottant), ouverture dans la même fenêtre depuis l'appli, mise en page iPhone.
+- [x] Calendrier : vues jour / semaine / mois vérifiées sur iPhone pour fondatrice, assistante, cliente (vides et non vides) ; libellé « Semaine du » et pastilles d'univers corrigés.
+- [x] Actions requises : revue individuelle (docs/actions/REVUE_ACTIONS_REQUISES_20_11.md) — 5 clôturées avec preuve, 3 ajoutées.
+- [x] Accueil : 178 interactions testées (79 fondatrice, 59 cliente, 40 assistante), aucune sans effet ; une seule pastille « Bientôt » (BellaInvest).
+- [ ] En attente : GO 0129 / 0130 / 0131, GO visuels premium, droits Concorde, fichiers Ti-Colibri.
