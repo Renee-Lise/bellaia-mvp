@@ -98,3 +98,20 @@ Conditions préalables : réponse de Céline sur les droits (§ 5.1–5.2) **et*
 3. Écrire seulement `stocks.image_url` (image principale) et conserver les images secondaires dans un champ dédié (à prévoir par migration si la fondatrice le souhaite) ; ne modifier ni le nom, ni le prix, ni le stock.
 4. Contrôle visuel des 279 produits rapprochés avant toute mise en vente ; produits sans image ou sans prix public validé : restent en brouillon.
 5. Aucune publication automatique.
+
+## 8. Classement produit par produit (20/11)
+
+Comparaison, pour chacun des 390 produits BSH, de la fiche Bellaïa (référence, prix de vente, statut, mentions « à compléter ») avec l'export Concorde Pro (titre, description, marque, stock fournisseur, prix, code-barres, images vérifiées). **Aucune donnée n'a été modifiée.** Le détail par produit (avec prix) est remis à la fondatrice hors du dépôt public.
+
+| Classe | Produits | Signification |
+|---|---|---|
+| Prêts techniquement | **170** | référence trouvée, image principale accessible, prix de vente renseigné et non provisoire, description fournisseur disponible, en stock chez le fournisseur, fiche active, aucun point réglementaire signalé |
+| Incomplets | **38** | 30 en rupture chez le fournisseur, 6 prix « à compléter », 6 prix provisoires (achat + 5 €), 2 sans description (un produit peut cumuler) |
+| En attente de validation | **71** | 56 cosmétiques ou produits de contact (composition et mentions à vérifier), 12 produits ingérés ou compléments (allégations et étiquetage), 15 fiches inactives, 6 prix Bellaïa différents du prix de l'export (un produit peut cumuler) |
+| Introuvables dans le catalogue fournisseur | **111** | aucun rapprochement fiable trouvé : 0 par code-barres, 0 par nom identique ; **aucune association approximative n'a été faite** |
+
+Même « prêts techniquement », ces produits ne seront publiés qu'après : (1) la confirmation écrite des droits d'utilisation des photos et descriptions par Concorde Pro, (2) votre validation.
+
+**Aperçu illustré** : la vitrine BSH premium a été rendue sur iPhone avec les 170 produits prêts et leurs vraies photos (aperçu local, données simulées, rien n'a été écrit ni publié ; les images ont été chargées dans un cache temporaire supprimé ensuite).
+
+**Remarque importante** : pour 6 produits rapprochés (et d'autres parmi les 111), le prix de vente actuel est exactement le prix d'achat + 5 € — un prix provisoire saisi à l'import, à ne pas publier tel quel.
