@@ -32,3 +32,10 @@ Date : 19/11/2026. Lecture seule : **aucun article n'a été publié, modifié n
 2. **Bella'Event** : confirmer les 33 prix « sur devis » ou les laisser explicitement en devis.
 3. **Collection saisonnière** : confirmer les 14 prix de revente et vérifier les allergènes.
 4. **BSH** : images Concorde Pro (voir `docs/concorde/DIAGNOSTIC_IMAGES_CONCORDE_PRO.md` — 279 produits rapprochables après accord sur les droits) et prix publics des 81 produits « à compléter ».
+
+## Mise à jour du 20/11
+
+- **Espace fondatrice › Stocks › Catalogue** : chaque fiche incomplète porte désormais un badge « Brouillon — manque : … » (prix, allergènes non validés) calculé avec la même règle que la boutique ; filtre « Brouillons incomplets ». Constat seulement : aucune fiche modifiée, aucun produit publié ou retiré.
+- **Côté cliente** : inchangé et vérifié — les produits incomplets restent non commandables (3 commandables sur 116 visibles).
+- **Complément depuis les données existantes (Bella'Food)** : 123 produits sur 125 sont liés à une recette, mais seules 12 de ces recettes portent des allergènes ; aucune recette de même nom n'est restée non liée. **Il n'existe donc pas d'autre donnée fiable** pour compléter les allergènes : ils doivent venir des fiches techniques ou de votre validation dans l'assistant de régularisation. Rien n'a été déduit ni inventé.
+- **BSH** : classement des 390 produits (170 prêts techniquement, 38 incomplets, 71 en attente de validation, 111 introuvables) — voir `docs/concorde/DIAGNOSTIC_IMAGES_CONCORDE_PRO.md` § 8.
