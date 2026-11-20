@@ -8,6 +8,22 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useMemo, useState } from "react";
 import { BSH, SERIF, SANS, TYPES_MISSION, STATUT_MISSION, ETAPES, FORMATIONS, CHARTE, chargerEspace, rpc, ecrire, dateFr, type Donnees } from "./bshHotesLib";
+import { deposerPrive, nomFichierSur } from "../equipe/equipeLib";
+import { sbRpc } from "../events/eventsAtelierLib";
+
+// Transmission sécurisée (migration 0132) : dépôt dans le dossier privé de l'hôte
+// (hotes/<hôte>/<document>/…), lisible par la fondatrice seule ; puis enregistrement.
+const TAILLE_MAX = 10 * 1024 * 1024;
+async function transmettreDocument(hoteId: string, docId: string, f: File): Promise<string> {
+  if (!/^(image\/(jpeg|png|heic|heif|webp)|application\/pdf)$/.test(f.type || "")) throw new Error("Format accepté : photo (JPEG, PNG, HEIC) ou PDF.");
+  if (f.size > TAILLE_MAX) throw new Error("Fichier trop lourd (10 Mo maximum).");
+  const chemin = `hotes/${hoteId}/${docId}/${Date.now()}-${nomFichierSur(f.name)}`;
+  try { await deposerPrive(chemin, f, f.type); }
+  catch (e: any) { if (/row-level|policy|403|Unauthorized|not allowed/i.test(String(e?.message || e))) throw new Error("PAS_ACTIVE"); throw e; }
+  try { await sbRpc("bsh_hote_document_depose", { p_doc: docId, p_chemin: chemin }); }
+  catch (e: any) { if (/does not exist|404|PGRST202/i.test(String(e?.message || e))) throw new Error("PAS_ACTIVE"); throw e; }
+  return chemin;
+}
 
 type Rub = "accueil" | "profil" | "candidature" | "dispos" | "planning" | "missions" | "evenements" | "invitations" | "presences" | "interventions" | "remunerations" | "documents" | "messages" | "formations" | "charte" | "signalement" | "menu";
 const RUBRIQUES: [Rub, string, string][] = [
@@ -91,7 +107,11 @@ export default function EspaceHoteBSH({ apercuHote }: { apercuHote?: string }) {
       <div style={{ ...carte }}><div style={{ fontSize: 12, color: BSH.doux }}>Total prévu</div><div style={{ fontFamily: SERIF, fontSize: 30, color: BSH.orClair }}>{tot.toFixed(2).replace(".", ",")} €</div><div style={{ fontSize: 12, color: BSH.alerte, marginTop: 4 }}>Montants indicatifs en simulation : aucun paiement n'est effectué tant que votre statut, vos documents et l'autorisation de la fondatrice ne sont pas validés.</div></div>
       {r.map((x: any) => <div key={x.id} style={{ ...carte, display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ fontSize: 14 }}>{x.libelle}</span><span style={{ whiteSpace: "nowrap" }}>{Number(x.montant).toFixed(2).replace(".", ",")} € {puce(x.simulation ? "simulation" : x.statut, x.simulation ? BSH.doux : BSH.ok)}</span></div>)}</>; }
     case "documents": return <>{titre("Documents et contrats")}{d.documents.filter((x: any) => x.hote_id === h.id).map((x: any) => <div key={x.id} style={{ ...carte, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div><b style={{ fontSize: 14 }}>{x.titre}</b><div>{puce({ a_fournir: "À fournir", a_signer: "À signer", recu: "Reçu", signe: "Signé", valide: "Validé", expire: "Expiré" }[x.statut as string] || x.statut, ["signe", "valide", "recu"].includes(x.statut) ? BSH.ok : BSH.alerte)}</div></div>
-      {["a_fournir", "a_signer"].includes(x.statut) && <label style={{ ...bouton(true), display: "inline-flex", alignItems: "center" }}>{x.statut === "a_signer" ? "Signer" : "Envoyer"}<input type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={() => { if (!d.simulation) return avertir("La transmission sécurisée des documents n'est pas encore branchée : remettez ce document directement à la fondatrice."); maj("documents", l => l.map(y => y.id === x.id ? { ...y, statut: "recu" } : y)); avertir("Document reçu (simulation : rien n'est envoyé)."); }} /></label>}</div>)}
+      {["a_fournir", "a_signer"].includes(x.statut) && <label style={{ ...bouton(true), display: "inline-flex", alignItems: "center" }}>{x.statut === "a_signer" ? "Signer" : "Envoyer"}<input type="file" accept="image/jpeg,image/png,image/heic,image/heif,image/webp,application/pdf" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+        if (d.simulation) { maj("documents", l => l.map(y => y.id === x.id ? { ...y, statut: "recu" } : y)); return avertir("Document reçu (simulation : rien n'est envoyé)."); }
+        avertir("Envoi sécurisé en cours…");
+        try { const chemin = await transmettreDocument(h.id, x.id, f); maj("documents", l => l.map(y => y.id === x.id ? { ...y, statut: "recu", storage_path: chemin } : y)); avertir("✅ Document transmis à la fondatrice, de façon privée."); }
+        catch (err: any) { avertir(err?.message === "PAS_ACTIVE" ? "La transmission sécurisée n'est pas encore activée : remettez ce document directement à la fondatrice." : "❌ " + String(err?.message || err)); } }} /></label>}</div>)}
       <div style={{ fontSize: 12, color: BSH.doux }}>Vos documents sont conservés dans un espace privé visible uniquement par la fondatrice.</div></>;
     case "messages": return <Messages d={d} h={h} maj={maj} />;
     case "formations": return <>{titre("Mes formations")}{FORMATIONS.map(f => <details key={f.cle} style={carte}><summary style={{ cursor: "pointer", fontWeight: 800 }}>🎓 {f.titre} <span style={{ color: BSH.doux, fontWeight: 400, fontSize: 12 }}>· {f.duree}</span></summary><ul style={{ margin: "8px 0 0", paddingLeft: 18, color: BSH.texte, fontSize: 14, lineHeight: 1.6 }}>{f.points.map(p => <li key={p}>{p}</li>)}</ul></details>)}</>;

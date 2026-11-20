@@ -1,0 +1,11 @@
+1 hôte dépose dans son dossier pour un document demandé | t
+2 dépôt dans le dossier d'un autre hôte refusé | t
+3 dépôt pour un document déjà validé refusé | t
+4 dépôt hors dossier hôtes refusé | t
+5 personne non hôte refusée | t
+6 enregistrement du dépôt par l'hôte | t
+7 statut passé à « reçu » avec chemin | t
+8 second dépôt sur un document reçu refusé | t
+9 enregistrer le document d'un autre hôte refusé | t
+10 chemin sans fichier réellement reçu refusé | t
+11 chemin avec ../ refusé | t
