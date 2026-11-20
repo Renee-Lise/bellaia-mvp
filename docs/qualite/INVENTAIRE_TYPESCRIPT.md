@@ -68,3 +68,12 @@ Par module (code chargé) :
 6. **Objectif** : vérification TypeScript sans erreur, puis activation de la vérification au build.
 
 Suivi : relancer `npx tsc --noEmit -p . | grep -c "error TS"` à chaque lot et noter le chiffre ici.
+
+## Suivi
+
+| Date | Lot | Erreurs | Vérification |
+|---|---|---|---|
+| 19/11 | Inventaire | 1 416 | — |
+| 20/11 | Lot 4 (partiel) : formulaires `useState({})` et props des composants partagés de `BellaiaApp.tsx` typés | **481** (`BellaiaApp.tsx` : 1 001 → 66) | JavaScript produit identique avant / après (`tests/iphone/t_js.js`) ; audit des boutons sans régression |
+
+Reste : 405 erreurs dans les anciens écrans Bella'Even's jamais chargés (lot 2 — archivage soumis à votre accord), 66 dans `BellaiaApp.tsx` (lot 3 : doublons `documents` / `vilo` à arbitrer, comparaisons, champs inconnus), 10 dans les routes Stripe désactivées (lot 1 — avant toute réactivation, avec votre accord).
