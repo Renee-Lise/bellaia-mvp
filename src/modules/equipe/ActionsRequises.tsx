@@ -13,6 +13,12 @@ import { deposerPrive, ouvrirPrive, nomFichierSur } from "./equipeLib";
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c", bleu: "#60a5fa" };
 const PRIO: Record<number, [string, string]> = { 1: ["Urgent", C.rouge], 2: ["Important", C.orange], 3: ["Quand possible", C.bleu], 4: ["Plus tard", C.doux] };
+// État détaillé (dernier « etat » inscrit dans l'historique) — distingue ce qui est réellement en service.
+export const ETATS: Record<string, [string, string]> = {
+  operationnel: ["Opérationnel", "#4ade80"], developpe_teste: ["Développé et testé", "#60a5fa"], previsualisation: ["En prévisualisation", "#c9a96e"],
+  attente_migration: ["En attente de migration", "#a78bfa"], attente_validation: ["En attente de validation", "#fb923c"], bloque: ["Bloqué", "#f87171"],
+};
+export const etatDe = (a: any): string | null => { const h = Array.isArray(a?.historique) ? a.historique : []; for (let i = h.length - 1; i >= 0; i--) if (h[i]?.etat && ETATS[h[i].etat]) return h[i].etat; return null; };
 const STATUTS: [string, string][] = [["a_faire", "À faire"], ["en_cours", "En cours"], ["fait", "Fait"], ["reporte", "Reporté"]];
 const champ: React.CSSProperties = { background: "rgba(255,255,255,0.07)", border: `1px solid ${C.ligne}`, borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 16, fontFamily: SA, outline: "none", width: "100%", boxSizing: "border-box", minHeight: 42 };
 const btn = (fort = false, c = C.or): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, boxSizing: "border-box", minHeight: 40, padding: "8px 12px", borderRadius: 10, border: `1px solid ${fort ? c : C.ligne}`, background: fort ? `${c}22` : C.card, color: fort ? c : C.texte, fontSize: 13, fontWeight: 700, fontFamily: SA, cursor: "pointer" });
@@ -24,6 +30,7 @@ export default function ActionsRequises() {
   const [filtre, setFiltre] = useState<"ouvertes" | "toutes" | "faites">("ouvertes");
   const [univers, setUnivers] = useState("");
   const [prio, setPrio] = useState(0);
+  const [etatFiltre, setEtatFiltre] = useState("");
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [brouillon, setBrouillon] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState("");
@@ -38,7 +45,7 @@ export default function ActionsRequises() {
 
   const listeUnivers = useMemo(() => Array.from(new Set(actions.map(a => a.univers))).sort(), [actions]);
   const visibles = actions.filter(a =>
-    (filtre === "toutes" || (filtre === "faites" ? a.statut === "fait" : a.statut !== "fait")) && (!univers || a.univers === univers) && (!prio || a.priorite === prio));
+    (filtre === "toutes" || (filtre === "faites" ? a.statut === "fait" : a.statut !== "fait")) && (!univers || a.univers === univers) && (!prio || a.priorite === prio) && (!etatFiltre || etatDe(a) === etatFiltre));
   const titreDe = (cle: string) => actions.find(x => x.cle === cle)?.titre || cle;
   const bloquePar = (a: any) => (a.depend_de || []).filter((c: string) => actions.some(x => x.cle === c && x.statut !== "fait"));
   const joindre = async (a: any, f?: File) => {
@@ -89,6 +96,9 @@ export default function ActionsRequises() {
         <select style={{ ...champ, width: "auto", minWidth: 140 }} value={prio} onChange={e => setPrio(Number(e.target.value))}>
           <option value={0}>Toutes priorités</option>{[1, 2, 3, 4].map(p => <option key={p} value={p}>{PRIO[p][0]}</option>)}
         </select>
+        <select aria-label="État" style={{ ...champ, width: "auto", minWidth: 170 }} value={etatFiltre} onChange={e => setEtatFiltre(e.target.value)}>
+          <option value="">Tous les états</option>{Object.entries(ETATS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+        </select>
       </div>
       {msg && <div style={{ fontSize: 13, color: msg.startsWith("❌") ? C.rouge : C.ok }}>{msg}</div>}
       {charge && <div style={{ color: C.doux }}>Chargement…</div>}
@@ -104,6 +114,7 @@ export default function ActionsRequises() {
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: C.or, textTransform: "uppercase" }}>{a.univers}</span>
                 <span style={{ fontSize: 11, fontWeight: 800, color: pc, border: `1px solid ${pc}66`, borderRadius: 99, padding: "1px 8px" }}>{pl}</span>
+                {(() => { const e = etatDe(a); return e ? <span style={{ fontSize: 11, fontWeight: 800, color: ETATS[e][1], background: `${ETATS[e][1]}1f`, borderRadius: 99, padding: "1px 8px" }}>{ETATS[e][0]}</span> : null; })()}
                 <span style={{ fontSize: 11, color: C.doux }}>{STATUTS.find(s => s[0] === a.statut)?.[1]}{a.reponse && a.statut !== "fait" ? " · réponse partielle" : ""}</span>
                 {a.date_limite && <span style={{ fontSize: 11, fontWeight: 800, color: new Date(a.date_limite) < new Date() && a.statut !== "fait" ? C.rouge : C.doux }}>⏰ {new Date(a.date_limite + "T12:00").toLocaleDateString("fr-FR")}</span>}
                 {bloquePar(a).length > 0 && <span style={{ fontSize: 11, color: C.doux }}>🔗 après {bloquePar(a).length} action(s)</span>}
