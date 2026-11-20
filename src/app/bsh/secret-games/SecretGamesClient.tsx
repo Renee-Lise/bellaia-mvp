@@ -124,14 +124,30 @@ export default function SecretGamesClient({
     } catch {}
   }, []);
 
+  // Robustesse : coupure réseau signalée (sans perdre la partie), resynchronisation
+  // immédiate au retour du réseau, sortie propre si la partie n'existe plus.
+  const [horsLigne, setHorsLigne] = useState(false);
   const rafraichirPartie = useCallback(async (p: { code: string; participantId: string } | null) => {
     if (!p) return;
     try {
       const res = await fetch(`/api/bsh/parties/etat?code=${encodeURIComponent(p.code)}&participantId=${encodeURIComponent(p.participantId)}`, { cache: "no-store" });
-      const d = await res.json();
+      const d = await res.json().catch(() => ({}));
+      setHorsLigne(false);
       if (res.ok) setPartieEtat(d);
-    } catch {}
+      else if (res.status === 404 || res.status === 403) {
+        setPartie(null); setPartieEtat(null);
+        try { localStorage.removeItem("bsh_partie_active"); } catch {}
+        setPartieErreur(res.status === 404 ? "Cette partie n'existe plus ou a été fermée." : "Vous ne faites plus partie de cette partie.");
+      }
+    } catch { setHorsLigne(true); }
   }, []);
+
+  useEffect(() => {
+    if (!partie) return;
+    const retour = () => rafraichirPartie(partie);
+    window.addEventListener("online", retour); document.addEventListener("visibilitychange", retour);
+    return () => { window.removeEventListener("online", retour); document.removeEventListener("visibilitychange", retour); };
+  }, [partie?.code, partie?.participantId, rafraichirPartie]);
 
   useEffect(() => {
     if (!partie) return;
@@ -185,8 +201,11 @@ export default function SecretGamesClient({
   };
 
   const quitterPartie = () => {
+    const p = partie;
     setPartie(null); setPartieEtat(null); setPartieErreur("");
     localStorage.removeItem("bsh_partie_active");
+    // Libère sa place côté serveur (les autres ne vous voient plus) ; sans effet bloquant si le réseau est coupé.
+    if (p) fetch("/api/bsh/parties/quitter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: p.code, participantId: p.participantId }), keepalive: true }).catch(() => {});
   };
 
   const tirerPartie = async (cat?: string) => {
@@ -428,6 +447,7 @@ export default function SecretGamesClient({
             {/* ── Jouer à plusieurs ── */}
             {!partie ? (
               <div>
+                {partiePanel === "off" && partieErreur && <p role="status" style={{ fontSize: 13, color: "#f5c27a", margin: "0 0 8px", textAlign: "center" }}>{partieErreur}</p>}
                 {partiePanel === "off" && !carte && (
                   <button onClick={() => setPartiePanel("menu")} style={{ ...boutonFin, width: "100%", color: M.accent }}>👥 Jouer à plusieurs</button>
                 )}
@@ -474,6 +494,7 @@ export default function SecretGamesClient({
                     </span>
                   ))}
                 </div>
+                {horsLigne && <p role="status" style={{ fontSize: 13, color: "#f5c27a", margin: 0, textAlign: "center" }}>Connexion interrompue — la partie est conservée, reconnexion automatique…</p>}
                 <a href={bshWaLink(`Rejoins ma partie BSH Secret Games avec le code ${partie.code} !`)} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize: 13, color: "#25d366", textDecoration: "none" }}>💬 Inviter par WhatsApp</a>
                 {partieErreur && <p style={{ fontSize: 13, color: "#f19a9a", margin: 0, textAlign: "center" }}>{partieErreur}</p>}

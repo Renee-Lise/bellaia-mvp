@@ -37,6 +37,7 @@ http.createServer(async (q, r) => {
     let res;
     if (q.method === 'POST') { const b = await corps(q); const rows = (Array.isArray(b) ? b : [b]).map(x => ({ id: require('crypto').randomUUID(), created_at: new Date().toISOString(), rejoint_le: new Date().toISOString(), tour_actuel: 0, statut: 'en_cours', ...x })); MEM[t].push(...rows); res = rows; }
     else if (q.method === 'PATCH') { const b = await corps(q); res = MEM[t].filter(match); res.forEach(x => Object.assign(x, b)); }
+    else if (q.method === 'DELETE') { res = MEM[t].filter(match); MEM[t] = MEM[t].filter(x => !match(x)); }
     else { res = MEM[t].filter(match); if (u.searchParams.get('order')?.startsWith('tour.desc')) res = [...res].sort((a, b) => b.tour - a.tour); }
     const l = u.searchParams.get('limit'); if (l) res = res.slice(0, +l);
     r.writeHead(200, h2); return r.end(JSON.stringify(obj ? (res[0] || null) : res));
@@ -52,6 +53,7 @@ http.createServer(async (q, r) => {
   else if (t === 'stocks' && q.method === 'PATCH' && role === 'fondatrice') { const b = await corps(q); const id = (u.searchParams.get('id') || '').replace('eq.', ''); ECRITURES.push({ id, ...b }); const row = (STOCKS_BSH || []).find(x => x.id === id); if (row) Object.assign(row, b); out = row ? [row] : []; }
   else if (t === 'stocks' && STOCKS_BSH) out = role === 'fondatrice' ? STOCKS_BSH : [];
   else if (t === '__ecritures') out = ECRITURES;
+  else if (t === '__vider_parties') { MEM.bsh_parties = []; MEM.bsh_parties_participants = []; MEM.bsh_parties_tirages = []; out = { ok: true }; }
   else if (t === 'stocks') out = role === 'fondatrice' ? ['514038001020', '597218003020', '501001', '999999999999'].map(r => ({ notes: 'Import Concorde Pro — Réf ' + r + ' — test' })) : [];
   else if (t === 'client_mes_dossiers_events') out = [];
   else if (t.startsWith('ss_') || t === 'rpc') out = [];
