@@ -1,0 +1,16 @@
+const { chromium, devices } = require('playwright');
+const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('base64url'); return `${b({ alg: 'HS256' })}.${b({ role: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 7200 })}.x`; };
+(async () => { const out = process.argv[2]; const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 13'] }); const id = '00000000-0000-0000-0000-0000000000f0';
+  await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id, role: 'fondatrice', prenom: 'Renée-Lise' }, jwt(id)]);
+  const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
+  await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 120000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await p.waitForTimeout(2500);
+  await p.evaluate(() => { const e = [...document.querySelectorAll('span,button,div')].find(x => x.textContent.trim() === '📦Stocks' || x.textContent.trim() === 'Stocks'); e && e.click(); }); await p.waitForTimeout(2000); console.log((await p.evaluate(() => document.body.innerText)).slice(0, 300).replace(/\n/g, ' / '));
+  const cat = p.locator('button:text-is("Catalogue")'); if (await cat.count()) await cat.first().click(); else await p.locator('text=Catalogue').first().click();
+  await p.waitForTimeout(3000);
+  const t = await p.evaluate(() => document.body.innerText);
+  console.log('badges brouillon :', (t.match(/Brouillon — manque[^\n]*/g) || []).join(' | '));
+  console.log('filtre :', (t.match(/Brouillons incomplets \(\d+\)/) || [''])[0]);
+  await p.locator('text=/Brouillons incomplets/').click(); await p.waitForTimeout(800);
+  console.log('après filtre :', (await p.evaluate(() => document.body.innerText.match(/\d+ produits?/)?.[0])));
+  await p.screenshot({ path: out + '/catalogue_brouillons.png' }); console.log('erreurs JS', err.length);
+  await b.close(); })();

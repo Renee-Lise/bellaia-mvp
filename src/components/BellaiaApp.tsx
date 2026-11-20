@@ -632,7 +632,7 @@ function useStore(key, init) {
 // ── Btn — Bouton universel (remplace Btn, BBtn, OBtn) ────────
 // v: primary|gold|ghost|danger|success|warning|outline
 // sz: sm|md|lg   full: pleine largeur   loading: spinner inline
-const Btn = ({onClick, children, v="primary", sz="md", full=false, disabled=false, loading=false}) => {
+const Btn = ({onClick, children, v="primary", sz="md", full=false, disabled=false, loading=false}: any) => {
   const base = {
     cursor:disabled||loading?"not-allowed":"pointer",
     borderRadius:R.md,fontFamily:SA,fontWeight:T.w.bold,
@@ -665,7 +665,7 @@ const Btn = ({onClick, children, v="primary", sz="md", full=false, disabled=fals
 };
 
 // ── Inp — Input universel ────────────────────────────────────
-const Inp = ({value, onChange, placeholder, type="text", rows, icon, error}) => {
+const Inp = ({value, onChange, placeholder, type="text", rows, icon, error}: any) => {
   const base = {
     width:"100%",background:B.surface,
     border:"1px solid "+(error?B.danger:B.border),
@@ -696,7 +696,7 @@ const Inp = ({value, onChange, placeholder, type="text", rows, icon, error}) => 
 // ailleurs) OU un tableau d'objets {value,label} (nécessaire quand la
 // valeur stockée et le texte affiché doivent différer, ex. un id de
 // modèle vs son libellé).
-const Sel = ({value, onChange, options}) => (
+const Sel = ({value, onChange, options}: any) => (
   <select value={value} onChange={onChange}
     style={{width:"100%",background:B.surface,border:"1px solid "+B.border,borderRadius:R.md,padding:"9px 12px",color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,boxSizing:"border-box"}}>
     {options.map(o=>{
@@ -708,7 +708,7 @@ const Sel = ({value, onChange, options}) => (
 );
 
 // ── Fld — Champ labelisé ─────────────────────────────────────
-const Fld = ({label, children, required=false}) => (
+const Fld = ({label, children, required=false}: any) => (
   <div style={{marginBottom:14}}>
     <label style={{fontSize:T.xs,fontWeight:T.w.bold,color:B.mutedL,letterSpacing:"0.07em",textTransform:"uppercase",display:"block",marginBottom:5}}>
       {label}{required&&<span style={{color:B.danger,marginLeft:2}}>*</span>}
@@ -719,7 +719,7 @@ const Fld = ({label, children, required=false}) => (
 
 // ── Card — Carte universelle ─────────────────────────────────
 // accent: false|"violet"|"gold"|couleur hex
-const Card = ({children, accent=false, hover=false, glow=false, style:s={}}) => {
+const Card = ({children, accent=false, hover=false, glow=false, style:s={}}: any) => {
   const borderTop = accent==="gold"?"3px solid "+B.gold:accent==="violet"?"3px solid "+B.violet:accent&&accent!==false?"3px solid "+accent:"none";
   return (
     <div style={{
@@ -733,7 +733,7 @@ const Card = ({children, accent=false, hover=false, glow=false, style:s={}}) => 
 };
 
 // ── SH — Section Header ──────────────────────────────────────
-const SH = ({t, s, action}) => (
+const SH = ({t, s, action}: any) => (
   <div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
     <div>
       <h2 style={{margin:0,fontSize:T.xl,fontWeight:T.w.black,color:B.cream,fontFamily:FS,letterSpacing:"-0.02em"}}>{t}</h2>
@@ -744,31 +744,31 @@ const SH = ({t, s, action}) => (
 );
 
 // ── Bdg — Badge statut (conservé, utilise sCo) ───────────────
-const Bdg = ({s}) => { const c = sCo(s); return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:R.full,background:c.bg,color:c.t,fontSize:T.xs,fontWeight:T.w.bold,whiteSpace:"nowrap",letterSpacing:"0.04em"}}>{s}</span>; };
+const Bdg = ({s}: any) => { const c = sCo(s); return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:R.full,background:c.bg,color:c.t,fontSize:T.xs,fontWeight:T.w.bold,whiteSpace:"nowrap",letterSpacing:"0.04em"}}>{s}</span>; };
 
 // ── Tag — Tag coloré générique ───────────────────────────────
-const Tag = ({color=B.violet, children, sz=9}) => (
+const Tag = ({color=B.violet, children, sz=9}: any) => (
   <span style={{background:color+"22",border:"1px solid "+color+"55",color,borderRadius:3,padding:"2px 8px",fontSize:sz,fontWeight:T.w.bold,whiteSpace:"nowrap"}}>
     {children}
   </span>
 );
 
 // ── PBar — Barre de progression ──────────────────────────────
-const PBar = ({v, col}) => (
+const PBar = ({v, col}: any) => (
   <div style={{height:5,background:"rgba(255,255,255,0.07)",borderRadius:R.full,overflow:"hidden"}}>
     <div style={{height:"100%",width:Math.min(v||0,100)+"%",background:"linear-gradient(90deg,"+(col||B.violet)+","+B.violetL+")",borderRadius:R.full,transition:"width 0.5s ease"}}/>
   </div>
 );
 
 // ── Loader — Spinner universel ───────────────────────────────
-const Loader = ({size=24, color=B.violet}) => (
+const Loader = ({size=24, color=B.violet}: any) => (
   <div style={{display:"flex",justifyContent:"center",alignItems:"center",padding:20}}>
     <div style={{width:size,height:size,border:"2px solid rgba(255,255,255,0.1)",borderTopColor:color,borderRadius:"50%",animation:"ds-spin 0.7s linear infinite"}}/>
   </div>
 );
 
 // ── Stat — Carte statistique ─────────────────────────────────
-const Stat = ({label, value, sub, color=B.violetL, ico}) => (
+const Stat = ({label, value, sub, color=B.violetL, ico}: any) => (
   <div style={{background:B.card,border:"1px solid "+B.border,borderRadius:R.lg,padding:"14px 16px"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
       <span style={{fontSize:T.xs,fontWeight:T.w.bold,color:B.muted,textTransform:"uppercase",letterSpacing:"0.07em"}}>{label}</span>
@@ -780,7 +780,7 @@ const Stat = ({label, value, sub, color=B.violetL, ico}) => (
 );
 
 // ── Toast — Notification inline ──────────────────────────────
-const Toast = ({type="success", message, onClose}) => {
+const Toast = ({type="success", message, onClose}: any) => {
   const cfg = {
     success:{bg:B.successG,border:"1px solid rgba(110,231,160,0.3)",color:B.success,ico:"✓"},
     error:  {bg:B.dangerG, border:"1px solid rgba(248,113,113,0.3)",color:B.danger, ico:"✕"},
@@ -798,7 +798,7 @@ const Toast = ({type="success", message, onClose}) => {
 };
 
 // ── Mdl — Modale universelle (bottom sheet mobile) ───────────
-function Mdl({title, onClose, children, wide=false}) {
+function Mdl({title, onClose, children, wide=false}: any) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(6,4,12,0.88)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(4px)"}}
       onClick={onClose}>
@@ -823,24 +823,24 @@ function Mdl({title, onClose, children, wide=false}) {
 
 // ── Compatibilité : alias pour les portails existants ────────
 // (évite de renommer chaque appel dans le code métier)
-const BBtn = ({children, v="ghost", sz="md", onClick, full=false, disabled=false}) => {
+const BBtn = ({children, v="ghost", sz="md", onClick, full=false, disabled=false}: any) => {
   const vMap = {gold:"gold",bord:"primary",ghost:"ghost",danger:"danger"};
   return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full} disabled={disabled}>{children}</Btn>;
 };
-const BCard = ({children, accent=false, style:s={}}) => (
+const BCard = ({children, accent=false, style:s={}}: any) => (
   <div style={{background:BSH.verre,border:"1px solid "+BSH.line,borderRadius:R.lg,padding:"14px 16px",
     borderTop:accent?"3px solid "+BSH.bord:"1px solid "+BSH.line,...s}}>{children}</div>
 );
-const BTag = ({c=BSH.bord, children, sz=9}) => <Tag color={c} sz={sz}>{children}</Tag>;
-const OCard = ({children, accent=false, style:s={}}) => (
+const BTag = ({c=BSH.bord, children, sz=9}: any) => <Tag color={c} sz={sz}>{children}</Tag>;
+const OCard = ({children, accent=false, style:s={}}: any) => (
   <div style={{background:BO.verre,border:"1px solid "+BO.line,borderRadius:R.lg,padding:"14px 16px",
     borderTop:accent?"3px solid "+BO.acc:"1px solid "+BO.line,...s}}>{children}</div>
 );
-const OBtn = ({children, v="ghost", sz="md", onClick, full=false}) => {
+const OBtn = ({children, v="ghost", sz="md", onClick, full=false}: any) => {
   const vMap = {primary:"primary",gold:"gold",ghost:"ghost"};
   return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full}>{children}</Btn>;
 };
-const OTag = ({c=BO.acc, children, sz=9}) => <Tag color={c} sz={sz}>{children}</Tag>;
+const OTag = ({c=BO.acc, children, sz=9}: any) => <Tag color={c} sz={sz}>{children}</Tag>;
 
 // ── Keyframes globaux (injectés une seule fois) ──────────────
 if (typeof document !== "undefined" && !document.getElementById("ds-keyframes")) {
@@ -876,7 +876,7 @@ const UNIVERS = [
 ];
 
 
-function FAQItem({q, r}) {
+function FAQItem({q, r}: any) {
   const [open, setOpen] = useState(false);
   return (
     <div>
@@ -1518,7 +1518,7 @@ function BSHMembersAdmin({ user }: { user: any }) {
 }
 
 
-function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
+function ClientBSH({produits, evenements, onBack, onNewCommande, user}: any) {
   const [gate, setGate] = useState(false);
   const [page, setPage] = useState("accueil");
   const [cart, setCart] = useState([]);
@@ -2081,7 +2081,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}) {
 // ═══════════════════════════════════════════════════════════
 // ── ESPACE CLIENT BELLA'ODYSSÉE
 // ═══════════════════════════════════════════════════════════
-function ClientOdyssee({user, rdvs, onBack}) {
+function ClientOdyssee({user, rdvs, onBack}: any) {
   const mineur = estMineur(user?.date_naissance);
   const ageClient = calcAge(user?.date_naissance);
   const [page, setPage] = useState("accueil");
@@ -2420,7 +2420,7 @@ function ClientOdyssee({user, rdvs, onBack}) {
 // ═══════════════════════════════════════════════════════════
 // PORTAIL CLIENT VILO'ASSISTANCE
 // ═══════════════════════════════════════════════════════════
-function ClientVilo({ user, onBack }) {
+function ClientVilo({ user, onBack }: any) {
   const [page,     setPage]     = React.useState("accueil");
   const [form,     setForm]     = React.useState({type:"Aide ménagère", adresse:"", date:"", heure:"", detail:""});
   const [envoi,    setEnvoi]    = React.useState(false);
@@ -2649,7 +2649,7 @@ function ClientVilo({ user, onBack }) {
 // ═══════════════════════════════════════════════════════════
 // PORTAIL CLIENT BELLA'STUDIO ÉDITIONS
 // ═══════════════════════════════════════════════════════════
-function ClientEditions({ user, onBack }) {
+function ClientEditions({ user, onBack }: any) {
   const [page,    setPage]    = React.useState("catalogue");
   const [commandes,setCommandes]=React.useState([]);
   const acc = "#6366f1";
@@ -2774,7 +2774,7 @@ function HistoiresClientLazy() {
   return Comp ? <Comp/> : <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:30,fontSize:12}}>Chargement…</div>;
 }
 
-function ClientMoTiPeyi({ user, onBack }) {
+function ClientMoTiPeyi({ user, onBack }: any) {
   const [page,     setPage]     = React.useState("catalogue");
   const [commandes,setCommandes]= React.useState([]);
   const [modal,    setModal]    = React.useState(null);
@@ -2968,7 +2968,7 @@ function ClientMoTiPeyi({ user, onBack }) {
 // COMPOSANT RÉUTILISABLE — EcranPaiement
 // Utilisé par ClientFood, ClientEvents (PortailSuiviClient), BSH, Odyssée...
 // ═══════════════════════════════════════════════════════════
-function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
+function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }: any) {
   const [payMode,    setPayMode]   = React.useState(null);
   const [payLoading, setPayLoading]= React.useState(false);
   const [paySucces,  setPaySucces] = React.useState(null);
@@ -3114,7 +3114,7 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }) {
 // PORTAIL CLIENT BELLA'FOOD
 // Catalogue · Commande · Suivi · Facture · Paiement
 // ═══════════════════════════════════════════════════════════
-function ClientFood({ user, onBack }) {
+function ClientFood({ user, onBack }: any) {
   const [page,      setPage]     = React.useState("catalogue");
   const [commandes, setCommandes]= React.useState([]);
   const [panier,    setPanier]   = React.useState([]);
@@ -3123,7 +3123,7 @@ function ClientFood({ user, onBack }) {
   // change aucun prix (les 4 bases partagent les mêmes tarifs de
   // garniture déjà validés). Map produitId -> baseId, remise à zéro
   // à chaque session — un choix par visite, pas persistant.
-  const [baseFritesChoisie, setBaseFritesChoisie] = React.useState({});
+  const [baseFritesChoisie, setBaseFritesChoisie] = React.useState<any>({});
   // Clé anti-double-envoi : générée une fois par tentative de
   // commande, réutilisée telle quelle si l'utilisatrice retape sur
   // "Envoyer" (double clic, retry réseau), remise à zéro seulement
@@ -3595,7 +3595,7 @@ function ClientFood({ user, onBack }) {
   );
 }
 
-function PlaceholderUnivers({univers, onBack}) {
+function PlaceholderUnivers({univers, onBack}: any) {
   const u = UNIVERS.find(x => x.id === univers);
   if (!u) return null;
   return (
@@ -3820,7 +3820,7 @@ function getToken() {
 }
 
 
-async function sbGet(table, params = {}) {
+async function sbGet(table, params: any = {}) {
   const { select = "*", filters = {}, order = "created_at.desc", limit = 100 } = params;
   const token = await getTokenAsync();
   let url = (SB_URL)+"/rest/v1/"+(table)+"?select="+(encodeURIComponent(select));
@@ -4303,7 +4303,7 @@ function useP1Data(table, params, deps = []) {
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD FONDATRICE — Vue centrale professionnelle
 // ═══════════════════════════════════════════════════════════
-function DashF({ user, goto }) {
+function DashF({ user, goto }: any) {
   const [kpis, setKpis] = useState({
     ca_mois:0, encaisse_mois:0, en_attente:0, nb_retard:0,
     nb_clientes:0, nb_prospects:0, nb_vip:0, depenses_mois:0
@@ -4492,7 +4492,7 @@ function DashF({ user, goto }) {
 // ═══════════════════════════════════════════════════════════
 // FICHE CLIENT COMPLÈTE — Historique chronologique complet
 // ═══════════════════════════════════════════════════════════
-function FicheClientF({ client, onClose }) {
+function FicheClientF({ client, onClose }: any) {
   const [ong, setOng] = useState("apercu");
   const [invoices, setInvoices]   = useState([]);
   const [quotes, setQuotes]       = useState([]);
@@ -4693,7 +4693,7 @@ function ActivitesCrmF() {
   const [activites, setActivites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
 
   const TYPES_ACT = ["appel","email","rdv","devis","commande","paiement","relance","note","autre"];
 
@@ -4785,10 +4785,10 @@ function ActivitesCrmF() {
   );
 }
 
-function CrmF({ user }) {
+function CrmF({ user }: any) {
   const [ong, setOng] = useState("clients");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [ficheClient, setFicheClient] = useState(null); // FicheClientF ouverte
   const [search, setSearch] = useState("");
   const [poles, setPoles] = useState([]);
@@ -5046,10 +5046,10 @@ function CrmF({ user }) {
 // ═══════════════════════════════════════════════════════════
 // FINANCES — Phase 1 Supabase
 // ═══════════════════════════════════════════════════════════
-function FinancesP1({ user }) {
+function FinancesP1({ user }: any) {
   const [ong, setOng] = useState("factures");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [clients, setClients] = useState([]);
 
   const { data: invoices, loading: lInv, reload: rInv } = useP1Data("invoices", { select: "*", order: "date_emission.desc", limit: 100 }, []);
@@ -5443,7 +5443,7 @@ function FinancesP1({ user }) {
 // ═══════════════════════════════════════════════════════════
 // NOTIFICATIONS — Centre de notifications fondatrice
 // ═══════════════════════════════════════════════════════════
-function NotificationsF({ user }) {
+function NotificationsF({ user }: any) {
   const { data: notifs, loading, reload } = useP1Data("notifications", { select:"*", order:"created_at.desc", limit:100 }, []);
   const { data: clientsNotif } = useP1Data("clients", { select:"id,nom,prenom,tel,email", order:"nom.asc", limit:500 }, []);
   const CANAUX = ["tous","interne","email","whatsapp","sms"];
@@ -5457,7 +5457,7 @@ function NotificationsF({ user }) {
   };
   const ICO_CANAL = { interne:"🔔", email:"✉️", whatsapp:"💬", sms:"📱" };
   const [filtre, setFiltre] = useState("tous");
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [modal, setModal] = useState(false);
 
   const affichees = notifs.filter(n => filtre==="tous" || n.canal===filtre);
@@ -5621,9 +5621,9 @@ function NotificationsF({ user }) {
 // ═══════════════════════════════════════════════════════════
 // PLANNING HORAIRES — Configuration des plages par pôle
 // ═══════════════════════════════════════════════════════════
-function PlanningHorairesF({ user }) {
+function PlanningHorairesF({ user }: any) {
   const { data: horaires, loading, reload } = useP1Data("planning_horaires", { select:"*", order:"pole.asc,jour_semaine.asc", limit:100 }, []);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [modal, setModal] = useState(false);
   const JOURS = ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
   const POLES_H = ["GENERAL","ODYSSEE","EVENTS","FOOD","BSH","VILO","STRUCTURE"];
@@ -5710,9 +5710,9 @@ function PlanningHorairesF({ user }) {
 // Distinct de CalendrierP1 (agenda général) — celui-ci est
 // alimenté par planning_events avec détection de conflits.
 // ═══════════════════════════════════════════════════════════
-function PlanningCentralF({ user }) {
+function PlanningCentralF({ user }: any) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [filtrePole, setFiltrePole] = useState("tous");
   const [conflitApercu, setConflitApercu] = useState(null);
   const [ongletPlanning, setOngletPlanning] = useState("calendrier");
@@ -6045,9 +6045,9 @@ function PlanningCentralF({ user }) {
 // ═══════════════════════════════════════════════════════════
 // CALENDRIER — Phase 1 Supabase + compte à rebours
 // ═══════════════════════════════════════════════════════════
-function CalendrierP1({ user }) {
+function CalendrierP1({ user }: any) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
@@ -6175,7 +6175,7 @@ function CalendrierP1({ user }) {
 // ═══════════════════════════════════════════════════════════
 // DOCUMENTS — Phase 1 Supabase
 // ═══════════════════════════════════════════════════════════
-function DocumentsP1({ user }) {
+function DocumentsP1({ user }: any) {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState<any>({});
   const [filtre, setFiltre] = useState("tous");
@@ -6336,8 +6336,8 @@ function DocumentsP1({ user }) {
 // MODULES EXISTANTS — conservés intégralement
 // ═══════════════════════════════════════════════════════════
 
-function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,evenements,setEvenements}) {
-  const[sec,setSec]=useState("dash");const[modal,setModal]=useState(null);const[form,setForm]=useState({});
+function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,evenements,setEvenements}: any) {
+  const[sec,setSec]=useState("dash");const[modal,setModal]=useState(null);const[form,setForm]=useState<any>({});
   const[detailCmd,setDetailCmd]=useState(null);
   const majStatut=async(cmd,nouveauStatut)=>{
     setCommandes(p=>p.map(x=>x.id===cmd.id?{...x,statut:nouveauStatut}:x));
@@ -6930,7 +6930,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   // (notes_fondatrice, colonne déjà présente depuis la 0016 mais jamais
   // utilisée côté UI) explique le refus/l'approbation pour soi-même,
   // jamais visible par qui que ce soit d'autre.
-  const [noteTheme, setNoteTheme] = useState({});
+  const [noteTheme, setNoteTheme] = useState<any>({});
   const modererTheme = async (t, statut) => {
     const notes_fondatrice = (noteTheme[t.id] ?? t.notes_fondatrice) || null;
     const res = await sbPatch("bsh_jeux_themes", t.id, { statut, notes_fondatrice, moderee_le: new Date().toISOString() });
@@ -7808,7 +7808,7 @@ function IdentiteVisuelleWrapper() {
 
 
 
-function IAF({ user, bshCmds, bshProduits }) {
+function IAF({ user, bshCmds, bshProduits }: any) {
   const [msgs, setMsgs] = useState([{
     role: "assistant",
     content: "Bonjour Renée-Lise ✦ Je suis Bellaïa, votre assistante. Je peux analyser vos données, résumer votre activité, rédiger des messages, préparer des devis et détecter les urgences. Comment puis-je vous aider ?"
@@ -8021,7 +8021,7 @@ function IAF({ user, bshCmds, bshProduits }) {
 }
 
 
-function EcranConnexion({ onConnecte }) {
+function EcranConnexion({ onConnecte }: any) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -8636,7 +8636,7 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande, in
 // HoteOdyssee — Espace Talent / Technicienne beauté
 // Planning · Missions · Contrats · Paiements · Documents
 // ═══════════════════════════════════════════════════════════
-function HoteOdyssee({ user, onBack }) {
+function HoteOdyssee({ user, onBack }: any) {
   const [onglet, setOnglet] = React.useState("planning");
   const [missions, setMissions] = React.useState([]);
   const [loading,  setLoading]  = React.useState(false);
@@ -8854,7 +8854,7 @@ ${lignes.length>0?"<p><strong>Prestation :</strong> "+lignes.map(l=>l.libelle).j
 // Members, jamais fusionnés).
 // Profil · Missions · Documents
 // ═══════════════════════════════════════════════════════════
-function HoteBSH({ user, onBack }) {
+function HoteBSH({ user, onBack }: any) {
   const [onglet,   setOnglet]   = React.useState("missions");
   const [fiche,    setFiche]    = React.useState(null);
   const [missions, setMissions] = React.useState([]);
@@ -9136,7 +9136,7 @@ function HoteBSH({ user, onBack }) {
   );
 }
 
-function EspaceHote({ user, onLogout }) {
+function EspaceHote({ user, onLogout }: any) {
   const [ong, setOng] = useState("planning");
   const [missions, setMissions] = useState([]);
   const [contrats, setContrats] = useState([]);
@@ -9287,7 +9287,7 @@ function EspaceHote({ user, onLogout }) {
 // ═══════════════════════════════════════════════════════════
 // ESPACE PARTENAIRE — données isolées par user_id
 // ═══════════════════════════════════════════════════════════
-function EspacePartenaire({ user, onLogout }) {
+function EspacePartenaire({ user, onLogout }: any) {
   const [ong, setOng] = useState("collaborations");
   const [collabs, setCollabs] = useState([]);
   const [factures, setFactures] = useState([]);
@@ -9424,10 +9424,10 @@ function EspacePartenaire({ user, onLogout }) {
 // ═══════════════════════════════════════════════════════════
 // BIBLIOTHÈQUE ÉDITORIALE — Module complet Phase éditoriale
 // ═══════════════════════════════════════════════════════════
-function BibliothequeF({ user }) {
+function BibliothequeF({ user }: any) {
   const [ong, setOng] = useState("dashboard");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [projetActif, setProjetActif] = useState(null);
   const [tomeActif, setTomeActif] = useState(null);
   const [iaAction, setIaAction] = useState("");
@@ -9888,10 +9888,10 @@ function BibliothequeF({ user }) {
 // ═══════════════════════════════════════════════════════════
 // BELLA'STRUCTURE — Bibliothèque de modèles numériques
 // ═══════════════════════════════════════════════════════════
-function BellaStructureF({ user }) {
+function BellaStructureF({ user }: any) {
   const [ong, setOng] = useState("bibliotheque");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [search, setSearch] = useState("");
   const [filtCat, setFiltCat] = useState("tous");
 
@@ -10081,7 +10081,7 @@ const BE_FILTRES = ["Tous","Anniversaire","Baptême","Baby Shower","Communion","
 const BE_STATUTS_CMD = ["Demande reçue","Devis envoyé","Acompte reçu","En préparation","Livraison / Installation","Réalisé","Archivé","Annulé"];
 
 // ─── Composant éditeur de devis fondatrice ───────────────────
-function ModalGenerationDevis({ demande, user, onClose, onValide }) {
+function ModalGenerationDevis({ demande, user, onClose, onValide }: any) {
   // Lignes initiales : depuis lignes_devis sauvegardées, ou estimation automatique
   const lignesInit = React.useMemo(() => {
     if (demande.lignes_devis && Array.isArray(demande.lignes_devis) && demande.lignes_devis.length > 0) {
@@ -10371,7 +10371,7 @@ function useSwipeBack(onBack) {
   }, [onBack]);
 }
 
-function EventsProgrammeF({ user }) {
+function EventsProgrammeF({ user }: any) {
   const [vue, setVue] = useState("liste"); // "liste" | "compositeur"
   const [programmes, setProgrammes] = useState([]);
   const [lProg, setLProg] = useState(true);
@@ -10947,10 +10947,10 @@ function EventsProgrammeF({ user }) {
   );
 }
 
-function BellaEventsF({ user }) {
+function BellaEventsF({ user }: any) {
   const [ong, setOng] = useState("demandes");
   const [modalDevis, setModalDevis] = useState(false);
-  const [formDevis, setFormDevis] = useState({});
+  const [formDevis, setFormDevis] = useState<any>({});
   const [modalConflit, setModalConflit] = useState(null); // {demande, conflits, dateDebut, dateFin}
   const [modalDevisGen, setModalDevisGen] = useState(null); // demande → ouverture éditeur devis
   // Demandes reçues via le formulaire client (table events_demandes)
@@ -11283,11 +11283,11 @@ function BellaEventsF({ user }) {
 }
 
 
-function BellaEventsCatalogue({ user }) {
+function BellaEventsCatalogue({ user }: any) {
   const [filtre, setFiltre] = useState("Tous");
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const { data: items, reload } = useP1Data("events_catalogue", { select:"*", order:"ordre.asc", limit:200 }, []);
 
   const itemsFiltres = items.filter(i => {
@@ -11368,9 +11368,9 @@ function BellaEventsCatalogue({ user }) {
   );
 }
 
-function BellaEventsCommandes({ user }) {
+function BellaEventsCommandes({ user }: any) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const { data: cmds, reload } = useP1Data("events_commandes", { select:"*", order:"created_at.desc", limit:100 }, []);
 
   const CMD_COL = {
@@ -11459,9 +11459,9 @@ function BellaEventsCommandes({ user }) {
   );
 }
 
-function BellaEventsDocuments({ user }) {
+function BellaEventsDocuments({ user }: any) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const { data: docs, reload } = useP1Data("documents", { select:"*", filters:{pole:"EVENTS"}, order:"created_at.desc", limit:100 }, []);
 
   const TYPES_DOC = ["devis","contrat_location","contrat_prestation","facture","checklist","planning","fiche_client","cahier_charges","autre"];
@@ -11671,7 +11671,7 @@ function analyserDemandeClient({ prestation, message, theme, couleurs, nbInvites
 }
 
 // ─── Composant d'affichage de l'estimation automatique ───
-function LignesDevisAuto({ lignes, nbInvites }) {
+function LignesDevisAuto({ lignes, nbInvites }: any) {
   if (!lignes || lignes.length === 0) return null;
 
   const totalAuto = lignes
@@ -11758,7 +11758,7 @@ function normaliserStatut(s) {
 }
 
 // ─── Timeline de suivi partagée (utilisée dans la confirmation et le portail) ─
-function TimelineSuivi({ statutBrut, style }) {
+function TimelineSuivi({ statutBrut, style }: any) {
   const statutNorm = normaliserStatut(statutBrut || "nouvelle_demande");
   const idxActuel  = ETAPES_SUIVI.findIndex(e => e.statut === statutNorm);
   return (
@@ -11792,7 +11792,7 @@ function TimelineSuivi({ statutBrut, style }) {
 
 // ─── Portail "Suivre ma demande" (accessible depuis l'accueil Events) ───
 // ─── Vue devis côté client ──────────────────────────────────
-function DevisClientView({ dossier, onAccepte, onRefuse }) {
+function DevisClientView({ dossier, onAccepte, onRefuse }: any) {
   const lignes = React.useMemo(() => {
     if (!dossier.lignes_devis) return [];
     try {
@@ -11926,7 +11926,7 @@ td{padding:7px 4px;border-bottom:1px solid #e5e7eb}
 // Composants sous-portail client — Paiements + Documents
 // ═══════════════════════════════════════════════════════════
 
-function PaiementsClient({ dossiersIds, fmtPx, fmtDos }) {
+function PaiementsClient({ dossiersIds, fmtPx, fmtDos }: any) {
   const [paiements, setPaiements] = React.useState([]);
   const [loading,   setLoading]   = React.useState(false);
 
@@ -11979,7 +11979,7 @@ function PaiementsClient({ dossiersIds, fmtPx, fmtDos }) {
   );
 }
 
-function DocumentsClient({ dossiersRefs, fmtDos }) {
+function DocumentsClient({ dossiersRefs, fmtDos }: any) {
   const [docs,    setDocs]    = React.useState([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -12077,7 +12077,7 @@ async function rpcClient(fn, args) {
   } catch (e) { return { ok:false, data:null, error:e.message }; }
 }
 
-function PortailSuiviClient({ onBack, user }) {
+function PortailSuiviClient({ onBack, user }: any) {
   const [ref,        setRef]        = useState("");
   const [contact,    setContact]    = useState("");
   const [dossier,    setDossier]    = useState(null);
@@ -12699,7 +12699,7 @@ function PortailSuiviClient({ onBack, user }) {
   );
 }
 
-function ClientEvents({ onBack, onNewCommande }) {
+function ClientEvents({ onBack, onNewCommande }: any) {
   const [cat, setCat] = useState(null);
   const [suivi, setSuivi] = useState(false);
   const [modal, setModal] = useState(null);   // {prestation, type} → ouvre le formulaire
@@ -13218,7 +13218,7 @@ ${d?.total ? `<div style="text-align:right"><span class="total">Total estimé : 
 // ═══════════════════════════════════════════════════════════
 // PORTAIL CLIENT BELLA'STRUCTURE — Modèles numériques
 // ═══════════════════════════════════════════════════════════
-function ClientStructurePortail({ onBack }) {
+function ClientStructurePortail({ onBack }: any) {
   const [modal, setModal] = useState(null);
   const { data: modeles } = useP1Data("structure_modeles", { select:"*", filters:{statut:"publié",visible_client:true}, order:"categorie.asc,ordre.asc", limit:100 }, []);
 
@@ -13293,14 +13293,14 @@ function ClientStructurePortail({ onBack }) {
 // ═══════════════════════════════════════════════════════════
 // CATALOGUE IA — Photo → Fiche produit automatique
 // ═══════════════════════════════════════════════════════════
-function CatalogueIAF({ user, gotoEvents }) {
+function CatalogueIAF({ user, gotoEvents }: any) {
   const [etape, setEtape] = useState("accueil");
   const [imgB64, setImgB64] = useState(null);
   const [imgPreview, setImgPreview] = useState(null);
   const [imgType, setImgType] = useState("image/jpeg");
   const [analyse, setAnalyse] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [saved, setSaved] = useState(false);
 
   const CATS = ["Papeterie personnalisée","Créations personnalisées","Décoration événementielle",
@@ -13471,7 +13471,7 @@ function CatalogueIAF({ user, gotoEvents }) {
 // BOUTON PAIEMENT SUMUP — Composant principal
 // Toute logique sensible côté serveur (/api/payments/sumup)
 // ═══════════════════════════════════════════════════════════
-function BoutonSumup({ montant, description, commande_id, client_id, univers, disabled = false }) {
+function BoutonSumup({ montant, description, commande_id, client_id, univers, disabled = false }: any) {
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState(null);
 
@@ -13514,7 +13514,7 @@ function BoutonSumup({ montant, description, commande_id, client_id, univers, di
 }
 
 // Bouton WhatsApp paiement (fallback toujours disponible)
-function BoutonPaymentWhatsApp({ montant, description }) {
+function BoutonPaymentWhatsApp({ montant, description }: any) {
   return (
     <button onClick={()=>window.open(WA("Bonjour, je souhaite régler "+(montant)+"€ pour : "+(description)+". Merci de me communiquer les modalités de paiement."),"_blank")}
       style={{width:"100%",background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:10,padding:"12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"Inter,system-ui,sans-serif"}}>
@@ -13526,9 +13526,9 @@ function BoutonPaymentWhatsApp({ montant, description }) {
 // ═══════════════════════════════════════════════════════════
 // ERP PROJETS — Vue fondatrice
 // ═══════════════════════════════════════════════════════════
-function ErpProjetsF({ user }) {
+function ErpProjetsF({ user }: any) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [filtreStatut, setFiltreStatut] = useState("tous");
   const [filtreUnivers, setFiltreUnivers] = useState("tous");
 
@@ -13649,9 +13649,9 @@ function ErpProjetsF({ user }) {
 // ═══════════════════════════════════════════════════════════
 // ERP TÂCHES — Vue fondatrice
 // ═══════════════════════════════════════════════════════════
-function ErpTachesF({ user }) {
+function ErpTachesF({ user }: any) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [filtre, setFiltre] = useState("tous");
 
   const { data: taches, loading, reload } = useP1Data("v_erp_taches_urgentes", { select:"*", order:null, limit:100 }, []);
@@ -13734,13 +13734,13 @@ function ErpTachesF({ user }) {
 // ═══════════════════════════════════════════════════════════
 // STOCKS — Vue fondatrice tous pôles
 // ═══════════════════════════════════════════════════════════
-function StocksF({ user }) {
+function StocksF({ user }: any) {
   const [stocks, setStocks] = useState([]);
   const [filtreUnivers, setFiltreUnivers] = useState("tous");
   const [loading, setLoading] = useState(true);
   const [erreurChargement, setErreurChargement] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState<any>({});
   const [uploadEnCours, setUploadEnCours] = useState(false);
   const [erreurSauvegarde, setErreurSauvegarde] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
@@ -14062,7 +14062,7 @@ const groupeDe = (groupes: typeof NAV_GROUPES, page: string) => groupes.find(g =
 
 
 // Placeholder pôle fondatrice
-function PlaceholderModule({ ico, nom, desc }) {
+function PlaceholderModule({ ico, nom, desc }: any) {
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:300,gap:14,padding:"20px"}}>
       <div style={{fontSize:52}}>{ico}</div>
@@ -14080,7 +14080,7 @@ function PlaceholderModule({ ico, nom, desc }) {
 // Visualiser Bellaïa comme si on était un utilisateur final
 // Sans modifier les vraies données
 // ═══════════════════════════════════════════════════════════
-function ApercuUXF({ user, setPreview, setActiveUnivers }) {
+function ApercuUXF({ user, setPreview, setActiveUnivers }: any) {
   const [deviceMode, setDeviceMode] = useState("iphone");   // iphone | android | desktop
   const [contextActif, setContextActif] = useState(null);   // null = liste, sinon config aperçu
 

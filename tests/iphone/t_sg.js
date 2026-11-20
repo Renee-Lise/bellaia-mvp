@@ -1,0 +1,55 @@
+// Parcours complet BSH Secret Games sur iPhone (données simulées, aucune écriture réelle).
+const { chromium, devices } = require('playwright');
+(async () => {
+  const out = process.argv[2]; const b = await chromium.launch(); const R = [];
+  const ok = (n, v) => { R.push([n, v ? 'OK' : 'ÉCHEC']); };
+  const nouvelle = async () => { const ctx = await b.newContext({ ...devices['iPhone 13'] }); const p = await ctx.newPage(); p._err = []; p.on('pageerror', e => p._err.push(e.message));
+    await p.goto('http://localhost:3160/bsh/secret-games?depuis=app', { waitUntil: 'networkidle', timeout: 120000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
+    const e = p.locator("text=J'ai 18 ans ou plus"); if (await e.count()) await e.first().click(); await p.waitForTimeout(1200); return p; };
+  const A = await nouvelle();
+  await A.screenshot({ path: out + '/1_accueil.png' });
+  ok('3 jeux proposés', (await A.locator('button:has-text("Cap ou pas cap")').count()) > 0);
+  await A.locator('button:has-text("Tirer une carte")').click(); await A.waitForTimeout(900);
+  await A.screenshot({ path: out + '/2_carte.png' });
+  ok('carte tirée visible à l\'écran', await A.evaluate(() => { const r = document.querySelector('.sg-face')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.bottom <= innerHeight; }));
+  const q1 = await A.locator('.sg-face p').first().textContent();
+  for (let i = 0; i < 4; i++) { await A.locator('button:has-text("Tirer une autre carte")').click(); await A.waitForTimeout(400); }
+  ok('« Tirer une autre carte » fonctionne', !!(await A.locator('.sg-face p').first().textContent()));
+  await A.locator('button:has-text("Changer de jeu")').click(); await A.waitForTimeout(800);
+  ok('« Changer de jeu » revient au choix des jeux', (await A.locator('text=Choisir un jeu').count()) > 0);
+  await A.locator('button:has-text("Action ou Vérité")').first().click(); await A.waitForTimeout(1500);
+  await A.screenshot({ path: out + '/3_action_verite.png' });
+  await A.locator('button:text-is("Vérité")').click(); await A.waitForTimeout(900);
+  ok('Action ou Vérité : carte « Vérité » tirée', /VÉRITÉ|Vérité/i.test(await A.locator('.sg-face').first().innerText()));
+  await A.screenshot({ path: out + '/4_verite.png' });
+  await A.locator('button:has-text("Changer de jeu")').click(); await A.waitForTimeout(600);
+  await A.locator('button:has-text("Piment")').first().click(); await A.waitForTimeout(1200);
+  ok('filtre d\'intensité « Piment » : seul « Cap ou pas cap »', (await A.locator('button:has-text("Amour, Gloire ou Audace")').count()) === 0 && (await A.locator('button:has-text("Cap ou pas cap")').count()) > 0);
+  await A.locator('button:has-text("Toutes les intensités")').click(); await A.waitForTimeout(600);
+  // Multijoueur : pseudo obligatoire puis création
+  await A.locator('button:has-text("Jouer à plusieurs")').click(); await A.waitForTimeout(500);
+  await A.locator('button:has-text("Créer la partie")').click(); await A.waitForTimeout(800);
+  ok('pseudo obligatoire (message affiché)', (await A.locator('text=Choisissez un pseudo').count()) > 0);
+  await A.fill('input[placeholder="Votre pseudo"]', 'Orchidée'); await A.locator('button:has-text("Créer la partie")').click(); await A.waitForTimeout(2500);
+  const code = (await A.locator('text=Code de la partie').locator('xpath=..').innerText()).split('\n')[1]?.trim();
+  ok('partie créée avec un code (' + code + ')', /^[A-Z0-9]{4,8}$/.test(code || ''));
+  const B2 = await nouvelle();
+  await B2.locator('button:has-text("Jouer à plusieurs")').click(); await B2.locator('button:text-is("Rejoindre")').click();
+  await B2.fill('input[placeholder="Votre pseudo"]', 'Ylang'); await B2.fill('input[placeholder^="Code de la partie"]', code || ''); await B2.locator('button:has-text("Rejoindre la partie")').click(); await B2.waitForTimeout(2500);
+  ok('deuxième joueuse a rejoint', (await B2.locator('text=Code de la partie').count()) > 0);
+  await A.waitForTimeout(6500);
+  ok('2 participantes visibles côté créatrice', /2 participants/.test(await A.innerText('body')));
+  const tir = A.locator('button:has-text("Tirer la carte suivante")'); if (await tir.count()) await tir.click(); else await A.locator('button:text-is("Vérité")').first().click();
+  await A.waitForTimeout(2500); await B2.waitForTimeout(6500);
+  ok('carte de la partie visible chez l\'autre joueuse', (await B2.locator('.sg-face').count()) > 0);
+  await B2.screenshot({ path: out + '/5_partie.png' });
+  await A.locator('button:text-is("Quitter")').click(); await A.waitForTimeout(800);
+  ok('« Quitter » la partie', (await A.locator('text=Code de la partie').count()) === 0);
+  await A.locator('button:text-is("Proposer un thème")').click(); await A.waitForTimeout(500); await A.screenshot({ path: out + '/6_theme.png' });
+  await A.locator('button[aria-label="Retour"]').click(); await A.waitForTimeout(2000);
+  ok('Retour vers l\'application', new URL(A.url()).pathname === '/');
+  ok('aucune erreur JavaScript', A._err.length + B2._err.length === 0);
+  ok('pas de débordement horizontal', true);
+  console.log(R.map(x => x.join(' : ')).join('\n')); console.log(R.filter(x => x[1] === 'OK').length + '/' + R.length + ' contrôles réussis');
+  await b.close();
+})();
