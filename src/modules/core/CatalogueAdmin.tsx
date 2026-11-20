@@ -9,6 +9,18 @@ import type { CatalogueProduit, BusinessUnit, StatutProduit } from "./coreTypes"
 import { BELLAÏA_COLORS as FC } from "./coreDesign";
 import { getCatalogueProduits, creerProduitCatalogue, majProduitCatalogue } from "./coreApi";
 import { FOOD_CATALOGUE } from "../food/foodConsts";
+import { sbSelect } from "../events/eventsAtelierLib";
+
+// Complétude d'une fiche (rien n'est inventé ni modifié : simple constat).
+// Bloquant = l'article ne peut pas être commandé ; conseillé = à compléter avant mise en avant.
+export function manquesFiche(p: CatalogueProduit, commandable?: boolean) {
+  const bloquants: string[] = []; const conseilles: string[] = [];
+  if (p.prix == null || !(Number(p.prix) > 0)) bloquants.push("prix");
+  if (p.businessUnit === "FOOD" && commandable !== true && !(p.allergenes || []).length) bloquants.push("allergènes non validés");
+  if (!((p as any).galeriePhotos || []).length) conseilles.push("photo");
+  if (!(p.descriptionCourte || "").trim()) conseilles.push("description");
+  return { bloquants, conseilles, incomplet: bloquants.length > 0 };
+}
 
 const SA = "system-ui, sans-serif";
 const inp: React.CSSProperties = {
@@ -74,6 +86,14 @@ export default function CatalogueAdmin() {
   const [search,    setSearch]    = useState("");
   const [source,    setSource]    = useState<"local"|"supabase">("local");
   const [saving,    setSaving]    = useState(false);
+  const [seulementIncomplets, setSeulementIncomplets] = useState(false);
+  // Commandabilité réelle côté boutique (même règle que le serveur : allergènes validés ou fiche validée)
+  const [commandables, setCommandables] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    sbSelect<any>("v_catalogue_food_public", "select=id,commandable&limit=1000")
+      .then(rows => setCommandables(Object.fromEntries((rows || []).map((r: any) => [r.id, r.commandable === true]))))
+      .catch(() => {});
+  }, []);
 
   // Chargement depuis catalogue_produits Supabase au montage
   useEffect(() => {
@@ -90,9 +110,11 @@ export default function CatalogueAdmin() {
       if (filtreBU     !== "tous" && p.businessUnit !== filtreBU)   return false;
       if (filtreStatut !== "tous" && p.statut !== filtreStatut)      return false;
       if (search && !p.nom.toLowerCase().includes(search.toLowerCase())) return false;
+      if (seulementIncomplets && !manquesFiche(p, commandables[p.id]).incomplet) return false;
       return true;
     }),
-  [produits, filtreBU, filtreStatut, search]);
+  [produits, filtreBU, filtreStatut, search, seulementIncomplets, commandables]);
+  const nbIncomplets = useMemo(() => produits.filter(p => manquesFiche(p, commandables[p.id]).incomplet).length, [produits, commandables]);
 
   const ouvrir = useCallback((p?: CatalogueProduit) => {
     setEditing(p || null);
@@ -192,7 +214,12 @@ export default function CatalogueAdmin() {
       </div>
 
       {/* Filtres statut */}
-      <div style={{ display:"flex", gap:4 }}>
+      <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+        <button onClick={() => setSeulementIncomplets(v => !v)}
+          style={{ padding:"3px 9px", borderRadius:99, border:"none", cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:SA,
+            background: seulementIncomplets ? "rgba(251,146,60,0.2)" : "rgba(255,255,255,0.04)", color: seulementIncomplets ? "#fb923c" : "rgba(255,255,255,0.5)" }}>
+          Brouillons incomplets ({nbIncomplets})
+        </button>
         {(["tous",...STATUTS] as const).map(s => (
           <button key={s} onClick={() => setFiltreStatut(s as any)}
             style={{ padding:"3px 9px", borderRadius:99, border:"none", cursor:"pointer",
@@ -222,6 +249,11 @@ export default function CatalogueAdmin() {
                     color:STATUT_TXT[p.statut], borderRadius:3, padding:"1px 6px", fontWeight:700 }}>
                     {p.statut}
                   </span>
+                  {(() => { const m = manquesFiche(p, commandables[p.id]); return m.incomplet ? (
+                    <span title="Affiché comme brouillon : non commandable tant que ces informations manquent" style={{ fontSize:9, background:"rgba(251,146,60,0.16)", color:"#fb923c", borderRadius:3, padding:"1px 6px", fontWeight:700 }}>
+                      Brouillon — manque : {m.bloquants.join(", ")}
+                    </span>) : m.conseilles.length ? (
+                    <span style={{ fontSize:9, background:"rgba(255,255,255,0.05)", color:FC.creamD, borderRadius:3, padding:"1px 6px" }}>à enrichir : {m.conseilles.join(", ")}</span>) : null; })()}
                 </div>
                 <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{p.nom}</div>
                 <div style={{ fontSize:10, color:FC.creamD }}>
