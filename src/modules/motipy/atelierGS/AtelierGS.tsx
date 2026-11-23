@@ -51,10 +51,10 @@ function Bibliotheque() {
   const [domaine, setDomaine] = useState(""); const [q, setQ] = useState(""); const [niveau, setNiveau] = useState("GS"); const [apercu, setApercu] = useState<{ titre: string; url: string; pdf?: boolean } | null>(null); const [envoi, setEnvoi] = useState(false);
   const charger = async () => { setCharge(true); try { setRefs(await sbSelect("editions_ressources", `collection=eq.${COLLECTION_GS}&type=in.(reference_gs,reference_gs_pdf)&select=*&order=tome.asc.nullslast`)); } catch (e: any) { setMsg("Lecture impossible : " + String(e?.message || e)); } setCharge(false); };
   useEffect(() => { charger(); }, []);
-  const importer = async (files: FileList | null) => {
-    if (!files?.length) return; setEnvoi(true); const lignes: string[] = [];
+  const importer = async (files: File[]) => {
+    if (!files.length) return; setEnvoi(true); const lignes: string[] = [];
     let existantes: any[] = []; try { existantes = await sbSelect("editions_ressources", `collection=eq.${COLLECTION_GS}&select=id,sha256,identifiant`); } catch {}
-    for (const f of Array.from(files)) {
+    for (const f of files) {
       try {
         const sha = await sha256(f); const ref = referenceParEmpreinte(sha); const estPdf = sha === PDF_REFERENCES.sha256;
         if (!ref && !estPdf) { lignes.push(`⚠️ ${f.name} : fichier non répertorié (empreinte inconnue) — ignoré.`); continue; }
@@ -85,7 +85,7 @@ function Bibliotheque() {
         <b>{pages.length}/12 pages importées</b>{pdf ? " · PDF des références présent" : " · PDF des références non importé"} — fichiers privés (accès fondatrice uniquement, liens temporaires de 15 min).
         <div style={{ marginTop: 8 }}>
           <label style={{ ...btn(true), display: "inline-flex", alignItems: "center" }}>{envoi ? "Import en cours…" : "＋ Importer les photos et le PDF"}
-            <input type="file" multiple accept="image/jpeg,image/png,application/pdf" style={{ display: "none" }} disabled={envoi} onChange={e => { importer(e.target.files); e.currentTarget.value = ""; }} aria-label="Importer les références" />
+            <input type="file" multiple accept="image/jpeg,image/png,application/pdf" style={{ display: "none" }} disabled={envoi} onChange={e => { const liste = Array.from(e.target.files || []); e.currentTarget.value = ""; importer(liste); }} aria-label="Importer les références" />
           </label>
         </div>
         <div style={{ fontSize: 12, color: C.doux, marginTop: 6 }}>Chaque fichier est reconnu par son empreinte : réimporter le même fichier ne crée pas de doublon.</div>
