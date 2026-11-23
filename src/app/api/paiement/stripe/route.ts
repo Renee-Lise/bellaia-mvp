@@ -41,6 +41,12 @@ export async function POST(req: NextRequest) {
 
     const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bellaia-11-azure.vercel.app";
 
+    // Client Stripe (absent jusqu'ici : la route aurait échoué si elle avait été activée).
+    // Version d'API alignée sur le SDK installé (stripe 14.25 → 2023-10-16).
+    if (!process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: "Configuration Stripe absente." }, { status: 503 });
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
+
     // Créer la session Stripe Checkout
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],

@@ -54,8 +54,6 @@ export interface EventsDemande {
   montant_estime?: number;
   montant_acompte?: number;
   montant_solde?: number;
-  mode_paiement?: string;
-  statut_paiement?: string;
   lignes_devis?: LigneDevis[] | string;
   devis_genere_at?: string;
   devis_envoye_at?: string;

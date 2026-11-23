@@ -15,7 +15,7 @@ async function getStripe() {
     throw new Error("STRIPE_SECRET_KEY manquante dans Vercel → Settings → Environment Variables");
   }
   const Stripe = (await import("stripe")).default;
-  return new Stripe(key, { apiVersion: "2024-06-20" });
+  return new Stripe(key, { apiVersion: "2023-10-16" });
 }
 
 // Vérifier la session Supabase

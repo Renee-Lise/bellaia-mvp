@@ -1,3 +1,5 @@
+> 23/11/2026 : les extractions non branchées (ClientEvents, EventsDemandesF, EventsPortail, EventsCatalogue, EventsCommandesF, EventsDocumentsF, eventsConsts, eventsUtils, index) ont été supprimées ; les versions actives sont dans `src/components/BellaiaApp.tsx`. Restauration : `git checkout 010b829 -- src/modules/events/<fichier>`.
+
 # Module Bella'Events — Architecture modulaire
 
 ## Phase 1 (livraison actuelle)

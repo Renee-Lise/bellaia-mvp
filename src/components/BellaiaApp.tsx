@@ -314,6 +314,13 @@ const REGLES_PRESTA_MINEUR = {
   "Blanchiment dentaire":          "interdit",
   "Contour dentaire esthétique":   "interdit",
 };
+// Règle pour une personne mineure (réservation faite par un adulte pour son enfant)
+const regleMineur = (nomPresta) => {
+  const r = REGLES_PRESTA_MINEUR[nomPresta] || "ok";
+  if (r === "interdit") return {bloque:true, parental:false, message:"Cette prestation est réservée aux personnes majeures."};
+  if (r === "parental") return {bloque:false, parental:true, message:"Accord du représentant légal obligatoire."};
+  return {bloque:false, parental:false, message:""};
+};
 // Renvoie la règle applicable à une prestation pour un client donné
 // → {bloque:bool, parental:bool, message:string}
 const regleAcces = (nomPresta, dateNaissance) => {
@@ -839,9 +846,10 @@ const OCard = ({children, accent=false, style:s={}}: any) => (
   <div style={{background:BO.verre,border:"1px solid "+BO.line,borderRadius:R.lg,padding:"14px 16px",
     borderTop:accent?"3px solid "+BO.acc:"1px solid "+BO.line,...s}}>{children}</div>
 );
-const OBtn = ({children, v="ghost", sz="md", onClick, full=false}: any) => {
+const OBtn = ({children, v="ghost", sz="md", onClick, full=false, disabled=false}: any) => {
   const vMap = {primary:"primary",gold:"gold",ghost:"ghost"};
-  return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full}>{children}</Btn>;
+  // « disabled » est désormais transmis (il était ignoré : les boutons Odyssée restaient cliquables)
+  return <Btn v={vMap[v]||"ghost"} sz={sz} onClick={onClick} full={full} disabled={disabled}>{children}</Btn>;
 };
 const OTag = ({c=BO.acc, children, sz=9}: any) => <Tag color={c} sz={sz}>{children}</Tag>;
 
@@ -2089,7 +2097,11 @@ function ClientOdyssee({user, rdvs, onBack}: any) {
   const ageClient = calcAge(user?.date_naissance);
   const [page, setPage] = useState("accueil");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({prestation:PRESTATIONS_BO[0],date:today(),heure:"10h00",nom:"",tel:""});
+  const [form, setForm] = useState({prestation:PRESTATIONS_BO[0],date:today(),heure:"10h00",nom:"",tel:"",parentalRequis:false,parentNom:"",parentLien:"",parentAccord:false,pourMineur:false});
+  // Règle mineurs recalculée sur le soin réellement choisi (y compris s'il est changé dans la liste).
+  // S'applique si la personne connectée est mineure OU si un adulte réserve pour une personne mineure.
+  const regleRdv = (form.pourMineur && !estMineur(user?.date_naissance)) ? regleMineur(form.prestation) : regleAcces(form.prestation, user?.date_naissance);
+  const accordParentalComplet = !regleRdv.parental || (form.parentNom.trim().length >= 3 && !!form.parentLien && form.parentAccord);
   const [rdvEnvoi,  setRdvEnvoi]  = useState(false);
   const [rdvSucces, setRdvSucces] = useState(null); // référence RDV créé
   const [paiementOd,setPaiementOd]= useState(null); // {dossier, facRef, cmdRef}
@@ -2286,12 +2298,33 @@ function ClientOdyssee({user, rdvs, onBack}: any) {
                 <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,letterSpacing:"0.06em",textTransform:"uppercase",display:"block",marginBottom:5}}>Téléphone / WhatsApp</label>
                 <input value={form.tel} onChange={e=>setForm({...form,tel:e.target.value})} placeholder="+594..." style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:13,outline:"none",fontFamily:SA,boxSizing:"border-box"}}/>
               </div>
+              {!estMineur(user?.date_naissance) && <label style={{display:"flex",gap:8,alignItems:"center",fontSize:13,color:BO.creme,marginBottom:14}}>
+                <input type="checkbox" checked={form.pourMineur} onChange={e=>setForm({...form,pourMineur:e.target.checked})} style={{width:20,height:20}}/>
+                Ce soin est pour une personne mineure
+              </label>}
+              {regleRdv.bloque && <div role="alert" style={{fontSize:13,color:"#e07a7a",background:"rgba(224,68,68,0.1)",border:"1px solid rgba(224,68,68,0.3)",borderRadius:10,padding:"10px 12px",marginBottom:14}}>🔒 {regleRdv.message} Choisissez un autre soin.</div>}
+              {regleRdv.parental && <div style={{border:"1px solid "+BO.or,borderRadius:12,padding:12,marginBottom:16}}>
+                <div style={{fontSize:13,color:BO.or,fontWeight:700,marginBottom:8}}>Accord du représentant légal obligatoire</div>
+                <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,display:"block",marginBottom:5}} htmlFor="od-parent-nom">Nom et prénom du représentant légal</label>
+                <input id="od-parent-nom" value={form.parentNom} onChange={e=>setForm({...form,parentNom:e.target.value})} style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:16,marginBottom:10}}/>
+                <label style={{fontSize:11,fontWeight:700,color:BO.cremeD,display:"block",marginBottom:5}} htmlFor="od-parent-lien">Lien avec la personne mineure</label>
+                <select id="od-parent-lien" value={form.parentLien} onChange={e=>setForm({...form,parentLien:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid "+(BO.line),borderRadius:10,padding:"9px 12px",color:BO.creme,fontSize:16,marginBottom:10}}>
+                  <option value="">Choisir…</option><option>Mère</option><option>Père</option><option>Tuteur ou tutrice légal(e)</option>
+                </select>
+                <label style={{display:"flex",gap:8,alignItems:"flex-start",fontSize:13,color:BO.creme,lineHeight:1.45}}>
+                  <input type="checkbox" checked={form.parentAccord} onChange={e=>setForm({...form,parentAccord:e.target.checked})} style={{width:20,height:20,flexShrink:0}}/>
+                  Je suis le représentant légal et j'autorise ce soin. J'ai été informé(e) des précautions (test d'allergie préalable pour les colles et teintures).
+                </label>
+                <div style={{fontSize:11,color:BO.cremeD,marginTop:8}}>L'accord sera vérifié en personne le jour du rendez-vous.</div>
+              </div>}
               {ENV.SQUARE_BOOKING ? (
                 <OBtn v="primary" sz="md" full onClick={() => window.open(ENV.SQUARE_BOOKING,"_blank")}>
                   📅 Réserver en ligne (planning)
                 </OBtn>
               ) : (
-                <OBtn v="primary" sz="md" full disabled={!form.nom.trim() || rdvEnvoi} onClick={async () => {
+                <OBtn v="primary" sz="md" full disabled={!form.nom.trim() || rdvEnvoi || regleRdv.bloque || !accordParentalComplet} onClick={async () => {
+                  if (regleRdv.bloque || !accordParentalComplet) return;
+                  const accordTexte = regleRdv.parental ? (form.pourMineur ? "Soin pour une personne mineure — " : "")+"Accord parental : "+form.parentNom.trim()+" ("+form.parentLien+"), donné dans l'application le "+new Date().toLocaleString("fr-FR") : "";
                   setRdvEnvoi(true);
                   let rdvRef = "";
                   try { rdvRef = await genererReference("BO"); }
@@ -2303,7 +2336,7 @@ function ClientOdyssee({user, rdvs, onBack}: any) {
                     statut:"BROUILLON", total:0,
                     date_commande:new Date().toISOString().split("T")[0],
                     date_livraison:form.date,
-                    notes:form.heure+" — "+form.prestation,
+                    notes:form.heure+" — "+form.prestation+(accordTexte?" — "+accordTexte:""),
                     lignes:JSON.stringify([{libelle:form.prestation,qte:1,prixUnitaire:0,total:0}]),
                   });
                   if (!res.ok) {
@@ -2318,7 +2351,7 @@ function ClientOdyssee({user, rdvs, onBack}: any) {
                   creerNotification({
                     pole:"ODYSSEE", type:"nouvelle_demande",
                     titre:"Nouveau RDV Odyssée — "+form.prestation,
-                    message:"Client : "+form.nom+(form.tel?" · Tél : "+form.tel:"")+"\nSoin : "+form.prestation+"\nDate : "+fmt(form.date)+" à "+form.heure+"\nRéférence : "+rdvRef,
+                    message:"Client : "+form.nom+(form.tel?" · Tél : "+form.tel:"")+"\nSoin : "+form.prestation+"\nDate : "+fmt(form.date)+" à "+form.heure+"\nRéférence : "+rdvRef+(accordTexte?"\n"+accordTexte:""),
                     canal:"interne", sourceTable:"bellaia_commandes", sourceId:rdvRef, pushFondatrice:true,
                   }).catch(e=>console.warn("[Bellaïa][non-bloquant]",e.message));
                   // WA avec référence
@@ -10245,7 +10278,7 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }: any) {
       pole:"EVENTS", type:"validation_devis",
       titre: "Devis "+numDevis+" généré",
       message: "Client : "+(demande.client_prenom||"")+" "+( demande.client_nom||"")+"\nMontant : "+montantFinal+"€\nRéférence : "+demande.reference,
-      canal:"interne", user, pushFondatrice:true,
+      canal:"interne", pushFondatrice:true,
       sourceTable:"events_demandes", sourceId: demande.id,
     });
     // Message WhatsApp prérempli

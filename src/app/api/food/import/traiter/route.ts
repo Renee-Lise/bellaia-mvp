@@ -23,7 +23,7 @@ import { recupererPage, recupererFichier, recetteJsonLd, texteDeHtml, meta } fro
 export const maxDuration = 60;
 const MODELE = "claude-sonnet-5-5";
 const BUCKET = "equipe-prive";
-export const RUBRIQUES = ["recette", "sous_recette", "plat", "dessert", "patisserie", "boisson", "en_cas", "sauce", "ingredient", "fournisseur", "achat", "stock", "cout_marge", "menu", "hygiene", "allergenes", "tracabilite", "communication", "a_classer"] as const;
+const RUBRIQUES = ["recette", "sous_recette", "plat", "dessert", "patisserie", "boisson", "en_cas", "sauce", "ingredient", "fournisseur", "achat", "stock", "cout_marge", "menu", "hygiene", "allergenes", "tracabilite", "communication", "a_classer"] as const;
 const RECETTE_LIKE = new Set(["recette", "sous_recette", "plat", "dessert", "patisserie", "boisson", "en_cas", "sauce"]);
 const RESEAUX = /(^|\.)(instagram\.com|tiktok\.com|pinterest\.[a-z.]+|pin\.it|youtube\.com|youtu\.be|facebook\.com)$/i;
 const ALTERNATIVES = "Extraction directe impossible depuis cette plateforme (accès restreint). Alternatives : importer une capture d'écran de la recette, importer la vidéo si vous en avez les droits, coller la description ou la transcription, ou compléter à la main.";

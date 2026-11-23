@@ -1,0 +1,43 @@
+// Bella'Odyssée : un mineur n'accède pas à l'univers (règle centrale) ; un ADULTE qui réserve pour une personne
+// mineure doit fournir l'accord du représentant légal (enregistré) ; soin réservé aux majeurs bloqué. iPhone 13 SIMULÉ, base simulée. Usage : node tests/iphone/t_odyssee_parental.js <dossier>
+const { chromium, devices } = require('playwright');
+const ID = '00000000-0000-0000-0000-0000000000a0';
+const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('base64url'); return `${b({ alg: 'HS256' })}.${b({ role: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 7200 })}.x`; };
+(async () => {
+  const out = process.argv[2] || '.'; const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
+  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 13'] });
+  await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7000)); window.open = () => null; }, [{ id: ID, role: 'cliente', prenom: 'Parent', date_naissance: '1990-05-10' }, jwt(ID)]);
+  const commandes = [];
+  await ctx.route(/\/rest\/v1\/bellaia_commandes(\?|$)/, async r => { if (r.request().method() === 'POST') { commandes.push(JSON.parse(r.request().postData())); return r.fulfill({ status: 201, contentType: 'application/json', body: '[{"id":"c1"}]' }); } return r.fallback(); });
+  const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
+  const cliquer = re => p.evaluate(src => { const r = new RegExp(src); const e = [...document.querySelectorAll('button,[role=button],div')].reverse().find(x => r.test((x.textContent || '').trim()) && x.children.length < 6); if (e) { e.scrollIntoView(); e.click(); return true; } return false; }, re.source);
+  await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 180000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await p.waitForTimeout(2500);
+  await p.getByText("Bella'Odyssée", { exact: true }).first().click(); await p.waitForTimeout(2500);
+  await p.getByText('Réserver un rendez-vous').first().click(); await p.waitForTimeout(1200);
+  const t = () => p.evaluate(() => document.body.innerText);
+  ok('00 adulte : pas de bloc d\'accord parental par défaut', !/Accord du représentant légal obligatoire/.test(await t()));
+  await p.locator('label', { hasText: 'Ce soin est pour une personne mineure' }).locator('input').check(); await p.waitForTimeout(300);
+  ok('01 « pour une personne mineure » coché, extensions de cils : accord du représentant légal exigé', /Accord du représentant légal obligatoire/.test(await t()));
+  await p.locator('input[placeholder="Votre prénom"]').fill('Jeune');
+  const bouton = p.locator('button', { hasText: /Envoyer ma demande/ });
+  ok('02 envoi impossible tant que l\'accord n\'est pas complet', await bouton.isDisabled());
+  await p.fill('#od-parent-nom', 'Parent Essai'); await p.selectOption('#od-parent-lien', 'Mère');
+  ok('03 toujours impossible sans la case d\'accord', await bouton.isDisabled());
+  await p.locator('label', { hasText: "j'autorise ce soin" }).locator('input[type=checkbox]').check();
+  ok('04 accord complet : envoi possible', !(await bouton.isDisabled()));
+  await p.screenshot({ path: `${out}/odyssee_accord_parental.png`, fullPage: true });
+  await bouton.click(); await p.waitForTimeout(2500);
+  ok('05 demande enregistrée avec l\'accord parental (nom, lien, date)', commandes.length === 1 && /Soin pour une personne mineure — Accord parental : Parent Essai \(Mère\), donné dans l'application le/.test(commandes[0].notes || ''));
+  await p.goBack().catch(() => {}); await p.goto('http://localhost:3160/', { waitUntil: 'networkidle' }); await p.waitForTimeout(2000);
+  await p.getByText("Bella'Odyssée", { exact: true }).first().click(); await p.waitForTimeout(2500); await p.getByText('Réserver un rendez-vous').first().click(); await p.waitForTimeout(1000);
+  await p.locator('label', { hasText: 'Ce soin est pour une personne mineure' }).locator('input').check();
+  await p.locator('select').filter({ has: p.locator('option', { hasText: 'Blanchiment dentaire' }) }).first().selectOption('Blanchiment dentaire'); await p.waitForTimeout(500);
+  ok('06 soin réservé aux majeurs (blanchiment) : message et envoi impossible', /réservée aux personnes majeures/.test(await t()) && await p.locator('button', { hasText: /Envoyer ma demande/ }).isDisabled());
+  ok('07 aucune erreur JavaScript', err.length === 0);
+  const c2 = await b.newContext({ ...devices['iPhone 13'] }); const M = '00000000-0000-0000-0000-0000000000a9';
+  await c2.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7000)); }, [{ id: M, role: 'cliente', prenom: 'Jeune', date_naissance: '2011-05-10' }, jwt(M)]);
+  const q = await c2.newPage(); await q.goto('http://localhost:3160/', { waitUntil: 'networkidle' }); await q.waitForTimeout(2500);
+  await q.getByText("Bella'Odyssée", { exact: true }).first().click(); await q.waitForTimeout(2000);
+  ok('08 compte mineur : accès à Odyssée refusé (règle centrale inchangée)', /Accès restreint/.test(await q.evaluate(() => document.body.innerText)));
+  await b.close(); console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);
+})();

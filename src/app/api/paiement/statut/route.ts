@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     if (data.statut === "en_attente" && data.mode_paiement === "Stripe" && session_id) {
       try {
         const { default: Stripe } = await import("stripe");
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" });
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2023-10-16" });
         const session = await stripe.checkout.sessions.retrieve(session_id);
 
         if (session.payment_status === "paid") {
