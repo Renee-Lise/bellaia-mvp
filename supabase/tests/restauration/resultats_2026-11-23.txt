@@ -1,0 +1,7 @@
+Chaîne sauvegarde → restauration → contrôle (tester_chaine.sh), base de « production » jetable + imitation de la CLI, 23/11/2026
+A. sauvegarde intacte ............................ COMPLET (empreintes conformes ; 3/3 tables production = export = restauré ; stockage 2 compartiments identiques, dont un dossier imbriqué ; comptes 3 = 3)
+B. production modifiée après l'export .......... ÉCARTS (détecté)
+C. un fichier du stockage manquant ............. ÉCARTS (détecté)
+D. données altérées après la sauvegarde ........ ÉCARTS (détecté)
+E. sauvegarde rétablie ........................... COMPLET
+Limite : test sur imitation ; la vraie CLI Supabase n'a pas été exécutée ici (pas de mot de passe de base dans cet environnement, et il ne doit pas y en avoir).

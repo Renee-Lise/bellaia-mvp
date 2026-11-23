@@ -54,3 +54,21 @@ supabase db dump --data-only -f bellaia_donnees_AAAA-MM-JJ.sql     # données �
 2. Contrôle de restauration : le script doit conclure « COMPLET » ;
 3. Application de la migration (sur accord) ;
 4. Contrôles après application ; retour arrière prêt.
+
+## Procédure retenue (décision du 23/11 : export gratuit, aucun abonnement)
+
+**Volume réel de la production (23/11)** : 203 tables / 2 655 lignes ; 13 comptes ; 8 compartiments de stockage, dont 2 non vides : `events-medias` (726 fichiers, 235,7 Mo) et `stocks-images` (7 fichiers, 10,2 Mo).
+
+1. **Sauvegarde (fondatrice, ≈ 10 min)** : `bash supabase/sauvegarde/sauvegarde_complete.sh` sur un ordinateur avec Supabase CLI. Produit rôles, structure, données, comptes, **tous les fichiers du stockage**, un manifeste et les empreintes SHA-256. Lecture seule pour la production.
+2. **Dépôt** dans le Drive privé : `roles.sql`, `structure.sql`, `donnees.sql`, `manifeste_stockage.tsv`, `manifeste_comptes.tsv`, `empreintes.sha256`. Le fichier des comptes (`auth_donnees.sql`) et les fichiers du stockage restent hors ligne, sur un disque chiffré.
+3. **Contrôle de restauration réelle (Claude)** : relevé des références en production au même moment (lignes par table, empreinte de chaque compartiment, nombre de comptes), puis `verifier_restauration.sh`. Celui-ci vérifie les empreintes, **restaure dans une base PostgreSQL jetable**, compare production = export = restauré table par table, puis compare stockage et comptes. Conclusion : COMPLET ou ÉCARTS.
+4. La base jetable et les copies de travail sont supprimées après le contrôle.
+5. Seulement si COMPLET : application des migrations (0134 puis 0133) sur accord explicite, avec le retour arrière prêt.
+
+Chaîne testée de bout en bout sur une imitation (`supabase/tests/restauration/tester_chaine.sh`) : 5 scénarios sur 5 conformes (voir `resultats_2026-11-23.txt`).
+
+**Limites réelles** :
+- la restauration des **fichiers** du stockage est contrôlée par nombre, taille et empreinte des noms et tailles, pas octet par octet face à la production (les SHA-256 garantissent ensuite que la sauvegarde n'a pas changé) ;
+- les comptes sont contrôlés par leur nombre (le fichier ne quitte pas l'ordinateur de la fondatrice) ;
+- la restauration de la structure dans un PostgreSQL ordinaire signale des erreurs sur les extensions et les rôles propres à Supabase : sans effet sur les données, mais une restauration en vrai projet Supabase reste à faire en cas de sinistre ;
+- l'opération est manuelle : à refaire avant chaque migration.
