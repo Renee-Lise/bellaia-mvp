@@ -5504,6 +5504,20 @@ function NotificationsF({ user }: any) {
   const [filtre, setFiltre] = useState("tous");
   const [form, setForm] = useState<any>({});
   const [modal, setModal] = useState(false);
+  // Alertes reçues (nouvelles commandes, demandes, rendez-vous) : table bellaia_notifications, alimentée côté serveur
+  const [alertes, setAlertes] = useState<any[]>([]);
+  const chargerAlertes = React.useCallback(async () => {
+    try {
+      const t = await getTokenAsync();
+      const r = await fetch(`${SB_URL}/rest/v1/bellaia_notifications?user_id=eq.${user?.id}&select=id,type,titre,contenu,lu,created_at&order=created_at.desc&limit=50`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${t}` } });
+      if (r.ok) setAlertes(await r.json());
+    } catch {}
+  }, [user?.id]);
+  useEffect(() => { if (user?.id) chargerAlertes(); }, [user?.id, chargerAlertes]);
+  const alerteLue = async (a: any) => {
+    setAlertes(l => l.map(x => x.id === a.id ? { ...x, lu: true } : x));
+    try { const t = await getTokenAsync(); await fetch(`${SB_URL}/rest/v1/bellaia_notifications?id=eq.${a.id}`, { method: "PATCH", headers: { apikey: SB_KEY, Authorization: `Bearer ${t}`, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ lu: true }) }); } catch {}
+  };
 
   const affichees = notifs.filter(n => filtre==="tous" || n.canal===filtre);
   const nbNonLues = notifs.filter(n => n.statut==="a_envoyer").length;
@@ -5577,6 +5591,18 @@ function NotificationsF({ user }: any) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:12}}>
+        <div style={{fontSize:13,fontWeight:800,color:B.cream,marginBottom:6}}>🔔 Alertes reçues {alertes.filter(a=>!a.lu).length>0 && <span style={{fontSize:11,color:B.warning}}>· {alertes.filter(a=>!a.lu).length} non lue(s)</span>}</div>
+        {alertes.length===0 ? <div style={{fontSize:12,color:B.muted}}>Aucune alerte pour le moment. Les nouvelles commandes, demandes et rendez-vous apparaîtront ici.</div>
+          : alertes.slice(0,20).map(a => <div key={a.id} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"8px 0",borderTop:"1px solid rgba(255,255,255,0.06)",opacity:a.lu?0.55:1}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12.5,fontWeight:700,color:B.cream}}>{a.titre}</div>
+                <div style={{fontSize:11.5,color:B.muted,whiteSpace:"pre-line"}}>{a.contenu}</div>
+                <div style={{fontSize:10,color:B.muted,marginTop:2}}>{new Date(a.created_at).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}</div>
+              </div>
+              {!a.lu && <button onClick={()=>alerteLue(a)} style={{minHeight:36,background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,color:B.cream,fontSize:11,padding:"4px 10px",cursor:"pointer"}}>Lu</button>}
+            </div>)}
+      </div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
           <SH t="Notifications" s="Alertes internes — Email / WhatsApp / SMS en Phase 2"/>

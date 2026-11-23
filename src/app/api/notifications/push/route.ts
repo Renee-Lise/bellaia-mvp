@@ -45,5 +45,24 @@ export async function POST(req: NextRequest) {
   if (!autorise) return NextResponse.json({ ok: false }, { status: 401 });
 
   envoyerPushFondatrice({ titre, message, url: "/", tag }).catch(() => {});
+  // Notification visible DANS l'application (bellaia_notifications, une par compte fondatrice).
+  // Correctif sans migration : creerNotification() écrivait dans une table « notifications » absente de la base,
+  // si bien qu'aucune alerte interne n'était enregistrée. Écriture serveur (clé de service), sans doublon.
+  await notifierFondatrice(URL_SB, titre, message, tag, String(body?.source_table || ""), String(body?.source_id || "")).catch(() => {});
   return NextResponse.json({ ok: true });
+}
+
+async function notifierFondatrice(url: string, titre: string, message: string, tag: string, sourceTable: string, sourceId: string) {
+  const cle = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!cle) return;
+  const { createClient } = await import("@supabase/supabase-js");
+  const admin = createClient(url, cle);
+  const { data: fondatrices } = await admin.from("profiles").select("id").eq("role", "fondatrice").limit(5);
+  for (const f of fondatrices || []) {
+    if (sourceId) {
+      const { data: deja } = await admin.from("bellaia_notifications").select("id").eq("user_id", f.id).contains("meta", { source_id: sourceId }).limit(1);
+      if (deja?.length) continue;
+    }
+    await admin.from("bellaia_notifications").insert({ user_id: f.id, type: tag, titre, contenu: message, lu: false, meta: { source_table: sourceTable || null, source_id: sourceId || null, origine: "alerte" } });
+  }
 }
