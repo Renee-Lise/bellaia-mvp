@@ -53,8 +53,13 @@ export async function POST(req: NextRequest) {
 
   // ── Idempotence
   const { data: deja } = await SB.from("webhook_logs")
-    .select("statut").eq("event_id", checkout_id).eq("statut", "traite").single();
+    .select("statut").eq("event_id", checkout_id).eq("statut", "traite").maybeSingle();
   if (deja) return NextResponse.json({ ok: true, statut: "deja_traite" });
+  // Seconde garde, sur une table qui existe : la table webhook_logs est absente de la base de production,
+  // la garde ci-dessus ne protège donc rien aujourd'hui. Un paiement déjà « payé » n'est jamais retraité
+  // (évite reçus et écritures en double si SumUp renvoie l'événement).
+  const { data: dejaPaye } = await SB.from("payments").select("id").eq("provider_ref", checkout_id).eq("statut", "paye").limit(1);
+  if (dejaPaye && dejaPaye.length) return NextResponse.json({ ok: true, statut: "deja_traite" });
 
   // ── Traiter selon statut SumUp
   try {
