@@ -84,7 +84,7 @@ function Documents({ userId }: { userId: string }) {
   const [docs, setDocs] = useState<any[] | null>(null);
   const [pj, setPj] = useState<any[]>([]);
   useEffect(() => {
-    sbSelect<any>("bellaia_documents", "select=id,titre,categorie,statut,url,created_at&order=created_at.desc&limit=100").then(setDocs).catch(() => setDocs([]));
+    sbSelect<any>("bellaia_documents", "module=neq.CONSIGNES&select=id,titre,categorie,statut,created_at&order=created_at.desc&limit=100").then(setDocs).catch(() => setDocs([]));
     sbSelect<any>("bellaia_missions", `assigne_a=eq.${userId}&select=id`).then(async ms => { if (!ms.length) return; setPj(await sbSelect<any>("bellaia_missions_fil", `type=eq.fichier&mission_id=in.(${ms.map((m: any) => m.id).join(",")})&select=id,texte,fichier_chemin,created_at&order=created_at.desc`).catch(() => [])); }).catch(() => {});
   }, [userId]);
   if (!docs) return <div style={{ color: T.doux }}>Chargement…</div>;

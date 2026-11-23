@@ -14120,7 +14120,7 @@ const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] 
   {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["exigences","🧭 Suivi des exigences"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
   {id:"g_clients",  ico:"👥", l:"Clients",      pages:[["crm","Clientes"],["crm_central","CRM central"]]},
   {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["reductions","🎁 Réductions"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
-  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["candidatures","📨 Candidatures"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
+  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["candidatures","📨 Candidatures"],["consignes","🧠 Consignes IA"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
   {id:"g_events",   ico:"✨", l:"Events",       pages:[["events","Bella'Even's"]]},
   {id:"g_food",     ico:"🍃", l:"Food",         pages:[["food","Bella'Food"]]},
   {id:"g_bsh",      ico:"✦",  l:"BSH",          pages:[["bsh","Bella'Secret Home"],["bsh_members","Membres"]]},
@@ -14534,7 +14534,7 @@ function MessagerieWrapper({ user }: any) {
 function ModuleEquipe({ nom, props, libelle }: { nom: string; props: any; libelle: string }) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : nom === "ReductionsF" ? import("../modules/admin/ReductionsF") : nom === "Candidatures" ? import("../modules/equipe/Candidatures") : import("../modules/equipe/AccesPermissions");
+    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : nom === "ReductionsF" ? import("../modules/admin/ReductionsF") : nom === "Candidatures" ? import("../modules/equipe/Candidatures") : nom === "BibliothequeConsignes" ? import("../modules/equipe/BibliothequeConsignes") : import("../modules/equipe/AccesPermissions");
     charge.then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, [nom]);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement {libelle}…</div>;
@@ -14925,6 +14925,7 @@ export default function BellaiaApp() {
     partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
     acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,
     candidatures: <ModuleEquipe nom="Candidatures" props={{}} libelle="des candidatures"/>,
+    consignes:   <ModuleEquipe nom="BibliothequeConsignes" props={{}} libelle="de la bibliothèque de consignes"/>,
     calendrier:  PREMIUM_ACTIF ? <CalendrierFondatriceWrapper user={user}/> : <CalendrierP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
     bsh:         <BSHF produits={bshProd} setProduits={setBshProd} commandes={bshCmds} setCommandes={setBshCmds} clientes={bshCli} setClientes={setBshCli} evenements={bshEvts} setEvenements={setBshEvts}/>,

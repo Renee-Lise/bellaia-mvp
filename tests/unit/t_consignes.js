@@ -1,0 +1,22 @@
+// Bibliothèque de consignes. Usage : node tests/unit/t_consignes.js
+const ts = require('typescript'), fs = require('fs'), path = require('path'), M = require('module');
+const js = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../../src/lib/consignes.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+const m = new M('c'); m._compile(js, 'c.js'); const { METIERS, CONSIGNES_V1: L, remplir, expressionsNonNatives, controlerModele, variablesDuTexte, REGLES_COMMUNES } = m.exports;
+const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
+ok('01 8 métiers, 3 modèles chacun (24)', METIERS.length === 8 && L.length === 24 && METIERS.every(([k]) => L.filter(c => c.metier === k).length === 3));
+ok('02 clés uniques', new Set(L.map(c => c.cle)).size === 24);
+ok('03 chaque modèle est valide (variables déclarées, sortie, longueur)', L.every(c => controlerModele(c).length === 0));
+ok('04 chaque variable déclarée est utilisée dans le texte', L.every(c => c.variables.every(v => variablesDuTexte(c.texte).includes(v.nom))));
+const c = L.find(x => x.cle === 'admin.relance_facture');
+let r = remplir(c, { client: 'Cliente A', facture: 'F-12 du 01/11', montant: '120 €' });
+ok('05 variable obligatoire manquante signalée', r.manquantes.length === 1 && r.manquantes[0] === 'Échéance dépassée' && r.texte.includes('[echeance]'));
+r = remplir(c, { client: 'Cliente A', facture: 'F-12', montant: '120 €', echeance: '15/11' });
+ok('06 consigne complète : variables remplacées, aucune accolade restante', r.manquantes.length === 0 && !/\{\{/.test(r.texte) && r.texte.includes('Cliente A'));
+ok('07 règles communes et niveau d\'autorisation ajoutés (sources, coûts, aucune action sans accord)', REGLES_COMMUNES.every(x => r.texte.includes(x)) && /Action sensible/.test(r.texte) && /Accord écrit/.test(r.texte));
+const v = L.find(x => x.cle === 'recherche.veille_concurrence');
+ok('08 variable facultative vide : « non précisé », pas bloquante', remplir(v, { univers: 'Food', zone: 'Cayenne' }).manquantes.length === 0 && remplir(v, { univers: 'Food', zone: 'Cayenne' }).texte.includes('non précisé'));
+ok('09 expressions de capture signalées comme non natives', JSON.stringify(expressionsNonNatives('Fais une veille /deep-research en ultrathink mode expert')) === JSON.stringify(['/deep-research', 'ultrathink', 'mode expert']));
+ok('10 pas de faux positif sur les dates et liens', expressionsNonNatives('Facture du 12/11/2026, voir https://exemple.fr/page').length === 0);
+ok('11 modèle modifié avec variable non déclarée refusé', controlerModele({ titre: 'Essai', texte: 'Analyse {{inconnue}} pour la cliente.', variables: [], sortie: 'Tableau' }).some(e => e.includes('{{inconnue}}')));
+ok('12 actions sensibles : relance, courrier, publication, newsletter, incident', ['admin.relance_facture', 'admin.courrier', 'com.publication_reseaux', 'com.newsletter', 'securite.incident'].every(k => L.find(x => x.cle === k).risque === 'action_sensible'));
+console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);
