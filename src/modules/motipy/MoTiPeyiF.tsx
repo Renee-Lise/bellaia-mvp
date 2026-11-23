@@ -114,7 +114,14 @@ const ONGLETS = [
   {id:"registre",  ico:"🗂", label:"Registre & lexique"},
   {id:"ticolibri", ico:"🐦", label:"Éditions pédagogiques"},
   {id:"atelier",   ico:"✏️", label:"Atelier pédagogique"},
+  {id:"jeu",       ico:"🎲", label:"Jeu de cartes (prototype)"},
 ];
+// Jeu de cartes pédagogique : prototype jouable, réservé à la fondatrice (non publié)
+function JeuLazy() {
+  const [Comp, setComp] = useState<any>(null);
+  useEffect(() => { import("./JeuCartes").then(m => setComp(() => m.default)).catch(() => {}); }, []);
+  return Comp ? <Comp /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement du jeu…</div>;
+}
 
 // Gestion « Histoires du soir » chargée à la demande (module séparé)
 function HistoiresGestionLazy() {
@@ -143,7 +150,7 @@ function RegistreLazy() {
 export default function MoTiPeyiF({ user }: { user?: any }) {
   const [cartes,   setCartes]   = useState<Carte[]>([]);
   const [commandes,setCommandes]= useState<Commande[]>([]);
-  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires"|"registre"|"ticolibri"|"atelier">("catalogue");
+  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires"|"registre"|"ticolibri"|"atelier"|"jeu">("catalogue");
   const [modal,    setModal]    = useState<"carte"|"commande"|null>(null);
   const [formCarte, setFormCarte] = useState<Partial<Carte>>({famille:"deplacements",niveau:"PS",statut:"brouillon"});
   const [formCmd,   setFormCmd]   = useState<Partial<Commande>>({clientNom:"",produit:PRODUITS[0].nom,qte:1,prix:PRODUITS[0].prix,statut:"en_attente",date:today()});
@@ -314,6 +321,7 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
       {onglet==="registre" && <RegistreLazy/>}
       {onglet==="ticolibri" && <TiColibriLazy/>}
       {onglet==="atelier" && <AtelierLazy/>}
+      {onglet==="jeu" && <JeuLazy/>}
 
       {/* ── Catalogue cartes ── */}
       {onglet==="catalogue" && (
