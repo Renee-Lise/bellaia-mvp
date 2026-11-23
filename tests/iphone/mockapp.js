@@ -21,6 +21,7 @@ const FP = {
   fp3: { id: 'fp3', nom: 'Tarte coco', categorie_slug: 'desserts', description_courte: 'Fiche en cours', prix: 4.5, statut: 'actif', visible_client: true, disponible: true, allergenes: [], recette_id: null, commandable: false, valides: null } };
 const VARIANTES_FP = [{ id: 'v1', produit_id: 'fp1', nom: 'Petite portion', prix: 4, disponible: true }, { id: 'v2', produit_id: 'fp1', nom: 'Grande portion', prix: 6, disponible: true }];
 const COMMANDES_FOOD = [];
+const RESSOURCES = []; const FICHIERS = {};
 // Registre des exigences (données fictives).
 const SUIVI = { id: 'suivi1', cle: 'suivi_exigences', univers: 'Core', titre: 'Suivi', statut: 'en_cours', priorite: 3, pieces_jointes: [
   { type: 'suivi_exigences', items: [
@@ -67,6 +68,28 @@ http.createServer(async (q, r) => {
   if (t === 'bellaia_actions' && roleDe(sub) === 'fondatrice' && (qs.includes('cle=eq.suivi_exigences') || qs.includes('id=eq.suivi1'))) {
     if (q.method === 'PATCH') { const b = await corps(q); Object.assign(SUIVI, b); }
     return json(unique ? SUIVI : [SUIVI]); }
+  // ── Mo Ti-Péyi : editions_ressources (fondatrice seulement, comme la RLS réelle) et stockage privé equipe-prive
+  if (t === 'editions_ressources' || u.pathname.startsWith('/rest/v1/editions_ressources')) {
+    const f = roleDe(sub) === 'fondatrice';
+    if (q.method === 'POST') { if (!f) return json({ message: 'new row violates row-level security policy' }, 403); const b = await corps(q);
+      if (RESSOURCES.some(x => x.collection === b.collection && x.identifiant === b.identifiant)) return json({ code: '23505', message: 'duplicate key value violates unique constraint "editions_ressources_collection_identifiant_key"' }, 409);
+      const row = { id: require('crypto').randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), publication: 'brouillon', ...b }; RESSOURCES.push(row); return json([row], 201); }
+    const sel = RESSOURCES.filter(x => { if (!f) return false; for (const [k, v] of new URLSearchParams(u.search).entries()) { if (['select', 'order', 'limit'].includes(k)) continue;
+      if (v.startsWith('eq.') && String(x[k]) !== v.slice(3)) return false; if (v.startsWith('in.(') && !v.slice(4, -1).split(',').includes(String(x[k]))) return false; } return true; });
+    if (q.method === 'PATCH') { if (!f) return json([], 200); const b = await corps(q); sel.forEach(x => Object.assign(x, b)); return json(sel); }
+    return json(sel);
+  }
+  if (t === '__ressources') return json(RESSOURCES);
+  if (u.pathname.startsWith('/storage/v1/object/')) {
+    const f = roleDe(sub) === 'fondatrice'; const signe = u.pathname.startsWith('/storage/v1/object/sign/');
+    const chemin = decodeURIComponent(u.pathname.replace(/^\/storage\/v1\/object\/(sign\/)?equipe-prive\//, ''));
+    if (q.method === 'POST' && !signe) { if (!f) return json({ statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' }, 403);
+      if (FICHIERS[chemin]) return json({ statusCode: '409', error: 'Duplicate', message: 'The resource already exists' }, 409);
+      const parts = []; for await (const c of q) parts.push(c); FICHIERS[chemin] = { octets: Buffer.concat(parts), type: q.headers['content-type'] }; return json({ Key: 'equipe-prive/' + chemin }); }
+    if (q.method === 'POST' && signe) { await corps(q); if (!f || !FICHIERS[chemin]) return json({ statusCode: '400', error: 'not_found', message: 'Object not found' }, 400); return json({ signedURL: '/object/sign/equipe-prive/' + encodeURI(chemin) + '?token=essai-' + Date.now() }); }
+    if (q.method === 'GET' && signe) { if (!u.searchParams.get('token') || !FICHIERS[chemin]) { r.writeHead(400, h); return r.end('{"message":"invalid token"}'); } r.writeHead(200, { ...h, 'Content-Type': FICHIERS[chemin].type || 'application/octet-stream' }); return r.end(FICHIERS[chemin].octets); }
+    if (q.method === 'GET') { r.writeHead(400, h); return r.end('{"message":"bucket is private"}'); }   // accès direct sans signature : refusé
+  }
   if (u.pathname === '/auth/v1/user') { if (!role) { r.writeHead(401, h); return r.end('{"message":"invalid"}'); } r.writeHead(200, h); return r.end(JSON.stringify({ id: sub, aud: 'authenticated', role: 'authenticated' })); }
   if (MEM[t]) {
     const h2 = { ...h }; const obj = (q.headers.accept || '').includes('pgrst.object'); const f = filtres(u.search);

@@ -113,6 +113,7 @@ const ONGLETS = [
   {id:"histoires", ico:"🌙", label:"Albums & histoires"},
   {id:"registre",  ico:"🗂", label:"Registre & lexique"},
   {id:"ticolibri", ico:"🐦", label:"Éditions pédagogiques"},
+  {id:"atelier",   ico:"✏️", label:"Atelier pédagogique"},
 ];
 
 // Gestion « Histoires du soir » chargée à la demande (module séparé)
@@ -127,6 +128,12 @@ function TiColibriLazy() {
   useEffect(() => { import("../editionsPedagogiques/TiColibriEditions").then(m => setComp(() => m.default)).catch(() => {}); }, []);
   return Comp ? <Comp /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement…</div>;
 }
+// Atelier pédagogique GS : bibliothèque de références privée + création de fiches (module séparé)
+function AtelierLazy() {
+  const [Comp, setComp] = useState<any>(null);
+  useEffect(() => { import("./atelierGS/AtelierGS").then(m => setComp(() => m.default)).catch(() => {}); }, []);
+  return Comp ? <Comp /> : <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:12 }}>Chargement de l'atelier…</div>;
+}
 function RegistreLazy() {
   const [Comp, setComp] = useState<any>(null);
   useEffect(() => { import("../histoires/EditionsRegistre").then(m => setComp(() => m.default)).catch(() => {}); }, []);
@@ -136,7 +143,7 @@ function RegistreLazy() {
 export default function MoTiPeyiF({ user }: { user?: any }) {
   const [cartes,   setCartes]   = useState<Carte[]>([]);
   const [commandes,setCommandes]= useState<Commande[]>([]);
-  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires"|"registre"|"ticolibri">("catalogue");
+  const [onglet,   setOnglet]   = useState<"catalogue"|"commandes"|"stats"|"histoires"|"registre"|"ticolibri"|"atelier">("catalogue");
   const [modal,    setModal]    = useState<"carte"|"commande"|null>(null);
   const [formCarte, setFormCarte] = useState<Partial<Carte>>({famille:"deplacements",niveau:"PS",statut:"brouillon"});
   const [formCmd,   setFormCmd]   = useState<Partial<Commande>>({clientNom:"",produit:PRODUITS[0].nom,qte:1,prix:PRODUITS[0].prix,statut:"en_attente",date:today()});
@@ -306,6 +313,7 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
       {onglet==="histoires" && <HistoiresGestionLazy/>}
       {onglet==="registre" && <RegistreLazy/>}
       {onglet==="ticolibri" && <TiColibriLazy/>}
+      {onglet==="atelier" && <AtelierLazy/>}
 
       {/* ── Catalogue cartes ── */}
       {onglet==="catalogue" && (
