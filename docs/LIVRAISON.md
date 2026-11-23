@@ -1,4 +1,4 @@
-# Bellaïa — Tableau de livraison (mis à jour le 23/11/2026, nuit — sprint du 26/11)
+# Bellaïa — Tableau de livraison (mis à jour le 23/11/2026, fin de nuit — sprint du 26/11)
 
 Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwright, profil iPhone 13 ; ce n'est **pas** un iPhone physique. **Déployé** = en production. Production actuelle : commit `0bfd765` (18/11) — **rien n'a été déployé depuis**.
 
@@ -28,6 +28,16 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 | Accessibilité : zoom autorisé, focus clavier visible, animations réduites sur demande | Oui (branche) | 15/15 ; non-régression 17/17 et 16/16 ; taille des champs sur Safari iOS à vérifier sur iPhone réel | Non | Non |
 | Bibliothèque de consignes IA : 24 modèles sur 8 métiers, versions conservées, règles communes (sources, coûts, autorisations) ; aucun appel IA | Oui (branche), sans migration | Unitaires 12/12 ; écran 14/14 simulateur iPhone ; assistante sans accès | Non | Non |
 | Audit juridique 20 points et contrôles par univers | Document (Drive privé) | Vérifié dans le code et la base | — | — |
+| En-têtes iPhone sous la zone de l'heure (6 en-têtes) + 34 fenêtres plein écran avec zones de sécurité | Oui (branche) | 3/3 (encoche imposée à 47 px ; échec prouvé sur l'ancien code) ; non-régression | Non | Non |
+| Sécurité du compte : mot de passe (vérification de l'actuel), mot de passe oublié, réinitialisation, sessions ; déconnexion révoquant la session | Oui (branche) | 12/12 unitaires + 14/14 simulateur | Non | Non |
+| Bibliothèque de consignes : enregistrement et droits sur base jetable reproduisant la production | Oui | 16/16 | — | — |
+| TypeScript 408 → 0 ; compilation de production avec vérification des types | Oui (branche) | `tsc` 0 ; `next build` réussi ; préversion Vercel prête | Non | — |
+| Odyssée : accord parental enregistré, réservation pour une personne mineure, soin réservé aux majeurs bloqué ; boutons désactivés corrigés | Oui (branche) | 9/9 simulateur | Non | Non |
+| Bella'Food : photo de produit ajoutable depuis le catalogue | Oui (branche) | 8/8 simulateur | Non | Non |
+| Notifications internes : alertes enregistrées (la table utilisée n'existait pas) + « Alertes reçues » | Oui (branche) | Écran 5/5 ; route serveur non testée de bout en bout | Non | Non |
+| Paiement SumUp : garde contre le double traitement | Oui (branche) | Non testé (nécessite un vrai paiement) | Non | Non |
+| Pages légales : identité lue dans la fiche Émetteur, mentions à valider | Oui (branche) | 9/9 unitaires + 15/15 | Non | Non |
+| Tableau unique des fonctionnalités | `docs/FONCTIONNALITES.md` | — | — | — |
 | Sauvegarde complète gratuite (structure, données, comptes, fichiers) + contrôle de restauration | Oui (scripts) | Chaîne 5/5 sur imitation ; **vraie sauvegarde pas encore faite** (à lancer par vous) | — | — |
 | B0 — 6 boissons non commandables ; citronnelle consolidée | Appliqué (données) | Vérifié en base | Oui (données) | Non |
 | B1 — 23 boissons en brouillon | Appliqué (données) | 0 produit exposé (vérifié en base) | Oui (brouillons invisibles) | Non |

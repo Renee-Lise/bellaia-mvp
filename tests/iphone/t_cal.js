@@ -10,6 +10,7 @@ const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('bas
     await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 120000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await p.waitForTimeout(2500);
     if (role === 'fondatrice') { await p.locator('text=Agenda').first().click(); }
     if (role === 'assistante') { await p.locator('text=Mon agenda').first().click(); }
+    if (role === 'cliente') { await p.getByRole('button', { name: 'Voir mon agenda' }).first().click(); } // agenda en rubrique depuis 6e2bf15
     await p.waitForTimeout(2500);
     const res = {};
     for (const v of ['Jour', 'Semaine', 'Mois']) {
