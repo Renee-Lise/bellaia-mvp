@@ -14120,7 +14120,7 @@ const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] 
   {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["exigences","🧭 Suivi des exigences"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
   {id:"g_clients",  ico:"👥", l:"Clients",      pages:[["crm","Clientes"],["crm_central","CRM central"]]},
   {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["reductions","🎁 Réductions"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
-  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
+  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["candidatures","📨 Candidatures"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
   {id:"g_events",   ico:"✨", l:"Events",       pages:[["events","Bella'Even's"]]},
   {id:"g_food",     ico:"🍃", l:"Food",         pages:[["food","Bella'Food"]]},
   {id:"g_bsh",      ico:"✦",  l:"BSH",          pages:[["bsh","Bella'Secret Home"],["bsh_members","Membres"]]},
@@ -14534,7 +14534,7 @@ function MessagerieWrapper({ user }: any) {
 function ModuleEquipe({ nom, props, libelle }: { nom: string; props: any; libelle: string }) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : nom === "ReductionsF" ? import("../modules/admin/ReductionsF") : import("../modules/equipe/AccesPermissions");
+    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : nom === "ReductionsF" ? import("../modules/admin/ReductionsF") : nom === "Candidatures" ? import("../modules/equipe/Candidatures") : import("../modules/equipe/AccesPermissions");
     charge.then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, [nom]);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement {libelle}…</div>;
@@ -14671,6 +14671,17 @@ function MoTiPeyiWrapper({ user }: any) {
 
 export default function BellaiaApp() {
   const [user, setUser] = useState(null);
+  // Invitation à usage unique (?invitation=…) : conservée le temps de la connexion, retirée de l'adresse affichée
+  const [invitation, setInvitation] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href); const j = u.searchParams.get("invitation");
+      if (j && /^[0-9a-f]{64}$/.test(j)) { sessionStorage.setItem("bellaia_invitation", j); u.searchParams.delete("invitation"); window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash); }
+      setInvitation(sessionStorage.getItem("bellaia_invitation"));
+    } catch {}
+  }, []);
+  const [InvitComp, setInvitComp] = useState<any>(null);
+  useEffect(() => { if (invitation && user && !InvitComp) import("../modules/portails/InvitationAccepter").then(m => setInvitComp(() => m.default)).catch(rechargerSiVersionObsolete); }, [invitation, user, InvitComp]);
   const [activeF, setActiveF] = useState("dashboard");
   const roleNav = (user as any)?.role;
   const groupes = roleNav === "assistante" ? NAV_GROUPES_ASSISTANTE : NAV_GROUPES;
@@ -14818,6 +14829,7 @@ export default function BellaiaApp() {
   );
 
   if (!user) return <EcranConnexion onConnecte={setUser}/>;
+  if (invitation && InvitComp) return <InvitComp jeton={invitation} onTermine={(ok: boolean) => { try { sessionStorage.removeItem("bellaia_invitation"); } catch {} setInvitation(null); if (ok) window.location.reload(); }}/>;
 
   const role = user.role;
   // Sécurité (19/11) : seul le rôle « fondatrice » ouvre l'espace fondatrice.
@@ -14912,6 +14924,7 @@ export default function BellaiaApp() {
     food_equipe: <FoodEquipeWrapper user={user}/>,
     partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
     acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,
+    candidatures: <ModuleEquipe nom="Candidatures" props={{}} libelle="des candidatures"/>,
     calendrier:  PREMIUM_ACTIF ? <CalendrierFondatriceWrapper user={user}/> : <CalendrierP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
     bsh:         <BSHF produits={bshProd} setProduits={setBshProd} commandes={bshCmds} setCommandes={setBshCmds} clientes={bshCli} setClientes={setBshCli} evenements={bshEvts} setEvenements={setBshEvts}/>,
