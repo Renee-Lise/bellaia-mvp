@@ -8,7 +8,7 @@ const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('bas
   const b = await chromium.launch();
   for (const role of ['assistante', 'fondatrice']) {
     const ctx = await b.newContext({ ...devices['iPhone 13'] });
-    await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id: UID[role], role }, jwt(UID[role])]);
+    await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_espace_' + u.id, 'assistante'); /* accueil client par défaut : on ouvre l'espace assistante */ localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id: UID[role], role }, jwt(UID[role])]);
     const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
     const appels = []; p.on('request', r => { if (/bellaia_(conversations|conv_membres|messages)/.test(r.url())) appels.push(r.url()); });
     await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 120000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });

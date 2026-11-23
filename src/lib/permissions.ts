@@ -18,9 +18,10 @@ export async function permisUtilisateur(sb: any, code: string, univers = "*", ro
 export async function permisParId(sbAdmin: any, userId: string, role: string | null | undefined, code: string, univers = "*"): Promise<boolean> {
   if (role === "fondatrice") return true;
   try {
-    const { data } = await sbAdmin.from("bellaia_permissions").select("permission,univers,expire_le")
+    // « * » : compatible avant et après la migration 0136 (colonne « statut » : une permission révoquée ne compte plus)
+    const { data } = await sbAdmin.from("bellaia_permissions").select("*")
       .eq("user_id", userId).in("permission", [code, "acces_complet"]);
-    return (data || []).some((p: any) => (p.univers === "*" || p.univers === univers) && (!p.expire_le || new Date(p.expire_le) > new Date()));
+    return (data || []).some((p: any) => (p.statut ?? "active") === "active" && (p.univers === "*" || p.univers === univers) && (!p.expire_le || new Date(p.expire_le) > new Date()));
   } catch { return false; }
 }
 

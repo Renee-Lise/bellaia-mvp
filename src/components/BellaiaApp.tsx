@@ -9,6 +9,7 @@ import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
 import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
 import { useRetourNavigateur, installerBalayageRetour } from "@/lib/navigationRetour";
+import { sbSelect } from "@/modules/events/eventsAtelierLib";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
 // MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
@@ -2776,6 +2777,9 @@ function HistoiresClientLazy() {
   return Comp ? <Comp/> : <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:30,fontSize:12}}>Chargement…</div>;
 }
 
+// Mo Ti-Péyi : les 5 articles ci-dessous ne sont PAS dans le catalogue validé (aucune fiche en base, tarifs non validés
+// par la fondatrice le 23/11). Ils restent présentés sans prix ni commande jusqu'à leur intégration au vrai catalogue.
+const MTP_CATALOGUE_VALIDE = false;
 function ClientMoTiPeyi({ user, onBack }: any) {
   const [page,     setPage]     = React.useState("catalogue");
   const [commandes,setCommandes]= React.useState([]);
@@ -2813,6 +2817,7 @@ function ClientMoTiPeyi({ user, onBack }: any) {
   ];
 
   const commander = async () => {
+    if (!MTP_CATALOGUE_VALIDE) return;  // aucun produit Mo Ti-Péyi commandable tant que les fiches et tarifs ne sont pas validés
     if (!form.produit || !form.clientNom) return;
     const ref = await genererReference("MTP");
     const total = form.qte * form.prix;
@@ -2867,10 +2872,15 @@ function ClientMoTiPeyi({ user, onBack }: any) {
                   </div>
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  {!MTP_CATALOGUE_VALIDE ? <>
+                    <div style={{fontSize:12,color:B.muted}}>Tarif en cours de validation</div>
+                    <span style={{border:"1px solid rgba(255,255,255,0.2)",borderRadius:9,padding:"8px 14px",color:B.muted,fontWeight:700,fontSize:12}}>Bientôt disponible</span>
+                  </> : <>
                   <div style={{fontSize:16,fontWeight:700,color:"#c9a96e"}}>{p.prix.toFixed(2).replace(".",",")} €</div>
                   <button onClick={()=>{setForm(f=>({...f,produit:p.nom,prix:p.prix,qte:1}));setModal("commande");}} style={{background:"linear-gradient(135deg,"+acc+",#16a34a)",border:"none",borderRadius:9,padding:"8px 14px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:SA}}>
                     🛒 Commander
                   </button>
+                  </>}
                 </div>
               </div>
             ))}
@@ -7701,8 +7711,14 @@ const UNIVERS_PREMIUM_VERS_CLIENT: Record<string,string> = { BSH:"bsh", ODYSSEE:
 function EspaceClientPremium({ user, produits, evenements, onLogout, onNewCommande }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   const [ouvert, setOuvert] = React.useState<{ univers: string | null } | null>(null);
+  // « Mon compte » : vraies pages internes (plus de renvoi vers l'ancien accueil)
+  const [compte, setCompte] = React.useState<string | null>(null);
+  const [CompteComp, setCompteComp] = React.useState<any>(null);
+  useRetourNavigateur(!!compte, () => setCompte(null), "compte-client");
+  React.useEffect(() => { if (compte && !CompteComp) import("../modules/portails/CompteClient").then(m => setCompteComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, [compte, CompteComp]);
   React.useEffect(() => { import("../modules/portails/PortailClient").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
   React.useEffect(() => { window.scrollTo(0, 0); }, [ouvert]);
+  if (compte) return <BandeSecurite>{CompteComp ? <CompteComp page={compte} user={user} whatsapp={ENV.WA} onRetour={()=>setCompte(null)}/> : <div style={{padding:30,color:"rgba(28,34,70,0.6)"}}>Ouverture…</div>}</BandeSecurite>;
   if (ouvert) return <>
     {!ouvert.univers && <button onClick={()=>setOuvert(null)} style={{position:"sticky",top:0,zIndex:50,width:"100%",textAlign:"left",padding:"calc(env(safe-area-inset-top,0px) + 10px) 16px 10px",background:"#faf6ef",border:"none",borderBottom:"1px solid rgba(28,34,70,0.1)",color:"#1c2246",fontSize:14,fontWeight:700,fontFamily:"-apple-system,system-ui,sans-serif"}}>‹ Ma maison Bellaïa</button>}
     <PortailClient user={user} produits={produits} evenements={evenements} onLogout={onLogout} onNewCommande={onNewCommande} initialUnivers={ouvert.univers} onRetourAccueil={()=>setOuvert(null)}/>
@@ -7712,6 +7728,7 @@ function EspaceClientPremium({ user, produits, evenements, onLogout, onNewComman
     if (k.startsWith("univers:")) { const u = UNIVERS_PREMIUM_VERS_CLIENT[k.slice(8)]; if (u) setOuvert({ univers: u }); return; }
     if (k === "events") { setOuvert({ univers: "bev" }); return; }
     if (k === "univers") return;
+    if (["profil","notifications","confidentialite","aide","agenda"].includes(k)) { setCompte(k); return; }
     setOuvert({ univers: null });   // commandes, profil, notifications, confidentialité, aide : espace détaillé existant
   }}/></BandeSecurite>;
 }
@@ -7722,6 +7739,56 @@ const OUTILS_ASSISTANTE_VERS_VUE: Record<string,string> = {
   missions:"equipe", equipe_gerer:"equipe", messagerie:"messagerie", notifications:"notifications", agenda:"agenda",
   food_catalogue:"food_equipe", food_commande:"food_equipe", food_recette:"food_equipe", bibliotheque:"food_equipe", revente:"food_equipe",
 };
+// ═══ Une identité, plusieurs espaces ═══
+// L'accueil client « Ma maison Bellaïa » reste l'accueil de chacun. Le sélecteur « Mes espaces » n'affiche que les
+// espaces réellement attribués en base (rôle principal, rôles supplémentaires et leur statut, fiche hôte BSH).
+// Une candidature est affichée pour information et n'ouvre rien. Un espace suspendu ou révoqué ne s'ouvre pas.
+// Le dernier espace utilisé est mémorisé sur l'appareil ; cela ne change aucune permission (règles en base).
+const ESPACE_PAR_ROLE: Record<string, string> = { assistante: "assistante", collaborateur: "assistante", qualite: "assistante", hote: "hote", prestataire: "hote", partenaire: "partenaire" };
+const LIB_ESPACE: Record<string, string> = { client: "Ma maison Bellaïa (cliente)", assistante: "Assistante / collaboratrice", hote: "Hôte / prestataire", partenaire: "Partenaire" };
+const LIB_STATUT: Record<string, string> = { actif: "actif", invite: "invitation en attente", suspendu: "suspendu", candidature: "candidature en cours" };
+type EspaceDispo = { cle: string; statut: "actif" | "invite" | "suspendu" | "candidature" };
+export function calculerEspaces(roleProfil: string | undefined, roles: { role: string; statut: string }[], hotes: { statut: string }[], candidatures: { type: string; statut: string }[] = []): EspaceDispo[] {
+  const rang = { actif: 3, invite: 2, suspendu: 1, candidature: 0 } as const;
+  const m = new Map<string, EspaceDispo["statut"]>([["client", "actif"]]);
+  const poser = (cle: string | undefined, st: EspaceDispo["statut"]) => { if (!cle) return; const a = m.get(cle); if (!a || rang[st] > rang[a]) m.set(cle, st); };
+  poser(ESPACE_PAR_ROLE[roleProfil || ""], "actif");
+  for (const r of roles) { const st = r.statut === "actif" ? "actif" : r.statut === "invite" ? "invite" : r.statut === "suspendu" ? "suspendu" : null; if (st) poser(ESPACE_PAR_ROLE[r.role], st); }
+  for (const h of hotes) poser("hote", h.statut === "active" ? "actif" : "suspendu");
+  for (const c of candidatures) if (!["accepte", "refuse", "archive"].includes(c.statut)) { const cle = c.type === "assistant" ? "assistante" : c.type === "hote" ? "hote" : null; if (cle && !m.has(cle)) m.set(cle, "candidature"); }
+  return [...m.entries()].map(([cle, statut]) => ({ cle, statut }));
+}
+function MaisonMultiEspaces({ user, rendreClient, rendreEspace }: { user: any; rendreClient: () => React.ReactNode; rendreEspace: (cle: string, retour: () => void) => React.ReactNode }) {
+  const [espaces, setEspaces] = React.useState<EspaceDispo[]>(() => calculerEspaces(user?.role, [], []));
+  const [actif, setActif] = React.useState<string>(() => { try { return localStorage.getItem("bellaia_espace_" + user?.id) || "client"; } catch { return "client"; } });
+  const [ouvert, setOuvert] = React.useState(false);
+  React.useEffect(() => { (async () => {
+    const g = (t: string, q: string) => sbSelect<any>(t, q).catch(() => []);
+    const [roles, hotes, cands] = await Promise.all([g("bellaia_roles", `user_id=eq.${user?.id}&select=role,statut`), g("bsh_hotes", `profile_id=eq.${user?.id}&select=statut`), g("bellaia_candidatures", `profile_id=eq.${user?.id}&select=type,statut`)]);
+    setEspaces(calculerEspaces(user?.role, roles, hotes, cands));
+  })(); }, [user?.id, user?.role]);
+  const choisir = (cle: string) => { setActif(cle); setOuvert(false); try { localStorage.setItem("bellaia_espace_" + user?.id, cle); } catch {} window.scrollTo(0, 0); };
+  const courant = espaces.find(e => e.cle === actif && e.statut === "actif") ? actif : "client";
+  useRetourNavigateur(courant !== "client", () => choisir("client"), "espace-pro");
+  const autres = espaces.filter(e => e.cle !== "client");
+  const selecteur = autres.length > 0 && <>
+    <button onClick={() => setOuvert(v => !v)} aria-expanded={ouvert} aria-label="Mes espaces" style={{position:"fixed",top:"calc(env(safe-area-inset-top, 0px) + 10px)",right:12,zIndex:900,minHeight:40,padding:"8px 14px",borderRadius:20,border:"1px solid rgba(184,153,90,0.6)",background:"rgba(28,34,70,0.92)",color:"#f4e7c8",fontSize:13,fontWeight:700,fontFamily:"-apple-system,system-ui,sans-serif"}}>Mes espaces ▾</button>
+    {ouvert && <div role="menu" style={{position:"fixed",top:"calc(env(safe-area-inset-top, 0px) + 56px)",right:12,left:12,maxWidth:360,marginLeft:"auto",zIndex:901,background:"#fff",borderRadius:16,boxShadow:"0 12px 40px rgba(0,0,0,0.25)",padding:8,fontFamily:"-apple-system,system-ui,sans-serif",color:"#1c2246"}}>
+      {espaces.map(e => { const ok = e.statut === "actif"; return <button key={e.cle} role="menuitem" disabled={!ok} onClick={() => ok && choisir(e.cle)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",minHeight:48,padding:"10px 12px",border:"none",borderRadius:12,background:courant===e.cle?"#f4ecdc":"transparent",color:ok?"#1c2246":"rgba(28,34,70,0.45)",fontSize:15,textAlign:"left"}}>
+        <span>{LIB_ESPACE[e.cle] || e.cle}</span><span style={{fontSize:12,color:e.statut==="suspendu"?"#b4523f":"rgba(28,34,70,0.55)"}}>{courant===e.cle?"✓ ":""}{LIB_STATUT[e.statut]}</span></button>; })}
+    </div>}
+  </>;
+  if (courant !== "client") return <>
+    <div style={{position:"sticky",top:0,zIndex:800,background:"#1c2246",padding:"calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px",display:"flex",alignItems:"center",gap:8}}>
+      <button onClick={() => choisir("client")} style={{minHeight:40,padding:"6px 12px",borderRadius:20,border:"1px solid rgba(244,231,200,0.4)",background:"transparent",color:"#f4e7c8",fontSize:13.5,fontWeight:700}}>‹ Ma maison Bellaïa</button>
+      <span style={{color:"rgba(244,231,200,0.75)",fontSize:12.5}}>{LIB_ESPACE[courant]}</span>
+    </div>
+    <div style={{...({"--bellaia-haut":"0px"} as React.CSSProperties)}}>{rendreEspace(courant, () => choisir("client"))}</div>
+    {selecteur}
+  </>;
+  return <>{rendreClient()}{selecteur}</>;
+}
+
 // Zone de sécurité haute des accueils premium : l'heure et l'encoche de l'iPhone restent lisibles (barre d'état
 // translucide à texte blanc) et le contenu commence sous elles.
 function BandeSecurite({ children, fond = "#1c2246" }: { children: React.ReactNode; fond?: string }) {
@@ -14800,24 +14867,21 @@ export default function BellaiaApp() {
   if (preview === "assistante") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><ApercuAssistanteWrapper user={user}/></div></>;
 
   // ── Routage par rôle
-  if (espaceEffectif === "client")
-    return PREMIUM_ACTIF
+  // Accueil client pour chacun + sélecteur « Mes espaces » (espaces attribués en base uniquement)
+  if (["client","assistante","hote","partenaire"].includes(espaceEffectif)) {
+    const accueilClient = () => PREMIUM_ACTIF
       ? <EspaceClientPremium user={user} produits={bshProd} evenements={bshEvts} onLogout={deconnexion} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/>
-      : <PortailClient user={user} produits={bshProd} evenements={bshEvts}
-      onLogout={deconnexion} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/>;
-  if (espaceEffectif === "assistante") return <EspaceAssistanteApp user={user} onLogout={deconnexion}/>;
-  if (espaceEffectif === "hote") {
-    const univHote = user?.univers || user?.module || "";
-    if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
-      return <HoteOdyssee user={user} onBack={deconnexion}/>;
-    }
-    if (univHote === "bsh" || user?.pole === "BSH") {
-      return <HoteBSH user={user} onBack={deconnexion}/>;
-    }
-    return <EspaceHote user={user} onLogout={deconnexion}/>;
+      : <PortailClient user={user} produits={bshProd} evenements={bshEvts} onLogout={deconnexion} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/>;
+    const espacePro = (cle: string, retour: () => void) => {
+      if (cle === "assistante") return <EspaceAssistanteApp user={user} onLogout={deconnexion}/>;
+      if (cle === "partenaire") return <EspacePartenaireUnifie user={user} onLogout={deconnexion}/>;
+      const univHote = user?.univers || user?.module || "";
+      if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") return <HoteOdyssee user={user} onBack={retour}/>;
+      if (univHote === "bsh" || user?.pole === "BSH") return <HoteBSH user={user} onBack={retour}/>;
+      return <EspaceHote user={user} onLogout={deconnexion}/>;
+    };
+    return <MaisonMultiEspaces user={user} rendreClient={accueilClient} rendreEspace={espacePro}/>;
   }
-  if (espaceEffectif === "partenaire")
-    return <EspacePartenaireUnifie user={user} onLogout={deconnexion}/>;
   if (espaceEffectif !== "fondatrice") return <EspaceRoleInconnu onLogout={deconnexion}/>;
 
   // ── Espace Fondatrice

@@ -20,7 +20,7 @@ import { sbSelect, sbRpc } from "../events/eventsAtelierLib";
 import { MARQUES, marqueDe } from "../../design/marques";
 import { Surface, Titre, Puce, LogoMarque, Carrousel, Bouton, type Banniere } from "../../design/composants";
 import { monIdentifiant, favorisLocaux } from "./portailsLib";
-import CalendrierPremium from "../calendrier/CalendrierPremium";
+import { chargerAgenda, type ElementAgenda } from "../calendrier/CalendrierPremium";
 
 const euros = (n: number) => (Number(n) || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const dateFr = (d?: string | null) => d ? new Date(d.length <= 10 ? d + "T12:00:00" : d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
@@ -110,7 +110,7 @@ export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { on
             : <div style={{ color: m.doux, fontSize: 13.5 }}>Aucune commande pour l'instant.</div>}
         </Surface>
 
-        <CalendrierPremium m={m} role="cliente" userId={d.id} titre="Mon agenda" />
+        <ResumeAgenda m={m} userId={d.id} onVoir={() => onOuvrir?.("agenda")} />
 
         {!!d.dossiers.length && <Surface m={m}>
           <Titre m={m} sur="Bella'Even's" niveau={3}>Mes événements</Titre>
@@ -150,4 +150,18 @@ export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { on
       </div>
     </div>
   );
+}
+
+// Accueil : résumé compact de l'agenda (l'agenda complet est une rubrique indépendante « Mon agenda »).
+function ResumeAgenda({ m, userId, onVoir }: { m: any; userId: string; onVoir: () => void }) {
+  const [prochains, setProchains] = useState<ElementAgenda[] | null>(null);
+  useEffect(() => { chargerAgenda("cliente", { userId }).then(l => { const maintenant = Date.now(); setProchains(l.filter(e => e.debut.getTime() >= maintenant - 3600e3).sort((a, b) => a.debut.getTime() - b.debut.getTime()).slice(0, 3)); }).catch(() => setProchains([])); }, [userId]);
+  const quand = (d: Date) => d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }) + (d.getHours() || d.getMinutes() ? " · " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "");
+  return <Surface m={m}>
+    <Titre m={m} sur="À venir" niveau={3}>Mon agenda</Titre>
+    {prochains === null ? <div style={{ color: m.doux, fontSize: 13.5 }}>Chargement…</div>
+      : prochains.length === 0 ? <div style={{ color: m.doux, fontSize: 13.5 }}>Aucun rendez-vous, livraison ou prestation à venir.</div>
+      : prochains.map(e => <div key={e.id} style={{ padding: "9px 0", borderTop: `1px solid ${m.ligne}` }}><div style={{ fontWeight: 650, fontSize: 14 }}>{e.titre}</div><div style={{ fontSize: 12.5, color: m.doux }}>{quand(e.debut)}</div></div>)}
+    <div style={{ marginTop: 10 }}><Bouton m={m} variante="discret" onClick={onVoir}>Voir mon agenda</Bouton></div>
+  </Surface>;
 }

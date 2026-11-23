@@ -1,0 +1,11 @@
+0139 appliquée deux fois (idempotence)
+01 la cliente dépose une demande RGPD : statut forcé « reçue », échéance à 1 mois | t
+02 accusé de réception et notification de la fondatrice | t
+03 déposer au nom d'une autre personne → la demande reste rattachée à son auteur réel | t
+04 la cliente lit ses demandes (2) | t
+05 un autre compte ne lit rien (0) | t
+06 un visiteur ne lit rien | t
+07 la cliente modifie statut ou réponse → sans effet | t
+08 la fondatrice répond : réponse datée et signée, message d'origine intact | t
+retour arrière : true
+réapplication sans erreur
