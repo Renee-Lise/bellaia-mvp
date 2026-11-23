@@ -10,7 +10,7 @@
 # dans l'export, et = référence de production ; (3) stockage et comptes : manifeste = référence.
 # Conclusion : COMPLET ou ÉCARTS (sauvegarde non validée).
 set -e
-T="$1"; S="$2"; REF="$3"; REFS="$4"; COMPTES="${5:-}"; B=/usr/lib/postgresql/16/bin; R=$(cd "$(dirname "$0")/../../.." && pwd)
+T="$1"; S="$2"; REF="$3"; REFS="$4"; COMPTES="${5:-}"; B=${PGBIN:-/usr/lib/postgresql/16/bin}; R=$(cd "$(dirname "$0")/../../.." && pwd)
 ecarts=0
 echo "— 1. Intégrité des fichiers de la sauvegarde"
 if [ -f "$S/empreintes.sha256" ]; then

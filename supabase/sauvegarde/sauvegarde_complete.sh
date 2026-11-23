@@ -15,7 +15,8 @@ D="${1:-.}/bellaia_sauvegarde_$(date +%Y-%m-%d_%H%M)"
 COMPARTIMENTS="bellaia-branding bsh-documents bsh-visuels equipe-prive events-medias food-recettes-media histoires-medias stocks-images"
 command -v supabase >/dev/null || { echo "Supabase CLI absente. Installation : https://supabase.com/docs/guides/cli"; exit 1; }
 mkdir -p "$D/stockage"; umask 077
-echo "1/6 Liaison au projet (mot de passe de la base demandé par la CLI)"; supabase link --project-ref "$PROJET"
+echo "1/6 Liaison au projet (mot de passe de la base demandé par la CLI, ou lu dans SUPABASE_DB_PASSWORD en exécution automatique)"
+if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then supabase link --project-ref "$PROJET" -p "$SUPABASE_DB_PASSWORD"; else supabase link --project-ref "$PROJET"; fi
 echo "2/6 Rôles";      supabase db dump --role-only -f "$D/roles.sql"
 echo "3/6 Structure";  supabase db dump -f "$D/structure.sql"
 echo "4/6 Données";    supabase db dump --data-only -f "$D/donnees.sql"

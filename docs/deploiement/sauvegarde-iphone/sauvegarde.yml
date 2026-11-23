@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sauvegarde complète Bellaïa + contrôle de restauration réelle — à copier dans un dépôt GitHub PRIVÉ
+# (chemin : .github/workflows/sauvegarde.yml). Déclenchement manuel depuis l'application GitHub de l'iPhone.
+# AUCUN secret dans ce fichier : ils sont saisis dans Settings › Secrets and variables › Actions du dépôt privé.
+#   SUPABASE_ACCESS_TOKEN  jeton personnel Supabase (Account › Access Tokens)
+#   SUPABASE_DB_PASSWORD   mot de passe de la base (Project Settings › Database)
+#   SUPABASE_DB_URL        chaîne de connexion « Session pooler » (bouton Connect du projet), mot de passe inclus
+#   BACKUP_PASSPHRASE      phrase de chiffrement de l'archive (longue, conservée hors ligne par la fondatrice)
+# Résultat : résumé « COMPLET » ou « ÉCARTS » dans la page de l'exécution + archive CHIFFRÉE téléchargeable 7 jours.
+# Lecture seule pour la production : aucune écriture, aucune migration.
+# ═══════════════════════════════════════════════════════════════════════════════
+name: Sauvegarde Bellaïa
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sauvegarde:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Scripts publics (sans aucun secret)
+        uses: actions/checkout@v4
+        with:
+          repository: Renee-Lise/bellaia-mvp
+          ref: claude/session-sdcuy0
+          path: outils
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Sauvegarde complète (structure, données, comptes, fichiers)
+        run: |
+          mkdir -p "$RUNNER_TEMP/sauv" && cd "$RUNNER_TEMP/sauv"
+          bash "$GITHUB_WORKSPACE/outils/supabase/sauvegarde/sauvegarde_complete.sh" "$RUNNER_TEMP/sauv" > journal.txt 2>&1 || { tail -30 journal.txt; exit 1; }
+          echo "DOSSIER=$(ls -d "$RUNNER_TEMP"/sauv/bellaia_sauvegarde_*)" >> "$GITHUB_ENV"
+      - name: Références relevées en production (lecture seule)
+        run: |
+          R="$RUNNER_TEMP/ref"; mkdir -p "$R"
+          { echo "table;lignes"; psql "$SUPABASE_DB_URL" -At -F';' -c "select table_name, (xpath('/row/c/text()', query_to_xml(format('select count(*) c from public.%I', table_name), false, true, '')))[1]::text from information_schema.tables where table_schema='public' and table_type='BASE TABLE' order by 1"; } > "$R/tables.csv"
+          psql "$SUPABASE_DB_URL" -At -F"$(printf '\t')" -c "select bucket_id, count(*), sum((metadata->>'size')::bigint), md5(string_agg(name||'|'||coalesce(metadata->>'size','0'), E'\n' order by name collate \"C\")) from storage.objects group by 1 order by 1" > "$R/stockage.tsv"
+          echo "COMPTES=$(psql "$SUPABASE_DB_URL" -At -c 'select count(*) from auth.users')" >> "$GITHUB_ENV"
+      - name: Contrôle de restauration réelle dans une base jetable
+        run: |
+          export PGBIN=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)
+          sh "$GITHUB_WORKSPACE/outils/supabase/tests/restauration/verifier_restauration.sh" "$RUNNER_TEMP/verif" "$DOSSIER" "$RUNNER_TEMP/ref/tables.csv" "$RUNNER_TEMP/ref/stockage.tsv" "$COMPTES" | tee "$RUNNER_TEMP/resultat.txt"
+          { echo '## Résultat de la sauvegarde'; echo '```'; grep -v '^ÉCART  .*@' "$RUNNER_TEMP/resultat.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          grep -q '^COMPLET' "$RUNNER_TEMP/resultat.txt"
+      - name: Archive chiffrée (seule sortie conservée)
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/sauv" && tar -czf sauvegarde.tar.gz "$(basename "$DOSSIER")"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in sauvegarde.tar.gz -out "$RUNNER_TEMP/bellaia_sauvegarde.tar.gz.enc" -pass env:BACKUP_PASSPHRASE
+          rm -rf sauvegarde.tar.gz "$DOSSIER"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bellaia-sauvegarde-chiffree
+          path: ${{ runner.temp }}/bellaia_sauvegarde.tar.gz.enc
+          retention-days: 7
