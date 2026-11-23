@@ -11,7 +11,23 @@ const CAT_FOOD = [
   { id: 'cp1', reference: 'F-1', business_unit: 'FOOD', categorie_slug: 'patisserie', nom: 'Tarte coco (test)', description_courte: 'Test', prix: 4.5, allergenes: ['Gluten', 'Œufs'], galerie_photos: [], statut: 'actif', visible_client: true, disponible: true },
   { id: 'cp2', reference: 'F-2', business_unit: 'FOOD', categorie_slug: 'repas', nom: 'Colombo de poulet (test)', description_courte: '', prix: 12, allergenes: [], galerie_photos: [], statut: 'actif', visible_client: true, disponible: true },
   { id: 'cp3', reference: 'F-3', business_unit: 'FOOD', categorie_slug: 'boissons', nom: 'Jus maison (test)', description_courte: '', prix: null, allergenes: [], galerie_photos: [], statut: 'actif', visible_client: true, disponible: true }];
-const STOCKS_BSH = require('fs').existsSync(__dirname + '/stocks_bsh_test.json') ? JSON.parse(require('fs').readFileSync(__dirname + '/stocks_bsh_test.json', 'utf8')) : null;
+// Produits BSH : fichier désigné par MOCK_STOCKS_BSH (données réelles éventuelles : JAMAIS dans le dépôt).
+const FICHIER_STOCKS = process.env.MOCK_STOCKS_BSH || __dirname + '/stocks_bsh_test.json';
+const STOCKS_BSH = require('fs').existsSync(FICHIER_STOCKS) ? JSON.parse(require('fs').readFileSync(FICHIER_STOCKS, 'utf8')) : null;
+// Bella'Food premium (données fictives) : tailles, base des frites, allergènes, réduction, commande.
+const FP = {
+  fp1: { id: 'fp1', nom: 'Frites maison', categorie_slug: 'accompagnements', description_courte: 'Frites fraîches, base au choix', prix: null, statut: 'actif', visible_client: true, disponible: true, allergenes: [], recette_id: null, commandable: true, valides: ['Aucun des 14 allergènes réglementaires'] },
+  fp2: { id: 'fp2', nom: 'Colombo de poulet', categorie_slug: 'plats', description_courte: 'Recette maison', prix: 12, statut: 'actif', visible_client: true, disponible: true, allergenes: ['Céleri', 'Moutarde'], recette_id: null, commandable: true, valides: null },
+  fp3: { id: 'fp3', nom: 'Tarte coco', categorie_slug: 'desserts', description_courte: 'Fiche en cours', prix: 4.5, statut: 'actif', visible_client: true, disponible: true, allergenes: [], recette_id: null, commandable: false, valides: null } };
+const VARIANTES_FP = [{ id: 'v1', produit_id: 'fp1', nom: 'Petite portion', prix: 4, disponible: true }, { id: 'v2', produit_id: 'fp1', nom: 'Grande portion', prix: 6, disponible: true }];
+const COMMANDES_FOOD = [];
+// Registre des exigences (données fictives).
+const SUIVI = { id: 'suivi1', cle: 'suivi_exigences', univers: 'Core', titre: 'Suivi', statut: 'en_cours', priorite: 3, pieces_jointes: [
+  { type: 'suivi_exigences', items: [
+    { id: 'T1.01', b: '1', u: 'Core', t: 'Exigence de test développée', r: 'Oui', a: 'Oui', d: 'Oui', te: 'Oui — 3/3', de: 'Prévisualisation', p: 'Commit abc1234', re: 'Mise en production', pr: 1, s: 'a_valider', resp: 'Claude (développement)', dec: 'GO production' },
+    { id: 'T2.01', b: '2', u: 'Atelier', t: 'Exigence de test absente', r: 'Oui', a: 'Non', d: 'Non', te: 'Non', de: 'Non', p: '—', re: 'Tout', pr: 3, s: 'a_faire' },
+    { id: 'T6.01', b: '6', u: 'BSH', t: 'Exigence bloquée', r: 'Partiel — fichier perdu', a: 'Partiel', d: 'Non', te: 'Non', de: 'Non', p: '—', re: 'Renvoyer le fichier', pr: 1, s: 'bloque' }] },
+  { type: 'rapport', nom: 'rapport_test.md', titre: 'Rapport de test', le: '2026-11-23T10:00:00Z', contenu: '# Rapport de test\n\nContenu privé fictif.' }] };
 const ECRITURES = [];
 const D = {
   catalogue_produits: CAT_FOOD, v_catalogue_food_public: [{ id: 'cp1', commandable: true }, { id: 'cp2', commandable: false }],
@@ -30,6 +46,27 @@ http.createServer(async (q, r) => {
   if (q.method === 'OPTIONS') { r.writeHead(204, h); return r.end(); }
   let sub = ''; try { sub = JSON.parse(Buffer.from((q.headers.authorization || '').split(' ')[1].split('.')[1], 'base64').toString()).sub; } catch {}
   const role = roleDe(sub); const u = new URL(q.url, 'http://x'); const t = u.pathname.split('/').pop(); const qs = decodeURIComponent(u.search);
+  // ── Bella'Food premium, registre des exigences : traités avant les réponses génériques
+  const rpc = u.pathname.includes('/rpc/') ? t : null;
+  const json = (o, code = 200) => { r.writeHead(code, h); r.end(JSON.stringify(o)); };
+  const unique = (q.headers.accept || '').includes('pgrst.object');
+  if (rpc === 'food_allergenes_produits') { const b = await corps(q); const o = {}; (b?.p_ids || []).forEach(id => { if (FP[id]) o[id] = FP[id].valides || FP[id].allergenes; }); return json(o); }
+  if (rpc === 'food_allergenes_valides') { const b = await corps(q); return json(FP[b?.p_produit]?.valides ?? null); }
+  if (rpc === 'reduction_apercu' || rpc === 'reduction_consommer') { const b = await corps(q); const c = String(b?.p_code || '').toUpperCase(); const m = Number(b?.p_montant_centimes || b?.p_montant || 0);
+    return json(c === 'BIENVENUE10' ? { valide: true, code: 'BIENVENUE10', libelle: '-10 % bienvenue', remise_centimes: Math.round(m * 0.1) } : { valide: false, message: 'Code inconnu ou expiré.' }); }
+  if (rpc === 'prochaine_reference') { const b = await corps(q); return json(`${b?.p_prefixe || 'X'}-2026-${String(COMMANDES_FOOD.length + 1).padStart(4, '0')}`); }
+  if (t === 'v_catalogue_food_public' && qs.includes('categorie_slug')) return json(Object.values(FP).map(({ valides, ...x }) => x));
+  if (t === 'v_variantes_food_public') return json(VARIANTES_FP);
+  if (t === 'catalogue_produits' && /id=eq\.fp\d/.test(qs)) { const id = (qs.match(/id=eq\.(fp\d)/) || [])[1]; const x = FP[id]; return json(unique ? (x || null) : x ? [x] : []); }
+  if (t === 'catalogue_variantes') { const id = (qs.match(/id=eq\.(v\d)/) || [])[1]; const x = VARIANTES_FP.find(v => v.id === id); return json(unique ? (x || null) : x ? [x] : []); }
+  if (t === 'food_horaires_config') return json(unique ? null : []);
+  if (t === 'notifications' && q.method === 'POST') { await corps(q); return json([]); }
+  if (t === 'bellaia_commandes' && q.method === 'POST') { const b = await corps(q); if (b?.idempotency_key && COMMANDES_FOOD.some(c => c.idempotency_key === b.idempotency_key)) return json({ code: '23505', message: 'duplicate key value violates unique constraint "bellaia_commandes_idempotency_key_key"' }, 409); const row = { id: 'cmd' + (COMMANDES_FOOD.length + 1), ...b }; COMMANDES_FOOD.push(row); return json(unique ? row : [row], 201); }
+  if (t === 'bellaia_commandes' && qs.includes('idempotency_key=eq.')) { const k = (qs.match(/idempotency_key=eq\.([^&]+)/) || [])[1]; const x = COMMANDES_FOOD.find(c => c.idempotency_key === k); return json(unique ? (x || null) : x ? [x] : []); }
+  if (t === '__commandes_food') return json(COMMANDES_FOOD);
+  if (t === 'bellaia_actions' && roleDe(sub) === 'fondatrice' && (qs.includes('cle=eq.suivi_exigences') || qs.includes('id=eq.suivi1'))) {
+    if (q.method === 'PATCH') { const b = await corps(q); Object.assign(SUIVI, b); }
+    return json(unique ? SUIVI : [SUIVI]); }
   if (u.pathname === '/auth/v1/user') { if (!role) { r.writeHead(401, h); return r.end('{"message":"invalid"}'); } r.writeHead(200, h); return r.end(JSON.stringify({ id: sub, aud: 'authenticated', role: 'authenticated' })); }
   if (MEM[t]) {
     const h2 = { ...h }; const obj = (q.headers.accept || '').includes('pgrst.object'); const f = filtres(u.search);
@@ -43,7 +80,7 @@ http.createServer(async (q, r) => {
     r.writeHead(200, h2); return r.end(JSON.stringify(obj ? (res[0] || null) : res));
   }
   let out = D[t] || [];
-  if (t === 'v_catalogue_public' && qs.includes('univers=eq.BSH')) out = JSON.parse(require('fs').readFileSync(__dirname + '/apercu_bsh_produits.json', 'utf8'));
+  if (t === 'v_catalogue_public' && qs.includes('univers=eq.BSH')) { const f = process.env.MOCK_APERCU_BSH || __dirname + '/apercu_bsh_produits.json'; out = require('fs').existsSync(f) ? JSON.parse(require('fs').readFileSync(f, 'utf8')) : []; }
   if (t === 'bsh_jeux_cartes' && (qs.includes('97991d2d') || qs.includes('id=eq.av'))) out = CARTES_AV.filter(c => !qs.includes('nom=eq.') || qs.includes('nom=eq.' + c.nom)).filter(c => !qs.includes('id=eq.av') || qs.includes('id=eq.' + c.id));
   if (t === 'mes_acces') out = { fondatrice: role === 'fondatrice', roles: [], permissions: role === 'assistante' ? ['food.consulter:FOOD', 'food.commandes:FOOD'] : [], hote_bsh: false };
   else if (t === 'bellaia_missions') out = role === 'assistante' && qs.includes('assigne_a=eq.' + sub) ? missions : [];

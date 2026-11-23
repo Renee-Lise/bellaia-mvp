@@ -65,7 +65,7 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
   const aller = (f?: string) => { if (f && f !== "nouveautes" && categories.includes(f)) setCat(f); else if (f === "nouveautes") setTri("nouveautes"); else if (f) setQ(f); refGrille.current?.scrollIntoView({ behavior: "smooth" }); };
 
   const Visuel = ({ p, taille = "100%" as any, r = t.rayon }: { p: Produit; taille?: any; r?: number }) => p.photo
-    ? <img src={p.photo} alt={p.nom} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: r, display: "block" }} />
+    ? <img src={p.photo} alt={p.nom} loading="lazy" decoding="async" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: r, display: "block", background: "#fff" }} />
     : <Illustration motif={info(p.categorie).motif} palette={info(p.categorie).palette} graine={p.id} taille={taille} rond={r} />;
   const Prix = ({ p, gros = false }: { p: Produit; gros?: boolean }) => {
     if (p.prix == null) return <span style={{ fontSize: gros ? 16 : 12.5, fontWeight: 800, color: t.prixCouleur }}>{p.prixNote || "Sur devis"}</span>;
@@ -190,7 +190,7 @@ function Feuille({ t, fermer, children }: { t: Theme; fermer: () => void; childr
   return <div onClick={fermer} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 50, display: "flex", alignItems: "flex-end" }}>
     <div onClick={e => e.stopPropagation()} style={{ background: t.code === "BSH" ? "#140910" : "#fff", color: t.texte, width: "100%", maxHeight: "88vh", overflowY: "auto", borderRadius: t.code === "ODYSSEE" ? 0 : "22px 22px 0 0", padding: "10px 16px max(24px, env(safe-area-inset-bottom))", fontFamily: t.corps }}>
       <div style={{ width: 42, height: 5, borderRadius: 99, background: t.ligne, margin: "0 auto 12px" }} />
-      <button onClick={fermer} style={{ float: "right", background: "none", border: "none", fontSize: 22, color: t.doux, marginTop: -6 }}>✕</button>
+      <button onClick={fermer} aria-label="Fermer" style={{ float: "right", background: "none", border: "none", fontSize: 22, color: t.doux, marginTop: -6, minWidth: 44, minHeight: 44 }}>✕</button>
       {children}
     </div></div>;
 }

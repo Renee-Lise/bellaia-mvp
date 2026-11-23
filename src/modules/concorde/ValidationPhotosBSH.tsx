@@ -1,8 +1,11 @@
 "use client";
 // ═══════════════════════════════════════════════════════════
 // Validation des photos Concorde Pro — fondatrice uniquement.
-// • Les propositions viennent du serveur (/api/bsh/concorde/diagnostic?propositions=1) :
-//   correspondance EXACTE par référence, jamais approximative.
+// • Les propositions viennent du serveur : export Store Commander (/api/bsh/concorde/diagnostic?propositions=1,
+//   production uniquement) ou, à défaut, plan du site public (/api/bsh/concorde/plan-du-site) :
+//   correspondance EXACTE par référence puis code-barres, jamais approximative.
+// • La fondatrice choisit la photo principale parmi les photos du fournisseur, peut retirer une photo,
+//   et exporter l'inventaire (CSV) ; « Image à fournir » quand aucune photo fiable n'existe.
 // • RIEN n'est écrit sans un clic de la fondatrice, après aperçu des modifications.
 // • Seuls la photo principale (image_url) et, sur option, la description
 //   (usage_conseils, uniquement si elle est vide) sont modifiés. Jamais le nom,
@@ -15,10 +18,13 @@ import { MARQUES } from "../../design/marques";
 import type { Proposition } from "../../lib/concordeExport";
 
 const M = MARQUES.BSH;
-type Classe = Proposition["classe"] | "provisoires" | "tous";
-const LIBELLES: Record<Classe, string> = { tous: "Tous", pret: "Prêts", attente: "À valider", incomplet: "Incomplets", introuvable: "Introuvables", provisoires: "Prix provisoires" };
+type Classe = Proposition["classe"] | "provisoires" | "a_fournir" | "tous";
+const LIBELLES: Record<Classe, string> = { tous: "Tous", pret: "Prêts", attente: "À valider", incomplet: "Incomplets", introuvable: "Introuvables", provisoires: "Prix provisoires", a_fournir: "Image à fournir" };
+const SOURCES: Record<string, string> = { export: "export Store Commander de Concorde Pro", plan_du_site: "plan du site public de Concorde Pro (photos dans l'ordre de la fiche ; pas de description)" };
+const sansImage = (p: Proposition) => !p.imageActuelle && !p.fournisseur?.images.length;
+const csvCellule = (v: any) => { const t = v == null ? "" : String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
 const CLE_JOURNAL = "bellaia_bsh_validations_photos";
-type Ecriture = { id: string; nom: string; avant: { image_url: string | null; usage_conseils?: string | null }; apres: { image_url: string; usage_conseils?: string } };
+type Ecriture = { id: string; nom: string; avant: { image_url: string | null; usage_conseils?: string | null }; apres: { image_url: string | null; usage_conseils?: string } };
 type Lot = { le: string; ecritures: Ecriture[] };
 
 export default function ValidationPhotosBSH() {
@@ -33,26 +39,32 @@ export default function ValidationPhotosBSH() {
   const [envoi, setEnvoi] = useState(false);
   const [journal, setJournal] = useState<Lot[]>([]);
   const [info, setInfo] = useState("");
+  const [source, setSource] = useState("");
+  const [principale, setPrincipale] = useState<Record<string, string>>({});
 
   const charger = async () => {
     setEtat("charge"); setMessage("");
     try {
-      const r = await fetch("/api/bsh/concorde/diagnostic?propositions=1", { headers: { Authorization: `Bearer ${await jeton()}` }, cache: "no-store" });
-      const d = await r.json().catch(() => ({}));
+      const h = { headers: { Authorization: `Bearer ${await jeton()}` }, cache: "no-store" as const };
+      let r = await fetch("/api/bsh/concorde/diagnostic?propositions=1", h);
+      let d = await r.json().catch(() => ({})); let src = "export";
+      // Export privé indisponible (variable de production absente, jeton expiré…) → plan du site public.
+      if (r.ok && !d.ok && r.status !== 401 && r.status !== 403) { r = await fetch("/api/bsh/concorde/plan-du-site", h); d = await r.json().catch(() => ({})); src = "plan_du_site"; }
       if (!r.ok || !d.ok) { setEtat("erreur"); setMessage(d.error || d.message || `Réponse HTTP ${r.status}`); return; }
-      setProps(d.propositions || []); setEtat("pret");
+      setProps(d.propositions || []); setSource(d.source || src); setEtat("pret");
     } catch (e: any) { setEtat("erreur"); setMessage(String(e?.message || e)); }
   };
   useEffect(() => { charger(); try { setJournal(JSON.parse(localStorage.getItem(CLE_JOURNAL) || "[]")); } catch {} }, []);
 
   const selectionnable = (p: Proposition) => (p.classe === "pret" || p.classe === "attente") && !!p.fournisseur?.images.length && !p.prixProvisoire && !p.prixACompleter;
   const visibles = useMemo(() => props.filter(p =>
-    (filtre === "tous" || (filtre === "provisoires" ? (p.prixProvisoire || p.prixACompleter) : p.classe === filtre))
+    (filtre === "tous" || (filtre === "provisoires" ? (p.prixProvisoire || p.prixACompleter) : filtre === "a_fournir" ? sansImage(p) : p.classe === filtre))
     && (!q || `${p.nom} ${p.ref} ${p.fournisseur?.titre || ""}`.toLowerCase().includes(q.toLowerCase()))), [props, filtre, q]);
-  const compte = (c: Classe) => c === "tous" ? props.length : c === "provisoires" ? props.filter(p => p.prixProvisoire || p.prixACompleter).length : props.filter(p => p.classe === c).length;
+  const compte = (c: Classe) => c === "tous" ? props.length : c === "provisoires" ? props.filter(p => p.prixProvisoire || p.prixACompleter).length : c === "a_fournir" ? props.filter(sansImage).length : props.filter(p => p.classe === c).length;
+  const imagePrincipale = (p: Proposition) => principale[p.id] && p.fournisseur?.images.includes(principale[p.id]) ? principale[p.id] : p.fournisseur?.images[0];
   const selection = props.filter(p => choix[p.id] && selectionnable(p));
   const ecrituresPrevues: Ecriture[] = selection.map(p => {
-    const apres: Ecriture["apres"] = { image_url: p.fournisseur!.images[0] };
+    const apres: Ecriture["apres"] = { image_url: imagePrincipale(p)! };
     if (avecDescription && !p.descriptionActuelle && (p.fournisseur!.description || "").length >= 40) apres.usage_conseils = p.fournisseur!.description;
     return { id: p.id, nom: p.nom, avant: { image_url: p.imageActuelle, ...(apres.usage_conseils ? { usage_conseils: null } : {}) }, apres };
   }).filter(e => e.apres.image_url !== e.avant.image_url || e.apres.usage_conseils);
@@ -69,6 +81,25 @@ export default function ValidationPhotosBSH() {
     setProps(ps => ps.map(p => { const f = faites.find(x => x.id === p.id); return f ? { ...p, imageActuelle: f.apres.image_url, descriptionActuelle: p.descriptionActuelle || !!f.apres.usage_conseils } : p; }));
     setChoix({}); setApercu(false); setEnvoi(false);
     setInfo(`✅ ${faites.length} fiche${faites.length > 1 ? "s" : ""} mise${faites.length > 1 ? "s" : ""} à jour${echecs.length ? ` · ❌ ${echecs.length} échec(s) : ${echecs.join(" ; ")}` : ""}.`);
+  };
+  const retirerPhoto = async (p: Proposition) => {
+    if (!p.imageActuelle || !confirm(`Retirer la photo de « ${p.nom} » ? La fiche affichera « Image à fournir » (annulable).`)) return;
+    try {
+      await sbUpdate("stocks", p.id, { image_url: null, updated_at: new Date().toISOString() });
+      memoriser([...journal, { le: new Date().toISOString(), ecritures: [{ id: p.id, nom: p.nom, avant: { image_url: p.imageActuelle }, apres: { image_url: null } }] }]);
+      setProps(ps => ps.map(x => x.id === p.id ? { ...x, imageActuelle: null } : x)); setInfo(`🗑 Photo retirée : ${p.nom} (annulable).`);
+    } catch (e: any) { setInfo("❌ " + String(e?.message || e)); }
+  };
+  // Inventaire privé (fondatrice) : une ligne par article. Le prix d'achat n'y figure pas.
+  const exporterInventaire = () => {
+    const ent = ["Référence", "Nom", "Catégorie", "Statut de publication", "Prix actuel (€)", "Prix provisoire (achat + 5 €)", "Image principale", "Photos fournisseur", "Photo principale proposée", "Correspondance", "Variantes / points à vérifier", "Manques", "Vérification visuelle", "Validation nécessaire"];
+    const lignes = props.map(p => [p.ref, p.nom, p.categorie, p.enLigne ? "en boutique" : (p.statutBellaia || ""), p.prixVente != null ? p.prixVente.toFixed(2).replace(".", ",") : "", p.prixProvisoire ? "oui" : "",
+      p.imageActuelle ? "rattachée" : p.fournisseur?.images.length ? "disponible chez le fournisseur" : "Image à fournir", p.fournisseur?.images.length || 0, imagePrincipale(p) || "",
+      p.fournisseur ? (p.fournisseur.correspondance === "reference" ? "référence + code-barres exacts" : "code-barres exact") : "aucune", p.aValider.join(" | "), p.manques.join(" | "),
+      p.imageActuelle ? "validée par la fondatrice" : "à faire", [p.prixProvisoire ? "prix à valider" : "", p.fournisseur?.images.length ? "droits photo Concorde Pro" : "", p.aValider.length ? "contrôle visuel" : ""].filter(Boolean).join(" · ")]);
+    const texte = "\ufeff" + [ent, ...lignes].map(l => l.map(csvCellule).join(";")).join("\n");
+    const url = URL.createObjectURL(new Blob([texte], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = `Inventaire_photos_BSH_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
   const annulerDernier = async () => {
     const lot = journal[journal.length - 1]; if (!lot || !confirm(`Annuler le lot du ${new Date(lot.le).toLocaleString("fr-FR")} (${lot.ecritures.length} fiche(s)) ?`)) return;
@@ -91,14 +122,18 @@ export default function ValidationPhotosBSH() {
       {etat === "charge" && <div style={{ color: M.doux }}>Lecture du catalogue fournisseur…</div>}
       {etat === "erreur" && <div style={{ color: "#f5a3a3", fontSize: 14 }}>{message} <button onClick={charger} style={{ ...bouton(), minHeight: 34, marginLeft: 6 }}>Réessayer</button></div>}
       {etat === "pret" && <>
+        <div style={{ fontSize: 12, color: M.doux, lineHeight: 1.5, border: `1px solid ${M.ligne}`, borderRadius: 14, padding: "8px 10px" }}>
+          Source : {SOURCES[source] || source}. <b style={{ color: "#f5b26b" }}>Droits d'utilisation commerciale des photos non confirmés par écrit par Concorde Pro</b> : une photo validée sur une fiche en boutique devient visible des clientes.
+        </div>
         <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
-          {(["pret", "attente", "incomplet", "introuvable", "provisoires", "tous"] as Classe[]).map(c => <button key={c} onClick={() => setFiltre(c)} style={pastille(filtre === c)}>{LIBELLES[c]} ({compte(c)})</button>)}
+          {(["pret", "attente", "incomplet", "introuvable", "a_fournir", "provisoires", "tous"] as Classe[]).map(c => <button key={c} onClick={() => setFiltre(c)} style={pastille(filtre === c)}>{LIBELLES[c]} ({compte(c)})</button>)}
         </div>
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Rechercher un produit ou une référence" style={{ minHeight: 44, borderRadius: 14, border: `1px solid ${M.ligne}`, background: M.surface, color: M.texte, padding: "10px 14px", fontSize: 16 }} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <button onClick={() => setChoix(x => ({ ...x, ...Object.fromEntries(visibles.filter(selectionnable).map(p => [p.id, true])) }))} style={bouton()}>Tout sélectionner ({visibles.filter(selectionnable).length})</button>
           <button onClick={() => setChoix({})} style={bouton()}>Vider la sélection</button>
           {journal.length > 0 && <button onClick={annulerDernier} disabled={envoi} style={bouton()}>↩️ Annuler le dernier lot</button>}
+          <button onClick={exporterInventaire} style={bouton()}>⬇︎ Inventaire (CSV)</button>
         </div>
         <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: M.doux }}>
           <input type="checkbox" checked={avecDescription} onChange={e => setAvecDescription(e.target.checked)} style={{ width: 20, height: 20 }} />
@@ -107,12 +142,12 @@ export default function ValidationPhotosBSH() {
         {info && <div style={{ fontSize: 13, color: "#9be7b4" }}>{info}</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {visibles.slice(0, 200).map(p => {
-            const ok = selectionnable(p); const img = p.fournisseur?.images[0];
+            const ok = selectionnable(p); const img = p.imageActuelle || imagePrincipale(p);
             return (
               <label key={p.id} style={{ display: "flex", gap: 10, padding: 10, borderRadius: 16, border: `1px solid ${choix[p.id] ? M.accent : M.ligne}`, background: M.surface, cursor: ok ? "pointer" : "default", opacity: ok || p.classe === "introuvable" ? 1 : 0.85 }}>
                 <input type="checkbox" disabled={!ok} checked={!!choix[p.id]} onChange={e => setChoix(x => ({ ...x, [p.id]: e.target.checked }))} style={{ width: 22, height: 22, flex: "none", marginTop: 4 }} aria-label={`Sélectionner ${p.nom}`} />
                 {img ? <img src={img} alt="" loading="lazy" width={72} height={72} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, background: "#fff", flex: "none" }} />
-                  : <div style={{ width: 72, height: 72, borderRadius: 12, background: M.surface2, flex: "none", display: "grid", placeItems: "center", fontSize: 11, color: M.doux }}>sans photo</div>}
+                  : <div style={{ width: 72, height: 72, borderRadius: 12, background: M.surface2, flex: "none", display: "grid", placeItems: "center", fontSize: 11, color: "#f5b26b", textAlign: "center", lineHeight: 1.2 }}>Image à fournir</div>}
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>{p.nom}</div>
                   <div style={{ fontSize: 12, color: M.doux }}>Réf. {p.ref || "—"} · {p.prixVente != null ? `${p.prixVente.toFixed(2).replace(".", ",")} €` : "sans prix"}{p.fournisseur ? ` · stock fournisseur : ${p.fournisseur.stock ?? "?"} · ${p.fournisseur.images.length} photo(s)` : ""}</div>
@@ -123,6 +158,12 @@ export default function ValidationPhotosBSH() {
                     {p.manques.map(m => puce(m, "#f5b26b"))}
                     {p.aValider.map(m => puce(m, M.accent))}
                   </div>
+                  {(p.fournisseur?.images.length || 0) > 1 && <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingTop: 2 }} onClick={e => e.preventDefault()}>
+                    {p.fournisseur!.images.map((u, i) => <button key={u} type="button" aria-label={`Choisir la photo ${i + 1} comme photo principale`} onClick={() => setPrincipale(x => ({ ...x, [p.id]: u }))}
+                      style={{ flex: "none", padding: 0, borderRadius: 10, border: `2px solid ${imagePrincipale(p) === u ? M.accent : "transparent"}`, background: "#fff", cursor: "pointer" }}>
+                      <img src={u.replace("-large_default/", "-home_default/")} alt="" loading="lazy" width={44} height={44} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, display: "block" }} /></button>)}
+                  </div>}
+                  {p.imageActuelle && <button type="button" onClick={e => { e.preventDefault(); retirerPhoto(p); }} style={{ ...bouton(), minHeight: 34, alignSelf: "flex-start", fontSize: 12 }}>Retirer la photo</button>}
                 </div>
               </label>
             );
@@ -139,7 +180,7 @@ export default function ValidationPhotosBSH() {
               <div style={{ fontSize: 13, color: M.doux }}>{ecrituresPrevues.length} fiche(s) seront modifiées. {enLigneDansSelection > 0 && <b style={{ color: M.secondaire }}>{enLigneDansSelection} produit(s) sont déjà en boutique : la photo y apparaîtra immédiatement.</b>} Les images secondaires ne sont pas encore enregistrées (aucun champ prévu pour elles).</div>
               {ecrituresPrevues.map(e => (
                 <div key={e.id} style={{ display: "flex", gap: 10, alignItems: "center", borderBottom: `1px solid ${M.ligne}`, paddingBottom: 8 }}>
-                  <img src={e.apres.image_url} alt="" width={52} height={52} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 10, background: "#fff" }} />
+                  <img src={e.apres.image_url || ""} alt="" width={52} height={52} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 10, background: "#fff" }} />
                   <div style={{ fontSize: 13 }}><b>{e.nom}</b><div style={{ color: M.doux }}>Photo : {e.avant.image_url ? "remplacée" : "aucune → photo fournisseur"}{e.apres.usage_conseils ? " · description : vide → texte fournisseur" : ""}</div></div>
                 </div>
               ))}

@@ -64,22 +64,24 @@ export function PanierFood({ t, lignes, setLignes, onSuivi }: { t: Theme; lignes
   const [code, setCode] = useState(""); const [promo, setPromo] = useState<any>(null);
   const [envoi, setEnvoi] = useState(false); const [erreur, setErreur] = useState(""); const [confirme, setConfirme] = useState<any>(null);
   const cleIdem = useRef<string | null>(null);
+  const enCours = useRef(false); // garde synchrone : un double appui n'envoie qu'une requête
   const total = lignes.reduce((s, l) => s + l.prix * l.qte, 0);
   const aujourdhui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const champ: React.CSSProperties = { width: "100%", boxSizing: "border-box", minHeight: 46, borderRadius: 12, border: `1px solid ${t.ligne}`, padding: "10px 12px", fontSize: 16, background: "transparent", color: t.texte };
   const verifierCode = async () => { if (!code.trim()) return; setPromo(await apercuReduction(code.trim(), "FOOD", Math.round(total * 100), await jeton().catch(() => undefined))); };
   const commander = async () => {
+    if (enCours.current) return;
     setErreur(""); if (!form.nom.trim()) { setErreur("Indiquez votre nom."); return; }
-    setEnvoi(true);
+    enCours.current = true; setEnvoi(true);
     cleIdem.current ||= (typeof crypto !== "undefined" && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : `food-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
       const r = await fetch("/api/food/commandes/create", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await jeton()}` },
         body: JSON.stringify({ lignes: lignes.map(l => ({ id: l.cle, qte: l.qte })), clientNom: form.nom.trim(), clientTel: form.tel.trim(), dateLivraison: form.date || null, notes: form.message, idempotencyKey: cleIdem.current, codeReduction: promo?.valide ? code.trim() : null }) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.ok) { setErreur(d.error || `Commande refusée (HTTP ${r.status}).`); setEnvoi(false); return; }
+      if (!r.ok || !d.ok) { setErreur(d.error || `Commande refusée (HTTP ${r.status}).`); setEnvoi(false); enCours.current = false; return; }
       setConfirme(d); setLignes(() => []); cleIdem.current = null;
     } catch (e: any) { setErreur("Réseau indisponible : votre panier est conservé, réessayez. " + String(e?.message || "")); }
-    setEnvoi(false);
+    setEnvoi(false); enCours.current = false;
   };
   if (confirme) return (
     <div role="status" style={{ display: "flex", flexDirection: "column", gap: 10 }}>

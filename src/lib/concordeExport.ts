@@ -96,7 +96,45 @@ export function lignesExport(texte: string): Map<string, LigneExport> {
   return m;
 }
 
-export function propositionsBSH(exp: Map<string, LigneExport>, produits: ProduitBellaia[], imagesAccessibles?: (url: string) => boolean): Proposition[] {
+// Mots qui distinguent une variante (parfum, couleur, taille, contenance) : s'ils figurent dans le nom Bellaïa
+// mais pas dans la désignation du fournisseur, la photo peut montrer une autre variante → contrôle visuel exigé.
+const VARIANTES = ["fraise","menthe","cerise","vanille","chocolat","framboise","coco","peche","pêche","pomme","fruits","banane","caramel","champagne","noir","noire","blanc","blanche","rouge","rose","violet","violette","bleu","bleue","vert","verte","dore","doree","argent","nude","chair","transparent","xs","s/m","m/l","l/xl","xl","xxl"];
+const sansAccents = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+export function varianteAVerifier(nomBellaia: string, designationFournisseur: string): string[] {
+  const n = ` ${sansAccents(nomBellaia).replace(/[^a-z0-9/]+/g, " ")} `, f = ` ${sansAccents(designationFournisseur).replace(/[^a-z0-9/]+/g, " ")} `;
+  const tailles = (t: string) => (t.match(/\b\d+([.,]\d+)?\s?(ml|cm|g|mm)\b/g) || []).map(x => x.replace(/\s/g, ""));
+  const ecarts = VARIANTES.filter(v => n.includes(` ${sansAccents(v)} `) && !f.includes(` ${sansAccents(v)} `));
+  const tn = tailles(n), tf = tailles(f); if (tn.length && tf.length && !tn.some(x => tf.includes(x))) ecarts.push(`${tn.join("/")} ≠ ${tf.join("/")}`);
+  return ecarts;
+}
+
+// Source publique (sans jeton) : plan du site officiel de Concorde Pro (adresse de chaque fiche, terminée par le code-barres,
+// et ses photos dans l'ordre de la fiche) + fichier « article_negoce.csv » (référence → code-barres, désignation, marque, stock).
+// Les tarifs du fichier ne sont PAS repris (prix d'achat confidentiels) ; le plan du site ne contient pas de description.
+export function lignesDepuisPlanDuSite(planDuSiteXml: string, negoceCsv: string): { lignes: Map<string, LigneExport>; eanAmbigus: number } {
+  const parEan = new Map<string, { url: string; images: string[] }[]>();
+  for (const bloc of planDuSiteXml.split("<url>").slice(1)) {
+    const loc = (bloc.match(/<loc>(?:<!\[CDATA\[)?([^<\]]+)/) || [])[1] || "";
+    const ean = (loc.match(/-(\d{8,14})\.html$/) || [])[1]; if (!ean) continue;
+    const images = Array.from(bloc.matchAll(/<image:loc>(?:<!\[CDATA\[)?([^<\]]+)/g)).map(m => m[1].trim()).filter(u => /^https:\/\/www\.concordepro\.com\//.test(u));
+    parEan.set(ean, [...(parEan.get(ean) || []), { url: loc, images }]);
+  }
+  const lignes = new Map<string, LigneExport>(); let eanAmbigus = 0;
+  const csv = lireCsv(negoceCsv, ";"); const h = (csv[0] || []).map(x => x.trim().toLowerCase());
+  const c = (n: string) => h.indexOf(n); const i = { ref: c("référence"), des: c("désignation"), ean: c("code barre"), stock: c("stock/jour"), marque: c("marque"), fam: c("famille") };
+  for (const l of csv.slice(1)) {
+    const ref = (l[i.ref] || "").trim(), ean = (l[i.ean] || "").trim(); if (!ref || lignes.has(ref)) continue;
+    const fiches = ean ? parEan.get(ean) || [] : [];
+    if (fiches.length > 1) eanAmbigus++;
+    const fiche = fiches.length === 1 ? fiches[0] : null;   // aucune correspondance si le code-barres est ambigu
+    const st = parseFloat(String(l[i.stock] ?? "").replace(",", "."));
+    lignes.set(ref, { sku: ref, titre: (l[i.des] || "").trim(), description: "", marque: (l[i.marque] || "").trim(), collection: (l[i.fam] || "").trim(), stock: Number.isFinite(st) ? st : null, prix: null, ean, images: fiche ? fiche.images : [], statut: fiche ? "active" : "absent du plan du site" });
+  }
+  return { lignes, eanAmbigus };
+}
+
+export function propositionsBSH(exp: Map<string, LigneExport>, produits: ProduitBellaia[], imagesAccessibles?: (url: string) => boolean, options: { descriptionRequise?: boolean } = {}): Proposition[] {
+  const descriptionRequise = options.descriptionRequise !== false;
   const parEan = new Map<string, LigneExport>(); exp.forEach(v => { if (v.ean) parEan.set(v.ean, v); });
   return produits.map(p => {
     const ref = (String(p.notes || "").match(/R[ée]f\.?\s?([0-9A-Za-z\-]+)/) || [])[1] || null;
@@ -107,14 +145,15 @@ export function propositionsBSH(exp: Map<string, LigneExport>, produits: Produit
     const prixProvisoire = pv != null && pa != null && pa > 0 && Math.abs(pv - pa - 5) < 0.011;
     const prixACompleter = /à compléter|non visible/i.test(p.notes || "");
     const base = { id: p.id, ref, nom: p.nom || ref || "—", categorie: p.categorie, statutBellaia: p.statut, enLigne: p.statut === "actif", prixVente: pv, prixProvisoire, prixACompleter, imageActuelle: p.image_url, descriptionActuelle: !!(p.usage_conseils || "").trim() };
-    if (!f) return { ...base, classe: "introuvable" as const, manques: ["référence absente du catalogue fournisseur"], aValider: [], fournisseur: null };
+    if (!f) return { ...base, classe: "introuvable" as const, manques: ["référence absente du catalogue fournisseur", "Image à fournir"], aValider: [], fournisseur: null };
     const manques: string[] = []; const aValider: string[] = [];
     const imgs = imagesAccessibles ? f.images.filter(imagesAccessibles) : f.images;
-    if (!imgs.length) manques.push("aucune photo accessible");
+    if (!imgs.length) manques.push("Image à fournir");
     if (pv == null || pv <= 0) manques.push("prix de vente absent");
     if (prixACompleter) manques.push("prix public « à compléter »");
     if (prixProvisoire) manques.push("prix provisoire (achat + 5 €)");
-    if ((f.description || "").length < 40) manques.push("description fournisseur absente");
+    if ((f.description || "").length < 40) (descriptionRequise ? manques : aValider).push(descriptionRequise ? "description fournisseur absente" : "description à rédiger");
+    const ecarts = varianteAVerifier(p.nom || "", f.titre); if (ecarts.length) aValider.push(`variante à vérifier sur la photo (${ecarts.join(", ")})`);
     if (f.stock != null && f.stock <= 0) manques.push("rupture chez le fournisseur");
     if (p.statut !== "actif") aValider.push("fiche inactive dans Bellaïa");
     if (f.prix != null && pv != null && Math.abs(f.prix - pv) > 0.011) aValider.push(`prix Bellaïa différent de l'export (${f.prix.toFixed(2)} €)`);

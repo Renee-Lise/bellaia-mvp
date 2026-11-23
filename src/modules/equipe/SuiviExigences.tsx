@@ -24,7 +24,7 @@ const champ: React.CSSProperties = { background: "rgba(255,255,255,0.07)", borde
 const btn = (fort = false, c = C.or): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, boxSizing: "border-box", minHeight: 40, padding: "8px 12px", borderRadius: 10, border: `1px solid ${fort ? c : C.ligne}`, background: fort ? `${c}22` : C.card, color: fort ? c : C.texte, fontSize: 13, fontWeight: 700, fontFamily: SA, cursor: "pointer" });
 const couleurValeur = (v: string) => /^oui|^production/i.test(v) ? C.ok : /^partiel|^prévisualisation|^vérifié/i.test(v) ? C.orange : /^non/i.test(v) ? C.rouge : C.doux;
 
-export type Exigence = { id: string; b: string; u: string; t: string; r: string; a: string; d: string; te: string; de: string; p: string; re: string; pr: number; s: string; h?: any[] };
+export type Exigence = { id: string; b: string; u: string; t: string; r: string; a: string; d: string; te: string; de: string; p: string; re: string; pr: number; s: string; resp?: string; dec?: string; h?: any[] };
 // Règle du registre : jamais « Déployé » sans identifiant de déploiement de production.
 export const preuveDeploiementValide = (preuve: string) => /dpl_[A-Za-z0-9]{8,}/.test(preuve || "");
 
@@ -53,7 +53,8 @@ export default function SuiviExigences({ onRetour }: { onRetour?: () => void }) 
   const items: Exigence[] = pieces.find(p => p?.type === "suivi_exigences")?.items || [];
   const rapports = pieces.filter(p => p?.type === "rapport");
   const visibles = useMemo(() => items.filter(x => (!bloc || x.b === bloc) && (!statut || x.s === statut) && (!prio || x.pr === prio)
-    && (!q || `${x.id} ${x.t} ${x.u} ${x.re} ${x.p}`.toLowerCase().includes(q.toLowerCase()))), [items, bloc, statut, prio, q]);
+    && (!q || `${x.id} ${x.t} ${x.u} ${x.re} ${x.p} ${x.resp || ""} ${x.dec || ""}`.toLowerCase().includes(q.toLowerCase()))), [items, bloc, statut, prio, q]);
+  const nbDecisions = items.filter(x => x.dec && x.s !== "archive").length;
   const compte = (s: string) => items.filter(x => x.s === s).length;
 
   // Relit la ligne avant d'écrire (évite d'écraser une modification faite ailleurs), puis remplace l'exigence modifiée.
@@ -106,7 +107,7 @@ export default function SuiviExigences({ onRetour }: { onRetour?: () => void }) 
           <select style={champ} value={bloc} onChange={e => setBloc(e.target.value)}><option value="">Toutes les consignes</option>{Object.entries(BLOCS).map(([k, l]) => <option key={k} value={k}>{k}. {l}</option>)}</select>
           <select style={champ} value={prio} onChange={e => setPrio(Number(e.target.value))}><option value={0}>Toutes priorités</option>{Object.entries(PRIO).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
         </div>
-        <div style={{ fontSize: 12, color: C.doux }}>{visibles.length} exigence{visibles.length > 1 ? "s" : ""} affichée{visibles.length > 1 ? "s" : ""}</div>
+        <div style={{ fontSize: 12, color: C.doux }}>{visibles.length} exigence{visibles.length > 1 ? "s" : ""} affichée{visibles.length > 1 ? "s" : ""} · {nbDecisions} décision{nbDecisions > 1 ? "s" : ""} attendue{nbDecisions > 1 ? "s" : ""} de votre part</div>
         {visibles.map(x => {
           const st = STATUTS_SUIVI.find(t => t[0] === x.s) || STATUTS_SUIVI[0];
           const ouvert = ouverte === x.id;
@@ -117,6 +118,7 @@ export default function SuiviExigences({ onRetour }: { onRetour?: () => void }) 
                   <span style={{ fontSize: 11, color: C.doux, fontWeight: 800 }}>{x.id} · {x.u}</span>
                   <span style={{ fontSize: 11, fontWeight: 800, color: st[2], background: `${st[2]}1f`, borderRadius: 99, padding: "1px 8px" }}>{st[1]}</span>
                   {PRIO[x.pr] && <span style={{ fontSize: 11, fontWeight: 800, color: PRIO[x.pr][1] }}>{PRIO[x.pr][0]}</span>}
+                  {x.dec && <span style={{ fontSize: 11, fontWeight: 800, color: C.orange }}>⚖︎ décision attendue</span>}
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, lineHeight: 1.35 }}>{x.t}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
@@ -125,7 +127,7 @@ export default function SuiviExigences({ onRetour }: { onRetour?: () => void }) 
                 </div>
               </button>
               {ouvert && <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10, fontSize: 13, lineHeight: 1.5 }}>
-                {([["Reçue", x.r], ["Présente dans le rapport", x.a], ["Développée", x.d], ["Testée", x.te], ["Déployée", x.de], ["Preuve vérifiable", x.p], ["Travail restant", x.re]] as const).map(([l, v]) => v ? (
+                {([["Responsable", x.resp || "À désigner"], ["Reçue", x.r], ["Présente dans le rapport", x.a], ["Développée", x.d], ["Testée (résultat)", x.te], ["Déployée", x.de], ["Preuve vérifiable", x.p], ["Travail restant", x.re], ["Décision à valider par la fondatrice", x.dec]] as const).map(([l, v]) => v ? (
                   <div key={l}><div style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase" }}>{l}</div><div>{v}</div></div>) : null)}
                 <label style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase" }}>Statut</span>

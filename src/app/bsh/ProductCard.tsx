@@ -32,6 +32,8 @@ export default function ProductCard({ p }: { p: ProduitBSH }) {
         <img
           src={p.image_url}
           alt={p.nom}
+          loading="lazy"
+          decoding="async"
           style={{
             width: "calc(100% + 26px)",
             margin: "-12px -13px 10px",
