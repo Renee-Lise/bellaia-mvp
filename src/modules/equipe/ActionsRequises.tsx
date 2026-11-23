@@ -9,7 +9,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { sbSelect, sbUpdate, sbInsert } from "../events/eventsAtelierLib";
 import { deposerPrive, ouvrirPrive, nomFichierSur } from "./equipeLib";
-import { compterActions } from "../../lib/actionsRequises";
+import { compterActions, estOuverte } from "../../lib/actionsRequises";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c", bleu: "#60a5fa" };
@@ -47,7 +47,7 @@ export default function ActionsRequises() {
 
   const listeUnivers = useMemo(() => Array.from(new Set(actions.map(a => a.univers))).sort(), [actions]);
   const visibles = actions.filter(a =>
-    (filtre === "toutes" || (filtre === "faites" ? a.statut === "fait" : a.statut !== "fait")) && (!univers || a.univers === univers) && (!prio || a.priorite === prio) && (!etatFiltre || etatDe(a) === etatFiltre));
+    (filtre === "toutes" || (filtre === "faites" ? !estOuverte(a) : estOuverte(a))) && (!univers || a.univers === univers) && (!prio || a.priorite === prio) && (!etatFiltre || etatDe(a) === etatFiltre));
   const titreDe = (cle: string) => actions.find(x => x.cle === cle)?.titre || cle;
   const bloquePar = (a: any) => (a.depend_de || []).filter((c: string) => actions.some(x => x.cle === c && x.statut !== "fait"));
   const joindre = async (a: any, f?: File) => {

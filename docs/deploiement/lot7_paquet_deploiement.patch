@@ -1,0 +1,481 @@
+From 09fab49e9f31437e0c33cc3eef6c35e71a39c7c1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 15:25:12 +0000
+Subject: [PATCH] =?UTF-8?q?Lot=207=20(paquet=20de=20d=C3=A9ploiement=20lim?=
+ =?UTF-8?q?it=C3=A9)=20:=20compteur=20exact=20des=20actions=20requises,=20?=
+ =?UTF-8?q?messagerie=20r=C3=A9serv=C3=A9e=20=C3=A0=20la=20fondatrice,=20i?=
+ =?UTF-8?q?nventaire=20physique=20BSH,=20famille=20Milkshakes?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011dUoRTpeNEWd2mYPTAH8uJ
+---
+ src/components/BellaiaApp.tsx           |  25 ++++-
+ src/lib/actionsRequises.ts              |  31 ++++++
+ src/modules/concorde/InventaireBSH.tsx  | 141 ++++++++++++++++++++++++
+ src/modules/equipe/ActionsRequises.tsx  |  12 +-
+ src/modules/food/foodConsts.ts          |   1 +
+ src/modules/food/foodTypes.ts           |   2 +-
+ tests/iphone/t_compteur_actions_prod.js |  36 ++++++
+ tests/iphone/t_inventaire_prod.js       |  59 ++++++++++
+ tests/unit/t_actions_requises.js        |  20 ++++
+ 9 files changed, 319 insertions(+), 8 deletions(-)
+ create mode 100644 src/lib/actionsRequises.ts
+ create mode 100644 src/modules/concorde/InventaireBSH.tsx
+ create mode 100644 tests/iphone/t_compteur_actions_prod.js
+ create mode 100644 tests/iphone/t_inventaire_prod.js
+ create mode 100644 tests/unit/t_actions_requises.js
+
+diff --git a/src/components/BellaiaApp.tsx b/src/components/BellaiaApp.tsx
+index 62d05e6..6a38ff6 100644
+--- a/src/components/BellaiaApp.tsx
++++ b/src/components/BellaiaApp.tsx
+@@ -6,6 +6,7 @@ import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/
+ import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
+ import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction } from "@/modules/food/catalogueApi";
+ import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
++import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
+ import type { MenuJour } from "@/modules/food/foodTypes";
+ // ═══════════════════════════════════════════════════════════
+ // MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
+@@ -7300,6 +7301,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
+             <div style={{fontSize:9,color:BSH.cremeD,marginTop:8,lineHeight:1.6}}>
+               Catalogue Concorde Pro consultable manuellement. Une vraie synchronisation automatique (stock/prix/commandes) dépend de ce que leur service commercial propose réellement — rien n'est branché tant que ce n'est pas confirmé.
+             </div>
++            <InventaireBSHLazy/>
+           </div>
+         </div>}
+       </div>
+@@ -14308,12 +14310,29 @@ function RechercheWrapper({ user }: any) {
+   return <Comp profil="fondatrice"/>;
+ }
+ 
++// Inventaire physique BSH (fondatrice) : fiche imprimable, saisie du comptage, correction tracée et annulable.
++function InventaireBSHLazy() {
++  const [ouvert, setOuvert] = React.useState(false);
++  const [Comp, setComp] = React.useState<any>(null);
++  React.useEffect(() => { if (ouvert && !Comp) import("../modules/concorde/InventaireBSH").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, [ouvert, Comp]);
++  // Marge basse : la barre de navigation fixe de l'iPhone masquait le bas de cette page.
++  return <div style={{marginTop:10,paddingBottom:"calc(110px + env(safe-area-inset-bottom))"}}>
++    <button onClick={()=>setOuvert(v=>!v)} style={{minHeight:44,padding:"8px 12px",borderRadius:10,border:"1px solid #c9a96e",background:ouvert?"#c9a96e33":"transparent",color:"#c9a96e",fontWeight:700,fontSize:13}}>📋 {ouvert?"Fermer l'inventaire physique":"Inventaire physique (fiche et correction des stocks)"}</button>
++    {ouvert && (Comp ? <Comp/> : <div style={{padding:12,opacity:.6}}>Chargement…</div>)}
++  </div>;
++}
++
+ // ── Wrapper Messagerie (messaging module)
++// Messagerie réservée à la fondatrice tant que la correction de sécurité (migration 0133) n'est pas en production.
++const MESSAGERIE_OUVERTE_A_TOUS = false;
+ function MessagerieWrapper({ user }: any) {
++  const autorise = MESSAGERIE_OUVERTE_A_TOUS || user?.role === "fondatrice";
+   const [Comp, setComp] = React.useState<any>(null);
+   React.useEffect(() => {
++    if (!autorise) return;
+     import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+-  }, []);
++  }, [autorise]);
++  if (!autorise) return <div role="status" style={{textAlign:"center",color:"rgba(255,255,255,0.75)",padding:"48px 24px",lineHeight:1.6}}>🔒 La messagerie interne est en cours de sécurisation.<br/>Elle sera ouverte après validation par la fondatrice.</div>;
+   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement messagerie…</div>;
+   return <Comp user={user}/>;
+ }
+@@ -14454,8 +14473,8 @@ export default function BellaiaApp() {
+     let vivant = true;
+     (async () => { try {
+       const t = await (window as any).getTokenAsync?.();
+-      const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/bellaia_actions?select=id&statut=neq.fait&priorite=lte.2`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: `Bearer ${t}` } });
+-      if (r.ok && vivant) setNbActions((await r.json()).length);
++      const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/bellaia_actions?${REQUETE_ACTIONS}`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: `Bearer ${t}` } });
++      if (r.ok && vivant) setNbActions(compterActions(await r.json()).aTraiter);
+     } catch {} })();
+     return () => { vivant = false; };
+   }, [roleNav, activeF === "actions"]);
+diff --git a/src/lib/actionsRequises.ts b/src/lib/actionsRequises.ts
+new file mode 100644
+index 0000000..b59d206
+--- /dev/null
++++ b/src/lib/actionsRequises.ts
+@@ -0,0 +1,31 @@
++// ═══════════════════════════════════════════════════════════
++// Actions requises — règle de comptage unique (accueil, badge du menu, écran « Actions requises »).
++// Corrige le « 50 » permanent : l'accueil lisait au plus 50 lignes (limit=50) et affichait ce plafond ;
++// le badge comptait une autre sélection (priorité ≤ 2) et incluait la ligne technique du registre.
++// Règles explicites :
++//  • « à traiter » = statut a_faire (attend une décision de la fondatrice) ;
++//  • « en cours »  = statut en_cours (décision prise, travail en cours) — affiché à part ;
++//  • fermées       = fait, annule(e), abandonne, sans_objet — jamais comptées ;
++//  • lignes techniques (ex. le registre des exigences, cle = suivi_exigences) — jamais comptées.
++// ═══════════════════════════════════════════════════════════
++export const CLES_TECHNIQUES = ["suivi_exigences"];
++export const STATUTS_FERMES = ["fait", "annule", "annulee", "abandonne", "sans_objet"];
++export const REQUETE_ACTIONS = "select=id,cle,titre,univers,priorite,date_limite,statut,decision,bloque&order=priorite.asc,date_limite.asc.nullslast";
++
++type ActionMin = { statut?: string | null; cle?: string | null; priorite?: number | null; date_limite?: string | null };
++
++export const estTechnique = (a: ActionMin) => CLES_TECHNIQUES.includes(a.cle || "");
++export const estOuverte = (a: ActionMin) => !estTechnique(a) && !STATUTS_FERMES.includes(a.statut || "");
++export const aTraiter = (a: ActionMin) => estOuverte(a) && a.statut === "a_faire";
++
++export function compterActions(actions: ActionMin[], aujourdhui = new Date()) {
++  const ouvertes = actions.filter(estOuverte);
++  const jour = aujourdhui.toISOString().slice(0, 10);
++  return {
++    aTraiter: ouvertes.filter(a => a.statut === "a_faire").length,
++    enCours: ouvertes.filter(a => a.statut === "en_cours").length,
++    urgentes: ouvertes.filter(a => a.statut === "a_faire" && a.priorite === 1).length,
++    echues: ouvertes.filter(a => !!a.date_limite && (a.date_limite as string) < jour).length,
++    ouvertes: ouvertes.length,
++  };
++}
+diff --git a/src/modules/concorde/InventaireBSH.tsx b/src/modules/concorde/InventaireBSH.tsx
+new file mode 100644
+index 0000000..2e41bc4
+--- /dev/null
++++ b/src/modules/concorde/InventaireBSH.tsx
+@@ -0,0 +1,141 @@
++"use client";
++// Inventaire physique BSH — fondatrice uniquement (règle d'accès « Fondatrice gère les stocks »).
++// • Fiche d'inventaire imprimable (A4) pour un lot de références.
++// • Saisie des quantités comptées, puis correction du stock en base après confirmation.
++// • Chaque correction est tracée dans les notes de la fiche (avant → après, date) et peut être annulée.
++// • Lot « absents du catalogue fournisseur » : si le comptage donne 0, la fiche peut être masquée (réversible),
++//   uniquement sur action explicite. Lot « ruptures avec stock » : aucune désactivation proposée.
++// Aucune suppression, aucun changement de prix.
++import React, { useEffect, useMemo, useState } from "react";
++import { sbSelect, sbUpdate } from "../events/eventsAtelierLib";
++
++type Fiche = { id: string; nom: string | null; notes: string | null; quantite: number | null; statut: string | null; categorie: string | null };
++type Ligne = Fiche & { ref: string };
++type Lot = { id: string; titre: string; detail: string; refs: string[]; masquageSiZero: boolean };
++
++// Lots validés par la fondatrice le 23/11/2026 (références fournisseur publiques).
++export const LOTS_INVENTAIRE: Lot[] = [
++  { id: "ruptures", titre: "Ruptures fournisseur avec stock en base (10)", detail: "Aucune désactivation : vérifier les quantités réelles.", masquageSiZero: false,
++    refs: ["800400", "597430021020", "530533019420", "530552020120", "530531019420", "514085020120", "514071003020", "520182001020", "530638005020", "747578021400"] },
++  { id: "absents", titre: "Absents du catalogue fournisseur (6)", detail: "Stock existant : vente jusqu'à épuisement. Stock inexistant : masquage (réversible).", masquageSiZero: true,
++    refs: ["747522003010", "747678003000", "747677003000", "747679003000", "746241001004", "730003919421"] },
++];
++
++export const refDepuisNotes = (notes: string | null) => (notes || "").match(/Réf\.?\s+([0-9A-Za-z]+)/)?.[1] || "";
++export const quantiteValide = (s: string) => /^\d{1,4}$/.test(s.trim());
++const aujourdhui = () => new Date().toLocaleDateString("fr-FR");
++const echap = (t: string) => t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
++
++export function ficheImprimable(lot: Lot, lignes: Ligne[]): string {
++  const rangs = lignes.map((l, i) => `<tr><td>${i + 1}</td><td>${echap(l.ref)}</td><td>${echap(l.nom || "")}</td><td class="n">${l.quantite ?? 0}</td><td class="vide"></td><td class="vide large"></td></tr>`).join("");
++  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Inventaire BSH — ${echap(lot.titre)}</title><style>
++@page{size:A4 portrait;margin:14mm}body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;font-size:11pt}
++h1{font-size:16pt;margin:0 0 4px}p{margin:2px 0 10px;color:#444}table{width:100%;border-collapse:collapse}
++th,td{border:1px solid #555;padding:7px 6px;vertical-align:top}th{background:#eee;text-align:left;font-size:10pt}
++td.n{text-align:center}td.vide{height:28px;min-width:70px}td.large{min-width:160px}.sig{margin-top:18px;display:flex;gap:40px}
++</style></head><body><h1>Inventaire physique BSH — ${echap(lot.titre)}</h1>
++<p>${echap(lot.detail)} · Fiche éditée le ${aujourdhui()} · ${lignes.length} références</p>
++<table><thead><tr><th>#</th><th>Réf.</th><th>Désignation</th><th>Stock en base</th><th>Quantité comptée</th><th>Observations (état, emplacement)</th></tr></thead><tbody>${rangs}</tbody></table>
++<div class="sig"><div>Compté par : ____________________</div><div>Date : ____ / ____ / ______</div><div>Signature : ____________</div></div>
++</body></html>`;
++}
++
++export default function InventaireBSH({ couleur = "#c9a96e", doux = "rgba(241,236,224,0.65)" }: { couleur?: string; doux?: string }) {
++  const [lotId, setLotId] = useState(LOTS_INVENTAIRE[0].id);
++  const [fiches, setFiches] = useState<Ligne[] | null>(null);
++  const [saisie, setSaisie] = useState<Record<string, string>>({});
++  const [message, setMessage] = useState<{ ok: boolean; t: string } | null>(null);
++  const [dernier, setDernier] = useState<{ id: string; quantite: number | null; notes: string | null; statut: string | null }[]>([]);
++  const [occupe, setOccupe] = useState(false);
++  const lot = LOTS_INVENTAIRE.find(l => l.id === lotId)!;
++
++  const charger = async () => {
++    try {
++      const rows = await sbSelect<Fiche>("stocks", "univers=eq.BSH&select=id,nom,notes,quantite,statut,categorie&order=nom.asc&limit=1000");
++      setFiches(rows.map(r => ({ ...r, ref: refDepuisNotes(r.notes) })));
++    } catch (e: any) { setMessage({ ok: false, t: "Lecture des stocks impossible : " + (e?.message || e) }); setFiches([]); }
++  };
++  useEffect(() => { charger(); }, []);
++
++  const lignes = useMemo(() => (fiches || []).filter(f => lot.refs.includes(f.ref)).sort((a, b) => lot.refs.indexOf(a.ref) - lot.refs.indexOf(b.ref)), [fiches, lot]);
++  const manquantes = lot.refs.filter(r => fiches && !fiches.some(f => f.ref === r));
++  const changements = lignes.filter(l => (saisie[l.id] ?? "") !== "" && quantiteValide(saisie[l.id]) && Number(saisie[l.id]) !== (l.quantite ?? 0));
++  const invalides = lignes.filter(l => (saisie[l.id] ?? "") !== "" && !quantiteValide(saisie[l.id]));
++
++  const imprimer = () => {
++    const html = ficheImprimable(lot, lignes);
++    const w = window.open("", "_blank");
++    if (w) { w.document.open(); w.document.write(html); w.document.close(); setTimeout(() => { try { w.focus(); w.print(); } catch { /* l'utilisateur imprime depuis l'onglet */ } }, 300); return; }
++    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([html], { type: "text/html" })); a.download = `Inventaire_BSH_${lot.id}_${new Date().toISOString().slice(0, 10)}.html`; a.click();
++  };
++
++  const enregistrer = async () => {
++    if (!changements.length || invalides.length) return;
++    const resume = changements.map(l => `• ${l.ref} : ${l.quantite ?? 0} → ${Number(saisie[l.id])}`).join("\n");
++    if (!window.confirm(`Corriger le stock de ${changements.length} produit(s) ?\n\n${resume}\n\nLes prix ne sont pas modifiés.`)) return;
++    setOccupe(true); const sauvegarde: typeof dernier = []; let n = 0; const echecs: string[] = [];
++    for (const l of changements) {
++      const q = Number(saisie[l.id]);
++      try {
++        await sbUpdate("stocks", l.id, { quantite: q, updated_at: new Date().toISOString(), notes: `${l.notes || ""} — Inventaire du ${aujourdhui()} : ${l.quantite ?? 0} → ${q} (comptage physique)` });
++        sauvegarde.push({ id: l.id, quantite: l.quantite, notes: l.notes, statut: l.statut }); n++;
++      } catch { echecs.push(l.ref); }
++    }
++    setDernier(sauvegarde); setSaisie({}); await charger(); setOccupe(false);
++    setMessage(echecs.length ? { ok: false, t: `${n} stock(s) corrigé(s) ; échec pour ${echecs.join(", ")}.` } : { ok: true, t: `${n} stock(s) corrigé(s). Vous pouvez annuler cette correction.` });
++  };
++
++  const annuler = async () => {
++    if (!dernier.length || !window.confirm(`Rétablir les ${dernier.length} valeur(s) d'avant la dernière correction ?`)) return;
++    setOccupe(true); let n = 0;
++    for (const d of dernier) { try { await sbUpdate("stocks", d.id, { quantite: d.quantite, notes: d.notes, statut: d.statut, updated_at: new Date().toISOString() }); n++; } catch { /* signalé ci-dessous */ } }
++    setDernier([]); await charger(); setOccupe(false); setMessage({ ok: n > 0, t: `${n} fiche(s) rétablie(s).` });
++  };
++
++  const masquer = async (l: Ligne) => {
++    if (!window.confirm(`Masquer « ${l.nom} » (${l.ref}) de la boutique ?\nStock compté : 0. Opération réversible, aucune suppression.`)) return;
++    setOccupe(true);
++    try {
++      await sbUpdate("stocks", l.id, { statut: "inactif", updated_at: new Date().toISOString(), notes: `${l.notes || ""} — Masqué le ${aujourdhui()} : absent du catalogue fournisseur, stock compté 0` });
++      setDernier([{ id: l.id, quantite: l.quantite, notes: l.notes, statut: l.statut }]); setMessage({ ok: true, t: `${l.ref} masqué. Vous pouvez annuler.` });
++    } catch (e: any) { setMessage({ ok: false, t: "Masquage impossible : " + (e?.message || e) }); }
++    await charger(); setOccupe(false);
++  };
++
++  const bouton = (actif = true): React.CSSProperties => ({ minHeight: 44, padding: "8px 14px", borderRadius: 10, border: `1px solid ${couleur}`, background: actif ? `${couleur}22` : "transparent", color: couleur, fontWeight: 700, fontSize: 14, opacity: actif ? 1 : 0.5 });
++  return (
++    <section aria-label="Inventaire physique BSH" style={{ marginTop: 10, fontSize: 14 }}>
++      <h3 style={{ margin: "4px 0 8px", fontSize: 17 }}>📋 Inventaire physique</h3>
++      <div role="tablist" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++        {LOTS_INVENTAIRE.map(l => <button key={l.id} role="tab" aria-selected={l.id === lotId} onClick={() => { setLotId(l.id); setSaisie({}); setMessage(null); }} style={bouton(l.id === lotId)}>{l.titre}</button>)}
++      </div>
++      <p style={{ color: doux, margin: "8px 0" }}>{lot.detail}</p>
++      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
++        <button onClick={imprimer} disabled={!lignes.length} style={bouton()}>🖨 Imprimer la fiche d'inventaire</button>
++        <button onClick={enregistrer} disabled={occupe || !changements.length || invalides.length > 0} style={bouton(changements.length > 0 && !invalides.length)}>✓ Enregistrer le comptage ({changements.length})</button>
++        {dernier.length > 0 && <button onClick={annuler} disabled={occupe} style={bouton()}>↶ Annuler la dernière correction</button>}
++      </div>
++      {message && <div role={message.ok ? "status" : "alert"} style={{ padding: 8, borderRadius: 8, marginBottom: 8, background: message.ok ? "rgba(34,197,94,0.12)" : "rgba(251,146,60,0.15)" }}>{message.t}</div>}
++      {invalides.length > 0 && <div role="alert" style={{ color: "#fb923c", marginBottom: 8 }}>Quantité invalide pour {invalides.map(l => l.ref).join(", ")} : nombre entier de 0 à 9999.</div>}
++      {fiches === null ? <div>Chargement des stocks…</div> : <>
++        {manquantes.length > 0 && <div role="alert" style={{ color: "#fb923c", marginBottom: 8 }}>Référence(s) introuvable(s) en base : {manquantes.join(", ")}.</div>}
++        <ul aria-label="Produits à compter" style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
++          {lignes.map(l => {
++            const v = saisie[l.id] ?? ""; const compteZero = lot.masquageSiZero && (l.quantite ?? 0) === 0 && l.statut === "actif";
++            return <li key={l.id} style={{ border: "1px solid rgba(201,169,110,0.25)", borderRadius: 12, padding: 10 }}>
++              <div style={{ fontWeight: 700 }}>{l.nom}</div>
++              <div style={{ color: doux, fontSize: 12 }}>Réf. {l.ref} · {l.statut === "actif" ? "en boutique" : "masqué"} · stock en base : <strong>{l.quantite ?? 0}</strong></div>
++              <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
++                <span>Quantité comptée</span>
++                <input inputMode="numeric" pattern="[0-9]*" aria-label={`Quantité comptée pour ${l.ref}`} value={v} onChange={e => setSaisie(s => ({ ...s, [l.id]: e.target.value }))}
++                  style={{ width: 90, minHeight: 44, fontSize: 16, borderRadius: 8, padding: "4px 8px", border: `1px solid ${couleur}` }} />
++              </label>
++              {compteZero && <button onClick={() => masquer(l)} disabled={occupe} style={{ ...bouton(), marginTop: 8 }}>Masquer (stock compté à 0)</button>}
++              {!lot.masquageSiZero && (l.quantite ?? 0) === 0 && <div style={{ color: "#fb923c", fontSize: 12, marginTop: 6 }}>Stock à 0 et rupture fournisseur : décision à prendre (aucune désactivation automatique).</div>}
++            </li>;
++          })}
++        </ul>
++      </>}
++    </section>
++  );
++}
+diff --git a/src/modules/equipe/ActionsRequises.tsx b/src/modules/equipe/ActionsRequises.tsx
+index b5da0af..bad72a5 100644
+--- a/src/modules/equipe/ActionsRequises.tsx
++++ b/src/modules/equipe/ActionsRequises.tsx
+@@ -9,6 +9,7 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import { sbSelect, sbUpdate, sbInsert } from "../events/eventsAtelierLib";
+ import { deposerPrive, ouvrirPrive, nomFichierSur } from "./equipeLib";
++import { compterActions, estOuverte, estTechnique } from "../../lib/actionsRequises";
+ 
+ const SA = "system-ui, -apple-system, sans-serif";
+ const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c", bleu: "#60a5fa" };
+@@ -37,8 +38,9 @@ export default function ActionsRequises() {
+   useEffect(() => { charger(); }, []);
+ 
+   const listeUnivers = useMemo(() => Array.from(new Set(actions.map(a => a.univers))).sort(), [actions]);
+-  const visibles = actions.filter(a =>
+-    (filtre === "toutes" || (filtre === "faites" ? a.statut === "fait" : a.statut !== "fait")) && (!univers || a.univers === univers) && (!prio || a.priorite === prio));
++  // Même règle que le compteur : « En attente » = ouvertes (hors ligne technique, hors fait/annulé/abandonné/sans objet).
++  const visibles = actions.filter(a => !estTechnique(a) &&
++    (filtre === "toutes" || (filtre === "faites" ? !estOuverte(a) : estOuverte(a))) && (!univers || a.univers === univers) && (!prio || a.priorite === prio));
+   const titreDe = (cle: string) => actions.find(x => x.cle === cle)?.titre || cle;
+   const bloquePar = (a: any) => (a.depend_de || []).filter((c: string) => actions.some(x => x.cle === c && x.statut !== "fait"));
+   const joindre = async (a: any, f?: File) => {
+@@ -49,8 +51,9 @@ export default function ActionsRequises() {
+       await maj(a, { pieces_jointes: [...(a.pieces_jointes || []), { chemin, nom: f.name, le: new Date().toISOString() }] });
+     } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
+   };
+-  const nbOuvertes = actions.filter(a => a.statut !== "fait").length;
+-  const nbUrgentes = actions.filter(a => a.statut !== "fait" && a.priorite === 1).length;
++  const compte = compterActions(actions);
++  const nbOuvertes = compte.aTraiter;
++  const nbUrgentes = compte.urgentes;
+ 
+   const maj = async (a: any, patch: any) => {
+     try {
+@@ -77,6 +80,7 @@ export default function ActionsRequises() {
+       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+         <div style={{ ...btn(true, C.rouge), cursor: "default" }}>{nbUrgentes} urgente{nbUrgentes > 1 ? "s" : ""}</div>
+         <div style={{ ...btn(true), cursor: "default" }}>{nbOuvertes} en attente</div>
++        {compte.enCours > 0 && <div style={{ ...btn(false), cursor: "default" }}>{compte.enCours} en cours</div>}
+         <button style={btn()} onClick={ajouter}>＋ Ajouter</button>
+       </div>
+       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+diff --git a/src/modules/food/foodConsts.ts b/src/modules/food/foodConsts.ts
+index 8d24e56..641b053 100644
+--- a/src/modules/food/foodConsts.ts
++++ b/src/modules/food/foodConsts.ts
+@@ -65,6 +65,7 @@ export const FOOD_CATEGORIES: { id: CategorieRecette; nom: string; ico: string;
+   // Boissons
+   {id:"boisson",        nom:"Boissons",           ico:"🥤", groupe:"boissons"},
+   {id:"jus",            nom:"Jus",                ico:"🧃", groupe:"boissons"},
++  {id:"milkshake",      nom:"Milkshakes",         ico:"🥛", groupe:"boissons"},
+   {id:"smoothie",       nom:"Smoothies",          ico:"🥤", groupe:"boissons"},
+   {id:"the_glace",      nom:"Thés glacés",        ico:"🫖", groupe:"boissons"},
+   {id:"cocktail",       nom:"Cocktails",          ico:"🍹", groupe:"boissons"},
+diff --git a/src/modules/food/foodTypes.ts b/src/modules/food/foodTypes.ts
+index 6733c6b..c6937fa 100644
+--- a/src/modules/food/foodTypes.ts
++++ b/src/modules/food/foodTypes.ts
+@@ -9,7 +9,7 @@ export type CategorieRecette =
+   | "burger" | "sandwich" | "street_food" | "sauce"
+   | "dessert" | "glace" | "patisserie" | "cake" | "cupcake" | "entremet"
+   | "macaron" | "viennoiserie" | "pain" | "brunch"
+-  | "boisson" | "cocktail" | "mocktail" | "jus" | "smoothie" | "the_glace"
++  | "boisson" | "cocktail" | "mocktail" | "jus" | "smoothie" | "milkshake" | "the_glace"
+   | "buffet" | "traiteur" | "repas_creole" | "repas_guyanais"
+   | "mariage" | "baby_shower" | "anniversaire" | "autre";
+ 
+diff --git a/tests/iphone/t_compteur_actions_prod.js b/tests/iphone/t_compteur_actions_prod.js
+new file mode 100644
+index 0000000..c288b06
+--- /dev/null
++++ b/tests/iphone/t_compteur_actions_prod.js
+@@ -0,0 +1,36 @@
++// Compteur « actions requises » (version de production + lot 7) : 75 lignes simulées
++// = 60 « à faire » + 2 « en cours » + 10 terminées/annulées + 1 ligne technique + 2 sans objet → badge 60, liste 60.
++// Usage : node tests/iphone/t_compteur_actions_prod.js <dossier_sorties> [iphone|ordinateur]   (mockapp.js + application sur :3160)
++const { chromium, devices } = require('playwright');
++const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('base64url'); return `${b({ alg: 'HS256' })}.${b({ role: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 7200 })}.x`; };
++const A = (i, statut, priorite = 2, extra = {}) => ({ id: 'act' + i, cle: 'c' + i, titre: `Action d'essai ${i}`, univers: 'STUDIO', priorite, date_limite: null, statut, decision: null, bloque: null, ...extra });
++const lignes = [
++  ...Array.from({ length: 60 }, (_, i) => A(i, 'a_faire', i < 12 ? 1 : 2 + (i % 3))),
++  A(60, 'en_cours'), A(61, 'en_cours'),
++  ...Array.from({ length: 6 }, (_, i) => A(70 + i, 'fait')), A(80, 'annule'), A(81, 'annulee'), A(82, 'abandonne'), A(83, 'fait'),
++  A(90, 'sans_objet'), A(91, 'sans_objet'),
++  A(99, 'a_faire', 1, { cle: 'suivi_exigences', titre: 'Registre (ligne technique)' }),
++];
++(async () => {
++  const out = process.argv[2] || '.'; const mode = process.argv[3] || 'iphone'; const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
++  const b = await chromium.launch(); const ctx = await b.newContext(mode === 'ordinateur' ? { viewport: { width: 1366, height: 900 } } : { ...devices['iPhone 13'] });
++  const u = { id: '00000000-0000-0000-0000-0000000000f0', role: 'fondatrice', prenom: 'Test' };
++  await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7000)); }, [u, jwt(u.id)]);
++  let limite = false;
++  await ctx.route(/\/rest\/v1\/bellaia_actions\?/, async r => { const q = decodeURIComponent(r.request().url()); if (/limit=50\b/.test(q)) limite = true; if (/cle=eq\.suivi_exigences|id=eq\./.test(q)) return r.continue(); await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(lignes) }); });
++  const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
++  await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 120000 }); await p.waitForSelector('text=Bonjour'); await p.waitForTimeout(2500);
++  const bouton = p.locator('button', { hasText: 'Actions requises' }).first();
++  const txt = (await bouton.textContent()) || '';
++  ok(`badge du menu = 60 (lu : « ${txt.trim()} »)`, /\b60\b/.test(txt) && !/\b50\b/.test(txt));
++  await bouton.click(); await p.waitForTimeout(2500);
++  const corps = await p.evaluate(() => document.body.innerText);
++  ok('écran : 60 à traiter', /60\s*(action|à traiter|ouverte|en attente)/i.test(corps));
++  ok('écran : « 2 en cours » affiché', /2\s*en cours/i.test(corps));
++  ok('ligne technique du registre absente de la liste', !/Registre \(ligne technique\)/.test(corps));
++  ok('actions terminées / annulées absentes', !/Action d'essai 7[0-5]\b|Action d'essai 8[0-3]\b|Action d'essai 9[01]\b/.test(corps));
++  ok('aucune requête plafonnée à 50', !limite);
++  ok('aucune erreur JavaScript', err.length === 0);
++  await p.screenshot({ path: `${out}/compteur_actions_${mode}.png` });
++  await b.close(); console.log(`[${mode}]\n` + R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);
++})();
+diff --git a/tests/iphone/t_inventaire_prod.js b/tests/iphone/t_inventaire_prod.js
+new file mode 100644
+index 0000000..f207ff6
+--- /dev/null
++++ b/tests/iphone/t_inventaire_prod.js
+@@ -0,0 +1,59 @@
++// Variante pour la version de production (accueil « Bonjour », menu ✦BSH) — paquet de déploiement du lot 7.
++// Inventaire physique BSH (fondatrice) : fiche imprimable, saisie, contrôle, correction tracée, annulation,
++// masquage explicite si stock compté à 0 (lot « absents » uniquement), aucun prix modifié ; assistante sans accès.
++// Usage : node tests/iphone/t_inventaire.js <dossier_sorties> [iphone|ordinateur]
++// Prérequis : mockapp.js avec MOCK_STOCKS_BSH = jeu d'essai des 16 références + next dev -p 3160.
++const { chromium, devices } = require('playwright');
++const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('base64url'); return `${b({ alg: 'HS256' })}.${b({ role: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 7200 })}.x`; };
++const UID = { fondatrice: '00000000-0000-0000-0000-0000000000f0', assistante: '00000000-0000-0000-0000-0000000000e0' };
++(async () => {
++  const out = process.argv[2] || '.'; const mode = process.argv[3] || 'iphone'; const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
++  const appareil = mode === 'ordinateur' ? { viewport: { width: 1366, height: 900 } } : { ...devices['iPhone 13'] };
++  const b = await chromium.launch(); const ctx = await b.newContext(appareil);
++  await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id: UID.fondatrice, role: 'fondatrice' }, jwt(UID.fondatrice)]);
++  const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message)); p.on('dialog', d => d.accept());
++  const ecritures = async () => (await fetch('http://localhost:54337/rest/v1/__ecritures')).json();
++  const e0 = (await ecritures()).length; const texte = () => p.evaluate(() => document.body.innerText);
++  await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 120000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await p.waitForTimeout(2500);
++  await p.waitForSelector('text=Bonjour'); await p.evaluate(() => { const e = [...document.querySelectorAll('button')].find(x => (x.textContent || '').trim() === '✦BSH'); e.scrollIntoView(); e.click(); }); await p.waitForTimeout(3000);
++  await p.evaluate(() => { const e = [...document.querySelectorAll('button')].find(x => /Réglages/.test(x.textContent || '') || /⚙/.test(x.textContent || '')); e && e.click(); }); await p.waitForTimeout(1500);
++  await p.locator('text=Inventaire physique (fiche et correction des stocks)').first().click();
++  await p.waitForSelector('[aria-label="Produits à compter"] li', { timeout: 60000 }); await p.waitForTimeout(800);
++  const items = () => p.locator('[aria-label="Produits à compter"] li').count();
++  ok('lot « ruptures » : 10 produits listés', await items() === 10);
++  ok('lot « ruptures » : aucun bouton de masquage', await p.locator('text=Masquer (stock compté à 0)').count() === 0);
++  // Fiche imprimable
++  const [fen] = await Promise.all([ctx.waitForEvent('page', { timeout: 15000 }).catch(() => null), p.locator('text=Imprimer la fiche d\'inventaire').click()]);
++  if (fen) { await fen.waitForLoadState(); const h = await fen.content(); ok('fiche imprimable : 10 lignes, colonne « Quantité comptée », signature', (h.match(/<tr><td>/g) || []).length === 10 && /Quantité comptée/.test(h) && /Signature/.test(h)); await fen.pdf({ path: `${out}/inventaire_fiche_${mode}.pdf`, format: 'A4' }).catch(() => {}); await fen.close(); } else ok('fiche imprimable ouverte', false);
++  // Saisie invalide
++  const champs = p.locator('[aria-label="Produits à compter"] input');
++  await champs.nth(0).fill('abc'); await p.waitForTimeout(200);
++  ok('quantité invalide signalée et enregistrement bloqué', /Quantité invalide/.test(await texte()) && await p.locator('button', { hasText: 'Enregistrer le comptage' }).isDisabled());
++  await champs.nth(0).fill('40'); await champs.nth(1).fill('28'); await champs.nth(2).fill('20'); await p.waitForTimeout(200);
++  ok('seules les quantités différentes comptent (2 changements)', /Enregistrer le comptage \(2\)/.test(await texte()));
++  await p.locator('button', { hasText: 'Enregistrer le comptage' }).click(); await p.waitForTimeout(2500);
++  let ec = (await ecritures()).slice(e0);
++  ok('2 stocks corrigés, trace « Inventaire du … : avant → après »', ec.length === 2 && ec.every(e => typeof e.quantite === 'number' && /Inventaire du .* : \d+ → \d+ \(comptage physique\)/.test(e.notes || '')));
++  ok('aucun prix ni statut modifié', ec.every(e => !('prix_vente' in e) && !('prix_achat' in e) && !('statut' in e)));
++  await p.locator('button', { hasText: 'Annuler la dernière correction' }).click(); await p.waitForTimeout(2500);
++  ec = (await ecritures()).slice(e0);
++  ok('annulation : 2 fiches rétablies (quantités d\'origine 45 et 23)', ec.length === 4 && ec.slice(2).map(e => e.quantite).sort((a, b) => a - b).join() === '23,45');
++  // Lot « absents » : comptage à 0 → masquage explicite proposé
++  await p.locator('button[role=tab]', { hasText: 'Absents du catalogue fournisseur' }).click(); await p.waitForTimeout(800);
++  ok('lot « absents » : 6 produits listés', await items() === 6);
++  const e1 = (await ecritures()).length;
++  await champs.nth(0).fill('0'); await p.locator('button', { hasText: 'Enregistrer le comptage' }).click(); await p.waitForTimeout(2500);
++  ok('stock compté à 0 → bouton « Masquer » proposé (pas de masquage automatique)', await p.locator('text=Masquer (stock compté à 0)').count() === 1 && !(await ecritures()).slice(e1).some(e => e.statut));
++  await p.locator('text=Masquer (stock compté à 0)').click(); await p.waitForTimeout(2500);
++  ec = (await ecritures()).slice(e1);
++  ok('masquage sur action explicite : statut inactif, trace dans les notes', ec.some(e => e.statut === 'inactif' && /stock compté 0/.test(e.notes || '')));
++  ok('aucune erreur JavaScript', err.length === 0);
++  await p.screenshot({ path: `${out}/inventaire_${mode}.png`, fullPage: false });
++  // Assistante : aucune donnée de stock
++  const ctx2 = await b.newContext(appareil);
++  await ctx2.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id: UID.assistante, role: 'assistante' }, jwt(UID.assistante)]);
++  const r = await fetch('http://localhost:54337/rest/v1/stocks?univers=eq.BSH&select=id', { headers: { Authorization: 'Bearer ' + jwt(UID.assistante), apikey: 'cle-anon-locale' } });
++  ok('assistante : lecture des stocks refusée (0 ligne)', (await r.json()).length === 0);
++  await ctx2.close(); await b.close();
++  console.log(`[${mode}]`); console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);
++})();
+diff --git a/tests/unit/t_actions_requises.js b/tests/unit/t_actions_requises.js
+new file mode 100644
+index 0000000..a5842a7
+--- /dev/null
++++ b/tests/unit/t_actions_requises.js
+@@ -0,0 +1,20 @@
++// Règle de comptage des actions requises (correction du « 50 » permanent). Usage : node tests/unit/t_actions_requises.js
++const ts = require('typescript'), fs = require('fs'), path = require('path'), M = require('module');
++const js = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../../src/lib/actionsRequises.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
++const m = new M('ar'); m._compile(js, 'ar.js'); const { compterActions, aTraiter } = m.exports;
++const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
++// Répartition réelle relevée en production le 23/11 : 60 à faire (12 en priorité 1, 1 échue), 3 en cours dont la ligne du registre, 13 faites
++const L = [];
++for (let i = 0; i < 60; i++) L.push({ statut: 'a_faire', cle: 'a' + i, priorite: i < 12 ? 1 : 2, date_limite: i === 0 ? '2026-11-21' : null });
++L.push({ statut: 'en_cours', cle: 'x1', priorite: 2 }, { statut: 'en_cours', cle: 'x2', priorite: 2 }, { statut: 'en_cours', cle: 'suivi_exigences', priorite: 1 });
++for (let i = 0; i < 13; i++) L.push({ statut: 'fait', cle: 'f' + i, priorite: 1 });
++const c = compterActions(L, new Date('2026-11-23T12:00:00Z'));
++ok('60 à traiter (et non 50 plafonnées)', c.aTraiter === 60);
++ok('2 en cours, la ligne technique du registre exclue', c.enCours === 2);
++ok('12 urgentes', c.urgentes === 12);
++ok('1 échue', c.echues === 1);
++ok('les 13 faites ne comptent pas', c.ouvertes === 62);
++ok('une action annulée disparaît du compteur', compterActions([{ statut: 'annule', cle: 'z' }]).ouvertes === 0);
++ok('aucun plafond : 500 actions → 500', compterActions(Array.from({ length: 500 }, (_, i) => ({ statut: 'a_faire', cle: 'k' + i }))).aTraiter === 500);
++ok('le filtre de liste garde uniquement les actions à traiter', L.filter(aTraiter).length === 60);
++console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);
+-- 
+2.43.0
+
