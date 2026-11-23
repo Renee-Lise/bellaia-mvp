@@ -1,0 +1,16 @@
+01 fondatrice enregistre la v2 (brouillon) | accepté
+02 la v2 est réellement en base (version 2, brouillon) | t
+03 même référence une 2e fois refusée (version unique, aucun écrasement) | t
+04 fondatrice enregistre la v3 | accepté
+05 validation de la v2 (1 ligne modifiée) | t
+06 validation de la v3 : v2 → remplacée, v3 → valide | t
+07 historique conservé : 2 versions, une seule « valide » | t
+08 date de mise à jour posée par le déclencheur | t
+09 assistante sans droit : ne voit aucune consigne | t
+10 assistante sans droit : écriture refusée | t
+11 assistante sans droit : modification sans effet (0 ligne) | t
+12 assistante « accès complet » : lit les consignes (droit voulu) | t
+13 cliente : aucune consigne visible, écriture refusée | t
+14 hôte BSH : aucune consigne visible | t
+15 visiteur anonyme : rien visible, écriture refusée | t
+16 suppression par l'assistante sans droit : sans effet | t
