@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Candidatures et accès — maquettes (chiffres illustratifs)</title>
+<style>
+:root{--fond:#10142b;--barre:#171c3a;--ligne:rgba(215,192,143,.2);--or:#d7c08f;--doux:rgba(248,243,234,.62);--texte:#f8f3ea;--rouge:#e0796b;--vert:#7cc49a;--serif:'Cormorant Garamond',Georgia,serif}
+body{margin:0;background:#5b5f73;font-family:-apple-system,system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:28px;padding:28px;align-items:flex-start;justify-content:center;color:var(--texte)}
+.tel{width:390px;height:844px;border-radius:48px;background:var(--fond);overflow:hidden;box-shadow:0 0 0 10px #111;display:flex;flex-direction:column}
+.ordi{width:1180px;height:720px;border-radius:12px;background:var(--fond);overflow:hidden;box-shadow:0 0 0 8px #222;display:flex}
+.statut{height:47px;flex:none}
+.tete{padding:6px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ligne)}
+h1{font-family:var(--serif);font-size:28px;margin:0;font-weight:600;flex:1}h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--or);margin:14px 16px 8px}
+.filtres{display:flex;gap:8px;padding:10px 16px;overflow:hidden}.filtres span{padding:6px 11px;border-radius:14px;border:1px solid var(--ligne);font-size:12px;color:var(--doux);white-space:nowrap}.filtres .on{background:var(--or);color:#10142b;font-weight:600}
+.grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.carte{background:var(--barre);border:1px solid var(--ligne);border-radius:14px;padding:12px}.carte b{font-size:26px;display:block}.carte small{color:var(--doux);font-size:12px}
+.alerte b{color:var(--rouge)}.ok b{color:var(--vert)}
+.liste{margin:0 16px;border:1px solid var(--ligne);border-radius:14px;overflow:hidden}
+.l{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--ligne);font-size:14px}.l:last-child{border:0}
+.pt{width:8px;height:8px;border-radius:4px;flex:none}.meta{margin-left:auto;font-size:12px;color:var(--doux);text-align:right}
+.av{width:40px;height:40px;border-radius:20px;display:grid;place-items:center;font-weight:700;color:#10142b;flex:none}
+.tag{font-size:10px;border:1px solid var(--ligne);border-radius:6px;padding:1px 5px;margin-right:4px;color:var(--or)}
+.nav{margin-top:auto;display:flex;justify-content:space-around;padding:10px 0 28px;border-top:1px solid var(--ligne);background:var(--barre);font-size:11px;color:var(--doux)}.nav .on{color:var(--or)}
+.menu{width:220px;background:var(--barre);border-right:1px solid var(--ligne);padding:18px 0;font-size:14px}.menu div{padding:9px 20px;color:var(--doux)}.menu .on{color:var(--or);background:rgba(215,192,143,.08);border-left:3px solid var(--or)}
+.princ{flex:1;padding:18px 22px;overflow:hidden}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.deux{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px}
+.kan{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.col{background:var(--barre);border-radius:12px;padding:8px;font-size:12px}.col h4{margin:0 0 6px;font-size:12px;color:var(--or)}.tk{background:var(--fond);border:1px solid var(--ligne);border-radius:8px;padding:7px;margin-bottom:6px}
+.fiche{background:var(--barre);border:1px solid var(--ligne);border-radius:14px;padding:14px;margin:0 16px}
+.ligne{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid var(--ligne)}.ligne:last-child{border:0}
+.verrou{color:var(--doux);font-style:italic}
+</style></head><body>
+
+<style>.bt{display:inline-block;padding:7px 10px;border-radius:10px;border:1px solid var(--ligne);font-size:12px;margin:3px 2px;color:var(--texte)}.bt.r{border-color:var(--rouge);color:var(--rouge)}.bt.o{background:var(--or);color:#10142b;font-weight:600}.note{font-size:12px;color:var(--doux);margin:8px 16px;line-height:1.4}</style>
+
+<div class="tel" role="img" aria-label="iPhone : Actions requises, liste détaillée">
+<div class="statut"></div><div class="tete"><h1>Actions requises</h1><span class="tag">60 à traiter</span></div>
+<div class="filtres"><span class="on">À traiter 60</span><span>En cours 2</span><span>Échues 1</span><span>P1 12</span></div>
+<div class="liste">
+<div class="l"><span class="pt" style="background:var(--rouge)"></span><div><b>Action administrative échue</b><br><small class="verrou">Administration · P1 · échue le 21/11 · Fondatrice</small><br><small>Motif : décision requise</small></div><div class="meta">À faire<br><span class="bt o">Ouvrir</span></div></div>
+<div class="l"><span class="pt" style="background:var(--or)"></span><div><b>Décision de sécurité</b><br><small class="verrou">Sécurité · P1 · Fondatrice</small><br><small>Motif : accord après sauvegarde</small></div><div class="meta">À faire<br><span class="bt o">Décider</span></div></div>
+<div class="l"><span class="pt" style="background:var(--or)"></span><div><b>Validation d'une fiche produit</b><br><small class="verrou">Bella'Secret Home · P2</small><br><small>Motif : contrôle avant publication</small></div><div class="meta">À faire<br><span class="bt">Ouvrir</span></div></div>
+</div>
+<p class="note">Nature · pôle · priorité · date · responsable · motif · statut · action possible. Une action sort du compteur uniquement par changement de statut (fait, annulé, sans objet), jamais par suppression.</p>
+<div class="nav"><span>Accueil</span><span class="on">Actions</span><span>Gestion</span><span>Messages</span></div></div>
+
+<div class="tel" role="img" aria-label="iPhone : Gestion, Candidatures et accès">
+<div class="statut"></div><div class="tete"><h1>Candidatures & accès</h1></div>
+<div class="filtres"><span class="on">Tous rôles</span><span>Hôte</span><span>Assistant</span><span>Modèle</span><span>Membres</span></div>
+<div class="grille">
+<div class="carte"><b>4</b><small>Reçues</small></div><div class="carte alerte"><b>2</b><small>Dossiers incomplets</small></div>
+<div class="carte"><b>1</b><small>À contacter</small></div><div class="carte"><b>1</b><small>Entretiens à programmer</small></div>
+<div class="carte"><b>3</b><small>En attente de décision</small></div><div class="carte ok"><b>2</b><small>Invitations envoyées</small></div>
+<div class="carte"><b>5</b><small>Comptes activés</small></div><div class="carte alerte"><b>1</b><small>Suspendus · 0 révoqués</small></div>
+</div>
+<h2>À décider</h2>
+<div class="liste">
+<div class="l"><div class="av" style="background:#c9a7e0">A</div><div><b>Candidature assistante</b><br><small class="verrou">Food · reçue le 20/11</small></div><div class="meta">Proposé :<br>À contacter</div></div>
+<div class="l"><div class="av" style="background:#9fd3c7">M</div><div><b>Candidature modèle</b><br><small class="verrou">Food · photos produits</small></div><div class="meta">Dossier<br>incomplet</div></div>
+</div>
+<div class="nav"><span>Accueil</span><span>Actions</span><span class="on">Gestion</span><span>Messages</span></div></div>
+
+<div class="tel" role="img" aria-label="iPhone : dossier de candidature avec proposition de l'agent">
+<div class="statut"></div><div class="tete"><h1>Dossier</h1><span class="tag">Assistante</span></div>
+<div class="fiche">
+<div class="ligne"><span>Complétude</span><b>9/10 champs</b></div>
+<div class="ligne"><span>Majorité déclarée · charte</span><b>Oui · Oui</b></div>
+<div class="ligne"><span>Disponibilités ↔ besoins Food</span><b>Bonne</b></div>
+<div class="ligne"><span>Expérience liée au rôle</span><b>Partielle</b></div>
+</div>
+<h2>Proposition de l'agent (non décisionnelle)</h2>
+<p class="note" style="color:var(--texte)">Statut proposé : <b>À contacter</b>. Raisons : disponibilités du week-end compatibles avec les commandes Food ; expérience en restauration déclarée ; il manque les zones de déplacement. Critères v1 du 23/11.</p>
+<p class="note">Champs non transmis à l'agent : photo, âge exact, genre, nom de famille.</p>
+<div style="padding:0 14px"><span class="bt">À contacter</span><span class="bt">Entretien</span><span class="bt">Demander une pièce</span><span class="bt o">Accepter…</span><span class="bt r">Refuser…</span></div>
+<p class="note">« Accepter » ouvre l'invitation sécurisée (lien unique, 72 h) et les rôles non privilégiés à cocher. Motif obligatoire pour refuser.</p>
+<div class="nav"><span>Accueil</span><span>Actions</span><span class="on">Gestion</span><span>Messages</span></div></div>
+
+<div class="tel" role="img" aria-label="iPhone : fiche profil et actions administratives">
+<div class="statut"></div><div class="tete"><div class="av" style="background:#e8c27a">S</div><h1>Fiche profil</h1></div>
+<div class="fiche">
+<div class="ligne"><span>Rôles</span><b>Assistante · Hôte</b></div>
+<div class="ligne"><span>Food</span><b style="color:var(--vert)">Actif</b></div>
+<div class="ligne"><span>Bella'Secret Home</span><b style="color:var(--rouge)">Suspendu jusqu'au 30/11</b></div>
+<div class="ligne"><span>Missions en cours</span><b>2 (1 reçue, 1 à 60 %)</b></div>
+<div class="ligne"><span>Documents</span><b>3 privés</b></div>
+</div>
+<h2>Transmettre</h2>
+<div style="padding:0 14px"><span class="bt">Mission</span><span class="bt">Tâche</span><span class="bt">Document</span><span class="bt">Demande de validation</span><span class="bt">Message</span></div>
+<h2>Accès (motif + confirmation)</h2>
+<div style="padding:0 14px"><span class="bt">Permissions</span><span class="bt">Pôles</span><span class="bt">Réactiver BSH</span><span class="bt r">Suspendre</span><span class="bt r">Révoquer un rôle</span><span class="bt r">Désactiver le compte</span></div>
+<p class="note">Suspension : temporaire, par pôle. Révocation : retrait conservé dans l'historique. Désactivation : connexion refusée, sessions fermées, données gardées. Suppression : seulement sur demande RGPD, accord de la fondatrice.</p>
+<div class="nav"><span>Accueil</span><span>Actions</span><span class="on">Gestion</span><span>Messages</span></div></div>
+
+<div class="tel" role="img" aria-label="iPhone : formulaire Devenir modèle">
+<div class="statut"></div><div class="tete"><h1>Devenir modèle</h1></div>
+<div class="fiche">
+<div class="ligne"><span>Prénom ou nom professionnel</span><b>·</b></div>
+<div class="ligne"><span>E-mail · ville</span><b>·</b></div>
+<div class="ligne"><span>Disponibilités</span><b>·</b></div>
+<div class="ligne"><span>Missions acceptées</span><b>☐ Produits ☐ Mode ☐ Beauté ☐ Événementiel</b></div>
+<div class="ligne"><span>Mes limites</span><b>liste + texte libre</b></div>
+<div class="ligne"><span>Portfolio</span><b>facultatif</b></div>
+<div class="ligne"><span>☐ Je suis majeur(e)</span><b>obligatoire</b></div>
+<div class="ligne"><span>☐ Charte et données personnelles</span><b>obligatoire</b></div>
+</div>
+<p class="note">Aucune pièce d'identité au dépôt ; aucune question intime, de santé, d'origine ou de religion. Vérification d'âge après acceptation : la pièce est consultée puis non conservée.</p>
+<div style="padding:0 14px"><span class="bt o">Envoyer ma candidature</span></div>
+<div class="nav"><span>Accueil</span><span>Univers</span><span class="on">Rejoindre</span><span>Compte</span></div></div>
+</body></html>
