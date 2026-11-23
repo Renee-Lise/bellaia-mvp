@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import PageLegale, { ACompleter as A, SOUS_TRAITANTS } from "@/modules/legal/PageLegale";
+import { formaterEditeur, lireEditeur } from "@/modules/legal/editeur";
 
 export const metadata: Metadata = { title: "Confidentialité — Bellaïa", robots: { index: false, follow: true } };
 const td: React.CSSProperties = { borderTop: "1px solid rgba(28,34,70,0.14)", padding: "6px 6px", verticalAlign: "top", fontSize: 14.5 };
 
-export default function Page() {
+export const revalidate = 600;
+
+export default async function Page() {
+  const ed = formaterEditeur(await lireEditeur());
+  const val = (l: string) => ed.champs.find(c => c.libelle === l)?.valeur;
   return <PageLegale titre="Confidentialité et données personnelles" sousTitre="Ce que nous collectons, pourquoi, combien de temps, et vos droits" sections={[
-    { titre: "Responsable du traitement", contenu: <><A>Dénomination</A>, <A>adresse</A>. Contact pour vos données : <A>e-mail dédié</A>.</> },
+    { titre: "Responsable du traitement", contenu: <>{val("Dénomination") || <A>Dénomination</A>}{val("Forme juridique") ? ` (${val("Forme juridique")})` : ""}, {val("Adresse") || <A>adresse</A>}. Contact pour vos données : {val("E-mail") || <A>e-mail</A>} <A>adresse dédiée aux données personnelles, si vous en créez une</A>.</> },
     { titre: "Données et finalités", contenu: <ul style={{ paddingLeft: 20, margin: 0 }}>
       <li><b>Compte</b> (prénom, nom, e-mail, téléphone) : gérer votre accès et vos commandes — exécution du contrat.</li>
       <li><b>Commandes, réservations, devis</b> : les préparer, les livrer, les facturer — exécution du contrat et obligations comptables.</li>

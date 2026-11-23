@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import PageLegale, { ACompleter as A } from "@/modules/legal/PageLegale";
+import BlocEditeur from "@/modules/legal/BlocEditeur";
+import { formaterEditeur, lireEditeur } from "@/modules/legal/editeur";
 
 export const metadata: Metadata = { title: "Mentions légales — Bellaïa", robots: { index: false, follow: true } };
 
-export default function Page() {
+export const revalidate = 600;
+
+export default async function Page() {
+  const editeur = formaterEditeur(await lireEditeur());
   return <PageLegale titre="Mentions légales" sousTitre="Application Bellaïa et univers Bella'Studio" sections={[
-    { titre: "Éditeur", contenu: <>Bellaïa est éditée par <A>dénomination ou nom de l'entrepreneur individuel</A>, <A>forme juridique</A>, SIRET <A>numéro</A>, <A>RCS ou RNE</A>, dont l'adresse est <A>adresse complète</A>, Guyane. Téléphone : <A>numéro</A>. E-mail : <A>adresse de contact</A>. TVA : <A>numéro de TVA ou « TVA non applicable, art. 293 B du CGI » selon le régime</A>.</> },
+    { titre: "Éditeur", contenu: <><p style={{ margin: "0 0 8px" }}>Bellaïa est éditée par :</p><BlocEditeur e={editeur} /></> },
     { titre: "Directrice de la publication", contenu: <><A>Nom et prénom de la fondatrice</A>.</> },
     { titre: "Hébergement", contenu: <>Application : Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, États-Unis. Données : Supabase, centre de données de Francfort (Allemagne). <A>coordonnées exactes à confirmer d'après les contrats</A>.</> },
     { titre: "Activités et univers", contenu: <>Bella'Food (restauration), Vil'Dor Pâtisse (partenaire), Bella'Secret Home (réservé aux personnes majeures), Bella'Events, Bella'Odyssée, Mo Ti-Péyi et Bella'Studio Éditions, Vilo'Assistance. <A>préciser pour chaque activité l'entité qui vend et ses numéros d'immatriculation, notamment pour Vil'Dor Pâtisse</A>.</> },
