@@ -1,0 +1,36 @@
+Résultats du 23/11/2026 — PostgreSQL 16 jetable, aucune donnée réelle
+— AVANT (état de production) : t = sûr, f = faille exploitable
+01 inscription demandant « fondatrice » → profil « cliente » | f
+02 compte sans profil se crée « fondatrice » → refusé ou forcé « cliente » | f
+03 cliente change son propre rôle → sans effet | t
+04 cliente modifie son prénom → accepté | t
+05 cliente lit les autres profils → 0 | t
+06 acces_complet se donne « fondatrice » → sans effet | f
+07 acces_complet promeut la cliente → refusé (réservé à la fondatrice) | f
+08 acces_complet supprime un profil → impossible | f
+09 acces_complet lit les profils (supervision) → autorisé | t
+10 fondatrice nomme la cliente « assistante » → accepté | 
+11 fondatrice suspend un compte → accepté | 
+12 fondatrice crée une 2e « fondatrice » depuis l'application → refusé | 
+13 acces_complet modifie son propre statut → sans effet | f
+— migration 0134
+appliquée
+relance sans erreur (idempotence)
+— APRÈS
+01 inscription demandant « fondatrice » → profil « cliente » | t
+02 compte sans profil se crée « fondatrice » → refusé ou forcé « cliente » | t
+03 cliente change son propre rôle → sans effet | t
+04 cliente modifie son prénom → accepté | t
+05 cliente lit les autres profils → 0 | t
+06 acces_complet se donne « fondatrice » → sans effet | t
+07 acces_complet promeut la cliente → refusé (réservé à la fondatrice) | t
+08 acces_complet supprime un profil → impossible | t
+09 acces_complet lit les profils (supervision) → autorisé | t
+10 fondatrice nomme la cliente « assistante » → accepté | t
+11 fondatrice suspend un compte → accepté | t
+12 fondatrice crée une 2e « fondatrice » depuis l'application → refusé | t
+13 acces_complet modifie son propre statut → sans effet | t
+— retour arrière puis réapplication
+retour arrière appliqué
+état d'origine rétabli : true
+réapplication sans erreur
