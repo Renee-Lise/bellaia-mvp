@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { sbSelect } from "../events/eventsAtelierLib";
 import { MARQUES, marqueDe } from "../../design/marques";
 import { Surface, Titre, Indicateur, Puce, LogoMarque, Carrousel, BandeauInfo, type Banniere } from "../../design/composants";
+import { REQUETE_ACTIONS, aTraiter, compterActions } from "../../lib/actionsRequises";
 
 const euros = (n: number) => (Number(n) || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const RACCOURCIS_DEFAUT: [string, string, string][] = [["commandes", "Commandes", "🧾"], ["administratif", "Administration", "📄"], ["food", "Bella'Food", "🍽"], ["bsh", "Secret Home", "🗝"], ["events", "Even's", "🎀"], ["actions", "Actions requises", "✓"], ["equipe", "Équipe", "👥"], ["agenda", "Agenda", "🗓"]];
@@ -35,11 +36,11 @@ export default function PortailFondatrice({ prenom = "Renée-Lise", onOuvrir: ou
       g("v_dashboard_finances", "select=*"), g("v_dashboard_crm", "select=*"),
       g("bellaia_commandes", `select=id,bu,total,statut,created_at&created_at=gte.${debutMois.toISOString().slice(0, 10)}&order=created_at.desc&limit=500`),
       g("v_stocks_critiques", "select=id,nom,univers,quantite,quantite_min&limit=50"),
-      g("bellaia_actions", "statut=eq.a_faire&select=id,cle,titre,univers,priorite,date_limite&order=priorite.asc,date_limite.asc.nullslast&limit=50"),
+      g("bellaia_actions", REQUETE_ACTIONS),
       g("v_calendar_upcoming", "select=id,titre,date_debut,pole,countdown_label&limit=6"),
       g("business_units", "select=code,nom,couleur,statut,ordre&order=ordre.asc"),
     ]);
-    setD({ fin: fin[0] || {}, crm: crm[0] || {}, cmd, stocks, actions, agenda, unites });
+    setD({ fin: fin[0] || {}, crm: crm[0] || {}, cmd, stocks, actions: actions.filter(aTraiter), compte: compterActions(actions), agenda, unites });
   })(); }, []);
   const sauver = (l: string[]) => { setRaccourcis(l); try { localStorage.setItem("bellaia_raccourcis", JSON.stringify(l)); } catch {} };
   const heure = new Date().getHours(); const salut = heure < 12 ? "Bonjour" : heure < 18 ? "Bel après-midi" : "Bonsoir";
@@ -53,7 +54,7 @@ export default function PortailFondatrice({ prenom = "Renée-Lise", onOuvrir: ou
 
   return (
     <div style={{ background: m.degrade, backgroundColor: m.fond, minHeight: "100vh", color: m.texte, fontFamily: m.sans, paddingBottom: 40 }}>
-      <BandeauInfo m={m} messages={[`${d.actions.length} actions requises`, `${d.stocks.length} stocks sous le seuil`, `${d.cmd.length} commandes ce mois-ci`]} />
+      <BandeauInfo m={m} messages={[`${d.compte.aTraiter} action${d.compte.aTraiter > 1 ? "s" : ""} à traiter${d.compte.enCours ? ` · ${d.compte.enCours} en cours` : ""}`, `${d.stocks.length} stocks sous le seuil`, `${d.cmd.length} commandes ce mois-ci`]} />
       <div style={{ padding: "18px 16px 6px", display: "flex", alignItems: "center", gap: 12 }}>
         <LogoMarque m={m} taille={44} />
         <div style={{ flex: 1 }}>

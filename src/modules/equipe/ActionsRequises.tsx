@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { sbSelect, sbUpdate, sbInsert } from "../events/eventsAtelierLib";
 import { deposerPrive, ouvrirPrive, nomFichierSur } from "./equipeLib";
+import { compterActions } from "../../lib/actionsRequises";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c", bleu: "#60a5fa" };
@@ -57,8 +58,9 @@ export default function ActionsRequises() {
       await maj(a, { pieces_jointes: [...(a.pieces_jointes || []), { chemin, nom: f.name, le: new Date().toISOString() }] });
     } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
   };
-  const nbOuvertes = actions.filter(a => a.statut !== "fait").length;
-  const nbUrgentes = actions.filter(a => a.statut !== "fait" && a.priorite === 1).length;
+  const compte = compterActions(actions);
+  const nbOuvertes = compte.aTraiter;
+  const nbUrgentes = compte.urgentes;
 
   const maj = async (a: any, patch: any) => {
     try {
@@ -85,6 +87,7 @@ export default function ActionsRequises() {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <div style={{ ...btn(true, C.rouge), cursor: "default" }}>{nbUrgentes} urgente{nbUrgentes > 1 ? "s" : ""}</div>
         <div style={{ ...btn(true), cursor: "default" }}>{nbOuvertes} en attente</div>
+        {compte.enCours > 0 && <div style={{ ...btn(false), cursor: "default" }}>{compte.enCours} en cours</div>}
         <button style={btn()} onClick={ajouter}>＋ Ajouter</button>
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

@@ -7,6 +7,7 @@ import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/
 import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
+import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
 // MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
@@ -14589,8 +14590,8 @@ export default function BellaiaApp() {
     let vivant = true;
     (async () => { try {
       const t = await (window as any).getTokenAsync?.();
-      const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/bellaia_actions?select=id&statut=neq.fait&priorite=lte.2`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: `Bearer ${t}` } });
-      if (r.ok && vivant) setNbActions((await r.json()).length);
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/bellaia_actions?${REQUETE_ACTIONS}`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: `Bearer ${t}` } });
+      if (r.ok && vivant) setNbActions(compterActions(await r.json()).aTraiter);
     } catch {} })();
     return () => { vivant = false; };
   }, [roleNav, activeF === "actions"]);
