@@ -1,4 +1,4 @@
-# Bellaïa — Tableau de livraison (mis à jour le 23/11/2026, soir — sprint du 26/11)
+# Bellaïa — Tableau de livraison (mis à jour le 23/11/2026, nuit — sprint du 26/11)
 
 Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwright, profil iPhone 13 ; ce n'est **pas** un iPhone physique. **Déployé** = en production. Production actuelle : commit `0bfd765` (18/11) — **rien n'a été déployé depuis**.
 
@@ -13,9 +13,17 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 | 0135 — candidatures (5 formulaires côté base, historique, documents privés, purge RGPD) | Oui (migration) | 65/65 (avec 0136 et 0137) base jetable ; idempotence, retour arrière, réapplication | **Non** | Sans objet |
 | 0136 — suspension par pôle, révocation tracée, désactivation, révocation des sessions | Oui (migration) | idem | **Non** | Sans objet |
 | 0137 — missions (réception, avancement, transfert), invitations à usage unique | Oui (migration) | idem | **Non** | Sans objet |
-| Moteur de règles des candidatures (IA désactivée par défaut) | Oui (`src/lib/candidatures.ts`) | Unitaires 12/12 | Non (pas encore d'écran) | Non |
+| Moteur de règles des candidatures (IA désactivée par défaut) | Oui (`src/lib/candidatures.ts`), branché sur l'écran Candidatures | Unitaires 12/12 | Non | Non |
 | Moteur allergènes (14 allergènes, 3 statuts) | Oui (`src/lib/allergenes.ts`) | Unitaires 17/17 | Non (pas encore d'écran) | Non |
-| Écrans Gestion › Candidatures et accès, fiche profil, formulaires publics | **Non** — maquettes seulement | — | Non | Non |
+| Administration › Candidatures : liste, dossier, proposition par règles, décision humaine (refus motivé), historique, documents consultés avec trace, invitation à usage unique remise par vous | Oui (branche) — actif après 0135 / 0137, écran d'attente avant | 16/16 simulateur iPhone (avec et sans la table, acceptation d'invitation, assistante sans accès) | Non | Non |
+| Formulaires publics de candidature | **Non** — volontairement : aucune ouverture publique avant les tests de sécurité et 0135 | — | Non | Non |
+| Espace professionnel commun hôte / partenaire : missions (accusé de réception, avancement, pièce jointe, signalement, demande de transfert, soumission à validation), agenda, documents, profil professionnel ; plus de WhatsApp | Oui (branche) — fonctionne avec la base actuelle | 18/18 simulateur iPhone ; non-régression 17/17, 12/12, 5/5, 16/16 | Non | Non |
+| Correction commune : une fonction sans valeur de retour n'est plus prise pour une erreur | Oui (branche) | Défaut trouvé par le test 18/18, non-régression OK | Non | Non |
+| Compte client (profil, notifications, confidentialité, aide), agenda à part, « Mes espaces » multirôle | Oui (branche) | 17/17 simulateur iPhone | Non | Non |
+| Mo Ti-Péyi : 5 articles au catalogue réel en brouillon, sans prix, non commandables | Appliqué (données) + branche | 0 exposé (vérifié en base) ; 17/17 | Brouillons invisibles | Non |
+| Mo Ti-Péyi : jeu de cartes pédagogique (prototype, fondatrice uniquement) — 12 défis PS à CP, flèches, avancer/tourner, boucles, condition, débogage | Oui (branche) | Moteur 23/23 (chaque défi vérifié faisable ; 2 défis faux détectés et corrigés) ; écran 16/16 simulateur iPhone ; compte Famille sans accès | Non | Non |
+| Livres : inventaire réel et éléments manquants (P'tit Lion T1–T4 : 4 couvertures, 15 illustrations, 19 textes alternatifs proposés) | Dossier (Drive privé) | Lecture seule de la base | Aucun tome publié | — |
+| Rapport différentiel production / branche | `docs/deploiement/RAPPORT_DIFFERENTIEL.md` | Migrations vérifiées objet par objet en production | — | — |
 | Sauvegarde complète gratuite (structure, données, comptes, fichiers) + contrôle de restauration | Oui (scripts) | Chaîne 5/5 sur imitation ; **vraie sauvegarde pas encore faite** (à lancer par vous) | — | — |
 | B0 — 6 boissons non commandables ; citronnelle consolidée | Appliqué (données) | Vérifié en base | Oui (données) | Non |
 | B1 — 23 boissons en brouillon | Appliqué (données) | 0 produit exposé (vérifié en base) | Oui (brouillons invisibles) | Non |
@@ -27,13 +35,13 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 | Retour cohérent : historique du navigateur, geste natif de Safari, balayage depuis le bord gauche dans l'application installée ; retour vers l'accueil client | Oui (branche) | 16/16 (dont retour lecteur → histoires → portail) | Non | Non |
 | Lecteur de livres : pages au glissement (sens français), jamais pendant un zoom, marque-page, progression, illustration plein écran | Oui (branche) | 16/16 + 8/8 unitaires | Non | Non |
 | Carte « Mo Ti-Péyi » de l'accueil client qui n'ouvrait rien (défaut introduit puis corrigé le jour même, jamais en production) | Corrigé | 16/16 | — | — |
-| Jeux : inventaire | — | Seuls les jeux BSH existent (Secret Games, Duo, Salons) ; aucun jeu Mo Ti-Péyi, Odyssée ou jeunesse développé | — | — |
+| Jeux : inventaire | — | Jeux BSH inchangés (Secret Games, Duo, Salons, restrictions d'accès conservées) ; jeu de cartes Mo Ti-Péyi commencé (prototype) ; aucun jeu Odyssée ou jeunesse | — | — |
 
 ## Ce qui rendra Bellaïa réellement opérationnelle, dans l'ordre
-1. **Sauvegarde réelle** : vous lancez `supabase/sauvegarde/sauvegarde_complete.sh` (≈ 10 min) et déposez les fichiers indiqués dans le Drive privé ; je fais le contrôle de restauration et vous présente le résultat.
+1. **Sauvegarde réelle depuis l'iPhone** : dépôt GitHub privé + tâche « Sauvegarde Bellaïa » (`docs/deploiement/sauvegarde-iphone/PROCEDURE_IPHONE.md`) ; le résultat doit être « COMPLET ».
 2. **Déploiement du paquet lot 7** (4 corrections, 9 fichiers) sur votre autorisation, puis **votre vérification sur votre iPhone** (liste de contrôle ci-dessous).
 3. **0134 puis 0133** sur votre autorisation, après sauvegarde « COMPLET ».
-4. **0135 → 0137** puis écrans Candidatures et accès, fiche profil et formulaires (développement après validation des maquettes).
+4. **Lot portails et sécurité des rôles** (sans migration), puis **0138**, puis **0135 → 0137** (les écrans sont prêts), puis 0139 et les autres (voir `docs/deploiement/RAPPORT_DIFFERENTIEL.md`).
 
 ## Contrôle sur votre iPhone après déploiement (5 minutes)
 - Menu : « Actions requises · 60 » (ou le nombre réel du jour), pas « 50 » ; l'onglet « En attente » ne montre ni actions annulées ni ligne de registre.
