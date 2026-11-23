@@ -61,3 +61,10 @@ bellaia_fournisseurs ──< fournisseur_articles (réf., EAN, désignation, tar
 3. **Lot C — reprise des données** : création des 390 articles BSH dans `stock_global` depuis `stocks` + fichier fournisseur (script idempotent, vérifié par comptages), rapprochement des factures réelles.
 4. **Lot D — écrans** : fournisseurs, achats (saisie de facture), inventaire, ruptures, réapprovisionnement ; boutique : badge « Sur commande — X jours » ou « Temporairement indisponible ».
 5. **Lot E** : Food et Events branchés sur le même modèle ; retrait des tables Food doublons après vérification.
+
+## 4. Avancement du Lot A (sans migration) — 23/11/2026
+- **Règle de disponibilité commune** : `src/lib/disponibilite.ts` (testée : `tests/unit/t_disponibilite.js`, 15/15). Elle distingue stock physique, réservé, disponible à la vente, stock fournisseur, **sur commande** (uniquement avec délai confirmé par écrit), **rupture**, **retiré du catalogue fournisseur** et **fin de série** (absent chez le fournisseur mais stock restant, vendable jusqu'à épuisement). Dans le doute, un produit n'est **pas** commandable ; `quantiteAcceptable()` empêche de commander plus que le disponible.
+- **Application en lecture seule au catalogue BSH en vente (264 fiches, 23/11)** : 238 avec stock en base, 6 fins de série, **20 à stock 0 sans délai confirmé** (encore commandables aujourd'hui — décision de la fondatrice attendue).
+- **Point d'attention** : les quantités « en base » ne sont pas des comptages physiques vérifiés (certaines dépassent 1 000 unités) ; un inventaire complet est nécessaire avant de s'y fier pour bloquer les commandes.
+- **Inventaire physique** : écran fondatrice (fiche imprimable, saisie, correction tracée, annulation) — `src/modules/concorde/InventaireBSH.tsx`.
+- Prochaine étape (Lot B, migration à autoriser) : colonnes `disponibilite`, `delai_reappro_jours`, `stock_reserve`, journal `stock_mouvements` alimenté, puis branchement de la règle sur la boutique et sur la création de commande côté serveur.

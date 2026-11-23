@@ -1,0 +1,23 @@
+// Tests de la règle de disponibilité commune. Usage : node tests/unit/t_disponibilite.js
+const ts = require('typescript'), fs = require('fs'), path = require('path'), M = require('module');
+const js = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../../src/lib/disponibilite.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+const m = new M('dispo'); m._compile(js, 'dispo.js'); const { disponibilite: D, quantiteAcceptable: Q } = m.exports;
+const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
+const base = { stockPhysique: 0, stockReserve: 0, stockFournisseur: 0, presentChezFournisseur: true, delaiConfirmeJours: null };
+ok('stock 5 → en stock, commandable jusqu\'à 5', (d => d.etat === 'en_stock' && d.commandable && d.quantiteMaxCommande === 5)(D({ ...base, stockPhysique: 5 })));
+ok('stock 5 dont 5 réservés → plus rien de disponible', (d => d.disponible === 0 && d.etat === 'rupture')(D({ ...base, stockPhysique: 5, stockReserve: 5 })));
+ok('stock 5 dont 2 réservés → 3 disponibles', D({ ...base, stockPhysique: 5, stockReserve: 2 }).disponible === 3);
+ok('réservé > physique → jamais négatif', D({ ...base, stockPhysique: 1, stockReserve: 4 }).disponible === 0);
+ok('rupture Bellaïa + fournisseur 0 → « Temporairement indisponible », non commandable', (d => d.etat === 'rupture' && !d.commandable)(D(base)));
+ok('fournisseur 24 sans délai confirmé → à confirmer, NON commandable', (d => d.etat === 'a_confirmer' && !d.commandable)(D({ ...base, stockFournisseur: 24 })));
+ok('fournisseur inconnu sans délai → à confirmer, non commandable', (d => d.etat === 'a_confirmer' && !d.commandable)(D({ ...base, stockFournisseur: null })));
+ok('fournisseur 24 + délai écrit 10 j → sur commande, commandable (max 24)', (d => d.etat === 'sur_commande' && d.commandable && d.quantiteMaxCommande === 24 && /10 jours/.test(d.libelle))(D({ ...base, stockFournisseur: 24, delaiConfirmeJours: 10 })));
+ok('fournisseur 0 même avec délai → rupture (le délai ne crée pas de stock)', D({ ...base, stockFournisseur: 0, delaiConfirmeJours: 10 }).etat === 'rupture');
+ok('absent du fournisseur avec 12 en stock → fin de série, vendable jusqu\'à 12', (d => d.etat === 'fin_de_serie' && d.commandable && d.quantiteMaxCommande === 12)(D({ ...base, presentChezFournisseur: false, stockPhysique: 12 })));
+ok('absent du fournisseur sans stock → retiré, non commandable', (d => d.etat === 'retire_fournisseur' && !d.commandable)(D({ ...base, presentChezFournisseur: false })));
+ok('stock négatif ou invalide traité comme 0', D({ ...base, stockPhysique: -3 }).disponible === 0 && D({ ...base, stockPhysique: NaN }).disponible === 0);
+ok('délai 0 ou négatif = non confirmé', D({ ...base, stockFournisseur: 5, delaiConfirmeJours: 0 }).etat === 'a_confirmer');
+const e3 = D({ ...base, stockPhysique: 3 });
+ok('commande de 3 acceptée, de 4 refusée, de 0 / 1,5 refusées', Q(e3, 3) && !Q(e3, 4) && !Q(e3, 0) && !Q(e3, 1.5));
+ok('aucune commande possible sur un produit en rupture', !Q(D(base), 1));
+console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);
