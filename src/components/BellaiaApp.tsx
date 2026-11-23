@@ -8,6 +8,7 @@ import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
 import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
+import { useRetourNavigateur, installerBalayageRetour } from "@/lib/navigationRetour";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
 // MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
@@ -1644,7 +1645,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}: any) {
 
   // Gate +18
   if (!gate) return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(BSH.prune)+","+(BSH.fond)+")",alignItems:"center",justifyContent:"center",fontFamily:SA,padding:"20px"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,"+(BSH.prune)+","+(BSH.fond)+")",alignItems:"center",justifyContent:"center",fontFamily:SA,padding:"20px"}}>
       <div style={{textAlign:"center",maxWidth:320,width:"100%"}}>
         <div style={{fontFamily:FS,fontSize:26,color:BSH.or,letterSpacing:3,marginBottom:4}}>✦ Bella'Secret Home</div>
         <div style={{fontSize:9,color:BSH.cremeD,letterSpacing:4,marginBottom:32}}>L'INTIMITÉ ÉLEVÉE AU RANG D'ART</div>
@@ -1664,7 +1665,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}: any) {
   const PAGES = [{id:"accueil",l:"🏠"},{id:"boutique",l:"🛍"},{id:"evenements",l:"✨"},{id:"games",l:"🎲",ext:"/bsh/secret-games"},{id:"membres",l:"💎"},{id:"faq",l:"❓"}];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)",fontFamily:SA}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 10% 0%,"+(BSH.prune)+","+(BSH.fond)+" 60%)",fontFamily:SA}}>
       {/* Header BSH */}
       <div style={{padding:"10px 14px",borderBottom:"1px solid "+(BSH.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
@@ -1673,7 +1674,7 @@ function ClientBSH({produits, evenements, onBack, onNewCommande, user}: any) {
         </div>
         <div style={{display:"flex",gap:7,alignItems:"center"}}>
           {cartN > 0 && <button onClick={() => setModal("cart")} style={{background:(BSH.bord)+"33",border:"1px solid "+(BSH.bord),borderRadius:8,padding:"5px 10px",color:BSH.creme,cursor:"pointer",fontSize:11,fontFamily:SA}}>🛍 {cartN} · {cartT}€</button>}
-          <button onClick={onBack} style={{background:"none",border:"1px solid "+(BSH.line),borderRadius:8,padding:"5px 9px",color:BSH.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+          <button onClick={onBack} style={{background:"none",border:"1px solid "+(BSH.line),borderRadius:8,padding:"8px 14px",minHeight:44,color:BSH.cremeD,cursor:"pointer",fontSize:13,fontFamily:SA}}>‹ Portail</button>
         </div>
       </div>
 
@@ -2155,7 +2156,7 @@ function ClientOdyssee({user, rdvs, onBack}: any) {
   if (paiementOd) return <EcranPaiement paiement={paiementOd} onBack={()=>setPaiementOd(null)} bu="ODYSSEE"/>;
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(BO.prune)+","+(BO.fond)+" 65%)",fontFamily:SA}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,"+(BO.prune)+","+(BO.fond)+" 65%)",fontFamily:SA}}>
       {/* Header */}
       <div style={{padding:"10px 14px",borderBottom:"1px solid "+(BO.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.35)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -2165,7 +2166,7 @@ function ClientOdyssee({user, rdvs, onBack}: any) {
             <div style={{fontSize:8,color:BO.cremeD,letterSpacing:3}}>BEAUTÉ · SOINS · ÉLÉGANCE</div>
           </div>
         </div>
-        <button onClick={onBack} style={{background:"none",border:"1px solid "+(BO.line),borderRadius:8,padding:"5px 9px",color:BO.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        <button onClick={onBack} style={{background:"none",border:"1px solid "+(BO.line),borderRadius:8,padding:"8px 14px",minHeight:44,color:BO.cremeD,cursor:"pointer",fontSize:13,fontFamily:SA}}>‹ Portail</button>
       </div>
 
       {/* Nav */}
@@ -2506,13 +2507,13 @@ function ClientVilo({ user, onBack }: any) {
   const acc  = "#1d4ed8";
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a3a,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#0d1a3a,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(29,78,216,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:7}}>
           <img src="/branding/vilo-assistance-logo-400.webp" alt="" style={{width:26,height:26,borderRadius:"50%",objectFit:"cover"}}/>
           <div style={{fontFamily:FS,fontSize:14,color:"#93c5fd"}}>Vilo'Assistance</div>
         </div>
-        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"8px 14px",minHeight:44,color:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>‹ Portail</button>
       </div>
       <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(29,78,216,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
         {[["accueil","🏠","Accueil"],["demande","📋","Ma demande"],["suivi","📦","Suivi"],["contact","💬","Contact"]].map(([id,ico,l])=>(
@@ -2696,10 +2697,10 @@ function ClientEditions({ user, onBack }: any) {
   };
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#1e1b4b,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#1e1b4b,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(99,102,241,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{fontFamily:FS,fontSize:14,color:"#a5b4fc"}}>📚 Bella'Studio Éditions</div>
-        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"8px 14px",minHeight:44,color:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>‹ Portail</button>
       </div>
       <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(99,102,241,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
         {[["catalogue","📚","Catalogue"],["commandes","📦","Mes achats"],["contact","💬","Contact"]].map(([id,ico,l])=>(
@@ -2837,16 +2838,16 @@ function ClientMoTiPeyi({ user, onBack }: any) {
   const inp3: React.CSSProperties = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0b1f0d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#0b1f0d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(34,197,94,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>🌿 Mo Ti-Péyi</div>
-        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:B.muted,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+        <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"8px 14px",minHeight:44,color:B.muted,cursor:"pointer",fontSize:13,fontFamily:SA}}>‹ Portail</button>
       </div>
       <div style={{display:"flex",justifyContent:"space-around",padding:"7px 12px",borderBottom:"1px solid rgba(34,197,94,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
         {[["catalogue","🃏","Catalogue"],["histoires","🌙","Histoires"],["commandes","📦","Mes commandes"],["projet","🌿","Le projet"],["contact","💬","Contact"]].map(([id,ico,l])=>(
           <button key={id} onClick={()=>setPage(id)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"4px 8px",borderBottom:page===id?"2px solid #4ade80":"2px solid transparent"}}>
             <span style={{fontSize:15}}>{ico}</span>
-            <span style={{fontSize:8,color:page===id?"#4ade80":B.muted,fontWeight:700}}>{l}</span>
+            <span style={{fontSize:11,color:page===id?"#4ade80":B.muted,fontWeight:700}}>{l}</span>
           </button>
         ))}
       </div>
@@ -3301,7 +3302,7 @@ function ClientFood({ user, onBack }: any) {
   const ONGLETS = [["catalogue","🍃","Catalogue"],["panier","🛒","Panier"],["commandes","📦","Mes commandes"],["contact","💬","Contact"]];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d1a0d,#070d0a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#0d1a0d,#070d0a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(21,128,61,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:7}}>
           <img src="/branding/bellafood-logo-400.webp" alt="" style={{width:26,height:26,borderRadius:"50%",objectFit:"cover"}}/>
@@ -3309,7 +3310,7 @@ function ClientFood({ user, onBack }: any) {
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {panier.length>0&&<span style={{background:"rgba(21,128,61,0.2)",border:"1px solid rgba(21,128,61,0.4)",borderRadius:99,padding:"2px 8px",fontSize:10,color:"#4ade80",fontWeight:700}}>🛒 {panier.length}</span>}
-          <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+          <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"8px 14px",minHeight:44,color:"rgba(245,240,232,0.6)",cursor:"pointer",fontSize:13,fontFamily:SA}}>‹ Portail</button>
         </div>
       </div>
       <div style={{display:"flex",justifyContent:"space-around",padding:"6px 10px",borderBottom:"1px solid rgba(21,128,61,0.15)",background:"rgba(0,0,0,0.15)",flexShrink:0}}>
@@ -3600,7 +3601,7 @@ function PlaceholderUnivers({univers, onBack}: any) {
   const u = UNIVERS.find(x => x.id === univers);
   if (!u) return null;
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+(u.bg)+","+(B.night)+" 65%)",fontFamily:SA,alignItems:"center",justifyContent:"center",padding:"24px"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,"+(u.bg)+","+(B.night)+" 65%)",fontFamily:SA,alignItems:"center",justifyContent:"center",padding:"24px"}}>
       <div style={{textAlign:"center",maxWidth:320}}>
         <div style={{width:72,height:72,borderRadius:20,background:(u.acc)+"30",border:"1px solid "+(u.acc)+("50"),display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 20px"}}>{u.ico}</div>
         <div style={{fontFamily:FS,fontSize:22,color:"#fff",marginBottom:6}}>{u.nom}</div>
@@ -7707,12 +7708,12 @@ function EspaceClientPremium({ user, produits, evenements, onLogout, onNewComman
     <PortailClient user={user} produits={produits} evenements={evenements} onLogout={onLogout} onNewCommande={onNewCommande} initialUnivers={ouvert.univers} onRetourAccueil={()=>setOuvert(null)}/>
   </>;
   if (!Comp) return <div style={{minHeight:"100vh",background:"#faf6ef",color:"rgba(28,34,70,0.6)",padding:30,fontFamily:"-apple-system,system-ui,sans-serif"}}>Ouverture de votre espace…</div>;
-  return <Comp ouverts={Object.keys(UNIVERS_PREMIUM_VERS_CLIENT)} onDeconnexion={onLogout} onOuvrir={(k: string) => {
+  return <BandeSecurite><Comp ouverts={Object.keys(UNIVERS_PREMIUM_VERS_CLIENT)} onDeconnexion={onLogout} onOuvrir={(k: string) => {
     if (k.startsWith("univers:")) { const u = UNIVERS_PREMIUM_VERS_CLIENT[k.slice(8)]; if (u) setOuvert({ univers: u }); return; }
     if (k === "events") { setOuvert({ univers: "bev" }); return; }
     if (k === "univers") return;
     setOuvert({ univers: null });   // commandes, profil, notifications, confidentialité, aide : espace détaillé existant
-  }}/>;
+  }}/></BandeSecurite>;
 }
 
 // Espace assistante : portail dédié + LISTE BLANCHE stricte des écrans ouvrables.
@@ -7721,6 +7722,15 @@ const OUTILS_ASSISTANTE_VERS_VUE: Record<string,string> = {
   missions:"equipe", equipe_gerer:"equipe", messagerie:"messagerie", notifications:"notifications", agenda:"agenda",
   food_catalogue:"food_equipe", food_commande:"food_equipe", food_recette:"food_equipe", bibliotheque:"food_equipe", revente:"food_equipe",
 };
+// Zone de sécurité haute des accueils premium : l'heure et l'encoche de l'iPhone restent lisibles (barre d'état
+// translucide à texte blanc) et le contenu commence sous elles.
+function BandeSecurite({ children, fond = "#1c2246" }: { children: React.ReactNode; fond?: string }) {
+  return <>
+    <div aria-hidden style={{position:"fixed",top:0,left:0,right:0,height:"env(safe-area-inset-top, 0px)",background:fond,zIndex:1000}}/>
+    <div style={{paddingTop:"env(safe-area-inset-top, 0px)",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>{children}</div>
+  </>;
+}
+
 function EspaceAssistanteApp({ user, onLogout }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   const [vue, setVue] = React.useState<string | null>(null);
@@ -7741,10 +7751,10 @@ function EspaceAssistanteApp({ user, onLogout }: any) {
     </div>;
   }
   if (!Comp) return <div style={{minHeight:"100vh",background:"#faf6ef",color:"rgba(28,34,70,0.6)",padding:30,fontFamily:SA}}>Préparation de votre espace…</div>;
-  return <>
+  return <BandeSecurite>
     <Comp prenom={user?.prenom || undefined} onDeconnexion={onLogout} onOuvrir={(k: string) => { const v = OUTILS_ASSISTANTE_VERS_VUE[k]; if (v) setVue(v); else { setInfo("Cet outil sera bientôt disponible dans votre portail."); setTimeout(()=>setInfo(""), 3000); } }}/>
     {info && <div style={{position:"fixed",left:16,right:16,bottom:22,background:"#1c2246",color:"#fff",borderRadius:14,padding:12,fontSize:13.5,zIndex:60,fontFamily:SA}}>{info}</div>}
-  </>;
+  </BandeSecurite>;
 }
 
 // Calendrier permanent fondatrice (grille jour/semaine/mois même vide) ; la liste à compte à rebours reste accessible.
@@ -8349,6 +8359,9 @@ function EcranConnexion({ onConnecte }: any) {
 // ═══════════════════════════════════════════════════════════
 function PortailClient({ user, produits, evenements, onLogout, onNewCommande, initialUnivers = null, onRetourAccueil = null }: any) {
   const [activeUnivers, setActiveUnivers] = useState<string|null>(initialUnivers);
+  // Ouvert depuis l'accueil client premium : le retour y ramène ; sinon retour à la liste des univers
+  const fermerUnivers = () => { if (initialUnivers && onRetourAccueil) onRetourAccueil(); else setActiveUnivers(null); };
+  useRetourNavigateur(!!activeUnivers, fermerUnivers, "univers-client");
   // Ouvert depuis l'accueil premium sur un univers : le retour de l'univers ramène à l'accueil premium.
   useEffect(() => { if (onRetourAccueil && initialUnivers && activeUnivers === null) onRetourAccueil(); }, [activeUnivers]);
   const [autresUniversOuvert, setAutresUniversOuvert] = useState(false);
@@ -8429,17 +8442,17 @@ function PortailClient({ user, produits, evenements, onLogout, onNewCommande, in
       </div>
     );
   }
-  if (activeUnivers === "bsh") return <ClientBSH produits={produits} evenements={evenements} onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande} user={user}/>;
-  if (activeUnivers === "bo")  return <ClientOdyssee user={user} rdvs={[]} onBack={() => setActiveUnivers(null)}/>;
-  if (activeUnivers === "bev") return <ClientEvents onBack={() => setActiveUnivers(null)} onNewCommande={onNewCommande}/>;
-  if (activeUnivers === "bfd")   return <ClientFood user={user} onBack={() => setActiveUnivers(null)}/>;
-  if (activeUnivers === "vilo")  return <ClientVilo user={user} onBack={() => setActiveUnivers(null)}/>;
-  if (activeUnivers === "bse")   return <ClientEditions user={user} onBack={() => setActiveUnivers(null)}/>;
-  if (activeUnivers === "mtp")   return <ClientMoTiPeyi user={user} onBack={() => setActiveUnivers(null)}/>;
-  if (activeUnivers)           return <PlaceholderUnivers univers={activeUnivers} onBack={() => setActiveUnivers(null)}/>;
+  if (activeUnivers === "bsh") return <ClientBSH produits={produits} evenements={evenements} onBack={fermerUnivers} onNewCommande={onNewCommande} user={user}/>;
+  if (activeUnivers === "bo")  return <ClientOdyssee user={user} rdvs={[]} onBack={fermerUnivers}/>;
+  if (activeUnivers === "bev") return <ClientEvents onBack={fermerUnivers} onNewCommande={onNewCommande}/>;
+  if (activeUnivers === "bfd")   return <ClientFood user={user} onBack={fermerUnivers}/>;
+  if (activeUnivers === "vilo")  return <ClientVilo user={user} onBack={fermerUnivers}/>;
+  if (activeUnivers === "bse")   return <ClientEditions user={user} onBack={fermerUnivers}/>;
+  if (activeUnivers === "mtp")   return <ClientMoTiPeyi user={user} onBack={fermerUnivers}/>;
+  if (activeUnivers)           return <PlaceholderUnivers univers={activeUnivers} onBack={fermerUnivers}/>;
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:B.night,fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:B.night,fontFamily:SA,color:B.cream}}>
       {/* Header client */}
       <div style={{padding:"12px 16px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -8707,7 +8720,7 @@ ${lignes.length>0?"<p><strong>Prestation :</strong> "+lignes.map(l=>l.libelle).j
   const missionsTerminees = missions.filter(m => ["LIVRE","CLOTURE"].includes(m.statut));
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#1a0a1e,#07050a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#1a0a1e,#07050a 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(155,89,182,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:"#c9a96e"}}>💅 Espace Talent Odyssée</div>
@@ -8958,7 +8971,7 @@ function HoteBSH({ user, onBack }: any) {
   const missionsPassees  = missions.filter(m => ["terminee","annulee"].includes(m.statut));
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#2e1a2e,#0b0709 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#2e1a2e,#0b0709 65%)",fontFamily:SA,color:"rgba(245,240,232,0.95)"}}>
       <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(198,161,91,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:BSH_ACC}}>✦ Espace Hôtes BSH</div>
@@ -9160,7 +9173,7 @@ function EspaceHote({ user, onLogout }: any) {
   }, [user.id]);
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0d2420,"+(B.night)+" 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#0d2420,"+(B.night)+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(13,148,136,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>🎭</span>
@@ -9314,7 +9327,7 @@ function EspacePartenaire({ user, onLogout }: any) {
   }, [user.id]);
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#2d1a04,"+(B.night)+" 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#2d1a04,"+(B.night)+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(180,83,9,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>🤝</span>
@@ -12876,7 +12889,7 @@ function ClientEvents({ onBack, onNewCommande }: any) {
     const catObj = EVENTS_CATEGORIES.find(c => c.id === cat);
     const prestas = EVENTS_PRESTATIONS.filter(p => p.categorie === cat || p.sous === cat || (p.categories && p.categories.includes(cat)));
     return (
-      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+      <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
         <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:22}}>{catObj?.ico}</span>
@@ -12947,7 +12960,7 @@ function ClientEvents({ onBack, onNewCommande }: any) {
       </div>
     );
     return (
-      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+      <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
         <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
           <div style={{fontFamily:FS,fontSize:13,color:EV.or}}>✨ {type}</div>
           <button onClick={()=>setModal(null)} style={{background:"none",border:"1px solid "+(EV.line),borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>✕ Annuler</button>
@@ -13161,7 +13174,7 @@ ${d?.total ? `<div style="text-align:right"><span class="total">Total estimé : 
 
   // Vue liste des catégories
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,"+EV.night+",#070d0a 65%)",fontFamily:SA,color:EV.creme}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid "+(EV.line),display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:EV.or,letterSpacing:2}}>✨ Bella'Events</div>
@@ -13169,7 +13182,7 @@ ${d?.total ? `<div style="text-align:right"><span class="total">Total estimé : 
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <button onClick={()=>setSuivi(true)} style={{background:"rgba(16,185,129,0.1)",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.or,cursor:"pointer",fontSize:9,fontFamily:SA,fontWeight:700}}>🔍 Suivi</button>
-          <button onClick={onBack} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"4px 10px",color:EV.cremeD,cursor:"pointer",fontSize:10,fontFamily:SA}}>‹ Portail</button>
+          <button onClick={onBack} style={{background:"none",border:"1px solid "+EV.line,borderRadius:8,padding:"8px 14px",minHeight:44,color:EV.cremeD,cursor:"pointer",fontSize:13,fontFamily:SA}}>‹ Portail</button>
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:16}}>
@@ -13226,7 +13239,7 @@ function ClientStructurePortail({ onBack }: any) {
   const CATS = [...new Set(modeles.map(m=>m.categorie))];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#12100d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100dvh",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",paddingBottom:"var(--bellaia-bas, env(safe-area-inset-bottom, 0px))",boxSizing:"border-box",background:"radial-gradient(ellipse at 20% 0%,#12100d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(146,64,14,0.3)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.3)",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FS,fontSize:14,color:"#d97706",letterSpacing:2}}>🏗 Bella'Structure</div>
@@ -14581,6 +14594,10 @@ export default function BellaiaApp() {
   const roleNav = (user as any)?.role;
   const groupes = roleNav === "assistante" ? NAV_GROUPES_ASSISTANTE : NAV_GROUPES;
   useEffect(() => { if (roleNav === "assistante") setActiveF("equipe"); }, [roleNav]);
+  // Retour (bouton du navigateur, geste Safari, balayage dans l'application installée) : rubrique → accueil
+  const accueilF = roleNav === "assistante" ? "equipe" : "dashboard";
+  useRetourNavigateur(activeF !== accueilF, () => setActiveF(accueilF), "rubrique");
+  useEffect(() => installerBalayageRetour(), []);
   const groupeActif = groupeDe(groupes, activeF);
   const dernierePage = useRef<Record<string,string>>({});
   const allerA = (id: string) => { const g = groupeDe(groupes, id); if (g) dernierePage.current[g.id] = id; setActiveF(id); };
@@ -14756,14 +14773,14 @@ export default function BellaiaApp() {
   </>);
 
   if (preview === "client") {
-    if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
+    if (!activeUnivers) return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><PortailClient user={{...user,role:"cliente"}} produits={bshProd} evenements={bshEvts}
       onLogout={()=>{setPreview(null);setActiveUnivers(null);}}
       onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/></div></>;
-    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}} user={user}/></div></>;
-    if (activeUnivers==="bo")     return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientOdyssee user={{...user,role:"cliente"}} rdvs={[]} onBack={()=>setActiveUnivers(null)}/></div></>;
-    if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
-    if (activeUnivers==="struct") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ClientStructurePortail onBack={()=>setActiveUnivers(null)}/></div></>;
-    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/></div></>;
+    if (activeUnivers==="bsh")    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><ClientBSH produits={bshProd} evenements={bshEvts} onBack={()=>setActiveUnivers(null)} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}} user={user}/></div></>;
+    if (activeUnivers==="bo")     return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><ClientOdyssee user={{...user,role:"cliente"}} rdvs={[]} onBack={()=>setActiveUnivers(null)}/></div></>;
+    if (activeUnivers==="events") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><ClientEvents onBack={()=>setActiveUnivers(null)} onNewCommande={async cmd=>setBshCmds(p=>[cmd,...p])}/></div></>;
+    if (activeUnivers==="struct") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><ClientStructurePortail onBack={()=>setActiveUnivers(null)}/></div></>;
+    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><PlaceholderUnivers univers={activeUnivers} onBack={()=>setActiveUnivers(null)}/></div></>;
   }
   if (preview === "hote") {
     // activeUnivers vient du choix fait dans Mode aperçu (ApercuUXF) —
@@ -14771,16 +14788,16 @@ export default function BellaiaApp() {
     // champs du compte de la fondatrice elle-même (jamais "bsh").
     const univHote = activeUnivers || user?.univers || user?.module || "";
     if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") {
-      return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
+      return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><HoteOdyssee user={user} onBack={()=>setPreview(null)}/></div></>;
     }
     if (univHote === "bsh" || user?.pole === "BSH") {
-      return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><HoteBSH user={user} onBack={()=>setPreview(null)}/></div></>;
+      return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><HoteBSH user={user} onBack={()=>setPreview(null)}/></div></>;
     }
-    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
+    return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><EspaceHote user={user} onLogout={()=>setPreview(null)}/></div></>;
   }
-  if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
-  if (preview === "partenaire_vildor") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><div style={{maxWidth:860,margin:"0 auto",padding:"12px"}}><ModuleEquipe nom="EspaceVildor" props={{ user, mode: "partenaire" }} libelle="de l'espace partenaire"/></div></div></>;
-  if (preview === "assistante") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80}}><ApercuAssistanteWrapper user={user}/></div></>;
+  if (preview === "partenaire") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><EspacePartenaire user={user} onLogout={()=>setPreview(null)}/></div></>;
+  if (preview === "partenaire_vildor") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><div style={{maxWidth:860,margin:"0 auto",padding:"12px"}}><ModuleEquipe nom="EspaceVildor" props={{ user, mode: "partenaire" }} libelle="de l'espace partenaire"/></div></div></>;
+  if (preview === "assistante") return <><BandeauApercu/><div style={{paddingTop:"calc(env(safe-area-inset-top, 0px) + 46px)",paddingBottom:80,...({"--bellaia-haut":"0px","--bellaia-bas":"0px"} as React.CSSProperties)}}><ApercuAssistanteWrapper user={user}/></div></>;
 
   // ── Routage par rôle
   if (espaceEffectif === "client")

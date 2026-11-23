@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useState } from "react";
 import LecteurHistoire from "./LecteurHistoire";
+import { useRetourNavigateur } from "@/lib/navigationRetour";
 import { catalogueFamilles, lectureFamille, urlSignee, type TomeLecture } from "./histoiresLib";
 
 const SA = "-apple-system, system-ui, sans-serif";
@@ -15,6 +16,7 @@ export default function HistoiresClient() {
   const [liste, setListe] = useState<any[] | null>(null);
   const [couvertures, setCouvertures] = useState<Record<string, string>>({});
   const [ouvert, setOuvert] = useState<{ tome: TomeLecture; mode: any } | null>(null);
+  useRetourNavigateur(!!ouvert, () => setOuvert(null), "lecteur");
   const [erreur, setErreur] = useState("");
   const [charge, setCharge] = useState("");
 

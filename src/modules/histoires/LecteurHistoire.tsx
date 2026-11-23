@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useRef, useState } from "react";
 import { lireProgression, ecrireProgression, type TomeLecture } from "./histoiresLib";
+import { sensBalayage } from "@/lib/balayageLecture";
 
 type Mode = "lire" | "ecouter" | "regarder";
 const SA = "-apple-system, system-ui, sans-serif";
@@ -32,6 +33,10 @@ export default function LecteurHistoire({ tome, modeInitial = "lire", onRetour, 
   const [partie, setPartie] = useState<number>(() => Math.min(lireProgression(tome, "lire"), Math.max(0, n - 1)));
   const [reprise, setReprise] = useState<number>(() => Math.min(lireProgression(tome, "lire"), Math.max(0, n - 1)));
   const haut = useRef<HTMLDivElement>(null);
+  const cleMarque = `bellaia.histoires.marque.${tome.collection_titre}.${tome.numero}`;
+  const [marque, setMarque] = useState<number | null>(() => lirePref<number | null>(cleMarque, null));
+  const [imagePleinEcran, setImagePleinEcran] = useState(false);
+  const geste = useRef<{ x: number; y: number; doigts: number } | null>(null);
   const th = nuit ? THEMES.nuit : THEMES.jour;
 
   useEffect(() => { ecrirePref("bellaia.histoires.taille", taille); }, [taille]);
@@ -43,6 +48,16 @@ export default function LecteurHistoire({ tome, modeInitial = "lire", onRetour, 
     haut.current?.scrollIntoView({ block: "start" });
   };
 
+  // Gestes de page : droite → gauche = suivante, gauche → droite = précédente (jamais pendant un zoom)
+  const toucheDebut = (e: React.TouchEvent) => { const t = e.touches[0]; geste.current = t ? { x: t.clientX, y: t.clientY, doigts: e.touches.length } : null; };
+  const toucheMouvement = (e: React.TouchEvent) => { if (geste.current && e.touches.length > 1) geste.current.doigts = e.touches.length; };
+  const toucheFin = (e: React.TouchEvent) => {
+    const g = geste.current; geste.current = null; const t = e.changedTouches[0]; if (!g || !t) return;
+    const sens = sensBalayage({ departX: g.x, dx: t.clientX - g.x, dy: t.clientY - g.y, doigts: g.doigts, echelle: typeof window !== "undefined" ? window.visualViewport?.scale ?? 1 : 1 });
+    if (sens === "suivante" && partie < n - 1) allerA(partie + 1);
+    if (sens === "precedente" && partie > 0) allerA(partie - 1);
+  };
+  const poserMarque = () => { setMarque(partie); ecrirePref(cleMarque, partie); };
   const bouton = (actif = false): React.CSSProperties => ({ minHeight: 44, padding: "8px 14px", borderRadius: 12, border: `1px solid ${actif ? th.acc : th.ligne}`, background: actif ? `${th.acc}22` : th.carte, color: actif ? th.acc : th.texte, fontSize: 15, fontWeight: 700, fontFamily: SA, cursor: "pointer" });
   const scene = tome.scenes[partie];
   const debut = (t: string) => { const p = t.split("\n\n")[0] || ""; return p.length > 70 ? p.slice(0, 68).trimEnd() + "…" : p; };
@@ -71,12 +86,16 @@ export default function LecteurHistoire({ tome, modeInitial = "lire", onRetour, 
             <button style={bouton()} aria-label="Agrandir le texte" onClick={() => setTaille(t => Math.min(32, t + 2))}>A+</button>
             <button style={bouton(nuit)} onClick={() => setNuit(v => !v)}>{nuit ? "🌙 Nuit" : "☀️ Jour"}</button>
             <button style={bouton(sommaire)} onClick={() => setSommaire(v => !v)}>☰ Sommaire</button>
-            <span style={{ marginLeft: "auto", fontSize: 13, color: th.doux }}>Partie {partie + 1}/{n}</span>
+            <button style={bouton(marque === partie)} onClick={poserMarque} aria-label="Placer un marque-page sur cette partie">🔖{marque === partie ? " Marquée" : ""}</button>
+            {marque !== null && marque !== partie && <button style={bouton()} onClick={() => allerA(marque)}>Aller au marque-page</button>}
+            <span style={{ marginLeft: "auto", fontSize: 13, color: th.doux }} aria-live="polite">Partie {partie + 1}/{n}</span>
           </div>
         )}
+        {mode === "lire" && n > 1 && <div role="progressbar" aria-label="Progression de lecture" aria-valuemin={1} aria-valuemax={n} aria-valuenow={partie + 1} style={{ height: 4, borderRadius: 2, background: th.ligne }}><div style={{ width: `${((partie + 1) / n) * 100}%`, height: "100%", borderRadius: 2, background: th.acc }} /></div>}
       </div>
 
-      <div style={{ padding: "16px 18px 28px", maxWidth: 680, margin: "0 auto", boxSizing: "border-box" }}>
+      <div onTouchStart={mode === "lire" ? toucheDebut : undefined} onTouchMove={mode === "lire" ? toucheMouvement : undefined} onTouchEnd={mode === "lire" ? toucheFin : undefined}
+        style={{ padding: "16px 18px 28px", maxWidth: 680, margin: "0 auto", boxSizing: "border-box" }}>
         {mode === "lire" && (n === 0 ? <div style={{ color: th.doux, fontSize: 15 }}>Le texte de cette histoire n'est pas encore disponible.</div> : <>
           {sommaire && (
             <nav aria-label="Sommaire" style={{ background: th.carte, border: `1px solid ${th.ligne}`, borderRadius: 14, padding: 10, marginBottom: 16, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -94,7 +113,7 @@ export default function LecteurHistoire({ tome, modeInitial = "lire", onRetour, 
               <button style={bouton()} onClick={() => allerA(0)}>Recommencer</button>
             </div>
           )}
-          {scene.image_url && <figure style={{ margin: "0 0 16px" }}><img src={scene.image_url} alt={scene.image_alt || ""} style={{ width: "100%", borderRadius: 14, display: "block" }} />{scene.image_alt && <figcaption style={{ fontSize: 13, color: th.doux, marginTop: 6 }}>{scene.image_alt}</figcaption>}</figure>}
+          {scene.image_url && <figure style={{ margin: "0 0 16px" }}><button onClick={() => setImagePleinEcran(true)} aria-label="Agrandir l'illustration" style={{ padding: 0, border: 0, background: "none", width: "100%", display: "block", cursor: "zoom-in" }}><img src={scene.image_url} alt={scene.image_alt || ""} style={{ width: "100%", borderRadius: 14, display: "block" }} /></button>{scene.image_alt && <figcaption style={{ fontSize: 13, color: th.doux, marginTop: 6 }}>{scene.image_alt}</figcaption>}</figure>}
           <article lang="fr" style={{ fontFamily: SERIF, fontSize: taille, lineHeight: 1.7, userSelect: "text", WebkitUserSelect: "text", hyphens: "auto", WebkitHyphens: "auto" } as React.CSSProperties}>
             {scene.texte.split("\n\n").map((p, i) => <p key={i} style={{ margin: "0 0 0.85em", whiteSpace: "pre-line" }}>{p}</p>)}
           </article>
@@ -106,6 +125,13 @@ export default function LecteurHistoire({ tome, modeInitial = "lire", onRetour, 
           </div>
         </>)}
 
+        {imagePleinEcran && scene?.image_url && (
+          <div role="dialog" aria-label="Illustration en plein écran" data-sans-balayage onTouchEnd={e => e.stopPropagation()}
+            style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.94)", overflow: "auto", touchAction: "pinch-zoom pan-x pan-y", paddingTop: "env(safe-area-inset-top)" }}>
+            <button onClick={() => setImagePleinEcran(false)} style={{ position: "fixed", top: "calc(env(safe-area-inset-top, 0px) + 10px)", right: 12, zIndex: 51, minHeight: 44, minWidth: 44, borderRadius: 22, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 16, padding: "8px 14px" }}>✕ Fermer</button>
+            <img src={scene.image_url} alt={scene.image_alt || ""} style={{ width: "100%", height: "auto", display: "block", marginTop: 64 }} />
+          </div>
+        )}
         {mode === "ecouter" && <Ecouter tome={tome} th={th} bouton={bouton} versLire={() => setMode("lire")} />}
         {mode === "regarder" && <Regarder tome={tome} th={th} bouton={bouton} versLire={() => setMode("lire")} />}
       </div>
