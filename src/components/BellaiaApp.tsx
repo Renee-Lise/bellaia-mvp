@@ -14540,6 +14540,20 @@ function ModuleEquipe({ nom, props, libelle }: { nom: string; props: any; libell
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement {libelle}…</div>;
   return <Comp {...props}/>;
 }
+// Espace professionnel commun (missions, agenda, documents, profil) : remplace les anciens écrans
+// hôte et partenaire, qui lisaient des tables absentes et renvoyaient vers WhatsApp.
+function EspaceProLazy({ user, onLogout, titre }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/portails/EspacePro").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  return (
+    <div style={{minHeight:"100dvh",background:"#faf6ef",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top,0px))"}}>
+      <div style={{display:"flex",justifyContent:"flex-end",padding:"8px 12px 0"}}>
+        <button onClick={onLogout} style={{minHeight:44,background:"none",border:"1px solid rgba(28,34,70,0.15)",borderRadius:22,padding:"6px 14px",color:"#1c2246",fontSize:13,fontFamily:SA}}>Déconnexion</button>
+      </div>
+      {Comp ? <Comp user={user} titre={titre}/> : <div style={{textAlign:"center",padding:40,color:"rgba(28,34,70,0.6)"}}>Chargement…</div>}
+    </div>
+  );
+}
 // Espace d'un compte PARTENAIRE : son espace professionnel s'il est relié
 // à une organisation (Vil'Dor Pâtisse), sinon l'ancien espace partenaire.
 function EspacePartenaireUnifie({ user, onLogout }: any) {
@@ -14548,7 +14562,7 @@ function EspacePartenaireUnifie({ user, onLogout }: any) {
     import("../modules/equipe/equipeLib").then(m => m.mesAcces()).then(a => setEtat(a.roles.some(r => r.organisation_id) ? "org" : "ancien")).catch(() => setEtat("ancien"));
   }, []);
   if (etat === "charge") return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:B.night,color:B.muted}}>Chargement…</div>;
-  if (etat === "ancien") return <EspacePartenaire user={user} onLogout={onLogout}/>;
+  if (etat === "ancien") return <EspaceProLazy user={user} onLogout={onLogout} titre="Mon espace partenaire"/>;
   return (
     <div style={{minHeight:"100vh",background:B.night,display:"flex",flexDirection:"column"}}>
       <div style={{padding:"calc(10px + env(safe-area-inset-top,0px)) 14px 8px",borderBottom:"1px solid "+(B.border),display:"flex",justifyContent:"space-between",alignItems:"center",background:B.deep}}>
@@ -14878,7 +14892,7 @@ export default function BellaiaApp() {
       const univHote = user?.univers || user?.module || "";
       if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") return <HoteOdyssee user={user} onBack={retour}/>;
       if (univHote === "bsh" || user?.pole === "BSH") return <HoteBSH user={user} onBack={retour}/>;
-      return <EspaceHote user={user} onLogout={deconnexion}/>;
+      return <EspaceProLazy user={user} onLogout={deconnexion} titre="Mon espace hôte"/>;
     };
     return <MaisonMultiEspaces user={user} rendreClient={accueilClient} rendreEspace={espacePro}/>;
   }

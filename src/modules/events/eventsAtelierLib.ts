@@ -50,7 +50,9 @@ export async function sbUpdate<T = any>(table: string, id: string, patch: any): 
 export async function sbRpc<T = any>(fn: string, args: any): Promise<T> {
   const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: await entetes(), body: JSON.stringify(args) });
   if (!r.ok) throw new Error(await lireErreur(r));
-  return r.json();
+  // Fonction sans valeur de retour : réponse 204 / corps vide = succès (ne pas la traiter comme une erreur)
+  const txt = await r.text();
+  return (txt ? JSON.parse(txt) : null) as T;
 }
 
 /** Mise à jour groupée (id=in.(…)) — ex. classer plusieurs visuels d'un coup. */
