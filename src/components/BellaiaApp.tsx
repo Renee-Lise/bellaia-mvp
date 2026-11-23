@@ -14035,7 +14035,7 @@ function StocksF({ user }: any) {
 // sous-onglets pour les écrans qui ont la même fonction (CRM, factures,
 // stocks, éditions…). Les identifiants de pages ne changent pas.
 const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] = [
-  {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
+  {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["exigences","🧭 Suivi des exigences"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
   {id:"g_clients",  ico:"👥", l:"Clients",      pages:[["crm","Clientes"],["crm_central","CRM central"]]},
   {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["reductions","🎁 Réductions"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
   {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
@@ -14472,6 +14472,12 @@ function EspacePartenaireUnifie({ user, onLogout }: any) {
     </div>
   );
 }
+function SuiviExigencesWrapper({ onRetour }: any) {
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { import("../modules/equipe/SuiviExigences").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du suivi…</div>;
+  return <Comp onRetour={onRetour}/>;
+}
 function ActionsRequisesWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => { import("../modules/equipe/ActionsRequises").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
@@ -14798,6 +14804,7 @@ export default function BellaiaApp() {
     compta:      <ComptaWrapper user={user}/>,
     administratif: <AdministratifWrapper/>,
     actions:     <ActionsRequisesWrapper/>,
+    exigences:   <SuiviExigencesWrapper onRetour={() => allerA("actions")}/>,
     reductions:  <ModuleEquipe nom="ReductionsF" props={{}} libelle="des réductions"/>,
     equipe:      <EquipeWrapper user={user} role={role}/>,
     food_equipe: <FoodEquipeWrapper user={user}/>,

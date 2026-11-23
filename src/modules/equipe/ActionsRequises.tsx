@@ -37,7 +37,8 @@ export default function ActionsRequises() {
 
   const charger = async () => {
     setCharge(true); setErreur("");
-    try { setActions(await sbSelect("bellaia_actions", "select=*&order=priorite.asc,created_at.asc")); }
+    // La ligne « suivi_exigences » porte le tableau de suivi (écran dédié) : ce n'est pas une décision à prendre.
+    try { setActions((await sbSelect("bellaia_actions", "select=*&order=priorite.asc,created_at.asc")).filter((a: any) => a.cle !== "suivi_exigences")); }
     catch (e: any) { setErreur(String(e?.message || e)); }
     setCharge(false);
   };
