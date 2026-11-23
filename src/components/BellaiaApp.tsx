@@ -14433,11 +14433,16 @@ function RechercheWrapper({ user }: any) {
 }
 
 // ── Wrapper Messagerie (messaging module)
+// Messagerie réservée à la fondatrice tant que la correction de sécurité (migration 0133) n'est pas en production.
+const MESSAGERIE_OUVERTE_A_TOUS = false;
 function MessagerieWrapper({ user }: any) {
+  const autorise = MESSAGERIE_OUVERTE_A_TOUS || user?.role === "fondatrice";
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
+    if (!autorise) return;
     import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
-  }, []);
+  }, [autorise]);
+  if (!autorise) return <div role="status" style={{textAlign:"center",color:"rgba(255,255,255,0.75)",padding:"48px 24px",lineHeight:1.6}}>🔒 La messagerie interne est en cours de sécurisation.<br/>Elle sera ouverte après validation par la fondatrice.</div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement messagerie…</div>;
   return <Comp user={user}/>;
 }

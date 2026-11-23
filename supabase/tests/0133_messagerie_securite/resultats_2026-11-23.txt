@@ -1,0 +1,55 @@
+Résultats du 23/11/2026 — PostgreSQL 16 jetable, aucune donnée réelle
+— A. état actuel de production : les failles sont-elles exploitables ?
+préparation conversation A–B | t
+FAILLE M1 : X (non invité) s'ajoute seul à la conversation | t
+FAILLE M1 : X lit alors le message confidentiel | t
+FAILLE M2 : B modifie le message de A | t
+FAILLE M3 : création de conversation au nom d'un autre (aucun créateur contrôlé) | t
+FAILLE ancien modèle : X rejoint seul une conversation | t
+— B. migration 0133
+migration appliquée
+relance sans erreur (idempotence)
+01 A crée une conversation et la relit aussitôt (retour de ligne) | t
+03 A s'ajoute administratrice et ajoute B en une seule requête | t
+04 A envoie un message | t
+05 B envoie un message | t
+06 B lit les 2 messages | t
+02 le créateur est enregistré automatiquement (cree_par = A) | t
+07 ATTAQUE : X s'ajoute seul à la conversation → refusé | t
+08 ATTAQUE : X s'ajoute en se déclarant administrateur → refusé | t
+09 ATTAQUE : B (simple membre) ajoute X → refusé | t
+10 ATTAQUE : X lit les messages → 0 | t
+11 ATTAQUE : X lit la conversation et ses membres → 0 | t
+12 ATTAQUE : X écrit dans la conversation → refusé | t
+13 ATTAQUE : X écrit en se faisant passer pour A → refusé | t
+14 ATTAQUE : B modifie le message de A → 0 ligne | t
+15 le message de A est intact | t
+16 B modifie son propre message → 1 ligne | t
+17 ATTAQUE : B s'attribue son message à A → refusé | t
+18 ATTAQUE : B déplace son message vers une autre conversation → refusé | t
+19 ATTAQUE : B se promeut administratrice → refusé | t
+20 B règle ses notifications (autorisé) | t
+21 ATTAQUE : X crée une conversation au nom de A → refusé | t
+22 ATTAQUE : A change le créateur de sa conversation → refusé | t
+23 ATTAQUE : X réagit au message de A (identifiant connu) → refusé | t
+24 B réagit au message de A (membre) | t
+25 visiteur non connecté : 0 conversation, 0 message | t
+26 la fondatrice non membre ne lit pas d'office les messages privés | t
+27 le compartiment est privé | t
+28 B dépose une pièce jointe dans la conversation | t
+29 ATTAQUE : X dépose dans la conversation → refusé | t
+30 ATTAQUE : X dépose sous le nom de B → refusé | t
+31 ATTAQUE : chemin malformé → refusé sans erreur | t
+32 A (membre) voit la pièce jointe | t
+33 ATTAQUE : X ne voit pas la pièce jointe | t
+34 B quitte la conversation | t
+35 B ne lit plus les messages ni la pièce jointe | t
+36 ATTAQUE : B, retirée, se réinscrit seule → refusé | t
+37 A (administratrice) peut la réinviter | t
+38 ATTAQUE ancien modèle : X rejoint seul une conversation → refusé | t
+— C. retour arrière sur la base attaquée de l'étape A, puis réapplication
+migration appliquée sur une base contenant déjà des données
+données conservées après migration : true
+retour arrière appliqué
+règles d'origine rétablies : true
+réapplication après retour arrière sans erreur
