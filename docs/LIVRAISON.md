@@ -24,6 +24,10 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 | Mo Ti-Péyi : jeu de cartes pédagogique (prototype, fondatrice uniquement) — 12 défis PS à CP, flèches, avancer/tourner, boucles, condition, débogage | Oui (branche) | Moteur 23/23 (chaque défi vérifié faisable ; 2 défis faux détectés et corrigés) ; écran 16/16 simulateur iPhone ; compte Famille sans accès | Non | Non |
 | Livres : inventaire réel et éléments manquants (P'tit Lion T1–T4 : 4 couvertures, 15 illustrations, 19 textes alternatifs proposés) | Dossier (Drive privé) | Lecture seule de la base | Aucun tome publié | — |
 | Rapport différentiel production / branche | `docs/deploiement/RAPPORT_DIFFERENTIEL.md` | Migrations vérifiées objet par objet en production | — | — |
+| Pages légales de travail : mentions légales, confidentialité (sous-traitants, stockage local, droits), conditions générales (rétractation par activité) ; liens depuis le compte client | Oui (branche) — champs à compléter, relecture juriste | 15/15 simulateur iPhone et ordinateur | Non | Non |
+| Accessibilité : zoom autorisé, focus clavier visible, animations réduites sur demande | Oui (branche) | 15/15 ; non-régression 17/17 et 16/16 ; taille des champs sur Safari iOS à vérifier sur iPhone réel | Non | Non |
+| Bibliothèque de consignes IA : 24 modèles sur 8 métiers, versions conservées, règles communes (sources, coûts, autorisations) ; aucun appel IA | Oui (branche), sans migration | Unitaires 12/12 ; écran 14/14 simulateur iPhone ; assistante sans accès | Non | Non |
+| Audit juridique 20 points et contrôles par univers | Document (Drive privé) | Vérifié dans le code et la base | — | — |
 | Sauvegarde complète gratuite (structure, données, comptes, fichiers) + contrôle de restauration | Oui (scripts) | Chaîne 5/5 sur imitation ; **vraie sauvegarde pas encore faite** (à lancer par vous) | — | — |
 | B0 — 6 boissons non commandables ; citronnelle consolidée | Appliqué (données) | Vérifié en base | Oui (données) | Non |
 | B1 — 23 boissons en brouillon | Appliqué (données) | 0 produit exposé (vérifié en base) | Oui (brouillons invisibles) | Non |
