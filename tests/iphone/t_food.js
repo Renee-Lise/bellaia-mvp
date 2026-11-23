@@ -20,6 +20,13 @@ const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('bas
     let r = await api({ lignes: [{ id: 'fp1::v2', qte: 1 }] }, 'k-sans-base-' + role); ok('frites sans base refusées (400)', r.status === 400);
     r = await api({ lignes: [{ id: 'fp3', qte: 1 }] }, 'k-tarte-' + role); ok('produit sans allergènes validés refusé (409)', r.status === 409);
     r = await api({ lignes: [{ id: 'fp1::v2::betterave', qte: 1 }] }, 'k-base-' + role); ok('base inconnue refusée (400)', r.status === 400);
+    // Quantités : bornes et entiers stricts
+    for (const [q, n] of [[0, 'zéro'], [21, '21 (> 20)'], [1.5, '1,5'], ['2abc', '« 2abc »'], [-1, 'négative']]) {
+      r = await api({ lignes: [{ id: 'fp2', qte: q }] }, `k-q-${n}-${role}`); ok(`quantité ${n} refusée (400)`, r.status === 400);
+    }
+    r = await api({ lignes: Array.from({ length: 31 }, () => ({ id: 'fp2', qte: 1 })) }, 'k-31-' + role); ok('31 lignes refusées (400)', r.status === 400);
+    r = await api({ lignes: [{ id: 'fp2', qte: 20 }] }, 'k-q20-' + role); const d20 = await r.json();
+    ok('20 unités acceptées, total serveur 240,00 €', r.ok && Math.abs(d20.total - 240) < 0.001);
     const corps = { lignes: [{ id: 'fp1::v2::plantain', qte: 1, prix: 0.01 }, { id: 'fp2', qte: 1, total: 0 }], codeReduction: 'BIENVENUE10', clientId: UID.fondatrice };
     r = await api(corps, 'k-ok-' + role); const d = await r.json();
     ok('commande acceptée, référence attribuée', r.ok && /FOOD-2026-\d{4}/.test(d.reference || ''));

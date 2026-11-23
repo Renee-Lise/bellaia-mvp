@@ -100,9 +100,9 @@ export function PanierFood({ t, lignes, setLignes, onSuivi }: { t: Theme; lignes
       {!lignes.length && <div style={{ color: t.doux }}>Votre panier est vide.</div>}
       {lignes.map(l => <div key={l.cle} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${t.ligne}` }}>
         <div style={{ flex: 1, fontSize: 14 }}><b>{l.libelle}</b><div style={{ color: t.doux }}>{euros(l.prix)}</div></div>
-        <button aria-label="Retirer un" onClick={() => setLignes(ls => ls.flatMap(x => x.cle !== l.cle ? [x] : x.qte > 1 ? [{ ...x, qte: x.qte - 1 }] : []))} style={{ width: 34, height: 34, borderRadius: 99, border: `1px solid ${t.ligne}`, background: "none", color: t.texte }}>−</button>
+        <button aria-label="Retirer un" onClick={() => setLignes(ls => ls.flatMap(x => x.cle !== l.cle ? [x] : x.qte > 1 ? [{ ...x, qte: x.qte - 1 }] : []))} style={{ width: 44, height: 44, borderRadius: 99, border: `1px solid ${t.ligne}`, background: "none", color: t.texte }}>−</button>
         <b>{l.qte}</b>
-        <button aria-label="Ajouter un" onClick={() => setLignes(ls => ls.map(x => x.cle === l.cle ? { ...x, qte: Math.min(20, x.qte + 1) } : x))} style={{ width: 34, height: 34, borderRadius: 99, border: `1px solid ${t.ligne}`, background: "none", color: t.texte }}>+</button>
+        <button aria-label="Ajouter un" onClick={() => setLignes(ls => ls.map(x => x.cle === l.cle ? { ...x, qte: Math.min(20, x.qte + 1) } : x))} style={{ width: 44, height: 44, borderRadius: 99, border: `1px solid ${t.ligne}`, background: "none", color: t.texte }}>+</button>
       </div>)}
       {lignes.length > 0 && <>
         <input placeholder="Votre nom *" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} style={champ} />

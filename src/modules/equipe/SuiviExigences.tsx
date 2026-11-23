@@ -24,7 +24,7 @@ const champ: React.CSSProperties = { background: "rgba(255,255,255,0.07)", borde
 const btn = (fort = false, c = C.or): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, boxSizing: "border-box", minHeight: 40, padding: "8px 12px", borderRadius: 10, border: `1px solid ${fort ? c : C.ligne}`, background: fort ? `${c}22` : C.card, color: fort ? c : C.texte, fontSize: 13, fontWeight: 700, fontFamily: SA, cursor: "pointer" });
 const couleurValeur = (v: string) => /^oui|^production/i.test(v) ? C.ok : /^partiel|^prévisualisation|^vérifié/i.test(v) ? C.orange : /^non/i.test(v) ? C.rouge : C.doux;
 
-export type Exigence = { id: string; b: string; u: string; t: string; r: string; a: string; d: string; te: string; de: string; p: string; re: string; pr: number; s: string; resp?: string; dec?: string; h?: any[] };
+export type Exigence = { id: string; b: string; u: string; t: string; r: string; a: string; d: string; te: string; tp?: string; de: string; p: string; re: string; pr: number; s: string; resp?: string; dec?: string; h?: any[] };
 // Règle du registre : jamais « Déployé » sans identifiant de déploiement de production.
 export const preuveDeploiementValide = (preuve: string) => /dpl_[A-Za-z0-9]{8,}/.test(preuve || "");
 
@@ -122,12 +122,12 @@ export default function SuiviExigences({ onRetour }: { onRetour?: () => void }) 
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, lineHeight: 1.35 }}>{x.t}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
-                  {([["Reçue", x.r], ["Rapport", x.a], ["Développée", x.d], ["Testée", x.te], ["Déployée", x.de]] as const).map(([l, v]) =>
+                  {([["Reçue", x.r], ["Rapport", x.a], ["Développée", x.d], ["Test local", x.te], ["Test prévisu", x.tp || "Non"], ["Production", x.de]] as const).map(([l, v]) =>
                     <span key={l} style={{ fontSize: 11, borderRadius: 8, padding: "2px 7px", border: `1px solid ${couleurValeur(v)}55`, color: couleurValeur(v) }}>{l} : {String(v).split(/[ (—:]/)[0]}</span>)}
                 </div>
               </button>
               {ouvert && <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10, fontSize: 13, lineHeight: 1.5 }}>
-                {([["Responsable", x.resp || "À désigner"], ["Reçue", x.r], ["Présente dans le rapport", x.a], ["Développée", x.d], ["Testée (résultat)", x.te], ["Déployée", x.de], ["Preuve vérifiable", x.p], ["Travail restant", x.re], ["Décision à valider par la fondatrice", x.dec]] as const).map(([l, v]) => v ? (
+                {([["Responsable", x.resp || "À désigner"], ["Reçue", x.r], ["Présente dans le rapport", x.a], ["Développée", x.d], ["Testée localement (résultat)", x.te], ["Testée en prévisualisation (base réelle)", x.tp || "Non"], ["Déployée en production", x.de], ["Preuve vérifiable", x.p], ["Travail restant", x.re], ["Décision à valider par la fondatrice", x.dec]] as const).map(([l, v]) => v ? (
                   <div key={l}><div style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase" }}>{l}</div><div>{v}</div></div>) : null)}
                 <label style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, fontWeight: 800, color: C.doux, textTransform: "uppercase" }}>Statut</span>

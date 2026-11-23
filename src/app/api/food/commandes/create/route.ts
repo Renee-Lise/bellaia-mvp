@@ -128,7 +128,11 @@ export async function POST(req: NextRequest) {
 
   for (const l of lignes) {
     const idBrut = String(l?.id || "");
-    const qte = parseInt(l?.qte, 10);
+    // Entier strict : « 1.5 » ou « 2abc » sont refusés (parseInt les aurait tronqués en silence).
+    const qte = typeof l?.qte === "number" || (typeof l?.qte === "string" && /^\d+$/.test(l.qte.trim())) ? Number(l.qte) : NaN;
+    if (!Number.isInteger(qte)) {
+      return NextResponse.json({ error: `Quantité invalide (1 à ${MAX_QTE_LIGNE} par produit).` }, { status: 400 });
+    }
     if (!idBrut || !Number.isFinite(qte) || qte < 1 || qte > MAX_QTE_LIGNE) {
       return NextResponse.json({ error: `Quantité invalide (1 à ${MAX_QTE_LIGNE} par produit).` }, { status: 400 });
     }

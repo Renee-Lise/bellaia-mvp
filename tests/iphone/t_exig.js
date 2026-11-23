@@ -31,6 +31,7 @@ const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('bas
   await p.getByText('Exigence de test développée').click(); await p.waitForTimeout(400);
   const t1 = await texte();
   ok('détail : responsable, résultat de test, preuve, décision', /Claude \(développement\)/.test(t1) && /Oui — 3\/3/.test(t1) && /Commit abc1234/.test(t1) && /GO production/.test(t1));
+  ok('détail : 4 étapes distinctes (développée, test local, test en prévisualisation, production)', /Développée/i.test(t1) && /Testée localement/i.test(t1) && /Testée en prévisualisation/i.test(t1) && /Déployée en production/i.test(t1));
   // Règle : « Déployé » sans identifiant de déploiement → refusé
   const sel = p.locator('select').filter({ has: p.locator('option[value="deploye"]') }).first();
   reponses.push('pas un identifiant'); await sel.selectOption('deploye'); await p.waitForTimeout(800);
