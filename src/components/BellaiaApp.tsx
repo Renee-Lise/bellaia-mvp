@@ -666,15 +666,15 @@ const Btn = ({onClick, children, v="primary", sz="md", full=false, disabled=fals
 
 // ── Inp — Input universel ────────────────────────────────────
 const Inp = ({value, onChange, placeholder, type="text", rows, icon, error}: any) => {
-  const base = {
+  const base: React.CSSProperties = {
     width:"100%",background:B.surface,
     border:"1px solid "+(error?B.danger:B.border),
     borderRadius:R.md,padding:icon?"9px 12px 9px 36px":"9px 12px",
     color:B.cream,fontSize:T.base,outline:"none",fontFamily:SA,
     boxSizing:"border-box",transition:TR.fast,
   };
-  const wrap = {position:"relative",width:"100%"};
-  const icStyle = {position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:B.muted,fontSize:14,pointerEvents:"none"};
+  const wrap: React.CSSProperties = {position:"relative",width:"100%"};
+  const icStyle: React.CSSProperties = {position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:B.muted,fontSize:14,pointerEvents:"none"};
   if (rows) return (
     <div style={wrap}>
       <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows}
@@ -1019,7 +1019,7 @@ function BSHMembersPage({ user, onBack }: { user: any; onBack?: () => void }) {
 
       {/* Formulaire adhésion */}
       <div style={{background:"#17101a",padding:"24px 20px",borderTop:"1px solid rgba(198,161,91,0.12)"}}>
-        <div style={{fontSize:13,fontWeight:700,color:"#f1e7e2",marginBottom:16,fontFamily:"'Cormorant Garamond','Georgia',serif",fontSize:18}}>
+        <div style={{fontWeight:700,color:"#f1e7e2",marginBottom:16,fontFamily:"'Cormorant Garamond','Georgia',serif",fontSize:18}}>
           Rejoindre BSH Members
         </div>
 
@@ -2501,7 +2501,7 @@ function ClientVilo({ user, onBack }: any) {
     setEnvoi(false);
   };
 
-  const inp2 = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(29,78,216,0.3)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
+  const inp2: React.CSSProperties = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(29,78,216,0.3)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
   const acc  = "#1d4ed8";
 
   return (
@@ -2833,7 +2833,7 @@ function ClientMoTiPeyi({ user, onBack }: any) {
     setModal(null);
   };
 
-  const inp3 = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
+  const inp3: React.CSSProperties = { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:8, padding:"8px 10px", color:"#fff", fontSize:12, fontFamily:SA, outline:"none", width:"100%", boxSizing:"border-box" };
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"radial-gradient(ellipse at 20% 0%,#0b1f0d,"+B.night+" 65%)",fontFamily:SA,color:B.cream}}>
@@ -3295,7 +3295,7 @@ function ClientFood({ user, onBack }: any) {
   const fmtDt = (s) => { try{return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}catch{return s||""} };
   const colSt = (s) => ({BROUILLON:"#60a5fa",COMMANDE:"#22c55e",FACTURE:"#c9a96e",ACOMPTE_RECU:"#22c55e",SOLDE_RECU:"#16a34a",PRODUCTION:"#fb923c",PRET:"#a855f7",LIVRE:"#22c55e",ANNULE:"#f87171"})[s]||"rgba(255,255,255,0.4)";
 
-  const inp4 = {background:"rgba(255,255,255,0.07)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none",width:"100%",boxSizing:"border-box"};
+  const inp4: React.CSSProperties = {background:"rgba(255,255,255,0.07)",border:"1px solid rgba(21,128,61,0.2)",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,fontFamily:SA,outline:"none",width:"100%",boxSizing:"border-box"};
 
   const ONGLETS = [["catalogue","🍃","Catalogue"],["panier","🛒","Panier"],["commandes","📦","Mes commandes"],["contact","💬","Contact"]];
 
@@ -3971,7 +3971,7 @@ function sanitizeEventsDemandePayload(p) {
 
 // Écrit une entrée dans le journal d'audit (audit_log)
 // module: ex "events_demandes" | action: ex "changement_statut"
-async function ecrireAudit({ module, entiteId, entiteRef, action, ancienStatut, nouveauStatut, champ, ancienneValeur, nouvelleValeur, commentaire, user }) {
+async function ecrireAudit({ module, entiteId = undefined, entiteRef = undefined, action, ancienStatut = undefined, nouveauStatut = undefined, champ = undefined, ancienneValeur = undefined, nouvelleValeur = undefined, commentaire = undefined, user = undefined }) {
   try {
     await sbPost("audit_log", {
       module, entite_id: entiteId, entite_ref: entiteRef || null,
@@ -4029,7 +4029,7 @@ const MODELES_NOTIF = [
 ];
 
 // Crée une notification interne (et future email/SMS/WhatsApp)
-async function creerNotification({ pole, type, titre, message, canal, userId, clientEmail, clientTel, datePrevue, sourceTable, sourceId, pushFondatrice }) {
+async function creerNotification({ pole, type, titre, message, canal, userId = undefined, clientEmail = undefined, clientTel = undefined, datePrevue = undefined, sourceTable = undefined, sourceId = undefined, pushFondatrice = undefined }) {
   try {
     const reference = await genererReference("NOTIF");
     const payload = {
@@ -4127,7 +4127,7 @@ async function verifierConflitPlanning(blocageDebut, blocageFin, excludeId) {
 // Crée un événement planning après vérification de conflit.
 // Si conflit détecté et force=false → ne crée rien, retourne {ok:false, conflits}.
 // Si force=true (passage outre, fondatrice uniquement) → crée quand même, marque conflit_force.
-async function creerEvenementPlanning(params, { force = false, user } = {}) {
+async function creerEvenementPlanning(params, { force = false, user = undefined } = {}) {
   const { pole, titre, dateDebut, dateFin, typeActivite, sourceTable, sourceId, lieu, necessitePresence } = params;
   const temps = await getPlanningMarges(pole);
   const { blocageDebut, blocageFin } = calculerBlocagePlanning(dateDebut, dateFin, temps);
@@ -4353,7 +4353,7 @@ function DashF({ user, goto }: any) {
   };
 
   const countdown = (ds) => {
-    const diff = new Date(ds) - now;
+    const diff = new Date(ds).getTime() - now.getTime();
     if (diff <= 0) return "Jour J ✦";
     const j = Math.floor(diff/86400000);
     const h = Math.floor((diff%86400000)/3600000);
@@ -6062,7 +6062,7 @@ function CalendrierP1({ user }: any) {
 
   const countdown = (dateStr) => {
     const target = new Date(dateStr);
-    const diff = target - now;
+    const diff = target.getTime() - now.getTime();
     if (diff <= 0) return { label: "Jour J ✦", urgent: true };
     const j = Math.floor(diff / 86400000);
     const h = Math.floor((diff % 86400000) / 3600000);
@@ -10098,7 +10098,7 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }: any) {
   const [lignes, setLignes] = React.useState(lignesInit);
   const [envoi,  setEnvoi]  = React.useState(false);
   const [succes, setSucces] = React.useState("");
-  const [nouvelleLigne, setNouvelleLigne] = React.useState({libelle:"",pole:"EVENTS",categorie:"",qte:1,prixUnitaire:"",note:""});
+  const [nouvelleLigne, setNouvelleLigne] = React.useState<{ libelle: string; pole: string; categorie: string; qte: number | string; prixUnitaire: string; note: string }>({libelle:"",pole:"EVENTS",categorie:"",qte:1,prixUnitaire:"",note:""});
 
   const totalFinal = lignes
     .filter(l => l.statut !== "suggestion" && l.total && l.total > 0)
@@ -10126,7 +10126,7 @@ function ModalGenerationDevis({ demande, user, onClose, onValide }: any) {
   const ajouterLigne = () => {
     if (!nouvelleLigne.libelle.trim()) return;
     const pu = parseFloat(nouvelleLigne.prixUnitaire) || 0;
-    const q  = parseInt(nouvelleLigne.qte) || 1;
+    const q  = parseInt(String(nouvelleLigne.qte)) || 1;
     setLignes(ls => [...ls, {
       ...nouvelleLigne, prixUnitaire: pu, total: pu*q,
       statut: pu > 0 ? "automatique" : "a_completer",
@@ -10677,7 +10677,7 @@ function EventsProgrammeF({ user }: any) {
   const imprimerProgramme = (p) => {
     const lignesP = typeof p.lignes === "string" ? JSON.parse(p.lignes) : (p.lignes || []);
     const imagesP = typeof p.images === "string" ? JSON.parse(p.images) : (p.images || []);
-    const parService = {};
+    const parService: Record<string, typeof lignesP> = {};
     lignesP.forEach(l => { (parService[l.service] = parService[l.service] || []).push(l); });
     const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Programme ${p.reference||""}</title><style>
       body{font-family:Georgia,serif;margin:0;padding:24px;color:#1a1a1a}
@@ -12038,7 +12038,7 @@ function DocumentsClient({ dossiersRefs, fmtDos }: any) {
 // ═══════════════════════════════════════════════════════════
 // Fonction GED auto-save — appelée après tout document créé
 // ═══════════════════════════════════════════════════════════
-async function gedAutoSave({ titre, module, categorie, reference, clientNom, contenuHtml, entiteId, entiteTable }) {
+async function gedAutoSave({ titre, module, categorie, reference = undefined, clientNom = undefined, contenuHtml = undefined, entiteId = undefined, entiteTable = undefined }) {
   if (!SB_URL) return null;
   try {
     const docRef = await genererReference("DOC");
@@ -12936,7 +12936,7 @@ function ClientEvents({ onBack, onNewCommande }: any) {
   if (modal) {
     const p = modal.prestation;
     const type = modal.type;
-    const inp = (label, key, opts={}) => (
+    const inp = (label, key, opts: { req?: boolean; textarea?: boolean; ph?: string; type?: string } = {}) => (
       <div style={{marginBottom:12}}>
         <label style={{fontSize:10,fontWeight:700,color:EV.cremeD,textTransform:"uppercase",letterSpacing:"0.06em",display:"block",marginBottom:4}}>{label}{opts.req?" *":""}</label>
         {opts.textarea
@@ -13316,6 +13316,7 @@ function CatalogueIAF({ user, gotoEvents }: any) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const result = ev.target?.result;
+      if (typeof result !== "string") return;
       setImgPreview(result);
       setImgB64(result.split(",")[1]);
       setEtape("analyse");
@@ -14811,7 +14812,6 @@ export default function BellaiaApp() {
     partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
     acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,
     calendrier:  PREMIUM_ACTIF ? <CalendrierFondatriceWrapper user={user}/> : <CalendrierP1 user={user}/>,
-    documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
     bsh:         <BSHF produits={bshProd} setProduits={setBshProd} commandes={bshCmds} setCommandes={setBshCmds} clientes={bshCli} setClientes={setBshCli} evenements={bshEvts} setEvenements={setBshEvts}/>,
     bsh_members: <BSHMembersAdmin user={user}/>,
@@ -14836,7 +14836,6 @@ export default function BellaiaApp() {
     // Pôles Phase 2
     food:        <FoodWrapper user={user}/>,
     editorial:   <EditorialWrapper user={user}/>,
-    vilo:        <PlaceholderModule ico="📋" nom="Vilo'Assistance" desc="Assistance administrative — Phase 2"/>,
     mtp:         <PlaceholderModule ico="🌺" nom="Mo Ti-Péyi" desc="Livres jeunesse — Bibliothèque Éditoriale"/>,
     // ── ERP Central (LOT VI)
     catalogue_admin: <CatalogueAdminWrapper user={user}/>,

@@ -167,7 +167,7 @@ export default function FoodCommandes() {
     const lignesAvecAllergenes = lignesForm.filter(l => l.nom.trim()).map(l => { const a = allergenesLigne(l.nom); return { ...l, allergenes: a || [], allergenesAVerifier: !a || a.length === 0 }; });
     const payload: Partial<CommandeFood> = { ...form, produit: produitResume, lignes: lignesAvecAllergenes as any };
     const res = form.id ? await majCommandeFood(form.id, payload) : await creerCommandeFood(payload);
-    if (!res.ok) { setErreur(("error" in res && res.error) || "Échec de l'enregistrement — réessayez."); return; }
+    if (!res.ok) { setErreur(("error" in res && typeof res.error === "string" && res.error) || "Échec de l'enregistrement — réessayez."); return; }
     setModal(null); setForm(FORM_INIT); setLignesForm([]); setErreur(null);
     await charger();
   };

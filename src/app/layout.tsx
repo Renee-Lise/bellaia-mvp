@@ -28,7 +28,6 @@ export const metadata: Metadata = {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title": "Bellaïa",
-    "apple-touch-fullscreen": "yes",
     // Microsoft
     "msapplication-TileColor": "#0d0b12",
     "msapplication-tap-highlight": "no",

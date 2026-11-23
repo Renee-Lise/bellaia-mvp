@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
       const lim = await limitesIA(admin, espaceIA);
       const coutMax = coutEstime(lim, 60000, 4000);   // plafond réservé (document maximal + réponse maximale)
       const resa = await reserverIA(admin, espaceIA, user.id, "food/import/traiter", coutMax);
-      if (!resa.ok) { await admin.from("bibliotheque_fiches").update({ etat: "en_attente", verrou_le: null, derniere_erreur: resa.raison }).eq("id", id); return NextResponse.json({ ok: false, suspendu: true, message: resa.raison }, { status: 429 }); }
+      if ("raison" in resa) { await admin.from("bibliotheque_fiches").update({ etat: "en_attente", verrou_le: null, derniere_erreur: resa.raison }).eq("id", id); return NextResponse.json({ ok: false, suspendu: true, message: resa.raison }, { status: 429 }); }
       const apiKey = process.env.ANTHROPIC_API_KEY; if (!apiKey) { await solderIA(admin, resa.id, { entree: 0, sortie: 0, cout: 0, modele: MODELE, cible: id, ok: false }); throw new Error("Clé IA non configurée."); }
       let ia;
       try { ia = await appelIA(contenu, apiKey); }

@@ -297,7 +297,7 @@ export default function PaymentCenter({ user, initialPaiementId, onClose }: Prop
           {loading && (
             <div style={{ textAlign:'center', padding:32 }}>
               <div style={{ width:24, height:24, borderRadius:'50%',
-                border:`2px solid ${C.violetG||'rgba(124,58,237,0.2)'}`, borderTopColor:C.violet,
+                border:'2px solid rgba(124,58,237,0.2)', borderTopColor:C.violet,
                 animation:'spin 0.7s linear infinite', margin:'0 auto' }}/>
             </div>
           )}

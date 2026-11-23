@@ -43,7 +43,7 @@ export default function FoodFournisseurs() {
   const sauvegarder = async () => {
     if (!form.nom?.trim()) { setErreur("Le nom est obligatoire."); return; }
     const res = form.id ? await majFournisseurFood(form.id, form) : await creerFournisseurFood(form);
-    if (!res.ok) { setErreur(("error" in res && res.error) || "Échec de l'enregistrement — réessayez."); return; }
+    if (!res.ok) { setErreur(("error" in res && typeof res.error === "string" && res.error) || "Échec de l'enregistrement — réessayez."); return; }
     setModal(null); setForm(FORM0); setErreur(null);
     await charger();
   };

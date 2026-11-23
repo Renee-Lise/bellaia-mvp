@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
   const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY) : null;
   const lim = admin ? await limitesIA(admin, "GENERAL") : null;
   const resa = admin && lim ? await reserverIA(admin, "GENERAL", user.id, "chat", coutEstime(lim, 60000 / 3.5, 1024)) : null;
-  if (resa && !resa.ok) return NextResponse.json({ content: [{ type: "text", text: "⚠️ " + resa.raison }] }, { status: 429 });
-  const resaId = resa && resa.ok ? resa.id : null;
+  if (resa && "raison" in resa) return NextResponse.json({ content: [{ type: "text", text: "⚠️ " + resa.raison }] }, { status: 429 });
+  const resaId = resa && "id" in resa ? resa.id : null;
 
   let response: Response;
   try {

@@ -53,7 +53,7 @@ export const typeDe = (nom: string, type?: string) => {
     mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", aac: "audio/aac", ogg: "audio/ogg", mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm" } as Record<string, string>)[e] || "application/octet-stream";
 };
 
-async function inflerRaw(donnees: Uint8Array): Promise<Uint8Array> {
+async function inflerRaw(donnees: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   const ds = new (window as any).DecompressionStream("deflate-raw");
   const flux = new Blob([donnees]).stream().pipeThrough(ds);
   return new Uint8Array(await new Response(flux).arrayBuffer());
