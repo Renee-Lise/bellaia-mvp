@@ -1,0 +1,30 @@
+// Moteur de règles des candidatures. Usage : node tests/unit/t_candidatures.js
+const ts = require('typescript'), fs = require('fs'), path = require('path'), M = require('module');
+const js = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../../src/lib/candidatures.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+const m = new M('cand'); m._compile(js, 'cand.js'); const K = m.exports;
+const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
+const base = { rgpd_accepte_le: '2026-11-23', conditions_acceptees_le: '2026-11-23', majeur_declare: true };
+const assistante = { ...base, type: 'assistant', nom_affiche: 'Prénom Nom', photo: 'x.jpg', genre: 'f', poles: ['FOOD'], disponibilites: 'samedi et dimanche', experience: 'restauration rapide 2 ans', langues: ['fr', 'créole'], ville: 'Cayenne' };
+const besoins = { poles: ['FOOD'], joursRecherches: ['samedi'], langues: ['créole'], zones: ['Cayenne'] };
+const statutsInterdits = ['accepte', 'refuse'];
+
+ok('01 IA désactivée par défaut ; aucune IA utilisée', K.IA_CANDIDATURES_ACTIVEE_PAR_DEFAUT === false && K.evaluer(assistante, besoins).ia_utilisee === false);
+const prepa = K.preparerPourAgent({ ...assistante, donnees: { genre: 'f', religion: 'x', missions_acceptees: ['produits'] } });
+ok('02 champs exclus retirés avant analyse (nom, photo, genre, religion…)', !('nom_affiche' in prepa) && !('photo' in prepa) && !('genre' in prepa) && !('religion' in prepa.donnees) && prepa.donnees.missions_acceptees.length === 1);
+const p1 = K.evaluer(assistante, besoins);
+ok('03 dossier complet et adapté → « présélectionné » ou « à contacter », jamais une décision', ['preselectionne', 'a_contacter'].includes(p1.statut_propose) && !statutsInterdits.includes(p1.statut_propose));
+ok('04 explication en phrases, version des critères, rappel de la décision humaine', /Pôles demandés/.test(p1.explication) && p1.explication.includes(K.VERSION_CRITERES) && /personne habilitée/.test(p1.explication));
+const inc = K.evaluer({ ...assistante, experience: '', disponibilites: null }, besoins);
+ok('05 dossier incomplet détecté, pièces manquantes listées', inc.statut_propose === 'incomplet' && inc.manquants.includes('disponibilités') && inc.manquants.includes('expérience ou compétences'));
+ok('06 majorité non déclarée (hôte) → « incomplet » (bloquant), jamais « refusé »', K.evaluer({ ...base, type: 'hote', majeur_declare: false, ville: 'Kourou', disponibilites: 'soirées', motivation: 'accueillir' }).statut_propose === 'incomplet');
+const modeleSansLimites = K.evaluer({ ...base, type: 'modele', disponibilites: 'mercredi', donnees: { missions_acceptees: ['produits'] } }, { missionsModele: ['produits'] });
+ok('07 modèle sans limites déclarées → incomplet (limites demandées, sans question intime)', modeleSansLimites.statut_propose === 'incomplet' && modeleSansLimites.manquants.includes('limites professionnelles'));
+const modeleIncompatible = K.evaluer({ ...base, type: 'modele', disponibilites: 'mercredi', donnees: { missions_acceptees: ['beaute'], limites: ['pas de lingerie'] } }, { missionsModele: ['mode'] });
+ok('08 missions proposées hors de ce que la personne accepte → « en attente » (limites respectées)', modeleIncompatible.statut_propose === 'en_attente' && /aucune mission actuelle/.test(modeleIncompatible.explication));
+const g1 = K.evaluer({ ...assistante, genre: 'f', nom_affiche: 'A' }, besoins), g2 = K.evaluer({ ...assistante, genre: 'm', nom_affiche: 'B', photo: null }, besoins);
+ok('09 même dossier, genre / nom / photo différents → même proposition (aucun classement sur ces critères)', g1.statut_propose === g2.statut_propose && g1.explication === g2.explication);
+ok('10 pôle sans besoin → « en attente » expliqué', K.evaluer({ ...assistante, poles: ['BSH'] }, besoins).statut_propose === 'en_attente');
+ok('11 demande Membres complète → « à analyser » (examen humain)', K.evaluer({ ...base, type: 'membres' }).statut_propose === 'a_analyser');
+const tous = [assistante, { ...base, type: 'hote' }, { type: 'autre' }, { ...base, type: 'modele' }, { ...base, type: 'membres' }].map(c => K.evaluer(c, besoins).statut_propose);
+ok('12 aucun cas ne produit « accepte » ou « refuse »', tous.every(s => !statutsInterdits.includes(s)));
+console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);

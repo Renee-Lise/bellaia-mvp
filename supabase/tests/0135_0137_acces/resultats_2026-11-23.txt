@@ -1,0 +1,66 @@
+# Résultats 0135–0137 (base PostgreSQL 16 jetable, comptes fictifs) — 65/65 conformes ; idempotence, retour arrière et réapplication vérifiés
+01 visiteur dépose une candidature hôte → acceptée, statut forcé « nouvelle » | t
+02 candidature assistante connectée → rattachée à son compte | t
+03a candidature modèle avec date de naissance → refusée (donnée non nécessaire) | t
+03b candidature modèle (missions acceptées et limites) → acceptée | t
+04a accès Membres sans déclaration de majorité → refusé | t
+04b accès Membres avec majorité déclarée → accepté | t
+05 dépôt sans information RGPD acceptée → refusé | t
+06 visiteur : aucune candidature lisible | t
+07 candidate : ne lit que son dossier (1) | t
+08 autre compte : 0 dossier lisible | t
+09 candidate se déclare « acceptée » → sans effet | t
+10 dossier incomplet complété par la candidate → « à analyser » | t
+11a agent propose « accepte » → refusé | t
+11b agent propose « à contacter » avec explication → enregistré | t
+12 gestionnaire sans droit de décision accepte → refusé | t
+13 traitement automatique (aucune personne connectée) accepte → sans effet | t
+14a refus sans motif → refusé | t
+14b refus motivé par la fondatrice → décision datée et signée | t
+14c historique : transition « →refuse » tracée | t
+14d candidate : historique illisible (0) | t
+14e personne ne peut écrire dans l'historique | t
+15a invitation pour une candidature non acceptée → refusée | t
+15b invitation avec « accès complet » → refusée (jamais de privilège par formulaire) | t
+15c invitation créée par la gestion (non fondatrice) → refusée | t
+15d invitation créée : jeton remis une fois, seul son condensé est stocké | t
+16a invitation utilisée par une autre adresse → refusée | t
+16b invitation acceptée : rôle « hôte » et permission validée activés, conditions horodatées, compte rattaché au dossier | t
+16c invitation réutilisée → refusée | t
+16d invitation expirée → refusée | t
+16e aucun rôle privilégié ni accès complet pour la personne invitée | t
+17a avant suspension : A a accès à FOOD et à EVENTS | t
+17b le responsable FOOD suspend A dans FOOD seulement → FOOD refusé, EVENTS conservé | t
+17c le responsable de pôle tente une suspension globale → refusée | t
+17d suspendre la fondatrice → refusé | t
+17e suspension sans motif → refusée | t
+17f A lève sa propre suspension → sans effet | t
+18a levée sans motif → refusée | t
+18b levée motivée → A retrouve FOOD (réactivation) | t
+18c suspension et levée journalisées | t
+19a retrait d'une permission → ligne conservée « révoquée » (date, auteur), droit perdu | t
+19b une révocation ne se « réactive » pas en douce → refusé | t
+19c nouvelle attribution → nouvelle ligne active, historique conservé | t
+20 A s'attribue « accès complet » → refusé | t
+21a désactivation : plus aucun droit, sessions fermées, jetons révoqués, données conservées | t
+21b réactivation : droits rétablis | t
+22a la fondatrice se désactive elle-même → refusé | t
+22b désactivation par un compte non fondatrice → refusée | t
+22c désactivation sans motif → refusée | t
+23a mission transmise visible dans l'espace de la personne | t
+23b accusé de réception enregistré et tracé dans le fil | t
+23c avancement 50 % → « en cours » | t
+23d avancement 100 % → « à valider » (pas « fait » sans validation) | t
+23e un autre compte déclare l'avancement → refusé | t
+23f la destinataire modifie directement la mission → sans effet | t
+24a A suspendue dans FOOD : mission FOOD illisible | t
+24b transfert sans motif → refusé | t
+24c transfert motivé → H la voit, réception à refaire | t
+24d transfert par une personne sans droit de gestion → refusé | t
+25a dossier incomplet : la candidate dépose la pièce manquante dans son dossier | t
+25b dépôt hors de son dossier → refusé | t
+25c autre compte : document illisible | t
+25d consultation par la fonction de gestion : refusée à la candidate | t
+25e consultation par la gestion → journalisée | t
+26a purge RGPD par la gestion → refusée | t
+26b purge par la fondatrice : seuls les dossiers échus refusés/archivés/non traités | t
