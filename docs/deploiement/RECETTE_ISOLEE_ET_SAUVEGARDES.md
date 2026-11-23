@@ -36,3 +36,21 @@ supabase db dump --data-only -f bellaia_donnees_AAAA-MM-JJ.sql     # données �
 ## Recommandation
 1. **Immédiatement, gratuit** : export structure + données par la fondatrice (sauvegarde hors ligne) ; réplique locale (option C) pour tester 0129–0133.
 2. **Avant le 8 décembre** : décider du forfait Pro (sauvegardes restaurables + recette sur iPhone réel via une branche supprimée après usage).
+
+## Mise à jour du 23/11/2026 (après-midi) — sauvegarde complète, restaurable et vérifiée
+
+**Volume réel** : 203 tables, 2 655 lignes (mesure exacte) → une sauvegarde logique complète tient en quelques mégaoctets.
+**Inventaire de référence** enregistré dans les rapports privés (« Bellaia_Inventaire_reference_tables_2026-11-23.csv » : lignes par table + empreinte).
+
+| Solution | Coût | Couvre | Limites réelles |
+|---|---|---|---|
+| **1. Export CLI par la fondatrice** (`supabase db dump` structure + `--data-only` données) puis **contrôle de restauration** (`supabase/tests/restauration/verifier_restauration.sh`) | 0 € | Toutes les tables `public` (structure + données) ; restauration testée en base jetable et comparée table par table | Manuel (à refaire avant chaque migration) ; ne contient pas les **fichiers du stockage** (photos, documents) ni les comptes `auth` (sauf export dédié) ; nécessite un ordinateur avec Supabase CLI et le mot de passe de la base (qui ne doit jamais être transmis) |
+| 2. Export des fichiers du stockage (tableau de bord Supabase ou script S3) | 0 € | Photos, documents privés | Manuel ; volumes à vérifier |
+| 3. Forfait **Pro** | 25 $/mois (+ ~10 $/mois pour Ti-Panier s'il reste dans l'organisation) | Sauvegardes quotidiennes automatiques, 7 jours, restaurables depuis le tableau de bord | Restauration = remplacement complet du projet (interruption) ; pas les fichiers du stockage ; ne remplace pas un export hors Supabase |
+| 4. Pro + PITR | ~100 $/mois de plus | Restauration à la seconde | Sur-dimensionné aujourd'hui |
+
+**Procédure proposée avant toute migration (0133, 0134…)** :
+1. Export structure + données (solution 1) + export des fichiers ;
+2. Contrôle de restauration : le script doit conclure « COMPLET » ;
+3. Application de la migration (sur accord) ;
+4. Contrôles après application ; retour arrière prêt.
