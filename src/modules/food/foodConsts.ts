@@ -65,6 +65,7 @@ export const FOOD_CATEGORIES: { id: CategorieRecette; nom: string; ico: string; 
   // Boissons
   {id:"boisson",        nom:"Boissons",           ico:"🥤", groupe:"boissons"},
   {id:"jus",            nom:"Jus",                ico:"🧃", groupe:"boissons"},
+  {id:"milkshake",      nom:"Milkshakes",         ico:"🥛", groupe:"boissons"},
   {id:"smoothie",       nom:"Smoothies",          ico:"🥤", groupe:"boissons"},
   {id:"the_glace",      nom:"Thés glacés",        ico:"🫖", groupe:"boissons"},
   {id:"cocktail",       nom:"Cocktails",          ico:"🍹", groupe:"boissons"},

@@ -6,6 +6,7 @@ import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/
 import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction } from "@/modules/food/catalogueApi";
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
+import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
 // MARQUEUR DE VERSION — sert à vérifier que Vercel sert le bon code
@@ -7300,6 +7301,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
             <div style={{fontSize:9,color:BSH.cremeD,marginTop:8,lineHeight:1.6}}>
               Catalogue Concorde Pro consultable manuellement. Une vraie synchronisation automatique (stock/prix/commandes) dépend de ce que leur service commercial propose réellement — rien n'est branché tant que ce n'est pas confirmé.
             </div>
+            <InventaireBSHLazy/>
           </div>
         </div>}
       </div>
@@ -14308,12 +14310,29 @@ function RechercheWrapper({ user }: any) {
   return <Comp profil="fondatrice"/>;
 }
 
+// Inventaire physique BSH (fondatrice) : fiche imprimable, saisie du comptage, correction tracée et annulable.
+function InventaireBSHLazy() {
+  const [ouvert, setOuvert] = React.useState(false);
+  const [Comp, setComp] = React.useState<any>(null);
+  React.useEffect(() => { if (ouvert && !Comp) import("../modules/concorde/InventaireBSH").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, [ouvert, Comp]);
+  // Marge basse : la barre de navigation fixe de l'iPhone masquait le bas de cette page.
+  return <div style={{marginTop:10,paddingBottom:"calc(110px + env(safe-area-inset-bottom))"}}>
+    <button onClick={()=>setOuvert(v=>!v)} style={{minHeight:44,padding:"8px 12px",borderRadius:10,border:"1px solid #c9a96e",background:ouvert?"#c9a96e33":"transparent",color:"#c9a96e",fontWeight:700,fontSize:13}}>📋 {ouvert?"Fermer l'inventaire physique":"Inventaire physique (fiche et correction des stocks)"}</button>
+    {ouvert && (Comp ? <Comp/> : <div style={{padding:12,opacity:.6}}>Chargement…</div>)}
+  </div>;
+}
+
 // ── Wrapper Messagerie (messaging module)
+// Messagerie réservée à la fondatrice tant que la correction de sécurité (migration 0133) n'est pas en production.
+const MESSAGERIE_OUVERTE_A_TOUS = false;
 function MessagerieWrapper({ user }: any) {
+  const autorise = MESSAGERIE_OUVERTE_A_TOUS || user?.role === "fondatrice";
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
+    if (!autorise) return;
     import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
-  }, []);
+  }, [autorise]);
+  if (!autorise) return <div role="status" style={{textAlign:"center",color:"rgba(255,255,255,0.75)",padding:"48px 24px",lineHeight:1.6}}>🔒 La messagerie interne est en cours de sécurisation.<br/>Elle sera ouverte après validation par la fondatrice.</div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement messagerie…</div>;
   return <Comp user={user}/>;
 }
@@ -14454,8 +14473,8 @@ export default function BellaiaApp() {
     let vivant = true;
     (async () => { try {
       const t = await (window as any).getTokenAsync?.();
-      const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/bellaia_actions?select=id&statut=neq.fait&priorite=lte.2`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: `Bearer ${t}` } });
-      if (r.ok && vivant) setNbActions((await r.json()).length);
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/bellaia_actions?${REQUETE_ACTIONS}`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", Authorization: `Bearer ${t}` } });
+      if (r.ok && vivant) setNbActions(compterActions(await r.json()).aTraiter);
     } catch {} })();
     return () => { vivant = false; };
   }, [roleNav, activeF === "actions"]);

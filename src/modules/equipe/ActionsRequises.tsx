@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { sbSelect, sbUpdate, sbInsert } from "../events/eventsAtelierLib";
 import { deposerPrive, ouvrirPrive, nomFichierSur } from "./equipeLib";
+import { compterActions, estOuverte, estTechnique } from "../../lib/actionsRequises";
 
 const SA = "system-ui, -apple-system, sans-serif";
 const C = { card: "rgba(255,255,255,0.05)", ligne: "rgba(255,255,255,0.12)", texte: "#f1ece0", doux: "rgba(241,236,224,0.62)", or: "#c9a96e", ok: "#4ade80", rouge: "#f87171", orange: "#fb923c", bleu: "#60a5fa" };
@@ -37,8 +38,9 @@ export default function ActionsRequises() {
   useEffect(() => { charger(); }, []);
 
   const listeUnivers = useMemo(() => Array.from(new Set(actions.map(a => a.univers))).sort(), [actions]);
-  const visibles = actions.filter(a =>
-    (filtre === "toutes" || (filtre === "faites" ? a.statut === "fait" : a.statut !== "fait")) && (!univers || a.univers === univers) && (!prio || a.priorite === prio));
+  // Même règle que le compteur : « En attente » = ouvertes (hors ligne technique, hors fait/annulé/abandonné/sans objet).
+  const visibles = actions.filter(a => !estTechnique(a) &&
+    (filtre === "toutes" || (filtre === "faites" ? !estOuverte(a) : estOuverte(a))) && (!univers || a.univers === univers) && (!prio || a.priorite === prio));
   const titreDe = (cle: string) => actions.find(x => x.cle === cle)?.titre || cle;
   const bloquePar = (a: any) => (a.depend_de || []).filter((c: string) => actions.some(x => x.cle === c && x.statut !== "fait"));
   const joindre = async (a: any, f?: File) => {
@@ -49,8 +51,9 @@ export default function ActionsRequises() {
       await maj(a, { pieces_jointes: [...(a.pieces_jointes || []), { chemin, nom: f.name, le: new Date().toISOString() }] });
     } catch (e: any) { setMsg("❌ " + String(e?.message || e)); }
   };
-  const nbOuvertes = actions.filter(a => a.statut !== "fait").length;
-  const nbUrgentes = actions.filter(a => a.statut !== "fait" && a.priorite === 1).length;
+  const compte = compterActions(actions);
+  const nbOuvertes = compte.aTraiter;
+  const nbUrgentes = compte.urgentes;
 
   const maj = async (a: any, patch: any) => {
     try {
@@ -77,6 +80,7 @@ export default function ActionsRequises() {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <div style={{ ...btn(true, C.rouge), cursor: "default" }}>{nbUrgentes} urgente{nbUrgentes > 1 ? "s" : ""}</div>
         <div style={{ ...btn(true), cursor: "default" }}>{nbOuvertes} en attente</div>
+        {compte.enCours > 0 && <div style={{ ...btn(false), cursor: "default" }}>{compte.enCours} en cours</div>}
         <button style={btn()} onClick={ajouter}>＋ Ajouter</button>
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

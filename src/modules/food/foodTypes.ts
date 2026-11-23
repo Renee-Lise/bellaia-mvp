@@ -9,7 +9,7 @@ export type CategorieRecette =
   | "burger" | "sandwich" | "street_food" | "sauce"
   | "dessert" | "glace" | "patisserie" | "cake" | "cupcake" | "entremet"
   | "macaron" | "viennoiserie" | "pain" | "brunch"
-  | "boisson" | "cocktail" | "mocktail" | "jus" | "smoothie" | "the_glace"
+  | "boisson" | "cocktail" | "mocktail" | "jus" | "smoothie" | "milkshake" | "the_glace"
   | "buffet" | "traiteur" | "repas_creole" | "repas_guyanais"
   | "mariage" | "baby_shower" | "anniversaire" | "autre";
 
