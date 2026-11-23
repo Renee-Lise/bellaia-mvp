@@ -44,10 +44,18 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Zoom autorisé (accessibilité : agrandir le texte jusqu'à 200 %). Les champs de saisie font au moins
+  // 16 px sur iPhone (voir STYLE_ACCESSIBILITE) pour éviter le zoom automatique à la saisie.
   viewportFit: "cover",
 };
+
+// Accessibilité : focus visible pour la navigation au clavier (jamais à la souris ou au doigt grâce à
+// :focus-visible) ; champs ≥ 16 px sur iOS ; animations réduites si l'utilisateur le demande.
+const STYLE_ACCESSIBILITE = `
+:focus-visible{outline:3px solid #f5c76a!important;outline-offset:2px!important;border-radius:6px}
+@supports (-webkit-touch-callout:none){input,select,textarea{font-size:max(16px,1em)!important}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -63,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/>
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png"/>
         <link rel="shortcut icon" href="/favicon-32.png"/>
+        <style dangerouslySetInnerHTML={{ __html: STYLE_ACCESSIBILITE }}/>
       </head>
       <body style={{
         margin: 0,

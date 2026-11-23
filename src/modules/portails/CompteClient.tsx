@@ -133,6 +133,7 @@ function Confidentialite({ userId }: { userId: string }) {
       <div style={{ fontFamily: SERIF, fontSize: 18, marginBottom: 8 }}>Vos droits</div>
       <div style={{ fontSize: 14.5, lineHeight: 1.55 }}>Vous pouvez demander à <strong>accéder</strong> à vos données, les <strong>rectifier</strong>, les <strong>effacer</strong> (sauf celles que la loi oblige à conserver, comme les factures), les <strong>récupérer</strong> dans un format courant, ou vous <strong>opposer</strong> à un traitement. Réponse sous un mois. Une vérification d'identité peut être demandée. Vous pouvez aussi saisir la CNIL (cnil.fr).</div>
     </div>
+    <div style={{ ...carte, fontSize: 14.5 }}>Documents de référence : <a href="/confidentialite" style={{ color: T.texte }}>politique de confidentialité</a> · <a href="/mentions-legales" style={{ color: T.texte }}>mentions légales</a> · <a href="/conditions-generales" style={{ color: T.texte }}>conditions générales</a></div>
     <Demandes userId={userId} types={["rgpd_acces", "rgpd_rectification", "rgpd_effacement", "rgpd_portabilite", "rgpd_opposition"]} intro="Choisissez le type de demande et précisez-la. Vous suivrez son traitement ci-dessous." />
   </>;
 }
@@ -149,6 +150,7 @@ function Aide({ whatsapp, userId }: { whatsapp?: string; userId: string }) {
       <div style={{ fontFamily: SERIF, fontSize: 18, marginBottom: 6 }}>Questions fréquentes</div>
       {FAQ.map(([q, r]) => <details key={q} style={{ borderTop: `1px solid ${T.ligne}`, padding: "10px 0" }}><summary style={{ fontSize: 14.5, fontWeight: 600, minHeight: 28, cursor: "pointer" }}>{q}</summary><div style={{ fontSize: 14, color: T.doux, marginTop: 6 }}>{r}</div></details>)}
     </div>
+    <div style={{ ...carte, fontSize: 14.5 }}>Documents de référence : <a href="/confidentialite" style={{ color: T.texte }}>politique de confidentialité</a> · <a href="/mentions-legales" style={{ color: T.texte }}>mentions légales</a> · <a href="/conditions-generales" style={{ color: T.texte }}>conditions générales</a></div>
     <Demandes userId={userId} types={["aide", "contact"]} intro="Une question sur une commande, un rendez-vous ou votre compte ? Écrivez-nous : la réponse apparaîtra ici." />
     {whatsapp && <div style={{ ...carte, fontSize: 14 }}>Vous préférez échanger par message ? <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: T.texte, fontWeight: 650 }}>Écrire sur WhatsApp</a> (facultatif).</div>}
   </>;
