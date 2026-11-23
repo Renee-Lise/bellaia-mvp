@@ -1,0 +1,23 @@
+// Règles de sécurité du compte. Usage : node tests/unit/t_securite_compte.js
+const ts = require('typescript'), fs = require('fs'), path = require('path'), M = require('module');
+const js = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../../src/lib/securiteCompte.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+const m = new M('s'); m._compile(js, 's.js'); const { evaluerMotDePasse: e, limiteur, lireJeton, lienRecuperation } = m.exports;
+const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
+ok('01 trop court refusé', !e('abc123').ok);
+ok('02 sans chiffre refusé', !e('MotDePasseSansChiffre').ok);
+ok('03 contient la partie locale de l\'e-mail refusé', !e('marie.dupont2026x', { email: 'marie.dupont@exemple.fr' }).ok);
+ok('04 identique à l\'ancien refusé', !e('Soleil-Guyane-2026', { ancien: 'Soleil-Guyane-2026' }).ok);
+ok('05 confirmation différente refusée', !e('Soleil-Guyane-2026', { confirmation: 'Soleil-Guyane-2025' }).ok);
+ok('06 mot de passe robuste accepté (force 3)', e('Soleil-Guyane-2026', { confirmation: 'Soleil-Guyane-2026', email: 'a@b.fr' }).ok && e('Soleil-Guyane-2026').force === 3);
+ok('07 suite prévisible refusée', !e('azerty123456789').ok && !e('111111111111').ok);
+const t0 = 1_000_000_000_000;
+ok('08 limiteur : 4 échecs → autorisé ; 5 → bloqué avec attente', !limiteur([t0, t0, t0, t0], t0 + 1000).bloque && limiteur([t0, t0, t0, t0, t0], t0 + 1000).bloque && limiteur([t0, t0, t0, t0, t0], t0 + 1000).attenteS === 299);
+ok('09 limiteur : échecs anciens oubliés après 5 minutes', !limiteur([t0, t0, t0, t0, t0], t0 + 5 * 60000 + 1).bloque);
+const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+const jwt = `${b64({ alg: 'HS256' })}.${b64({ sub: 'u1', email: 'a@b.fr', iat: 1795400000, exp: 1795403600, session_id: 's1', amr: [{ method: 'password' }] })}.x`;
+global.atob = s => Buffer.from(s, 'base64').toString('binary'); global.escape = global.escape || require('querystring').escape;
+const j = lireJeton(jwt);
+ok('10 jeton lu : utilisateur, e-mail, session, méthode, dates', j && j.userId === 'u1' && j.email === 'a@b.fr' && j.sessionId === 's1' && j.methode === 'mot de passe' && j.expiration.getTime() === 1795403600000);
+ok('11 jeton illisible : null, sans exception', lireJeton('pas.un.jeton') === null);
+ok('12 lien de réinitialisation reconnu ; autre lien ignoré', lienRecuperation('#access_token=abc&refresh_token=r&type=recovery').jeton === 'abc' && lienRecuperation('#access_token=abc&type=signup') === null && lienRecuperation('') === null);
+console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);

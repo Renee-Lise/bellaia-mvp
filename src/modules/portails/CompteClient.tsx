@@ -12,15 +12,16 @@ import React, { useEffect, useState } from "react";
 import { sbSelect, sbUpdate, sbInsert } from "../events/eventsAtelierLib";
 import CalendrierPremium from "../calendrier/CalendrierPremium";
 import { MARQUES } from "../../design/marques";
+import SecuriteCompte from "./SecuriteCompte";
 
-export type PageCompte = "profil" | "notifications" | "confidentialite" | "aide" | "agenda";
+export type PageCompte = "profil" | "notifications" | "confidentialite" | "aide" | "agenda" | "securite";
 const T = { fond: "#faf6ef", carte: "#ffffff", texte: "#1c2246", doux: "rgba(28,34,70,0.62)", ligne: "rgba(28,34,70,0.12)", or: "#b8995a", rouge: "#b4523f", vert: "#3f7d5b" };
 const SA = "-apple-system, system-ui, sans-serif";
 const SERIF = "Georgia, 'Iowan Old Style', serif";
 const carte: React.CSSProperties = { background: T.carte, border: `1px solid ${T.ligne}`, borderRadius: 16, padding: 16, marginBottom: 12 };
 const champ: React.CSSProperties = { width: "100%", boxSizing: "border-box", minHeight: 44, borderRadius: 12, border: `1px solid ${T.ligne}`, padding: "10px 12px", fontSize: 16, fontFamily: SA, background: "#fff", color: T.texte };
 const bouton = (plein = true): React.CSSProperties => ({ minHeight: 44, padding: "10px 16px", borderRadius: 22, border: plein ? "none" : `1px solid ${T.ligne}`, background: plein ? T.texte : "transparent", color: plein ? "#fff" : T.texte, fontSize: 15, fontWeight: 650, fontFamily: SA });
-const TITRES: Record<PageCompte, string> = { agenda: "Mon agenda", profil: "Mes informations", notifications: "Notifications", confidentialite: "Confidentialité et mes données", aide: "Aide et contact" };
+const TITRES: Record<PageCompte, string> = { agenda: "Mon agenda", profil: "Mes informations", notifications: "Notifications", confidentialite: "Confidentialité et mes données", aide: "Aide et contact", securite: "Sécurité du compte" };
 const dateFr = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 const TYPES_DEMANDE: Record<string, string> = { aide: "Aide", contact: "Contact", rgpd_acces: "Accès à mes données", rgpd_rectification: "Rectification", rgpd_effacement: "Effacement", rgpd_portabilite: "Portabilité", rgpd_opposition: "Opposition" };
 const STATUTS: Record<string, string> = { recue: "Reçue", en_cours: "En cours", repondue: "Répondue", close: "Close" };
@@ -156,7 +157,7 @@ function Aide({ whatsapp, userId }: { whatsapp?: string; userId: string }) {
   </>;
 }
 
-export default function CompteClient({ page, user, onRetour, whatsapp }: { page: PageCompte; user: any; onRetour: () => void; whatsapp?: string }) {
+export default function CompteClient({ page, user, onRetour, whatsapp, onDeconnexion }: { page: PageCompte; user: any; onRetour: () => void; whatsapp?: string; onDeconnexion?: () => void }) {
   return (
     <div style={{ minHeight: "100dvh", background: T.fond, color: T.texte, fontFamily: SA }}>
       <div style={{ position: "sticky", top: "var(--bellaia-haut, env(safe-area-inset-top, 0px))", zIndex: 20, background: T.fond, borderBottom: `1px solid ${T.ligne}`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
@@ -169,6 +170,7 @@ export default function CompteClient({ page, user, onRetour, whatsapp }: { page:
         {page === "notifications" && <Notifications user={user} />}
         {page === "confidentialite" && <Confidentialite userId={user?.id} />}
         {page === "aide" && <Aide whatsapp={whatsapp} userId={user?.id} />}
+        {page === "securite" && <SecuriteCompte user={user} onDeconnecte={onDeconnexion} />}
       </div>
     </div>
   );

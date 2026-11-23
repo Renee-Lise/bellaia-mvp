@@ -143,9 +143,9 @@ export default function PortailClient({ onOuvrir, ouverts, onDeconnexion }: { on
 
         <Surface m={m}>
           <Titre m={m} sur="Mon compte" niveau={3}>Préférences</Titre>
-          {[["profil", "Mes informations"], ["notifications", "Notifications"], ["confidentialite", "Confidentialité et mes données"], ["aide", "Aide et contact"]].map(([k, l]) =>
-            <div key={k} onClick={() => onOuvrir?.(k)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderTop: `1px solid ${m.ligne}`, fontSize: 14.5, cursor: "pointer" }}><span>{l}</span><span style={{ color: m.doux }}>›</span></div>)}
-          {onDeconnexion && <div onClick={onDeconnexion} style={{ padding: "12px 0", borderTop: `1px solid ${m.ligne}`, fontSize: 14.5, cursor: "pointer", color: "#b4523f" }}>Se déconnecter</div>}
+          {[["profil", "Mes informations"], ["securite", "Sécurité du compte"], ["notifications", "Notifications"], ["confidentialite", "Confidentialité et mes données"], ["aide", "Aide et contact"]].map(([k, l]) =>
+            <button type="button" key={k} onClick={() => onOuvrir?.(k)} style={{ display: "flex", width: "100%", justifyContent: "space-between", padding: "12px 0", minHeight: 44, fontSize: 14.5, cursor: "pointer", background: "none", border: "none", borderTopStyle: "solid", borderTopWidth: 1, borderTopColor: m.ligne, color: "inherit", fontFamily: "inherit", textAlign: "left" }}><span>{l}</span><span style={{ color: m.doux }}>›</span></button>)}
+          {onDeconnexion && <button type="button" onClick={onDeconnexion} style={{ display: "block", width: "100%", textAlign: "left", padding: "12px 0", minHeight: 44, background: "none", border: "none", borderTop: `1px solid ${m.ligne}`, fontSize: 14.5, cursor: "pointer", color: "#b4523f", fontFamily: "inherit" }}>Se déconnecter</button>}
         </Surface>
       </div>
     </div>

@@ -7718,7 +7718,7 @@ function EspaceClientPremium({ user, produits, evenements, onLogout, onNewComman
   React.useEffect(() => { if (compte && !CompteComp) import("../modules/portails/CompteClient").then(m => setCompteComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, [compte, CompteComp]);
   React.useEffect(() => { import("../modules/portails/PortailClient").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
   React.useEffect(() => { window.scrollTo(0, 0); }, [ouvert]);
-  if (compte) return <BandeSecurite>{CompteComp ? <CompteComp page={compte} user={user} whatsapp={ENV.WA} onRetour={()=>setCompte(null)}/> : <div style={{padding:30,color:"rgba(28,34,70,0.6)"}}>Ouverture…</div>}</BandeSecurite>;
+  if (compte) return <BandeSecurite>{CompteComp ? <CompteComp page={compte} user={user} whatsapp={ENV.WA} onRetour={()=>setCompte(null)} onDeconnexion={onLogout}/> : <div style={{padding:30,color:"rgba(28,34,70,0.6)"}}>Ouverture…</div>}</BandeSecurite>;
   if (ouvert) return <>
     {!ouvert.univers && <button onClick={()=>setOuvert(null)} style={{position:"sticky",top:0,zIndex:50,width:"100%",textAlign:"left",padding:"calc(env(safe-area-inset-top,0px) + 10px) 16px 10px",background:"#faf6ef",border:"none",borderBottom:"1px solid rgba(28,34,70,0.1)",color:"#1c2246",fontSize:14,fontWeight:700,fontFamily:"-apple-system,system-ui,sans-serif"}}>‹ Ma maison Bellaïa</button>}
     <PortailClient user={user} produits={produits} evenements={evenements} onLogout={onLogout} onNewCommande={onNewCommande} initialUnivers={ouvert.univers} onRetourAccueil={()=>setOuvert(null)}/>
@@ -7728,7 +7728,7 @@ function EspaceClientPremium({ user, produits, evenements, onLogout, onNewComman
     if (k.startsWith("univers:")) { const u = UNIVERS_PREMIUM_VERS_CLIENT[k.slice(8)]; if (u) setOuvert({ univers: u }); return; }
     if (k === "events") { setOuvert({ univers: "bev" }); return; }
     if (k === "univers") return;
-    if (["profil","notifications","confidentialite","aide","agenda"].includes(k)) { setCompte(k); return; }
+    if (["profil","notifications","confidentialite","aide","agenda","securite"].includes(k)) { setCompte(k); return; }
     setOuvert({ univers: null });   // commandes, profil, notifications, confidentialité, aide : espace détaillé existant
   }}/></BandeSecurite>;
 }
@@ -8149,7 +8149,7 @@ function EcranConnexion({ onConnecte }: any) {
   const inscription = async () => {
     if (!email.trim() || !password.trim()) { setErreur("Email et mot de passe requis."); return; }
     if (!dateNaissance) { setErreur("La date de naissance est obligatoire."); return; }
-    if (password.length < 6) { setErreur("Le mot de passe doit faire au moins 6 caractères."); return; }
+    { const { evaluerMotDePasse } = await import("../lib/securiteCompte"); const v = evaluerMotDePasse(password, { email }); if (!v.ok) { setErreur("Mot de passe : " + v.erreurs.join(" ")); return; } }
     setLoading(true); setErreur(""); setSucces("");
     try {
       const r = await fetch("/api/auth/signup", {
@@ -8194,6 +8194,9 @@ function EcranConnexion({ onConnecte }: any) {
   const iconPos  = {position:"absolute" as const, left:11, top:"50%", transform:"translateY(-50%)", color:"#8b7fa8", fontSize:15, pointerEvents:"none" as const};
 
   const [showPwd, setShowPwd] = React.useState(false);
+  const [oubli, setOubli] = React.useState(false);
+  const [OubliComp, setOubliComp] = React.useState<any>(null);
+  React.useEffect(() => { if (oubli && !OubliComp) import("../modules/portails/SecuriteCompte").then(m => setOubliComp(() => m.MotDePasseOublie)).catch(rechargerSiVersionObsolete); }, [oubli, OubliComp]);
 
   return (
     <div style={{
@@ -8365,6 +8368,10 @@ function EcranConnexion({ onConnecte }: any) {
             )}
           </button>
 
+          {mode==="login" && <div style={{textAlign:"center",marginTop:12}}>
+            <button type="button" onClick={()=>setOubli(true)} style={{background:"none",border:"none",color:B.gold,fontSize:T.sm,fontFamily:SA,textDecoration:"underline",textUnderlineOffset:2,cursor:"pointer",minHeight:44}}>Mot de passe oublié ?</button>
+          </div>}
+          {oubli && OubliComp && <div style={{marginTop:12}}><OubliComp onFermer={()=>setOubli(false)}/></div>}
           {/* Switch mode */}
           <p style={{textAlign:"center",marginTop:18,fontSize:T.sm,color:B.muted,lineHeight:1.5}}>
             {mode==="login" ? (
@@ -14681,6 +14688,19 @@ export default function BellaiaApp() {
     } catch {}
   }, []);
   const [InvitComp, setInvitComp] = useState<any>(null);
+  // Lien « mot de passe oublié » reçu par e-mail : jeton lu puis retiré de l'adresse affichée
+  const [recup, setRecup] = useState<string | null>(null);
+  const [RecupComp, setRecupComp] = useState<any>(null);
+  useEffect(() => {
+    try {
+      const h = window.location.hash || "";
+      if (/type=recovery/.test(h)) {
+        import("../lib/securiteCompte").then(m => { const r = m.lienRecuperation(h); if (r) setRecup(r.jeton); });
+        window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+      }
+    } catch {}
+  }, []);
+  useEffect(() => { if (recup && !RecupComp) import("../modules/portails/SecuriteCompte").then(m => setRecupComp(() => m.NouveauMotDePasse)).catch(rechargerSiVersionObsolete); }, [recup, RecupComp]);
   useEffect(() => { if (invitation && user && !InvitComp) import("../modules/portails/InvitationAccepter").then(m => setInvitComp(() => m.default)).catch(rechargerSiVersionObsolete); }, [invitation, user, InvitComp]);
   const [activeF, setActiveF] = useState("dashboard");
   const roleNav = (user as any)?.role;
@@ -14817,7 +14837,8 @@ export default function BellaiaApp() {
   }, []);
 
   const deconnexion = async () => {
-    try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
+    // Révoque la session côté serveur (jeton de rafraîchissement inutilisable ensuite), puis efface l'appareil.
+    try { const j = localStorage.getItem("bellaia_token"); if (j) await fetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${j}` } }); } catch {}
     clearSession();
     setUser(null); setPreview(null); setActiveUnivers(null);
   };
@@ -14828,6 +14849,7 @@ export default function BellaiaApp() {
     </div>
   );
 
+  if (recup) return RecupComp ? <RecupComp jeton={recup} onTermine={() => { setRecup(null); clearSession(); setUser(null); }}/> : <div style={{padding:40,textAlign:"center",color:B.muted}}>Chargement…</div>;
   if (!user) return <EcranConnexion onConnecte={setUser}/>;
   if (invitation && InvitComp) return <InvitComp jeton={invitation} onTermine={(ok: boolean) => { try { sessionStorage.removeItem("bellaia_invitation"); } catch {} setInvitation(null); if (ok) window.location.reload(); }}/>;
 

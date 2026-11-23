@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { evaluerMotDePasse } from "@/lib/securiteCompte";
 import { createClient } from "@supabase/supabase-js";
 
 // Calcule l'âge à partir d'une date ISO "AAAA-MM-JJ"
@@ -30,8 +31,9 @@ export async function POST(req: NextRequest) {
     if (age < 0 || age > 120) {
       return NextResponse.json({ error: "Date de naissance invalide." }, { status: 400 });
     }
-    if (password.length < 6) {
-      return NextResponse.json({ error: "Le mot de passe doit faire au moins 6 caractères." }, { status: 400 });
+    const robustesse = evaluerMotDePasse(String(password), { email: String(email) });
+    if (!robustesse.ok) {
+      return NextResponse.json({ error: "Mot de passe : " + robustesse.erreurs.join(" ") }, { status: 400 });
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
