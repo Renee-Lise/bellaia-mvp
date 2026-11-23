@@ -14,6 +14,7 @@ import {
   supprimerProduitCatalogue,
 } from "./catalogueApi";
 import type { Produit } from "./foodTypes";
+import { uploadMediaRecette } from "./foodApi";
 
 const SA = "system-ui, sans-serif";
 const inp: React.CSSProperties = {
@@ -45,6 +46,8 @@ export default function FoodCatalogue() {
   const [modal,    setModal]    = useState<"form"|null>(null);
   const [editing,  setEditing]  = useState<Produit|null>(null);
   const [form,     setForm]     = useState<ProduitForm>(FORM0);
+  const [envoiPhoto, setEnvoiPhoto] = useState(false);
+  const [erreurPhoto, setErreurPhoto] = useState("");
   const [showArch, setShowArch] = useState(false);
   const [erreur,   setErreur]   = useState<string | null>(null);
   const [sauvegarde, setSauvegarde] = useState(false);
@@ -289,6 +292,27 @@ export default function FoodCatalogue() {
                 <textarea rows={2} value={form.description || ""}
                   onChange={e => setForm(f => ({ ...f, description:e.target.value }))}
                   style={{ ...inp, resize:"vertical" as const }}/>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                <label style={{ fontSize:10, color:FC.creamD }}>Photo du produit (affichée dans la boutique)</label>
+                {form.photo
+                  ? <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                      <img src={form.photo} alt={`Photo : ${form.nom || "produit"}`} style={{ width:72, height:72, objectFit:"cover", borderRadius:10, border:`1px solid ${FC.line}` }}/>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))} style={{ ...inp, width:"auto", cursor:"pointer" }}>Retirer la photo</button>
+                    </div>
+                  : <div style={{ fontSize:11, color:FC.creamD }}>Aucune photo.</div>}
+                <label style={{ ...inp, cursor:"pointer", textAlign:"center", minHeight:44, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  {envoiPhoto ? "Envoi en cours…" : "📷 Choisir une photo"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={envoiPhoto} aria-label="Photo du produit" onChange={async e => {
+                    const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+                    if (f.size > 8 * 1024 * 1024) { setErreurPhoto("Photo trop lourde (8 Mo au maximum)."); return; }
+                    setEnvoiPhoto(true); setErreurPhoto("");
+                    const url = await uploadMediaRecette(f, "photos");
+                    setEnvoiPhoto(false);
+                    if (url) setForm(fm => ({ ...fm, photo: url })); else setErreurPhoto("Envoi impossible : vérifiez la connexion (réservé à la fondatrice).");
+                  }}/>
+                </label>
+                {erreurPhoto && <div role="alert" style={{ fontSize:11, color:"#f87171" }}>{erreurPhoto}</div>}
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                 <label style={{ fontSize:10, color:FC.creamD }}>Allergènes (séparés par une virgule)</label>
