@@ -12,8 +12,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { THEMES, type Theme } from "./boutiquesThemes";
 import { Illustration } from "./illustrations";
 import { sbSelect } from "../events/eventsAtelierLib";
+import { useDonneesFood, OptionsFood, PanierFood, type LigneFood } from "./CommandeFood";
 
-export type Produit = { id: string; nom: string; categorie: string; prix: number | null; prixPromo?: number | null; description?: string | null; photo?: string | null; commandable: boolean; mention?: string | null; prixNote?: string | null; unite?: string | null; nouveau?: boolean };
+export type Produit = { commandableVue?: boolean; id: string; nom: string; categorie: string; prix: number | null; prixPromo?: number | null; description?: string | null; photo?: string | null; commandable: boolean; mention?: string | null; prixNote?: string | null; unite?: string | null; nouveau?: boolean };
 const euros = (n: number) => n.toFixed(2).replace(".", ",") + " €";
 
 export async function chargerProduits(code: string): Promise<Produit[]> {
@@ -24,13 +25,13 @@ export async function chargerProduits(code: string): Promise<Produit[]> {
   }
   if (code === "FOOD") {
     const r = await sbSelect<any>("v_catalogue_food_public", "select=id,nom,categorie_slug,description_courte,prix,prix_promotion,galerie_photos,commandable,mention&order=ordre.asc.nullslast&limit=300");
-    return r.map(x => ({ id: x.id, nom: x.nom, categorie: x.categorie_slug || "autre", prix: x.prix != null ? Number(x.prix) : null, prixPromo: x.prix_promotion, description: x.description_courte, photo: Array.isArray(x.galerie_photos) ? x.galerie_photos[0] : null, commandable: x.commandable !== false && x.prix > 0, mention: x.mention }));
+    return r.map(x => ({ id: x.id, nom: x.nom, categorie: x.categorie_slug || "autre", prix: x.prix != null ? Number(x.prix) : null, prixPromo: x.prix_promotion, description: x.description_courte, photo: Array.isArray(x.galerie_photos) ? x.galerie_photos[0] : null, commandableVue: x.commandable !== false, commandable: x.commandable !== false && x.prix > 0, mention: x.mention }));
   }
   const r = await sbSelect<any>("events_catalogue", "statut=eq.actif&visible_client=eq.true&select=id,nom,categorie,description,prix_unitaire,unite,prix_note&order=ordre.asc.nullslast&limit=300");
   return r.map(x => ({ id: x.id, nom: x.nom, categorie: x.categorie, prix: x.prix_unitaire != null ? Number(x.prix_unitaire) : null, description: x.description, prixNote: x.prix_note, unite: x.unite, commandable: true }));
 }
 
-export default function BoutiqueVitrine({ univers, produits: initiaux, theme: themeForce }: { univers: string; produits?: Produit[]; theme?: Theme }) {
+export default function BoutiqueVitrine({ univers, produits: initiaux, theme: themeForce, commandeReelle = false, onSuivi }: { univers: string; produits?: Produit[]; theme?: Theme; commandeReelle?: boolean; onSuivi?: () => void }) {
   const t = themeForce || THEMES[univers];
   const [produits, setProduits] = useState<Produit[]>(initiaux || []);
   const [charge, setCharge] = useState(!initiaux);
@@ -38,6 +39,13 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
   const [favs, setFavs] = useState<string[]>([]); const [voirFavs, setVoirFavs] = useState(false);
   const [panier, setPanier] = useState<Record<string, number>>({}); const [fiche, setFiche] = useState<Produit | null>(null); const [ouvrirPanier, setOuvrirPanier] = useState(false);
   const refGrille = useRef<HTMLDivElement>(null);
+  // Parcours de commande réel Bella'Food (prévisualisation) : tailles, base, allergènes, envoi serveur
+  const food = commandeReelle && univers === "FOOD";
+  const donneesFood = useDonneesFood(food ? produits : []);
+  const [lignesFood, setLignesFood] = useState<LigneFood[]>([]);
+  useEffect(() => { if (!food) return; setProduits(ps => ps.map(p => { const vs = (donneesFood.variantes[p.id] || []).filter(v => v.prix != null); const min = vs.length ? Math.min(...vs.map(v => Number(v.prix))) : null;
+    return { ...p, commandable: p.commandableVue !== false && ((p.prix ?? 0) > 0 || vs.length > 0), prixNote: p.prix == null && min != null ? `dès ${euros(min)}` : p.prixNote }; })); }, [food, donneesFood.variantes]);
+  const ajouterFood = (l: Omit<LigneFood, "qte">) => setLignesFood(ls => ls.some(x => x.cle === l.cle) ? ls.map(x => x.cle === l.cle ? { ...x, qte: Math.min(20, x.qte + 1) } : x) : [...ls, { ...l, qte: 1 }]);
   const cleFav = `bellaia_favoris_${univers}`;
   useEffect(() => { if (!initiaux) chargerProduits(univers).then(setProduits).catch(() => setProduits([])).finally(() => setCharge(false)); try { setFavs(JSON.parse(localStorage.getItem(cleFav) || "[]")); } catch {} }, [univers]);
   const basculerFav = (id: string) => setFavs(f => { const n = f.includes(id) ? f.filter(x => x !== id) : [...f, id]; try { localStorage.setItem(cleFav, JSON.stringify(n)); } catch {} return n; });
@@ -51,8 +59,8 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
     else l = [...l].sort((a, b) => Number(b.commandable) - Number(a.commandable));
     return l;
   }, [produits, cat, voirFavs, favs, q, tri]);
-  const nbPanier = Object.values(panier).reduce((s, n) => s + n, 0);
-  const total = Object.entries(panier).reduce((s, [id, n]) => { const p = produits.find(x => x.id === id); return s + (p?.prixPromo ?? p?.prix ?? 0) * n; }, 0);
+  const nbPanier = food ? lignesFood.reduce((s, l) => s + l.qte, 0) : Object.values(panier).reduce((s, n) => s + n, 0);
+  const total = food ? lignesFood.reduce((s, l) => s + l.prix * l.qte, 0) : Object.entries(panier).reduce((s, [id, n]) => { const p = produits.find(x => x.id === id); return s + (p?.prixPromo ?? p?.prix ?? 0) * n; }, 0);
   const sombre = t.code === "BSH";
   const aller = (f?: string) => { if (f && f !== "nouveautes" && categories.includes(f)) setCat(f); else if (f === "nouveautes") setTri("nouveautes"); else if (f) setQ(f); refGrille.current?.scrollIntoView({ behavior: "smooth" }); };
 
@@ -78,7 +86,7 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
         {t.code === "ODYSSEE" && <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: t.doux }}>{info(p.categorie).libelle}</div>}
         <div style={{ fontSize: t.code === "FOOD" ? 14.5 : 13, fontWeight: t.code === "FOOD" ? 800 : 600, color: t.texte, lineHeight: 1.25, height: 33, overflow: "hidden", fontFamily: t.code === "EVENTS" ? t.titres : t.corps }}>{p.nom}</div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, gap: 6 }}><Prix p={p} />
-          {t.code === "BSH" || t.code === "FOOD" ? <button onClick={e => { e.stopPropagation(); ajouter(p); }} disabled={!p.commandable} style={{ minWidth: 34, height: 34, borderRadius: 99, border: "none", background: p.commandable ? t.accent : t.ligne, color: t.code === "BSH" ? "#1a0a10" : "#fff", fontWeight: 900, fontSize: t.code === "FOOD" ? 13 : 20, padding: t.code === "FOOD" ? "0 12px" : 0, cursor: p.commandable ? "pointer" : "default" }}>{t.code === "FOOD" ? (p.commandable ? "＋" : "—") : "+"}</button> : null}
+          {t.code === "BSH" || t.code === "FOOD" ? <button onClick={e => { e.stopPropagation(); if (food) setFiche(p); else ajouter(p); }} disabled={!p.commandable} style={{ minWidth: 34, height: 34, borderRadius: 99, border: "none", background: p.commandable ? t.accent : t.ligne, color: t.code === "BSH" ? "#1a0a10" : "#fff", fontWeight: 900, fontSize: t.code === "FOOD" ? 13 : 20, padding: t.code === "FOOD" ? "0 12px" : 0, cursor: p.commandable ? "pointer" : "default" }}>{t.code === "FOOD" ? (p.commandable ? "＋" : "—") : "+"}</button> : null}
         </div>
         {!p.commandable && p.mention && <div style={{ fontSize: 10.5, color: t.doux, marginTop: 4, fontStyle: "italic", lineHeight: 1.3 }}>{p.mention}</div>}
       </div>
@@ -151,15 +159,17 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
         <div style={{ marginTop: 8 }}><Prix p={fiche} gros /></div>
         {fiche.description && <div style={{ fontSize: 14, color: t.doux, marginTop: 10, lineHeight: 1.5 }}>{fiche.description}</div>}
         {!fiche.commandable && fiche.mention && <div style={{ marginTop: 10, fontSize: 13, padding: 10, borderRadius: 10, background: t.ligne }}>{fiche.mention} — ce produit sera commandable dès que sa fiche sera complète.</div>}
-        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+        {food && <OptionsFood key={fiche.id} t={t} p={fiche} variantes={donneesFood.variantes[fiche.id] || []} allergenes={donneesFood.allergenes[fiche.id]} ajouter={l => { ajouterFood(l); setFiche(null); }} />}
+        {!food && <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
           <button onClick={() => basculerFav(fiche.id)} style={{ width: 52, height: 52, borderRadius: t.code === "ODYSSEE" ? 0 : 99, border: `1px solid ${t.ligne}`, background: "none", color: favs.includes(fiche.id) ? t.accent : t.texte, fontSize: 22 }}>{favs.includes(fiche.id) ? "♥" : "♡"}</button>
           <button disabled={!fiche.commandable} onClick={() => { ajouter(fiche); setFiche(null); }} style={{ flex: 1, height: 52, borderRadius: t.code === "ODYSSEE" ? 0 : 99, border: "none", background: fiche.commandable ? (sombre ? t.accent : t.code === "FOOD" ? t.accent : t.texte) : t.ligne, color: sombre ? "#1a0a10" : "#fff", fontWeight: 900, fontSize: 15, textTransform: t.code === "ODYSSEE" ? "uppercase" : "none", letterSpacing: t.code === "ODYSSEE" ? 1.5 : 0 }}>{fiche.prix == null && t.code === "EVENTS" ? "Ajouter à ma demande de devis" : t.ctaAjout === "+" ? "Ajouter au panier" : t.ctaAjout}</button>
-        </div>
+        </div>}
         {(() => { const reco = produits.filter(p => p.categorie === fiche.categorie && p.id !== fiche.id).slice(0, 8); return reco.length ? <><div style={{ fontFamily: t.titres, fontSize: 17, marginTop: 18 }}>Vous aimerez aussi</div><div style={{ display: "flex", gap: 10, overflowX: "auto", marginTop: 8 }}>{reco.map(p => <div key={p.id} onClick={() => setFiche(p)} style={{ width: 120, flex: "none", cursor: "pointer" }}><Visuel p={p} /><div style={{ fontSize: 12, marginTop: 4, height: 30, overflow: "hidden" }}>{p.nom}</div><Prix p={p} /></div>)}</div></> : null; })()}
       </Feuille>}
 
       {/* Panier */}
-      {ouvrirPanier && <Feuille t={t} fermer={() => setOuvrirPanier(false)}>
+      {ouvrirPanier && food && <Feuille t={t} fermer={() => setOuvrirPanier(false)}><PanierFood t={t} lignes={lignesFood} setLignes={setLignesFood} onSuivi={onSuivi} /></Feuille>}
+      {ouvrirPanier && !food && <Feuille t={t} fermer={() => setOuvrirPanier(false)}>
         <div style={{ fontFamily: t.titres, fontSize: 22, fontWeight: 600 }}>{t.code === "EVENTS" ? "Ma demande" : "Mon panier"}</div>
         {!nbPanier && <div style={{ color: t.doux, marginTop: 12 }}>Votre panier est vide.</div>}
         {Object.entries(panier).map(([id, n]) => { const p = produits.find(x => x.id === id); if (!p) return null; return <div key={id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${t.ligne}` }}>
