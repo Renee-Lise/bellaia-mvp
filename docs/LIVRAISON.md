@@ -1,4 +1,4 @@
-# Bellaïa — Tableau de livraison (mis à jour le 23/11/2026)
+# Bellaïa — Tableau de livraison (mis à jour le 23/11/2026, soir — sprint du 26/11)
 
 Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwright, profil iPhone 13 ; ce n'est **pas** un iPhone physique. **Déployé** = en production. Production actuelle : commit `0bfd765` (18/11) — **rien n'a été déployé depuis**.
 
@@ -22,6 +22,12 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 | Régularisation des recettes Food | Plan (`docs/food/REGULARISATION_RECETTES.md`) | — | — | — |
 | Demandes de devis (4 fournisseurs) | Rédigées (Drive privé) | — | Non envoyées | — |
 | Médiathèque : documents de candidature privés, journal de consultation | Côté base (0135) | Inclus dans les 65/65 | Non | Non |
+| Zones de sécurité iPhone (heure, encoche) et hauteur réelle : 17 portails client/hôte/partenaire + accueils premium client et assistante | Oui (branche) | Contrôle 12/12 sur 4 rôles (aucun débordement) ; la zone d'encoche n'est **pas reproductible** en simulateur | Non | Non |
+| Boutons « ‹ Portail » 44 px, onglets Mo Ti-Péyi lisibles | Oui (branche) | Mesuré 44 px (simulateur) | Non | Non |
+| Retour cohérent : historique du navigateur, geste natif de Safari, balayage depuis le bord gauche dans l'application installée ; retour vers l'accueil client | Oui (branche) | 16/16 (dont retour lecteur → histoires → portail) | Non | Non |
+| Lecteur de livres : pages au glissement (sens français), jamais pendant un zoom, marque-page, progression, illustration plein écran | Oui (branche) | 16/16 + 8/8 unitaires | Non | Non |
+| Carte « Mo Ti-Péyi » de l'accueil client qui n'ouvrait rien (défaut introduit puis corrigé le jour même, jamais en production) | Corrigé | 16/16 | — | — |
+| Jeux : inventaire | — | Seuls les jeux BSH existent (Secret Games, Duo, Salons) ; aucun jeu Mo Ti-Péyi, Odyssée ou jeunesse développé | — | — |
 
 ## Ce qui rendra Bellaïa réellement opérationnelle, dans l'ordre
 1. **Sauvegarde réelle** : vous lancez `supabase/sauvegarde/sauvegarde_complete.sh` (≈ 10 min) et déposez les fichiers indiqués dans le Drive privé ; je fais le contrôle de restauration et vous présente le résultat.
@@ -34,3 +40,12 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 - Messages : accessible pour vous ; avec un compte assistante : écran « en cours de sécurisation ».
 - BSH › Réglages › bas de page : bouton « Inventaire physique » visible et utilisable au-dessus de la barre de navigation.
 - Food : famille « Milkshakes » proposée dans les recettes.
+
+
+## Tests manuels sur votre iPhone (à faire après déploiement, ≈ 10 minutes)
+1. **Mo Ti-Péyi (cliente)** : l'en-tête « 🌿 Mo Ti-Péyi » ne touche plus l'heure ; « ‹ Portail » facile à toucher.
+2. **Retour** : ouvrir un univers puis faire le geste retour (Safari) ou, dans l'application installée, glisser depuis le bord gauche → retour à l'accueil, l'application reste ouverte.
+3. **Lecteur** : ouvrir une histoire publiée → glisser vers la gauche = page suivante ; vers la droite = précédente ; zoom à deux doigts sur une illustration → aucune page ne tourne ; 🔖 puis rouvrir → « Aller au marque-page ».
+4. **Assistante** : se connecter avec un compte assistante → portail assistante (pas l'espace fondatrice).
+5. **Secret Games** (adulte) : ouvrir, tirer une carte, quitter.
+6. **Actions requises** : le compteur affiche le nombre réel, pas 50.
