@@ -1,11 +1,13 @@
-// Bella'Food premium : parcours de commande complet sur iPhone, pour un profil (fondatrice | assistante | cliente).
+// Bella'Food premium : parcours de commande complet sur iPhone (par défaut) ou ordinateur, pour un profil (fondatrice | assistante | cliente).
+// Usage : node tests/iphone/t_food.js <profil> <dossier_sorties> [iphone|ordinateur]
 // Usage : node tests/iphone/t_food.js <profil> <dossier_sorties>   (mockapp.js + next dev -p 3160 lancés)
 const { chromium, devices } = require('playwright');
 const UID = { fondatrice: '00000000-0000-0000-0000-0000000000f0', assistante: '00000000-0000-0000-0000-0000000000e0', cliente: '00000000-0000-0000-0000-0000000000a0' };
 const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('base64url'); return `${b({ alg: 'HS256' })}.${b({ role: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 7200 })}.x`; };
 (async () => {
   const role = process.argv[2] || 'cliente', out = process.argv[3] || '.'; const R = []; const ok = (n, v) => R.push(`${n} : ${v ? 'OK' : 'ÉCHEC'}`);
-  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 13'] });
+  const appareil = process.argv[4] === 'ordinateur' ? { viewport: { width: 1366, height: 900 } } : { ...devices['iPhone 13'] };
+  const b = await chromium.launch(); const ctx = await b.newContext(appareil);
   await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id: UID[role], role }, jwt(UID[role])]);
   const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
   const avant = (await (await fetch('http://localhost:54337/rest/v1/__commandes_food')).json()).length;

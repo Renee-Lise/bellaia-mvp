@@ -1,10 +1,12 @@
 # Recette Bella'Food — parcours de commande premium sur iPhone réel
 
-**À exécuter par la fondatrice**, sur la prévisualisation (base réelle), avant toute ouverture aux clientes. Le catalogue premium reste **fermé aux clientes** : la page de test est réservée à la fondatrice.
+**À exécuter par la fondatrice**, avant toute ouverture aux clientes. Le catalogue premium reste **fermé aux clientes**.
 
-- Adresse : prévisualisation Vercel la plus récente, puis **Boutiques › Bella'Food › « Tester le parcours de commande »** (`/apercu/boutiques?u=FOOD&commande=1`).
+> ⛔ **Aucune commande d'essai dans la base de production** (décision du 23/11/2026). La prévisualisation Vercel actuelle écrit dans la base réelle : **elle ne doit pas servir à cette recette**. Environnement à utiliser : voir `METHODE_RECETTE_FOOD_ISOLEE.md` (base de recette séparée, à autoriser).
+
+- Adresse : prévisualisation **branchée sur la base de recette isolée**, puis **Boutiques › Bella'Food › « Tester le parcours de commande »** (`/apercu/boutiques?u=FOOD&commande=1`). Vérifier le bandeau « Base de recette » avant de commencer.
 - Appareil : iPhone réel, Safari, puis l'application ajoutée à l'écran d'accueil.
-- Nommer chaque commande d'essai **« TEST — à annuler »** et les annuler à la fin.
+- Les commandes d'essai n'existent que dans la base de recette ; elles sont effacées avec elle.
 - Noter pour chaque ligne : OK / KO, et une capture d'écran en cas de KO.
 
 ## A. Catalogue et options
@@ -48,10 +50,9 @@
 
 ## E. Après la recette
 
-- Annuler les commandes « TEST ».
-- Désactiver le code de réduction d'essai.
+- Supprimer la base de recette (aucune donnée réelle n'a été touchée).
 - Reporter le résultat dans **Accueil › Suivi des exigences › E6.11** (champ « Testée en prévisualisation »).
 
-Contrôles déjà automatisés sur base simulée (23/11) :
+Contrôles déjà automatisés sur base simulée (23/11, iPhone 13 simulé et ordinateur 1366×900 — pas d'iPhone physique) :
 - parcours fondatrice : 19 contrôles ;
 - assistante et cliente : contrôles d'accès, prix recalculés par le serveur, identité prise de la session, anti-doublon, quantités (0, 21, 1,5, « 2abc », négative, 31 lignes refusés ; 20 acceptés).
