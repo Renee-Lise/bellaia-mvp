@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administration générale — maquettes (chiffres illustratifs)</title>
+<style>
+:root{--fond:#10142b;--barre:#171c3a;--ligne:rgba(215,192,143,.2);--or:#d7c08f;--doux:rgba(248,243,234,.62);--texte:#f8f3ea;--rouge:#e0796b;--vert:#7cc49a;--serif:'Cormorant Garamond',Georgia,serif}
+body{margin:0;background:#5b5f73;font-family:-apple-system,system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:28px;padding:28px;align-items:flex-start;justify-content:center;color:var(--texte)}
+.tel{width:390px;height:844px;border-radius:48px;background:var(--fond);overflow:hidden;box-shadow:0 0 0 10px #111;display:flex;flex-direction:column}
+.ordi{width:1180px;height:720px;border-radius:12px;background:var(--fond);overflow:hidden;box-shadow:0 0 0 8px #222;display:flex}
+.statut{height:47px;flex:none}
+.tete{padding:6px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ligne)}
+h1{font-family:var(--serif);font-size:28px;margin:0;font-weight:600;flex:1}h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--or);margin:14px 16px 8px}
+.filtres{display:flex;gap:8px;padding:10px 16px;overflow:hidden}.filtres span{padding:6px 11px;border-radius:14px;border:1px solid var(--ligne);font-size:12px;color:var(--doux);white-space:nowrap}.filtres .on{background:var(--or);color:#10142b;font-weight:600}
+.grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.carte{background:var(--barre);border:1px solid var(--ligne);border-radius:14px;padding:12px}.carte b{font-size:26px;display:block}.carte small{color:var(--doux);font-size:12px}
+.alerte b{color:var(--rouge)}.ok b{color:var(--vert)}
+.liste{margin:0 16px;border:1px solid var(--ligne);border-radius:14px;overflow:hidden}
+.l{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--ligne);font-size:14px}.l:last-child{border:0}
+.pt{width:8px;height:8px;border-radius:4px;flex:none}.meta{margin-left:auto;font-size:12px;color:var(--doux);text-align:right}
+.av{width:40px;height:40px;border-radius:20px;display:grid;place-items:center;font-weight:700;color:#10142b;flex:none}
+.tag{font-size:10px;border:1px solid var(--ligne);border-radius:6px;padding:1px 5px;margin-right:4px;color:var(--or)}
+.nav{margin-top:auto;display:flex;justify-content:space-around;padding:10px 0 28px;border-top:1px solid var(--ligne);background:var(--barre);font-size:11px;color:var(--doux)}.nav .on{color:var(--or)}
+.menu{width:220px;background:var(--barre);border-right:1px solid var(--ligne);padding:18px 0;font-size:14px}.menu div{padding:9px 20px;color:var(--doux)}.menu .on{color:var(--or);background:rgba(215,192,143,.08);border-left:3px solid var(--or)}
+.princ{flex:1;padding:18px 22px;overflow:hidden}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.deux{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px}
+.kan{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.col{background:var(--barre);border-radius:12px;padding:8px;font-size:12px}.col h4{margin:0 0 6px;font-size:12px;color:var(--or)}.tk{background:var(--fond);border:1px solid var(--ligne);border-radius:8px;padding:7px;margin-bottom:6px}
+.fiche{background:var(--barre);border:1px solid var(--ligne);border-radius:14px;padding:14px;margin:0 16px}
+.ligne{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid var(--ligne)}.ligne:last-child{border:0}
+.verrou{color:var(--doux);font-style:italic}
+</style></head><body>
+
+<div class="tel" role="img" aria-label="iPhone : tableau de bord de l'Administration générale">
+ <div class="statut"></div>
+ <div class="tete"><h1>Administration</h1><span>🔔 3</span></div>
+ <div class="filtres"><span class="on">Tous les pôles</span><span>Food</span><span>Odyssée</span><span>Events</span><span>Cette semaine</span></div>
+ <div class="grille">
+  <div class="carte alerte"><b>4</b><small>Missions en retard</small></div>
+  <div class="carte"><b>6</b><small>À valider par vous</small></div>
+  <div class="carte"><b>9</b><small>Commandes à traiter</small></div>
+  <div class="carte alerte"><b>20</b><small>Alertes de stock</small></div>
+  <div class="carte ok"><b>5</b><small>Collaborateurs actifs</small></div>
+  <div class="carte"><b>2</b><small>Fournisseurs à relancer</small></div>
+ </div>
+ <h2>Urgent</h2>
+ <div class="liste">
+  <div class="l"><span class="pt" style="background:var(--rouge)"></span>Préparer les commandes Food de vendredi<span class="meta">Assistante A<br>aujourd'hui</span></div>
+  <div class="l"><span class="pt" style="background:var(--or)"></span>Valider le devis mariage (Events)<span class="meta">à valider</span></div>
+  <div class="l"><span class="pt" style="background:var(--or)"></span>Relancer fournisseur (délais)<span class="meta">BSH · confidentiel</span></div>
+  <div class="l"><span class="pt" style="background:var(--vert)"></span>🔒 Sécurité : 1 accès révoqué hier<span class="meta">journal</span></div>
+ </div>
+ <div class="nav"><span class="on">● Synthèse</span><span>Missions</span><span>Personnes</span><span>Fournisseurs</span><span>Plus</span></div>
+</div>
+
+<div class="tel" role="img" aria-label="iPhone : fiche unique d'une personne présente dans plusieurs pôles">
+ <div class="statut"></div>
+ <div class="tete"><span>‹</span><h1 style="font-size:24px">Personnes</h1><span>＋</span></div>
+ <div class="filtres"><span class="on">Toutes</span><span>Clients</span><span>Équipe</span><span>Hôtes</span><span>Fournisseurs</span></div>
+ <div class="liste" style="margin-bottom:12px">
+  <div class="l"><div class="av" style="background:#d7c08f">CM</div><div><b>Cliente M.</b><br><span class="tag">client Food</span><span class="tag">client Odyssée</span></div><span class="meta">1 fiche</span></div>
+  <div class="l"><div class="av" style="background:#9fb7d9">AA</div><div><b>Assistante A.</b><br><span class="tag">assistante Food</span><span class="tag">Events (lecture)</span></div><span class="meta">actif</span></div>
+  <div class="l"><div class="av" style="background:#a8d5b5">FP</div><div><b>Fournisseur P.</b><br><span class="tag">Food</span><span class="tag">BSH</span></div><span class="meta">partagé</span></div>
+ </div>
+ <div class="fiche">
+  <div style="font-family:var(--serif);font-size:22px">Cliente M.</div>
+  <div class="ligne"><span>Coordonnées</span><span>autorisées ›</span></div>
+  <div class="ligne"><span>Bella'Food</span><span>3 commandes ›</span></div>
+  <div class="ligne"><span>Bella'Odyssée</span><span>1 réservation ›</span></div>
+  <div class="ligne"><span>BSH</span><span class="verrou">🔒 accès restreint</span></div>
+  <div class="ligne"><span>Suivi</span><span>Assistante A ›</span></div>
+  <div class="ligne"><span>Préférences de contact</span><span>SMS, pas d'e-mail</span></div>
+ </div>
+ <div class="nav"><span>Synthèse</span><span>Missions</span><span class="on">● Personnes</span><span>Fournisseurs</span><span>Plus</span></div>
+</div>
+
+<div class="ordi" role="img" aria-label="Ordinateur : tableau de bord et missions en Kanban">
+ <div class="menu"><div style="font-family:var(--serif);font-size:20px;color:var(--texte);padding-bottom:16px">Administration</div>
+  <div class="on">Synthèse</div><div>Missions</div><div>Personnes et organisations</div><div>Clients (CRM)</div><div>Fournisseurs</div><div>Permissions</div><div>Journal de sécurité</div><div>Pôles</div></div>
+ <div class="princ">
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px"><h1 style="font-size:30px">Synthèse BellaStudio</h1><div class="filtres" style="padding:0"><span class="on">Tous les pôles</span><span>Personne</span><span>Période : 7 jours</span><span>Priorité</span></div></div>
+  <div class="g4">
+   <div class="carte alerte"><b>4</b><small>Missions en retard</small></div><div class="carte"><b>6</b><small>À valider</small></div>
+   <div class="carte"><b>9</b><small>Commandes et réservations à traiter</small></div><div class="carte alerte"><b>20</b><small>Alertes de stock</small></div>
+  </div>
+  <div class="deux">
+   <div><h2 style="margin-left:0">Missions</h2><div class="kan">
+    <div class="col"><h4>À faire</h4><div class="tk">Commandes Food vendredi<br><small>Assistante A · ⏰ ven.</small></div><div class="tk">Inventaire BSH (16)<br><small>Fondatrice</small></div></div>
+    <div class="col"><h4>En cours</h4><div class="tk">Fiches boissons (brouillon)<br><small>Food</small></div></div>
+    <div class="col"><h4>À valider</h4><div class="tk">Devis mariage<br><small>Events · 1 pièce jointe</small></div></div>
+    <div class="col"><h4>Terminée</h4><div class="tk">Masquage 30 ruptures<br><small>BSH</small></div></div>
+   </div></div>
+   <div><h2 style="margin-left:0">Activité récente</h2><div class="liste" style="margin:0">
+    <div class="l">Permission « missions.gerer:FOOD » accordée<span class="meta">journal</span></div>
+    <div class="l">Fournisseur partagé Food + BSH créé<span class="meta">annuaire</span></div>
+    <div class="l">Mission passée « à valider »<span class="meta">Events</span></div>
+    <div class="l">Accès révoqué (collaborateur désactivé)<span class="meta">sécurité</span></div>
+   </div></div>
+  </div>
+ </div>
+</div>
+</body></html>
