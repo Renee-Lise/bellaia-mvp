@@ -1,0 +1,30 @@
+— application
+migration appliquée
+— scénarios
+1 pages existantes avec texte → brouillon, page vide → à écrire | t
+2 aucun texte existant modifié | t
+3 version 1 pour toutes les pages | t
+4 ressources existantes « à identifier », version d'origine conservée | t
+5 la fondatrice modifie le texte d'une page | t
+6 l'ancien texte est archivé (version 1) et la page passe en version 2 | t
+7 l'auteur de l'archive est enregistré | t
+8 changer seulement l'ordre ne crée pas de version | t
+9 toujours version 2, une seule archive | t
+10 deuxième correction (créole) | t
+11 version 3, deux archives, restauration possible de la version 1 | t
+12 statut de page invalide refusé | t
+13 statut de tri invalide refusé | t
+14 fiche pédagogique créée par la fondatrice | t
+15 doublon de fiche refusé | t
+16 cycle 3 refusé | t
+17 assistante : création de fiche refusée | t
+18 assistante : historique des pages invisible | t
+19 assistante : ne peut pas écrire dans l'historique | t
+20 visiteur non connecté : fiches et historique refusés | t
+— relance (idempotence)
+relance sans erreur
+après relance : statuts et versions conservés : true
+— retour arrière
+tables et colonnes retirées, textes français intacts : true
+— réapplication après retour arrière
+réapplication sans erreur

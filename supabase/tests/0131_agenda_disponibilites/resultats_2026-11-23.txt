@@ -1,0 +1,26 @@
+— application
+migration appliquée
+— relance (idempotence)
+relance sans erreur
+— scénarios
+1 une personne enregistre sa disponibilité | t
+1b propriétaire = elle-même par défaut | t
+2 enregistrer pour une autre personne refusé | t
+3 B enregistre la sienne | t
+4 A ne voit que ses disponibilités | t
+5 A ne peut pas modifier celle de B (0 ligne touchée) | t
+6 A ne peut pas supprimer celle de B (0 ligne) | t
+7 la fondatrice voit tout | t
+8 la fondatrice peut corriger pour une autre personne | t
+9 jour 8 refusé | t
+10 fin avant début refusée | t
+11 créneau de 2 minutes refusé | t
+12 indisponibilité sur journée entière acceptée | t
+13 indisponibilité fin avant début refusée | t
+14 le motif privé de A est invisible pour B | t
+15 visiteur non connecté : lecture refusée | t
+16 visiteur non connecté : écriture refusée | t
+— retour arrière
+tables retirées : true
+— réapplication après retour arrière
+réapplication sans erreur

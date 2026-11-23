@@ -59,3 +59,15 @@ Du moins risqué au plus structurant. Chaque migration est indépendante des aut
 ## Après chaque application
 - Je refais les tests correspondants sur la base réelle (comptes de test temporaires, supprimés ensuite, aucune donnée réelle touchée) et je mets à jour « Actions requises ».
 - Une fonctionnalité ne passe au statut « opérationnel » qu'après ces tests.
+
+## Tests SQL (mise à jour du 23/11/2026)
+
+| Migration | Test local (base jetable) | Résultat |
+|---|---|---|
+| 0131 agenda | `supabase/tests/0131_agenda_disponibilites/` | 17/17 + relance + retour arrière + réapplication |
+| 0132 documents des hôtes | `supabase/tests/0132_hotes_documents/` | 11/11 (20/11) |
+| 0130 éditeur Ti-Colibri | `supabase/tests/0130_editions_pedagogiques/` | 20/20 + relance + retour arrière + réapplication |
+| 0129 Secret Stories | `supabase/tests/0129_secret_stories/` | scénarios présents (20/11) |
+
+Sauvegarde : je ne peux pas vérifier avec mes outils qu'une sauvegarde Supabase existe. Avant chaque application, faites une sauvegarde manuelle depuis le tableau de bord Supabase.
+
