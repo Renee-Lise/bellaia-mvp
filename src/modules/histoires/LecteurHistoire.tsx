@@ -67,7 +67,7 @@ export default function LecteurHistoire({ tome, modeInitial = "lire", onRetour, 
       <div ref={haut} />
       {apercu && <div style={{ background: "#7c2d12", color: "#ffedd5", fontSize: 13, padding: "8px 14px", borderRadius: "16px 16px 0 0", fontWeight: 700 }}>👁 Aperçu fondatrice — ce que verra une famille. Non publié tant que tu ne le publies pas.</div>}
       {/* En-tête */}
-      <div style={{ position: "sticky", top: 0, zIndex: 2, background: th.fond, borderBottom: `1px solid ${th.ligne}`, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ position: "sticky", top: "var(--bellaia-haut, env(safe-area-inset-top, 0px))", zIndex: 2, background: th.fond, borderBottom: `1px solid ${th.ligne}`, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button style={{ ...bouton(), padding: "8px 12px" }} onClick={onRetour} aria-label="Retour aux histoires">‹ Retour</button>
           <div style={{ flex: 1, minWidth: 0 }}>

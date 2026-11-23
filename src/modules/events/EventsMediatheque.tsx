@@ -313,7 +313,7 @@ export default function EventsMediatheque({ mode = "gerer", onChoisir }: { mode?
           )}
       {visibles.length > limite && <button style={btn()} onClick={() => setLimite(l => l + 120)}>Afficher plus ({visibles.length - limite} restants)</button>}
       {edition && (
-        <div onClick={() => setEdition(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+        <div onClick={() => setEdition(null)} style={{ position: "fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#16131c", border: `1px solid ${C.border}`, borderRadius: "16px 16px 0 0", padding: 16, width: "100%", maxWidth: 560, display: "flex", flexDirection: "column", gap: 8, maxHeight: "88vh", overflowY: "auto" }}>
             <img src={edition.url} alt="" style={{ maxHeight: 220, objectFit: "contain", background: "repeating-conic-gradient(#2a2630 0% 25%, #221f27 0% 50%) 50%/14px 14px", borderRadius: 10 }} />
             <div style={{ fontSize: 12, color: C.cream, wordBreak: "break-all" }}>{edition.nom_fichier}</div>

@@ -159,7 +159,7 @@ function Aide({ whatsapp, userId }: { whatsapp?: string; userId: string }) {
 export default function CompteClient({ page, user, onRetour, whatsapp }: { page: PageCompte; user: any; onRetour: () => void; whatsapp?: string }) {
   return (
     <div style={{ minHeight: "100dvh", background: T.fond, color: T.texte, fontFamily: SA }}>
-      <div style={{ position: "sticky", top: 0, zIndex: 20, background: T.fond, borderBottom: `1px solid ${T.ligne}`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ position: "sticky", top: "var(--bellaia-haut, env(safe-area-inset-top, 0px))", zIndex: 20, background: T.fond, borderBottom: `1px solid ${T.ligne}`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
         <button onClick={onRetour} style={{ ...bouton(false), border: "none", padding: "8px 10px" }} aria-label="Retour à l'accueil">‹ Accueil</button>
         <h1 style={{ fontFamily: SERIF, fontSize: 20, margin: 0, flex: 1, minWidth: 0 }}>{TITRES[page]}</h1>
       </div>

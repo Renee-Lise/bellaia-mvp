@@ -29,6 +29,8 @@ export default function BshNav() {
       style={{
         position: "sticky",
         top: 0,
+        // Zone de l'heure et de l'encoche (application installée sur iPhone) : la barre la recouvre au lieu de passer dessous
+        paddingTop: "env(safe-area-inset-top, 0px)",
         zIndex: 40,
         background: "rgba(10,6,14,0.92)",
         backdropFilter: "blur(6px)",

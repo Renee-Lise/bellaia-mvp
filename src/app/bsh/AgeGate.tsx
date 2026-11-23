@@ -44,7 +44,7 @@ export default function AgeGate({ children }: { children: React.ReactNode }) {
       {!verified && (
         <div
           style={{
-            position: "fixed",
+            position: "fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box",
             inset: 0,
             zIndex: 9999,
             display: "flex",

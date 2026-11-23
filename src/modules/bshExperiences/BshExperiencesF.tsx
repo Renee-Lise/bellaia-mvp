@@ -882,7 +882,7 @@ function Champ({ label, children }: { label: string; children: React.ReactNode }
 
 function Modal({ titre, onClose, children }: { titre: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 999, display: "flex", flexDirection: "column", overflowY: "auto", padding: 20 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 999, display: "flex", flexDirection: "column", overflowY: "auto", padding:"calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px)" }}>
       <div style={{ background: C.plumD, border: `1px solid ${C.line}`, borderRadius: 16, padding: 20, maxWidth: 480, margin: "auto", width: "100%" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.cream, fontFamily: FS }}>{titre}</div>

@@ -357,7 +357,7 @@ export default function FoodStocks() {
       {/* ── Modale ajout / modification ── */}
       {modal === "form" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", zIndex:1000,
-          display:"flex", flexDirection:"column", overflowY:"auto", padding:20 }}>
+          display:"flex", flexDirection:"column", overflowY:"auto", padding:"calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px)" }}>
           <div style={{ background:"#111827", border:`1px solid ${FC.line}`,
             borderRadius:16, padding:20, maxWidth:500, margin:"auto", width:"100%" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
@@ -408,7 +408,7 @@ export default function FoodStocks() {
       {/* ── Modale ajustement rapide ── */}
       {modal === "ajuster" && stockAjuste && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", zIndex:1000,
-          display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px)" }}>
           <div style={{ background:"#111827", border:`1px solid ${FC.line}`,
             borderRadius:16, padding:20, maxWidth:360, width:"100%" }}>
             <div style={{ fontSize:14, fontWeight:700, color:"#fff", marginBottom:4 }}>

@@ -101,7 +101,7 @@ export function Titre({ children, action }: { children: React.ReactNode; action?
 }
 export function Feuille({ titre, onFermer, children, large }: { titre: string; onFermer: () => void; children: React.ReactNode; large?: boolean }) {
   return (
-    <div onClick={onFermer} style={{ position: "fixed", inset: 0, background: "rgba(5,2,4,0.78)", zIndex: 1200, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(3px)" }}>
+    <div onClick={onFermer} style={{ position: "fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box", inset: 0, background: "rgba(5,2,4,0.78)", zIndex: 1200, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(3px)" }}>
       <div onClick={e => e.stopPropagation()} className="bsh-feuille" style={{ background: `linear-gradient(180deg,${K.prune},${K.fond})`, border: `1px solid ${K.ligne}`, borderRadius: "18px 18px 0 0", padding: 18, width: "100%", maxWidth: large ? 980 : 680, display: "flex", flexDirection: "column", gap: 12, maxHeight: "92vh", overflowY: "auto", fontFamily: SA, boxShadow: `0 -10px 40px ${K.bord}55` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ fontFamily: FS, fontSize: 20, fontWeight: 700, color: K.or, flex: 1 }}>{titre}</div>

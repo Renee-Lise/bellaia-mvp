@@ -334,7 +334,7 @@ ${c.modules?`<p><strong>Modules :</strong> ${c.modules}</p>`:""}
       {modal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000,
           display:"flex", alignItems:"flex-start", justifyContent:"center",
-          padding:16, overflowY:"auto" }}>
+          padding:"calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px)", overflowY:"auto" }}>
           <div style={{ background:"#0a0b14", border:`1px solid ${CE.line}`,
             borderRadius:16, padding:18, width:"100%", maxWidth:460, marginTop:8 }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>

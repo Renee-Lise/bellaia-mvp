@@ -208,7 +208,7 @@ export default function EventsPreparation() {
       ))}
 
       {form && (
-        <div onClick={() => setForm(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+        <div onClick={() => setForm(null)} style={{ position: "fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#16131c", border: `1px solid ${C.border}`, borderRadius: "16px 16px 0 0", padding: 16, width: "100%", maxWidth: 520, display: "flex", flexDirection: "column", gap: 8, maxHeight: "85vh", overflowY: "auto" }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: C.cream }}>{form.id ? "Modifier" : "Ajouter"} {form.type === "recette" ? "un gain" : "une dépense"}</div>
             <input style={champ} placeholder="Libellé (ex. Ballons or 30 cm)" value={form.libelle || ""} onChange={e => setForm({ ...form, libelle: e.target.value })} autoFocus />

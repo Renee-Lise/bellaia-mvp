@@ -460,7 +460,7 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
       {/* Modal Carte */}
       {modal==="carte" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000,
-          display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
           <div style={{ background:"#0b1505", border:`1px solid ${CM.line}`,
             borderRadius:16, padding:18, width:"100%", maxWidth:440 }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
@@ -517,7 +517,7 @@ h1{color:#22c55e;font-size:18px;border-bottom:2px solid #22c55e;padding-bottom:6
       {/* Modal Commande */}
       {modal==="commande" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000,
-          display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
           <div style={{ background:"#0b1505", border:`1px solid ${CM.line}`,
             borderRadius:16, padding:18, width:"100%", maxWidth:440 }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>

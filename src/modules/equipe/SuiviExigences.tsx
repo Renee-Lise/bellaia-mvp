@@ -150,7 +150,7 @@ export default function SuiviExigences({ onRetour }: { onRetour?: () => void }) 
             <button style={btn()} onClick={() => telecharger(r)}>⬇︎ Télécharger</button>
           </div>))
         : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", position: "sticky", top: 0, background: "#0b0709", padding: "6px 0", zIndex: 2 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", position: "sticky", top: "var(--bellaia-haut, env(safe-area-inset-top, 0px))", background: "#0b0709", padding: "6px 0", zIndex: 2 }}>
               <button style={btn()} onClick={() => setRapport(null)}>← Retour aux rapports</button>
               <button style={btn()} onClick={() => telecharger(rapports[rapport])}>⬇︎ Télécharger</button>
             </div>

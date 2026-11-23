@@ -363,7 +363,7 @@ export default function BellaiaStocks() {
       {/* Modal ajout / édition */}
       {modal === "form" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000,
-          display:"flex", flexDirection:"column", overflowY:"auto", padding:20 }}>
+          display:"flex", flexDirection:"column", overflowY:"auto", padding:"calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px)" }}>
           <div style={{ background:"#0d1117", border:`1px solid ${FC.line}`,
             borderRadius:16, padding:20, maxWidth:520, margin:"auto", width:"100%" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
@@ -409,7 +409,7 @@ export default function BellaiaStocks() {
       {/* Modal ajustement */}
       {modal === "ajuster" && stockAjuste && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000,
-          display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px)" }}>
           <div style={{ background:"#0d1117", border:`1px solid ${FC.line}`,
             borderRadius:16, padding:20, maxWidth:360, width:"100%" }}>
             <div style={{ fontSize:13, fontWeight:700, color:"#fff", marginBottom:3 }}>

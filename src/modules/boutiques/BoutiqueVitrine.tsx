@@ -96,7 +96,7 @@ export default function BoutiqueVitrine({ univers, produits: initiaux, theme: th
   return (
     <div style={{ background: t.fond, color: t.texte, fontFamily: t.corps, minHeight: "100vh", paddingBottom: nbPanier ? 92 : 30 }}>
       {/* En-tête */}
-      <div style={{ position: "sticky", top: 0, zIndex: 20, background: sombre ? "rgba(11,7,9,0.94)" : t.code === "FOOD" ? t.accent : "rgba(255,255,255,0.96)", backdropFilter: "blur(10px)", padding: "10px 14px", borderBottom: `1px solid ${t.ligne}` }}>
+      <div style={{ position: "sticky", top: "var(--bellaia-haut, env(safe-area-inset-top, 0px))", zIndex: 20, background: sombre ? "rgba(11,7,9,0.94)" : t.code === "FOOD" ? t.accent : "rgba(255,255,255,0.96)", backdropFilter: "blur(10px)", padding: "10px 14px", borderBottom: `1px solid ${t.ligne}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src={t.logo} alt="" style={{ width: 36, height: 36, borderRadius: t.code === "ODYSSEE" ? 0 : 99, objectFit: "cover", border: `1px solid ${t.ligne}` }} />
           <div style={{ flex: 1 }}>

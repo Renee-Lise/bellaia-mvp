@@ -803,7 +803,7 @@ const Toast = ({type="success", message, onClose}: any) => {
 // ── Mdl — Modale universelle (bottom sheet mobile) ───────────
 function Mdl({title, onClose, children, wide=false}: any) {
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(6,4,12,0.88)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(4px)"}}
+    <div style={{position:"fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box",inset:0,background:"rgba(6,4,12,0.88)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(4px)"}}
       onClick={onClose}>
       <div onClick={e=>e.stopPropagation()}
         style={{background:B.deep,borderRadius:"22px 22px 0 0",border:"1px solid "+B.border,
@@ -2944,7 +2944,7 @@ function ClientMoTiPeyi({ user, onBack }: any) {
 
         {/* Modal commande */}
         {modal==="commande" && (
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px)",boxSizing:"border-box"}}>
             <div style={{background:"#0b1f0d",border:"1px solid rgba(34,197,94,0.2)",borderRadius:16,padding:18,width:"100%",maxWidth:400}}>
               <div style={{fontFamily:FS,fontSize:14,color:"#4ade80",marginBottom:14}}>{form.produit}</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -3051,7 +3051,7 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }: any) {
   };
 
   if (paySucces) return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:24,flexDirection:"column",textAlign:"center"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px)",flexDirection:"column",textAlign:"center"}}>
       <div style={{fontSize:56,marginBottom:12}}>🎉</div>
       <div style={{fontFamily:FS,fontSize:20,color:"#fff",marginBottom:8}}>Paiement enregistré !</div>
       <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginBottom:4}}>Réf : <strong style={{color:"#c9a96e"}}>{paySucces}</strong></div>
@@ -3061,7 +3061,7 @@ function EcranPaiement({ paiement, onBack, bu="EVENTS", onSucces }: any) {
   );
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+    <div style={{position:"fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box",inset:0,background:"rgba(0,0,0,0.92)",zIndex:2000,display:"flex",flexDirection:"column",overflowY:"auto"}}>
       <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.5)"}}>
         <div style={{fontFamily:FS,fontSize:14,color:"#c9a96e"}}>💳 Finaliser le paiement</div>
         <button onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:10,fontFamily:SA}}>✕ Fermer</button>
@@ -3556,7 +3556,7 @@ function ClientFood({ user, onBack }: any) {
 
       {/* ── MODAL COMMANDE ── */}
       {modal==="commande" && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px)",overflowY:"auto"}}>
           <div style={{background:"#0d1a0d",border:"1px solid rgba(21,128,61,0.2)",borderRadius:16,padding:18,width:"100%",maxWidth:440,marginTop:8}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
               <div style={{fontFamily:FS,fontSize:14,color:"#4ade80"}}>Confirmer la commande</div>
@@ -4546,7 +4546,7 @@ function FicheClientF({ client, onClose }: any) {
   const nomComplet = (client.prenom||"")+" "+(client.nom||"").trim() || client.email || "—";
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",flexDirection:"column"}}>
       {/* Header */}
       <div style={{background:B.deep,borderBottom:"1px solid "+(B.border),padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
         <div>
@@ -10791,7 +10791,7 @@ function EventsProgrammeF({ user }: any) {
 
   if (vue === "compositeur") return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:5,background:B.night,padding:"6px 0"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",zIndex:5,background:B.night,padding:"6px 0"}}>
         <div style={{fontSize:13,fontWeight:800,color:B.cream}}>{editingId?"Modifier le programme":"Nouveau programme"}</div>
         <Btn sm v="ghost" onClick={()=>{setVue("liste");setEditingId(null);}}>‹ Retour</Btn>
       </div>
@@ -10954,7 +10954,7 @@ function EventsProgrammeF({ user }: any) {
     const lignesP = typeof detailProg.lignes === "string" ? JSON.parse(detailProg.lignes) : (detailProg.lignes||[]);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",justifyContent:"space-between",position:"sticky",top:0,zIndex:5,background:B.night,padding:"6px 0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",position:"sticky",top:"var(--bellaia-haut, env(safe-area-inset-top, 0px))",zIndex:5,background:B.night,padding:"6px 0"}}>
           <div style={{fontSize:13,fontWeight:800,color:B.cream}}>{detailProg.reference}</div>
           <Btn sm v="ghost" onClick={()=>setDetailProg(null)}>‹ Retour</Btn>
         </div>
@@ -14357,7 +14357,7 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }: any) {
 
       {/* Modal confirmation aperçu */}
       {contextActif && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+        <div style={{position:"fixed", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)", boxSizing:"border-box",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
           <div style={{background:"#13111a",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"20px 16px 32px"}}>
             <div style={{textAlign:"center",marginBottom:16}}>
               <div style={{fontSize:36,marginBottom:8}}>{contextActif.ico}</div>
