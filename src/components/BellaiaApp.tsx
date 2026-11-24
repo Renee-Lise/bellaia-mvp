@@ -3862,6 +3862,23 @@ async function getTokenAsync() {
 // security policy" malgré une session active.
 if (typeof window !== "undefined") (window as any).getTokenAsync = getTokenAsync;
 
+/** Relit le rôle, le prénom et le nom du profil en base. Renvoie le nouvel utilisateur s'il a changé
+ *  (rôle modifié par la fondatrice depuis la dernière connexion), sinon null. N'élève jamais un droit :
+ *  les données restent protégées par la base (RLS) quel que soit le rôle affiché. */
+async function actualiserProfilServeur(u: any): Promise<any | null> {
+  try {
+    if (!u?.id) return null;
+    const tok = await getTokenAsync(); if (!tok || tok === SB_KEY) return null;
+    const r = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(u.id)}&select=role,prenom,nom`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${tok}` }, cache: "no-store" });
+    if (!r.ok) return null;
+    const p = (await r.json())?.[0]; if (!p?.role) return null;
+    if (p.role === u.role && (p.prenom ?? u.prenom) === u.prenom && (p.nom ?? u.nom) === u.nom) return null;
+    const n = { ...u, role: p.role, prenom: p.prenom ?? u.prenom, nom: p.nom ?? u.nom };
+    localStorage.setItem("bellaia_user", JSON.stringify(n));
+    return n;
+  } catch { return null; }
+}
+
 // Compatibilité synchrone (pour les rares cas qui ne peuvent pas await)
 function getToken() {
   if (typeof window === "undefined") return SB_KEY;
@@ -7843,16 +7860,35 @@ const OUTILS_ASSISTANTE_VERS_VUE: Record<string,string> = {
 const ESPACE_PAR_ROLE: Record<string, string> = { assistante: "assistante", collaborateur: "assistante", qualite: "assistante", hote: "hote", prestataire: "hote", partenaire: "partenaire" };
 const LIB_ESPACE: Record<string, string> = { client: "Ma maison Bellaïa (cliente)", assistante: "Assistante / collaboratrice", hote: "Hôte / prestataire", partenaire: "Partenaire" };
 const LIB_STATUT: Record<string, string> = { actif: "actif", invite: "invitation en attente", suspendu: "suspendu", candidature: "candidature en cours" };
-type EspaceDispo = { cle: string; statut: "actif" | "invite" | "suspendu" | "candidature" };
-export function calculerEspaces(roleProfil: string | undefined, roles: { role: string; statut: string }[], hotes: { statut: string }[], candidatures: { type: string; statut: string }[] = []): EspaceDispo[] {
+type EspaceDispo = { cle: string; statut: "actif" | "invite" | "suspendu" | "candidature"; libelle?: string };
+type RoleEspace = { role: string; statut: string; organisation_id?: string | null; bellaia_organisations?: { nom_commercial?: string } | null };
+const LIB_FONCTION: Record<string, string> = { assistante: "assistante", collaborateur: "collaboratrice", hote: "hôtesse", prestataire: "prestataire", fournisseur: "fournisseur", qualite: "qualité", autre: "autre" };
+/** Espaces réellement attribués. Une fonction rattachée à une organisation partenaire (ex. Vil'Dor Pâtisse) ouvre
+ *  l'espace de CETTE organisation (« org:<id> ») et non les espaces assistante ou hôte de Bella'Studio : un
+ *  rattachement à un pôle n'ouvre pas les autres. */
+export function calculerEspaces(roleProfil: string | undefined, roles: RoleEspace[], hotes: { statut: string }[], candidatures: { type: string; statut: string }[] = []): EspaceDispo[] {
   const rang = { actif: 3, invite: 2, suspendu: 1, candidature: 0 } as const;
   const m = new Map<string, EspaceDispo["statut"]>([["client", "actif"]]);
+  const libelles = new Map<string, string>();
+  const fonctionsOrg = new Map<string, string[]>();
   const poser = (cle: string | undefined, st: EspaceDispo["statut"]) => { if (!cle) return; const a = m.get(cle); if (!a || rang[st] > rang[a]) m.set(cle, st); };
-  poser(ESPACE_PAR_ROLE[roleProfil || ""], "actif");
-  for (const r of roles) { const st = r.statut === "actif" ? "actif" : r.statut === "invite" ? "invite" : r.statut === "suspendu" ? "suspendu" : null; if (st) poser(ESPACE_PAR_ROLE[r.role], st); }
+  const aOrg = roles.some(r => r.organisation_id && r.statut !== "revoque");
+  if (!(roleProfil === "partenaire" && aOrg)) poser(ESPACE_PAR_ROLE[roleProfil || ""], "actif");
+  for (const r of roles) {
+    const st = r.statut === "actif" ? "actif" : r.statut === "invite" ? "invite" : r.statut === "suspendu" ? "suspendu" : null;
+    if (!st) continue;
+    if (r.organisation_id) {
+      const cle = "org:" + r.organisation_id; poser(cle, st);
+      libelles.set(cle, r.bellaia_organisations?.nom_commercial || "Organisation partenaire");
+      if (st === "actif") fonctionsOrg.set(cle, [...(fonctionsOrg.get(cle) || []), LIB_FONCTION[r.role] || r.role]);
+    } else poser(ESPACE_PAR_ROLE[r.role], st);
+  }
   for (const h of hotes) poser("hote", h.statut === "active" ? "actif" : "suspendu");
   for (const c of candidatures) if (!["accepte", "refuse", "archive"].includes(c.statut)) { const cle = c.type === "assistant" ? "assistante" : c.type === "hote" ? "hote" : null; if (cle && !m.has(cle)) m.set(cle, "candidature"); }
-  return [...m.entries()].map(([cle, statut]) => ({ cle, statut }));
+  return [...m.entries()].map(([cle, statut]) => {
+    const f = fonctionsOrg.get(cle);
+    return libelles.has(cle) ? { cle, statut, libelle: `${libelles.get(cle)}${f?.length ? " — " + [...new Set(f)].join(" · ") : ""}` } : { cle, statut };
+  });
 }
 function MaisonMultiEspaces({ user, rendreClient, rendreEspace }: { user: any; rendreClient: () => React.ReactNode; rendreEspace: (cle: string, retour: () => void) => React.ReactNode }) {
   const [espaces, setEspaces] = React.useState<EspaceDispo[]>(() => calculerEspaces(user?.role, [], []));
@@ -7860,7 +7896,7 @@ function MaisonMultiEspaces({ user, rendreClient, rendreEspace }: { user: any; r
   const [ouvert, setOuvert] = React.useState(false);
   React.useEffect(() => { (async () => {
     const g = (t: string, q: string) => sbSelect<any>(t, q).catch(() => []);
-    const [roles, hotes, cands] = await Promise.all([g("bellaia_roles", `user_id=eq.${user?.id}&select=role,statut`), g("bsh_hotes", `profile_id=eq.${user?.id}&select=statut`), g("bellaia_candidatures", `profile_id=eq.${user?.id}&select=type,statut`)]);
+    const [roles, hotes, cands] = await Promise.all([g("bellaia_roles", `user_id=eq.${user?.id}&select=role,statut,organisation_id,bellaia_organisations(nom_commercial)`), g("bsh_hotes", `profile_id=eq.${user?.id}&select=statut`), g("bellaia_candidatures", `profile_id=eq.${user?.id}&select=type,statut`)]);
     setEspaces(calculerEspaces(user?.role, roles, hotes, cands));
   })(); }, [user?.id, user?.role]);
   const choisir = (cle: string) => { setActif(cle); setOuvert(false); try { localStorage.setItem("bellaia_espace_" + user?.id, cle); } catch {} window.scrollTo(0, 0); };
@@ -7871,13 +7907,13 @@ function MaisonMultiEspaces({ user, rendreClient, rendreEspace }: { user: any; r
     <button onClick={() => setOuvert(v => !v)} aria-expanded={ouvert} aria-label="Mes espaces" style={{position:"fixed",top:"calc(env(safe-area-inset-top, 0px) + 10px)",right:12,zIndex:900,minHeight:40,padding:"8px 14px",borderRadius:20,border:"1px solid rgba(184,153,90,0.6)",background:"rgba(28,34,70,0.92)",color:"#f4e7c8",fontSize:13,fontWeight:700,fontFamily:"-apple-system,system-ui,sans-serif"}}>Mes espaces ▾</button>
     {ouvert && <div role="menu" style={{position:"fixed",top:"calc(env(safe-area-inset-top, 0px) + 56px)",right:12,left:12,maxWidth:360,marginLeft:"auto",zIndex:901,background:"#fff",borderRadius:16,boxShadow:"0 12px 40px rgba(0,0,0,0.25)",padding:8,fontFamily:"-apple-system,system-ui,sans-serif",color:"#1c2246"}}>
       {espaces.map(e => { const ok = e.statut === "actif"; return <button key={e.cle} role="menuitem" disabled={!ok} onClick={() => ok && choisir(e.cle)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",minHeight:48,padding:"10px 12px",border:"none",borderRadius:12,background:courant===e.cle?"#f4ecdc":"transparent",color:ok?"#1c2246":"rgba(28,34,70,0.45)",fontSize:15,textAlign:"left"}}>
-        <span>{LIB_ESPACE[e.cle] || e.cle}</span><span style={{fontSize:12,color:e.statut==="suspendu"?"#b4523f":"rgba(28,34,70,0.55)"}}>{courant===e.cle?"✓ ":""}{LIB_STATUT[e.statut]}</span></button>; })}
+        <span>{e.libelle || LIB_ESPACE[e.cle] || e.cle}</span><span style={{fontSize:12,color:e.statut==="suspendu"?"#b4523f":"rgba(28,34,70,0.55)"}}>{courant===e.cle?"✓ ":""}{LIB_STATUT[e.statut]}</span></button>; })}
     </div>}
   </>;
   if (courant !== "client") return <>
     <div style={{position:"sticky",top:0,zIndex:800,background:"#1c2246",padding:"calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px",display:"flex",alignItems:"center",gap:8}}>
       <button onClick={() => choisir("client")} style={{minHeight:40,padding:"6px 12px",borderRadius:20,border:"1px solid rgba(244,231,200,0.4)",background:"transparent",color:"#f4e7c8",fontSize:13.5,fontWeight:700}}>‹ Ma maison Bellaïa</button>
-      <span style={{color:"rgba(244,231,200,0.75)",fontSize:12.5}}>{LIB_ESPACE[courant]}</span>
+      <span style={{color:"rgba(244,231,200,0.75)",fontSize:12.5}}>{espaces.find(e => e.cle === courant)?.libelle || LIB_ESPACE[courant]}</span>
     </div>
     <div style={{...({"--bellaia-haut":"0px"} as React.CSSProperties)}}>{rendreEspace(courant, () => choisir("client"))}</div>
     {selecteur}
@@ -14935,7 +14971,7 @@ export default function BellaiaApp() {
     if (typeof window !== "undefined") {
       try {
         const s = localStorage.getItem("bellaia_user");
-        if (s) setUser(JSON.parse(s));
+        if (s) { const u = JSON.parse(s); setUser(u); actualiserProfilServeur(u).then(n => { if (n) setUser(n); }); }
         // PWA : lien direct espace client (?espace=client)
         const params = new URLSearchParams(window.location.search);
         if (params.get("espace") === "client") {
@@ -14944,6 +14980,14 @@ export default function BellaiaApp() {
       } catch {}
     }
     setHydrated(true);
+  }, []);
+
+  // Le rôle et les espaces se lisent en base, pas seulement sur l'appareil : une fonction accordée (ou retirée)
+  // par la fondatrice s'applique à la prochaine ouverture ou au retour dans l'application, sans déconnexion.
+  useEffect(() => {
+    const surRetour = () => { if (document.visibilityState !== "visible") return; try { const s = localStorage.getItem("bellaia_user"); if (s) actualiserProfilServeur(JSON.parse(s)).then(n => { if (n) setUser(n); }); } catch {} };
+    document.addEventListener("visibilitychange", surRetour);
+    return () => document.removeEventListener("visibilitychange", surRetour);
   }, []);
 
   const deconnexion = async () => {
@@ -15032,7 +15076,7 @@ export default function BellaiaApp() {
       : <PortailClient user={user} produits={bshProd} evenements={bshEvts} onLogout={deconnexion} onNewCommande={()=>{setTimeout(rechargerBshCmds,1500);}}/>;
     const espacePro = (cle: string, retour: () => void) => {
       if (cle === "assistante") return <EspaceAssistanteApp user={user} onLogout={deconnexion}/>;
-      if (cle === "partenaire") return <EspacePartenaireUnifie user={user} onLogout={deconnexion}/>;
+      if (cle === "partenaire" || cle.startsWith("org:")) return <EspacePartenaireUnifie user={user} onLogout={deconnexion}/>;
       const univHote = user?.univers || user?.module || "";
       if (univHote === "odyssee" || univHote === "bo" || user?.pole === "ODYSSEE") return <HoteOdyssee user={user} onBack={retour}/>;
       if (univHote === "bsh" || user?.pole === "BSH") return <HoteBSH user={user} onBack={retour}/>;
