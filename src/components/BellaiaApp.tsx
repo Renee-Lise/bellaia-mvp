@@ -6469,8 +6469,12 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
   const avancerStatutCom = async (c) => {
     const suivant = COM_STATUT_SUIVANT[c.statut];
     if (!suivant) return;
-    const extra = suivant==="publie" ? { publiee_le:new Date().toISOString() } : {};
-    const res = await sbPatch("bsh_communications", c.id, { statut:suivant, ...extra });
+    // Une publication n'est « publiée » qu'avec une preuve : confirmation dans Secret Agenda › Publications.
+    if (suivant === "publie") { alert("Pour déclarer cette publication envoyée, ouvre Secret Agenda › Publications › « Confirmer la publication » : une preuve est demandée (lien, capture, confirmation de l'hôte)."); return; }
+    // Validation datée (0141 : la programmation exige une validation enregistrée) ; repli sans la colonne avant 0141.
+    const extra = suivant==="valide" ? { valide_le:new Date().toISOString() } : {};
+    let res = await sbPatch("bsh_communications", c.id, { statut:suivant, ...extra });
+    if (!res.ok && suivant==="valide" && /valide_le|schema cache|PGRST204/i.test(String(res.error||""))) res = await sbPatch("bsh_communications", c.id, { statut:suivant });
     if (!res.ok) { alert("Erreur : "+(res.error||"inconnue")); return; }
     setComs(cs => cs.map(x => x.id===c.id ? {...x,statut:suivant,...extra} : x));
   };
@@ -9045,7 +9049,9 @@ function HoteBSH({ user, onBack }: any) {
         const [rMissions, rDocs, rAnnonces] = await Promise.all([
           fiche0 ? fetch(SB_URL+"/rest/v1/bsh_missions?hote_id=eq."+fiche0.id+"&order=date_mission.asc", { headers }) : null,
           fetch(SB_URL+"/rest/v1/bellaia_documents?module=eq.BSH&order=created_at.desc&limit=50", { headers }),
-          fetch(SB_URL+"/rest/v1/bsh_communications?statut=eq.publie&cible=in.(tous,hotesses)&order=publiee_le.desc&limit=20", { headers }),
+          // Annonces lues par une fonction dédiée ; repli sur la table si elle n'existe pas encore
+          fetch(SB_URL+"/rest/v1/rpc/bsh_annonces", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ p_cible:"hotesses", p_limite:20 }) })
+            .then(r => r.ok ? r : fetch(SB_URL+"/rest/v1/bsh_communications?statut=eq.publie&cible=in.(tous,hotesses)&select=id,titre,contenu,type,cible,espace,visuel_url,lien_externe,publiee_le&order=publiee_le.desc&limit=20", { headers })),
         ]);
         const dMissions = rMissions && rMissions.ok ? await rMissions.json() : [];
         const dDocs = rDocs.ok ? await rDocs.json() : [];
