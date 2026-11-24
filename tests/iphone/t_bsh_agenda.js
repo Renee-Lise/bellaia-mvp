@@ -241,10 +241,10 @@ const onglet = async (p, nom) => { await p.getByRole('tab', { name: nom }).click
   E = await etat();
   ok('53 Diamond B : paroles enregistrées et titre lié au jeu Secret Games', E.bsh_musique[0].paroles === 'Paroles originales de test' && E.bsh_musique_liens.some(l => l.cible_type === 'jeu' && l.cible_id === 'j1'));
   await rubrique(r, 'Studio créatif'); t = await texte(r);
-  ok('54 studio : fiche du personnage officiel (description, aucun visuel validé)', /Femme adulte noire, glamour/.test(t) && /Aucun visuel officiel déposé/.test(t));
-  const [fc] = await Promise.all([r.waitForEvent('filechooser'), r.locator('label', { hasText: 'Importer le visuel officiel' }).click()]);
+  ok('54 studio : fiche du personnage officiel (description, aucun visuel validé)', /Femme adulte noire, glamour/.test(t) && /Aucune référence principale validée/.test(t));
   const png1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
-  await fc.setFiles({ name: 'personnage.png', mimeType: 'image/png', buffer: png1 }); await attendre(1800);
+  // import multiple (24/11) : champ de fichier natif du bouton « Importer les visuels »
+  await r.locator('[data-testid=importer-personnage] input[type=file]').setInputFiles({ name: 'personnage.png', mimeType: 'image/png', buffer: png1 }); await attendre(1800);
   E = await etat(); const pers = E.bsh_ressources.find(x => x.type === 'personnage_reference');
   ok('55 visuel officiel déposé : « à valider », droits à vérifier (non utilisé tant que non validé)', pers && pers.statut_validation === 'a_valider' && pers.droits === 'a_verifier');
   await r.getByRole('button', { name: /Nouvelle création/ }).click(); await attendre(400); fr = r.locator('.bsh-feuille').last();
