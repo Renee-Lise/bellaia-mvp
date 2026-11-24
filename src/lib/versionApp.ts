@@ -111,3 +111,10 @@ export function mettreAJour() {
   journaliser("mise_a_jour_acceptee");
   try { window.location.reload(); } catch {}
 }
+
+// ── Onglet mémorisé (tous univers) : restauré après une mise à jour, une actualisation ou une réouverture ──
+import { useState as useStateReact } from "react";
+export function useOngletMemorise<T extends string>(portee: string, defaut: T): [T, (v: T) => void] {
+  const [v, setV] = useStateReact<T>(() => (ecranMemorise("onglet:" + portee) as T) || defaut);
+  return [v, (x: T) => { setV(x); memoriserEcran("onglet:" + portee, x); memoriserEcran("dernier", `${portee}/${x}`); }];
+}

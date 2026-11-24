@@ -7,7 +7,7 @@ import { EVT_VERSION, VERSION_APP, VERSION_DATE, journal, journaliser, mettreAJo
 export const EVT_DIAGNOSTIC = "bellaia-ouvrir-diagnostic";
 const INTERVALLE_MS = 10 * 60e3;
 
-const NOMS_MODULES: Record<string, string> = { bshAgenda: "BSH Secret Agenda" };
+const NOMS_MODULES: Record<string, string> = { bshAgenda: "BSH Secret Agenda", FoodF: "Bella'Food", OdysseeF: "Bella'Odyssée", ViloF: "Vilo'Assistance", EditionsF: "Bella'Éditions", motipy: "Mo Ti-Péyi", EventsAtelierPapeterie: "Atelier papeterie", EventsMediatheque: "Médiathèque", EventsPreparation: "Préparation & budget", CentreHotesBSH: "Centre des hôtes", PortailFondatrice: "Centre de direction", PortailClient: "Espace client", PortailAssistante: "Espace assistante", AdministratifF: "Administration", ComptaF: "Comptabilité", MessagingCenter: "Messagerie", DocumentCenter: "Documents", CalendrierPremium: "Agenda", EspacePro: "Espace professionnel" };
 
 export default function AlerteVersion() {
   const [alerte, setAlerte] = useState<DetailVersion | null>(null);

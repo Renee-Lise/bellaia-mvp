@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useState } from "react";
 import { FOOD_COLORS as FC } from "./foodConsts";
+import { useOngletMemorise } from "@/lib/versionApp";
 import { getAlerteStock } from "./foodUtils";
 import { getStockGlobalFood, getConsommablesFood } from "./foodApi";
 // Parties I & II
@@ -107,7 +108,7 @@ const NAV = [
 const ALL_SECTIONS = NAV.flatMap(g => g.items);
 
 export default function FoodF({ user }: { user?: any }) {
-  const [section, setSection] = useState<Section>("dashboard");
+  const [section, setSection] = useOngletMemorise<Section>("food", "dashboard");
   const [nbAlertes, setNbAlertes] = useState(0);
 
   useEffect(() => {

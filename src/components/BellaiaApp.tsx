@@ -9,7 +9,7 @@ import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic
 import { getMenuJourPublicAujourdhui, getOffrePublique, appliquerOffre } from "@/modules/food/menuJourApi";
 import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
 import { useRetourNavigateur, installerBalayageRetour } from "@/lib/navigationRetour";
-import { signalerEchecModule, memoriserEcran, ecranMemorise, journaliser, VERSION_APP } from "@/lib/versionApp";
+import { signalerEchecModule, memoriserEcran, ecranMemorise, journaliser, VERSION_APP, useOngletMemorise } from "@/lib/versionApp";
 import { sbSelect } from "@/modules/events/eventsAtelierLib";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
@@ -2807,7 +2807,7 @@ function ClientEditions({ user, onBack }: any) {
 // Histoires du soir (espace familles) — module chargé à la demande
 function HistoiresClientLazy() {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/histoires/HistoiresClient").then(m => setComp(() => m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/histoires/HistoiresClient").then(m => setComp(() => m.default)).catch(e => rechargerSiVersionObsolete(e, "HistoiresClient")); }, []);
   return Comp ? <Comp/> : <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:30,fontSize:12}}>Chargement…</div>;
 }
 
@@ -4835,7 +4835,7 @@ function ActivitesCrmF() {
 }
 
 function CrmF({ user }: any) {
-  const [ong, setOng] = useState("clients");
+  const [ong, setOng] = useOngletMemorise<string>("crm", "clients");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState<any>({});
   const [ficheClient, setFicheClient] = useState(null); // FicheClientF ouverte
@@ -5096,7 +5096,7 @@ function CrmF({ user }: any) {
 // FINANCES — Phase 1 Supabase
 // ═══════════════════════════════════════════════════════════
 function FinancesP1({ user }: any) {
-  const [ong, setOng] = useState("factures");
+  const [ong, setOng] = useOngletMemorise<string>("finances", "factures");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState<any>({});
   const [clients, setClients] = useState([]);
@@ -7721,7 +7721,7 @@ function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,
 function DocumentsBSHWrapper() {
   const [Comp, setComp] = React.useState(null);
   React.useEffect(() => {
-    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "DocumentCenter"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
   return <Comp moduleInitial="BSH"/>;
@@ -7781,7 +7781,7 @@ function BshAgendaWrapper() {
 // ── Centre des hôtes BSH (prévisualisation ; simulation tant que 0128 n'est pas appliquée)
 function CentreHotesWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/bshHotes/CentreHotesBSH").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/bshHotes/CentreHotesBSH").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "CentreHotesBSH")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du centre des hôtes…</div>;
   return <div style={{margin:"0 -16px"}}><Comp/></div>;
 }
@@ -7796,7 +7796,7 @@ const PORTAIL_F_VERS_PAGE: Record<string,string> = {
 };
 function PortailFondatriceWrapper({ user, goto }: any) {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/portails/PortailFondatrice").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/portails/PortailFondatrice").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "PortailFondatrice")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:COQUE_PREMIUM.doux,padding:40}}>Préparation de votre centre de direction…</div>;
   return <Comp prenom={user?.prenom || undefined} ouvrables={Object.keys(PORTAIL_F_VERS_PAGE).filter(k => PORTAIL_F_VERS_PAGE[k] !== "dashboard")} onOuvrir={(k: string) => { const page = PORTAIL_F_VERS_PAGE[k]; if (page && page !== "dashboard") goto(page); }}/>;
 }
@@ -7811,8 +7811,8 @@ function EspaceClientPremium({ user, produits, evenements, onLogout, onNewComman
   const [compte, setCompte] = React.useState<string | null>(null);
   const [CompteComp, setCompteComp] = React.useState<any>(null);
   useRetourNavigateur(!!compte, () => setCompte(null), "compte-client");
-  React.useEffect(() => { if (compte && !CompteComp) import("../modules/portails/CompteClient").then(m => setCompteComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, [compte, CompteComp]);
-  React.useEffect(() => { import("../modules/portails/PortailClient").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { if (compte && !CompteComp) import("../modules/portails/CompteClient").then(m => setCompteComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "CompteClient")); }, [compte, CompteComp]);
+  React.useEffect(() => { import("../modules/portails/PortailClient").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "PortailClient")); }, []);
   React.useEffect(() => { window.scrollTo(0, 0); }, [ouvert]);
   if (compte) return <BandeSecurite>{CompteComp ? <CompteComp page={compte} user={user} whatsapp={ENV.WA} onRetour={()=>setCompte(null)} onDeconnexion={onLogout}/> : <div style={{padding:30,color:"rgba(28,34,70,0.6)"}}>Ouverture…</div>}</BandeSecurite>;
   if (ouvert) return <>
@@ -7898,7 +7898,7 @@ function EspaceAssistanteApp({ user, onLogout }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   const [vue, setVue] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState("");
-  React.useEffect(() => { import("../modules/portails/PortailAssistante").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/portails/PortailAssistante").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "PortailAssistante")); }, []);
   React.useEffect(() => { window.scrollTo(0, 0); }, [vue]);
   if (vue) {
     const contenu = vue === "equipe" ? <EquipeWrapper user={user} role="assistante"/>
@@ -7924,7 +7924,7 @@ function EspaceAssistanteApp({ user, onLogout }: any) {
 function CalendrierFondatriceWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   const [liste, setListe] = React.useState(false);
-  React.useEffect(() => { import("../modules/calendrier/CalendrierPremium").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/calendrier/CalendrierPremium").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "CalendrierPremium")); }, []);
   return <div style={{display:"flex",flexDirection:"column",gap:12}}>
     <div style={{display:"flex",gap:6}}>{[["grille","📅 Calendrier"],["liste","⏳ Liste et comptes à rebours"]].map(([k,l])=><button key={k} onClick={()=>setListe(k==="liste")} style={{minHeight:36,padding:"6px 12px",borderRadius:99,border:"1px solid "+((liste?k==="liste":k==="grille")?COQUE_PREMIUM.or:COQUE_PREMIUM.ligne),background:(liste?k==="liste":k==="grille")?"rgba(215,192,143,0.15)":"transparent",color:COQUE_PREMIUM.texte,fontSize:12.5,fontWeight:700,fontFamily:SA}}>{l}</button>)}</div>
     {liste ? <CalendrierP1 user={user}/> : Comp ? <Comp role="fondatrice" userId={user?.id} titre="Calendrier" creation disponibilites sombre/> : <div style={{color:COQUE_PREMIUM.doux,padding:20}}>Chargement du calendrier…</div>}
@@ -7933,7 +7933,7 @@ function CalendrierFondatriceWrapper({ user }: any) {
 
 function AgendaAssistante({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/calendrier/CalendrierPremium").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/calendrier/CalendrierPremium").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "CalendrierPremium")); }, []);
   return Comp ? <Comp role="assistante" userId={user?.id} titre="Mon agenda" disponibilites sombre/> : <div style={{color:COQUE_PREMIUM.doux,padding:20}}>Chargement…</div>;
 }
 
@@ -7950,13 +7950,13 @@ function EspaceRoleInconnu({ onLogout }: any) {
 // BSH Secret Stories — studio éditorial privé (aperçu ; simulation tant que 0129 n'est pas appliquée).
 function DiagnosticConcordeLazy() {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/concorde/DiagnosticConcorde").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/concorde/DiagnosticConcorde").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "DiagnosticConcorde")); }, []);
   return Comp ? <Comp/> : null;
 }
 
 function SecretStoriesWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/secretStories/StudioSecretStories").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/secretStories/StudioSecretStories").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "StudioSecretStories")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du studio Secret Stories…</div>;
   return <div style={{margin:"0 -16px"}}><Comp/></div>;
 }
@@ -7964,7 +7964,7 @@ function SecretStoriesWrapper() {
 function ExperiencesBSHWrapper() {
   const [Comp, setComp] = React.useState(null);
   React.useEffect(() => {
-    import("../modules/bshExperiences/BshExperiencesF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/bshExperiences/BshExperiencesF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "BshExperiencesF"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement BSH Experiences…</div>;
   return <Comp/>;
@@ -7974,7 +7974,7 @@ function ExperiencesBSHWrapper() {
 function IdentiteVisuelleWrapper() {
   const [Comp, setComp] = React.useState(null);
   React.useEffect(() => {
-    import("../modules/identite/IdentiteVisuelleF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/identite/IdentiteVisuelleF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "IdentiteVisuelleF"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement…</div>;
   return <Comp/>;
@@ -8292,7 +8292,7 @@ function EcranConnexion({ onConnecte }: any) {
   const [showPwd, setShowPwd] = React.useState(false);
   const [oubli, setOubli] = React.useState(false);
   const [OubliComp, setOubliComp] = React.useState<any>(null);
-  React.useEffect(() => { if (oubli && !OubliComp) import("../modules/portails/SecuriteCompte").then(m => setOubliComp(() => m.MotDePasseOublie)).catch(rechargerSiVersionObsolete); }, [oubli, OubliComp]);
+  React.useEffect(() => { if (oubli && !OubliComp) import("../modules/portails/SecuriteCompte").then(m => setOubliComp(() => m.MotDePasseOublie)).catch(e => rechargerSiVersionObsolete(e, "SecuriteCompte")); }, [oubli, OubliComp]);
 
   return (
     <div style={{
@@ -9323,7 +9323,7 @@ function HoteBSH({ user, onBack }: any) {
 }
 
 function EspaceHote({ user, onLogout }: any) {
-  const [ong, setOng] = useState("planning");
+  const [ong, setOng] = useOngletMemorise<string>("hote", "planning");
   const [missions, setMissions] = useState([]);
   const [contrats, setContrats] = useState([]);
   const ONGS = [{id:"planning",l:"📅 Planning"},{id:"missions",l:"🎯 Missions"},{id:"contrats",l:"📝 Contrats"},{id:"docs",l:"📄 Documents"},{id:"messages",l:"💬 Contact"},{id:"profil",l:"👤 Profil"}];
@@ -9474,7 +9474,7 @@ function EspaceHote({ user, onLogout }: any) {
 // ESPACE PARTENAIRE — données isolées par user_id
 // ═══════════════════════════════════════════════════════════
 function EspacePartenaire({ user, onLogout }: any) {
-  const [ong, setOng] = useState("collaborations");
+  const [ong, setOng] = useOngletMemorise<string>("partenaire", "collaborations");
   const [collabs, setCollabs] = useState([]);
   const [factures, setFactures] = useState([]);
   const [contrats, setContrats] = useState([]);
@@ -9611,7 +9611,7 @@ function EspacePartenaire({ user, onLogout }: any) {
 // BIBLIOTHÈQUE ÉDITORIALE — Module complet Phase éditoriale
 // ═══════════════════════════════════════════════════════════
 function BibliothequeF({ user }: any) {
-  const [ong, setOng] = useState("dashboard");
+  const [ong, setOng] = useOngletMemorise<string>("bibliotheque", "dashboard");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState<any>({});
   const [projetActif, setProjetActif] = useState(null);
@@ -10075,7 +10075,7 @@ function BibliothequeF({ user }: any) {
 // BELLA'STRUCTURE — Bibliothèque de modèles numériques
 // ═══════════════════════════════════════════════════════════
 function BellaStructureF({ user }: any) {
-  const [ong, setOng] = useState("bibliotheque");
+  const [ong, setOng] = useOngletMemorise<string>("structure", "bibliotheque");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState<any>({});
   const [search, setSearch] = useState("");
@@ -11134,7 +11134,7 @@ function EventsProgrammeF({ user }: any) {
 }
 
 function BellaEventsF({ user }: any) {
-  const [ong, setOng] = useState("demandes");
+  const [ong, setOng] = useOngletMemorise<string>("events", "demandes");
   const [modalDevis, setModalDevis] = useState(false);
   const [formDevis, setFormDevis] = useState<any>({});
   const [modalConflit, setModalConflit] = useState(null); // {demande, conflits, dateDebut, dateFin}
@@ -14510,7 +14510,7 @@ function ApercuUXF({ user, setPreview, setActiveUnivers }: any) {
 function ComptaWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/compta/ComptaF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/compta/ComptaF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "ComptaF"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Pré-comptabilité…</div>;
   return <Comp user={user}/>;
@@ -14534,7 +14534,7 @@ function StudioIAWrapper({ user }: any) {
 function CalculateurWrapper({ pole, onPrixRetenu, prixFournisseurInitial }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/CalculateurUI").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/core/CalculateurUI").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "CalculateurUI"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement calculateur…</div>;
   return <Comp pole={pole} onPrixRetenu={onPrixRetenu} prixFournisseurInitial={prixFournisseurInitial}/>;
@@ -14550,7 +14550,7 @@ function EventsModuleLazy({ nom }: { nom: "preparation" | "papeterie" | "mediath
     const imp = nom === "preparation" ? import("../modules/events/EventsPreparation")
       : nom === "papeterie" ? import("../modules/events/EventsAtelierPapeterie")
       : import("../modules/events/EventsMediatheque");
-    imp.then(m => setComp(() => m.default)).catch(e => { if (!rechargerSiVersionObsolete(e)) setErr(String(e?.message || e)); });
+    imp.then(m => setComp(() => m.default)).catch(e => { if (!rechargerSiVersionObsolete(e, nom === "papeterie" ? "EventsAtelierPapeterie" : nom === "mediatheque" ? "EventsMediatheque" : "EventsPreparation")) setErr(String(e?.message || e)); });
   }, [nom]);
   if (err) return <div style={{color:"#f87171",fontSize:12,padding:16}}>⚠️ Chargement impossible : {err}</div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:20}}>Chargement…</div>;
@@ -14561,9 +14561,9 @@ function EventsModuleLazy({ nom }: { nom: "preparation" | "papeterie" | "mediath
 function FoodWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/food/FoodF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/food/FoodF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "FoodF"));
   }, []);
-  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella\'Food…</div>;
+  if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Food…</div>;
   return <Comp user={user}/>;
 }
 
@@ -14571,7 +14571,7 @@ function FoodWrapper({ user }: any) {
 function CatalogueAdminWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/CatalogueAdmin").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/core/CatalogueAdmin").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "CatalogueAdmin"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Catalogue…</div>;
   return <Comp user={user}/>;
@@ -14581,7 +14581,7 @@ function CatalogueAdminWrapper({ user }: any) {
 function StockCentralWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/BellaiaStocks").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/core/BellaiaStocks").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "BellaiaStocks"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Stock central…</div>;
   return <Comp user={user}/>;
@@ -14591,7 +14591,7 @@ function StockCentralWrapper({ user }: any) {
 function WorkflowERPWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/core/BellaWorkflowF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/core/BellaWorkflowF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "BellaWorkflowF"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Workflow…</div>;
   return <Comp user={user}/>;
@@ -14602,7 +14602,7 @@ function WorkflowERPWrapper({ user }: any) {
 function CRMWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/crm/ClientCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/crm/ClientCenter").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "ClientCenter"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement CRM…</div>;
   return <Comp user={user}/>;
@@ -14612,7 +14612,7 @@ function CRMWrapper({ user }: any) {
 function RechercheWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/search/GlobalSearch").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/search/GlobalSearch").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "GlobalSearch"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Recherche…</div>;
   return <Comp profil="fondatrice"/>;
@@ -14626,7 +14626,7 @@ function MessagerieWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
     if (!autorise) return;
-    import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/messaging/MessagingCenter").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "MessagingCenter"));
   }, [autorise]);
   if (!autorise) return <div role="status" style={{textAlign:"center",color:"rgba(255,255,255,0.75)",padding:"48px 24px",lineHeight:1.6}}>🔒 La messagerie interne est en cours de sécurisation.<br/>Elle sera ouverte après validation par la fondatrice.</div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement messagerie…</div>;
@@ -14649,7 +14649,7 @@ function ModuleEquipe({ nom, props, libelle }: { nom: string; props: any; libell
 // hôte et partenaire, qui lisaient des tables absentes et renvoyaient vers WhatsApp.
 function EspaceProLazy({ user, onLogout, titre }: any) {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/portails/EspacePro").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/portails/EspacePro").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "EspacePro")); }, []);
   return (
     <div style={{minHeight:"100dvh",background:"#faf6ef",paddingTop:"var(--bellaia-haut, env(safe-area-inset-top,0px))"}}>
       <div style={{display:"flex",justifyContent:"flex-end",padding:"8px 12px 0"}}>
@@ -14680,37 +14680,37 @@ function EspacePartenaireUnifie({ user, onLogout }: any) {
 }
 function SuiviExigencesWrapper({ onRetour }: any) {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/equipe/SuiviExigences").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/equipe/SuiviExigences").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "SuiviExigences")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du suivi…</div>;
   return <Comp onRetour={onRetour}/>;
 }
 function ActionsRequisesWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/equipe/ActionsRequises").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/equipe/ActionsRequises").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "ActionsRequises")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement des actions…</div>;
   return <Comp/>;
 }
 function FoodEquipeWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/food/EspaceFoodEquipe").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/food/EspaceFoodEquipe").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "EspaceFoodEquipe")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de Bella'Food…</div>;
   return <Comp boutique={<ClientFood user={user} onBack={()=>{}}/>}/>;
 }
 function ApercuAssistanteWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/equipe/ApercuAssistante").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/equipe/ApercuAssistante").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "ApercuAssistante")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de l'aperçu assistante…</div>;
   return <Comp user={user}/>;
 }
 function EquipeWrapper({ user, role }: any) {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/equipe/EspaceEquipe").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/equipe/EspaceEquipe").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "EspaceEquipe")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de l'espace équipe…</div>;
   return <Comp user={user} role={role}/>;
 }
 function AdministratifWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
-  React.useEffect(() => { import("../modules/admin/AdministratifF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete); }, []);
+  React.useEffect(() => { import("../modules/admin/AdministratifF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "AdministratifF")); }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement de l'administratif…</div>;
   return <Comp/>;
 }
@@ -14718,7 +14718,7 @@ function AdministratifWrapper() {
 function DocumentsWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/docs/DocumentCenter").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "DocumentCenter"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement documents…</div>;
   return <Comp user={user}/>;
@@ -14728,7 +14728,7 @@ function DocumentsWrapper({ user }: any) {
 function EditorialWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/editorial/GenerateurEditorial").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/editorial/GenerateurEditorial").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "GenerateurEditorial"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Éditorial…</div>;
   return <Comp user={user}/>;
@@ -14738,7 +14738,7 @@ function EditorialWrapper({ user }: any) {
 function OdysseeWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/odyssee/OdysseeF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/odyssee/OdysseeF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "OdysseeF"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Odyssée…</div>;
   return <Comp user={user}/>;
@@ -14748,7 +14748,7 @@ function OdysseeWrapper({ user }: any) {
 function ViloWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/vilo/ViloF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/vilo/ViloF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "ViloF"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Vilo'Assistance…</div>;
   return <Comp user={user}/>;
@@ -14758,7 +14758,7 @@ function ViloWrapper({ user }: any) {
 function EditionsWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/editions/EditionsF").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/editions/EditionsF").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "EditionsF"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Bella'Studio Éditions…</div>;
   return <Comp user={user}/>;
@@ -14768,7 +14768,7 @@ function EditionsWrapper({ user }: any) {
 function MoTiPeyiWrapper({ user }: any) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    import("../modules/motipy").then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
+    import("../modules/motipy").then(m => setComp(()=>m.default)).catch(e => rechargerSiVersionObsolete(e, "motipy"));
   }, []);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement Mo Ti-Péyi…</div>;
   return <Comp user={user}/>;
@@ -14798,8 +14798,8 @@ export default function BellaiaApp() {
       }
     } catch {}
   }, []);
-  useEffect(() => { if (recup && !RecupComp) import("../modules/portails/SecuriteCompte").then(m => setRecupComp(() => m.NouveauMotDePasse)).catch(rechargerSiVersionObsolete); }, [recup, RecupComp]);
-  useEffect(() => { if (invitation && user && !InvitComp) import("../modules/portails/InvitationAccepter").then(m => setInvitComp(() => m.default)).catch(rechargerSiVersionObsolete); }, [invitation, user, InvitComp]);
+  useEffect(() => { if (recup && !RecupComp) import("../modules/portails/SecuriteCompte").then(m => setRecupComp(() => m.NouveauMotDePasse)).catch(e => rechargerSiVersionObsolete(e, "SecuriteCompte")); }, [recup, RecupComp]);
+  useEffect(() => { if (invitation && user && !InvitComp) import("../modules/portails/InvitationAccepter").then(m => setInvitComp(() => m.default)).catch(e => rechargerSiVersionObsolete(e, "InvitationAccepter")); }, [invitation, user, InvitComp]);
   const [activeF, setActiveF] = useState("dashboard");
   const roleNav = (user as any)?.role;
   const groupes = roleNav === "assistante" ? NAV_GROUPES_ASSISTANTE : NAV_GROUPES;
@@ -15156,7 +15156,7 @@ export default function BellaiaApp() {
         </div>
       )}
       <div style={{flex:1,overflowY:"auto",padding:activeF==="bsh"||(PREMIUM_ACTIF&&activeF==="dashboard")?"0 0 70px":"14px 12px 84px"}}>
-        {views[activeF] ?? <PlaceholderModule ico="🔧" nom={activeF} desc="Module en construction"/>}
+        <GardeModule key={activeF} nom={activeF}>{views[activeF] ?? <PlaceholderModule ico="🔧" nom={activeF} desc="Module en construction"/>}</GardeModule>
         <div style={{textAlign:"center",fontSize:10,color:K.muted,padding:"18px 0 6px"}}>
           Bellaïa · version {VERSION_APP} · <button onClick={()=>window.dispatchEvent(new Event("bellaia-ouvrir-diagnostic"))} style={{background:"none",border:"none",color:K.muted,textDecoration:"underline",fontSize:10,padding:"6px 2px",cursor:"pointer"}}>Diagnostic</button>
         </div>
