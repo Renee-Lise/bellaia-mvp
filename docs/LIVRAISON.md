@@ -4,6 +4,10 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 
 | Fonction | Développé | Testé | Déployé | Vérifié sur iPhone réel |
 |---|---|---|---|---|
+| Mises à jour dans tous les univers (38 modules nommés, garde-fou par rubrique, onglets conservés) | Oui (branche) | 6/6 + 17/17 simulateur | Non | Non |
+| Bella'Food lots 3-4-5 : offre du jour, catégories, sauces, refus serveur hors offre ; tarifs et masquages préparés | Oui (branche) + **0143 non appliquée** | 24/24, 10/10, 19/19, 43/43, 22/22, base jetable 8/8 | Non | Non |
+| Atelier papeterie : patrons originaux, fonds perdus, PDF imprimeur ; procédure Canva | Oui (branche) | 11/11, 18/18 | Non | Non |
+| Personnage officiel BSH (10 visuels, principale, secondaires) | Oui (branche) ; 0141 complétée non appliquée | 10/10, 45/45 | Non | Non |
 | **P0 (24/11) — BSH Secret Agenda inaccessible : plus de rechargement silencieux** (cause : version restée ouverte pendant une mise en ligne ; voir `docs/bsh/ANOMALIE_P0_SECRET_AGENDA.md`). Message explicite « Mettre à jour et rouvrir Secret Agenda », écran mémorisé et restauré, nouvelle version détectée, version affichée, journal de diagnostic | Oui (branche) | 17/17 simulateur iPhone (anomalie reproduite avec l'ancien code, corrigée avec le nouveau) ; non-régression complète | **Non** | **Non — essai de la fondatrice attendu ; clôture après sa confirmation** |
 | Atelier papeterie : import de la Médiathèque sur iPhone (bouton natif, envoi automatique, fichiers sans extension, refus expliqués, import depuis l'atelier) ; nature réelle des liens des packs achetés (consultation seule / modèle / Drive, alerte marques déposées) | Oui (branche) | `t_mediatheque_import.js` simulateur iPhone ; audit des 11 patrons Canva en lecture seule (`docs/events/AUDIT_PATRONS_ET_IMPORT_2026-11-24.md`) | Non | Non |
 | Bella'Food : aperçu des tarifs et des imports des affiches (`docs/food/APERCU_TARIFS_ET_IMPORTS_2026-11-24.md`) | Aperçu seulement — **aucun prix modifié** | Prix actuels relevés en lecture seule | — | — |

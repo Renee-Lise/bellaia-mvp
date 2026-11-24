@@ -9,9 +9,14 @@
 | 3 | **0134** : profils et privilèges | Sécurité des rôles | — | `rollback/0134…` | 13/13 |
 | 4 | **0133** (messagerie), puis **0138** (droits par permission) | Sécurité | 0138 : `a_permission`, déjà en production | Fichiers de retour | 44/44 ; — |
 | 5 | **0140** : tables `notifications`, `webhook_logs`, `pre_comptabilite` | Paiement SumUp et alertes | — | `rollback/0140…` | 11/11 |
-| 6 | **0141** : BSH Secret Agenda | Continuité, preuves, studio, médiathèque | 0103 et 0128 (production) ; compatible après 0142 (vérifié) | `rollback/0141…` | 34/34 |
+| 6 | **0141** : BSH Secret Agenda (+ rôle principale/secondaire du personnage officiel, une seule principale garantie) | Continuité, preuves, studio, médiathèque, personnage | 0103 et 0128 (production) ; compatible après 0142 (vérifié) | `rollback/0141…` | 45/45 (24/11) |
+| 6 bis | **0143** : vues publiques Bella'Food limitées à l'offre publiée du jour | Lot 5 : un produit non coché n'est plus lisible publiquement (le serveur refuse déjà de le vendre dès l'étape 1) | 0060 (production), `is_fondatrice()`, `food_produit_commandable()` | `rollback/0143…` (vues d'origine relevées en production) | 8/8, idempotence, retour arrière, réapplication |
 | 7 | **0135**, puis **0136**, puis **0137** | Candidatures, suspensions | 0134 avant 0135 ; 0137 après 0135 et 0136 | Fichiers de retour | 65/65 |
 | 8 | **0139**, **0131**, **0130**, **0132**, **0129** | Fonctions secondaires | 0132 : 0128 (production) | Fichiers de retour | 8/8 ; testés |
+
+**Effets à connaître dès l'étape 1 (code seul, sans migration)** :
+- Bella'Food : les clientes ne voient et ne peuvent commander **que l'offre publiée du jour**. Juste après le déploiement, la fondatrice doit publier une première offre (Bella'Food › Offre & tarifs › cocher › « Valider et publier »). Sinon le catalogue client est vide, ce qui est voulu mais doit être anticipé.
+- Les écritures de données préparées (tarifs, masquage porc/alcool, variantes, classement, fiches sauces) ne partent **que sur clic et confirmation de la fondatrice**. Aucune n'est faite par le déploiement.
 
 **Limites connues :**
 - Chaque migration est testée sur une base jetable qui reproduit les tables concernées. Ce n'est pas une copie complète de la production.

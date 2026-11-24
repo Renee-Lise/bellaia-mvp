@@ -1,4 +1,4 @@
-# Bellaïa — tableau unique des fonctionnalités (23/11/2026)
+# Bellaïa — tableau unique des fonctionnalités (mis à jour le 24/11/2026)
 
 **États :**
 - **Fonctionnelle** : marche de bout en bout.
@@ -30,6 +30,31 @@ Aucune fonctionnalité n'a encore été vérifiée sur un iPhone réel : tous le
 | Pages légales | Non développée (brouillon BSH seulement) | Incomplète (identité lue dans ta fiche ; mentions à valider) | 15/15 + 9/9 |
 | Droits RGPD dans le compte client | Non développée | Bloquée (0139) | 8/8 |
 | Compilation de production qui vérifie les types | Non (erreurs ignorées) | Fonctionnelle (0 erreur) | `next build` réussi |
+
+## Mises à jour de l'application (P0 du 24/11)
+| Fonctionnalité | Prod | Branche | Tests (branche) |
+|---|---|---|---|
+| Écran ouvert après une mise en ligne | **Défectueuse** (rechargement silencieux → accueil : Secret Agenda inaccessible sur l'iPhone de la fondatrice) | Fonctionnelle (message explicite, mise à jour sur accord, même écran rouvert ; 38 modules) | 17/17 + 6/6 ; **iPhone réel : en attente (E12.01)** |
+| Écran et onglets conservés (actualisation, fermeture, réouverture) | Non développée | Fonctionnelle (par rôle, 12 h) | 17/17, 75/49/42 |
+| Version affichée, diagnostic sans donnée personnelle | Non développée | Fonctionnelle | 17/17 |
+
+## Bella'Food — offre, catalogue, tarifs (24/11)
+| Fonctionnalité | Prod | Branche | Tests (branche) |
+|---|---|---|---|
+| Offre du jour par cases à cocher (plats, menus composés, prix et quantité du jour, duplication, programmation, aperçu, publication) | Non développée (menu du jour en texte libre) | Fonctionnelle | 24/24 |
+| Clientes limitées à l'offre publiée ; refus serveur hors offre | Non développée (tout le catalogue visible) | Fonctionnelle côté serveur ; lecture publique fermée après **0143** | 10/10 + 19/19 + 8/8 (base jetable) |
+| 12 grandes catégories, sous-catégories, reclassement avec aperçu | Non développée | Fonctionnelle (application sur clic) | 24/24 + 22/22 |
+| Sauces repas / desserts, plusieurs sauces par produit, une incluse | Non développée | Fonctionnelle | 24/24 + 10/10 |
+| Tarifs à valider (grille, estimations PROVISOIRES, calcul indicatif, historique) | Non développée | Fonctionnelle — **aucun prix écrit** | 24/24 + 43/43 |
+| Masquage réversible porc/alcool, variantes compatibles | Non développée | Préparée — **rien de masqué** | 24/24 + 43/43 |
+
+## Atelier papeterie et personnage officiel (24/11)
+| Fonctionnalité | Prod | Branche | Tests (branche) |
+|---|---|---|---|
+| Patrons originaux (sac, boîte cube, étiquettes, tube, canette, fanion) | Non développée | Fonctionnelle | 18/18 + 11/11 |
+| Fonds perdus, marge de sécurité, PDF imprimeur à l'échelle réelle | Non développée | Fonctionnelle (taille du PDF mesurée) | 11/11 ; impression réelle à vérifier |
+| Import de la médiathèque sur iPhone | **Défectueuse** (signalée par la fondatrice) | Fonctionnelle | 12/12 ; iPhone réel à vérifier |
+| Personnage officiel BSH : 10 visuels, principale, secondaires, cohérence | Non développée | Bloquée (0141) | 10/10 + 45/45 |
 
 ## Commandes et paiements
 | Fonctionnalité | Prod | Branche | Tests |
