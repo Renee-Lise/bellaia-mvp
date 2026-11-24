@@ -165,8 +165,8 @@ create unique index if not exists bsh_ressources_media_unique on public.bsh_ress
 create table if not exists public.bsh_creations (
   id uuid primary key default gen_random_uuid(),
   titre text not null check (length(titre) <= 200),
-  format text not null check (format in ('affiche', 'story', 'sondage', 'carte_jeu', 'invitation', 'evenement', 'campagne', 'scenographie')),
-  ambiance text not null default 'glamour' check (ambiance in ('glamour', 'sensuelle', 'dark_romance')),
+  format text not null check (format in ('affiche', 'story', 'story_snapchat', 'story_tiktok', 'sondage', 'carte_jeu', 'invitation', 'evenement', 'campagne', 'scenographie')),
+  ambiance text not null default 'glamour' check (ambiance in ('glamour', 'sensuelle', 'dark_romance', 'romantique', 'mysterieuse', 'festive')),
   campagne_id uuid references public.bsh_campagnes(id) on delete set null,
   parent_id uuid references public.bsh_creations(id) on delete set null,   -- variante de
   personnage_id uuid references public.bsh_ressources(id) on delete set null,
@@ -227,3 +227,47 @@ do $$ declare t text; begin
 end $$;
 revoke all on function public.bsh_hote_execution(uuid, text, text), public.bsh_confirmer_publication(uuid, text, text) from public, anon;
 grant execute on function public.bsh_hote_execution(uuid, text, text), public.bsh_confirmer_publication(uuid, text, text) to authenticated;
+
+-- ── 7. Compléments du 24/11 ────────────────────────────────────────────────────
+-- Publications : nature (affiche, publication, animation…) et plateforme (adaptations Snapchat / TikTok)
+alter table public.bsh_communications add column if not exists nature text;
+alter table public.bsh_communications add column if not exists plateforme text not null default 'whatsapp';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'bsh_communications_nature_check') then
+    alter table public.bsh_communications add constraint bsh_communications_nature_check check (nature is null or nature in ('affiche', 'publication', 'animation', 'sondage', 'relance', 'annonce', 'pensee'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'bsh_communications_plateforme_check') then
+    alter table public.bsh_communications add constraint bsh_communications_plateforme_check check (plateforme in ('whatsapp', 'snapchat', 'tiktok'));
+  end if;
+end $$;
+-- BSH Rewards : quatre catégories (les campagnes restent en brouillon jusqu'aux validations, contrainte existante)
+alter table public.bsh_rewards_campagnes add column if not exists categorie text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'bsh_rewards_categorie_check') then
+    alter table public.bsh_rewards_campagnes add constraint bsh_rewards_categorie_check check (categorie is null or categorie in ('sweet_rewards', 'golden_ticket', 'secret_gift', 'members_rewards'));
+  end if;
+end $$;
+-- Diamond B : paroles originales et auteurs ; liaison possible aux jeux Secret Games
+alter table public.bsh_musique add column if not exists paroles text;
+alter table public.bsh_musique add column if not exists auteurs text;
+alter table public.bsh_musique_liens drop constraint if exists bsh_musique_liens_cible_type_check;
+alter table public.bsh_musique_liens add constraint bsh_musique_liens_cible_type_check check (cible_type in ('campagne', 'animation', 'evenement', 'jeu'));
+-- Assistant de communication (consignes Meta AI, réponses rapides, FAQ, messages de bienvenue et d'absence, modèles)
+create table if not exists public.bsh_assistant_contenus (
+  id uuid primary key default gen_random_uuid(),
+  type text not null check (type in ('consigne_meta_ai', 'reponse_rapide', 'faq', 'bienvenue', 'absence', 'modele')),
+  titre text not null check (length(titre) <= 200),
+  raccourci text check (raccourci is null or length(raccourci) <= 25),
+  contenu text not null check (length(contenu) <= 4000),
+  statut text not null default 'brouillon' check (statut in ('brouillon', 'valide', 'archive')),
+  valide_le timestamptz, version integer not null default 1,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  constraint bsh_assistant_validation_datee check (statut <> 'valide' or valide_le is not null)
+);
+alter table public.bsh_assistant_contenus enable row level security;
+revoke all on public.bsh_assistant_contenus from anon;
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'bsh_assistant_contenus' and policyname = 'bsh_assistant_contenus_fondatrice') then
+    create policy bsh_assistant_contenus_fondatrice on public.bsh_assistant_contenus for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice());
+  end if;
+end $$;

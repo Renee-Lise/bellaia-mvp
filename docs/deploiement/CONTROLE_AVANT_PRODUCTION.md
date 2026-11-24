@@ -17,10 +17,10 @@ Ordre imposé par les objets utilisés dans chaque fichier :
 - **0139** (demandes RGPD) : indépendante.
 - **0131**, **0130**, **0132** (s'appuie sur `bsh_hotes`, issue de 0128, déjà en production), **0129** : indépendantes entre elles.
 - **0140** (préparée le 23/11, non appliquée) : crée `notifications`, `webhook_logs` et `pre_comptabilite`, tables utilisées par le code mais jamais créées. Elle est indépendante des autres et utilise `est_staff_bellaia`, qui existe déjà en production.
-- **0141** (préparée le 24/11, non appliquée) : BSH Secret Agenda (missions déléguées, preuves de publication, médiathèque, studio, mode Continuité). Elle dépend de 0103 et 0128, déjà en production, et est indépendante de 0129 à 0140. Testée 34/34 sur base jetable reproduisant le schéma et les règles de production.
+- **0141** (préparée le 24/11, non appliquée) : BSH Secret Agenda (missions déléguées, preuves de publication, médiathèque, studio, mode Continuité). Elle dépend de 0103 et 0128, déjà en production, et est indépendante de 0129 à 0140. Testée 39/39 sur base jetable reproduisant le schéma et les règles de production.
 - Restent sans migration, par choix : `missions_hote`, `collaborations_partenaire`, `factures_partenaire` (écrans remplacés par l'espace professionnel) et `contrats` (Vilo'Assistance, à concevoir).
 
-Chaque migration a son retour arrière. Tests sur base jetable : 0133 (44/44), 0134 (13/13), 0135 à 0137 (65/65), 0139 (8/8), consignes (16/16), 0140 (11/11, appliquée deux fois, retour arrière puis réapplication vérifiés), 0141 (34/34, mêmes vérifications).
+Chaque migration a son retour arrière. Tests sur base jetable : 0133 (44/44), 0134 (13/13), 0135 à 0137 (65/65), 0139 (8/8), consignes (16/16), 0140 (11/11, appliquée deux fois, retour arrière puis réapplication vérifiés), 0141 (39/39 après complément du 24/11, mêmes vérifications).
 
 ## 3. Autorisations d'accès (testées)
 - **Assistante sans droit** : aucun accès à l'espace fondatrice, aux candidatures, aux consignes, au jeu ni au registre.
@@ -48,7 +48,7 @@ Actions 8/8, allergènes 17/17, atelier GS 34/34, balayage 8/8, candidatures 12/
 | Bella'Food | photo Food 8/8 ; commandes : cliente 17/17, assistante 17/17, fondatrice 19/19 |
 | Odyssée | 9/9 |
 | Pages légales | 15 contrôles sur 15 (le 16ᵉ est une mesure informative) |
-| BSH Secret Agenda | 42/42 : fondatrice, hôte titulaire, hôte remplaçante, cliente, et base avant 0141 |
+| BSH Secret Agenda | 65/65 : fondatrice, hôte titulaire, hôte remplaçante, cliente, base avant 0141, compléments du 24/11 |
 | Boutons de l'accueil | fondatrice 74/74, cliente 49/49, assistante 42/42, 0 bouton sans effet |
 | Agenda | 3 profils sans erreur ; catalogue sans erreur |
 

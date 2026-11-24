@@ -61,6 +61,9 @@ Aucune fonctionnalité n'a encore été vérifiée sur un iPhone réel : tous le
 | Import du calendrier Christmas Secrets 2026 | Non développée | Incomplète (import prêt ; **calendrier non transmis** ; l'archivage historique demande 0141) | 29/29 + 42/42 |
 | Médiathèque éditoriale commune (anti-doublons, droits) | Non développée | Bloquée (0141) | 34/34 + 42/42 |
 | Studio créatif (8 formats, versions, variantes, export) | Non développée | Bloquée (0141 ; personnage principal à fournir et à valider) | 34/34 + 42/42 |
+| Campagne BSH Christmas Secrets 2026 (fusion, temps forts, calendrier quotidien) | Incomplète (« Noël BSH » seule) | Fonctionnelle à l'écran (actions déclenchées par la fondatrice ; nature et historique avec 0141) | 41/41 + 65/65 |
+| Programmation permanente, réserve de 10 sondages | Incomplète | Fonctionnelle (boutons de la fondatrice) | 41/41 + 65/65 |
+| Rewards en 4 catégories, Diamond B (paroles, import, jeux), Assistant de communication | Non développée | Bloquée (0141) | 39/39 + 65/65 |
 | Missions BSH dans l'espace réel de l'hôte | Non développée (espace hôte complet visible en aperçu seulement) | Bloquée (0141 pour les déclarations) | 42/42 |
 
 ## Portails professionnels

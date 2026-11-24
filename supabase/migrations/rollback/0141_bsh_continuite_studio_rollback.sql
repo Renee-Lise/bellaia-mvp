@@ -14,3 +14,6 @@ drop table if exists public.bsh_ressources;
 drop table if exists public.bsh_preuves_publication;
 drop function if exists public.bsh_versions_ajout_seul();
 drop function if exists public.bsh_version_suivante();
+drop table if exists public.bsh_assistant_contenus;
+alter table public.bsh_musique_liens drop constraint if exists bsh_musique_liens_cible_type_check;
+alter table public.bsh_musique_liens add constraint bsh_musique_liens_cible_type_check check (cible_type in ('campagne', 'animation', 'evenement')) not valid;

@@ -17,7 +17,7 @@ import {
 } from "./bshAgendaLib";
 import type { Donnees } from "./BshAgendaHub";
 import { sbRpc } from "./bshAgendaLib";
-import { controleTransition, etapePublication, dupliquer as dupliquerContenu, preuveSuffisante, ETAPES_PUBLICATION } from "./continuite";
+import { controleTransition, etapePublication, dupliquer as dupliquerContenu, preuveSuffisante, ETAPES_PUBLICATION, PENSEE_MAX, PLATEFORMES } from "./continuite";
 
 export type Publication = {
   id?: string; titre: string; contenu: string; type: string; cible: string; statut: string; espace: string | null;
@@ -132,6 +132,7 @@ export function EditeurPublication({ initiale, d, onFermer, onEnregistre }: { in
         <Champ label="Date de publication effective" aide="Remplie par « Marquer comme publié »"><input style={champ} type="datetime-local" value={p.date_publication_effective ? `${cleJour(p.date_publication_effective)}T${heureCayenne(p.date_publication_effective)}` : ""} onChange={e => maj({ date_publication_effective: e.target.value ? versIso(e.target.value.slice(0, 10), e.target.value.slice(11, 16)) : null })} /></Champ>
       </div>
 
+      {/pens[ée]e du jour/i.test(p.thematique || "") && (p.contenu || "").length > PENSEE_MAX && <div role="note" style={{ fontSize: 11, color: K.alerte }}>Pensée du jour : {(p.contenu || "").length} caractères (idéalement {PENSEE_MAX} au maximum).</div>}
       <Champ label="Texte complet">
         <div style={{ display: "flex", gap: 6, marginBottom: 4 }}><button style={bouton(!apercu ? "or" : "ghost", true)} onClick={() => setApercu(false)}>✏️ Rédiger</button><button style={bouton(apercu ? "or" : "ghost", true)} onClick={() => setApercu(true)}>👁 Aperçu</button><span style={{ fontSize: 10, color: K.cremeD, alignSelf: "center" }}>{(p.contenu || "").length} caractères</span></div>
         {!apercu ? <textarea style={{ ...champ, minHeight: 170, lineHeight: 1.6 }} value={p.contenu} onChange={e => maj({ contenu: e.target.value })} placeholder="Le texte tel qu'il sera publié. *gras* et _italique_ fonctionnent dans WhatsApp." />
@@ -195,6 +196,11 @@ export function CartePublication({ p, d, onModifier, recharger, compacte }: { p:
     const { recurrence, ...reste } = dupliquerContenu(p as any, p.date_programmee) as any; // brouillon, sans validation ni preuve
     try { await sbInsert("bsh_communications", propre(reste, d.v141), "return=minimal"); flash("✅ Dupliquée en brouillon (à valider)"); recharger(); } catch (e: any) { flash("⚠️ " + e.message); }
   };
+  // Adaptation Snapchat / TikTok : copie en brouillon pour la plateforme (Story verticale à préparer dans le Studio)
+  const adapter = async (plateforme: string) => {
+    const { recurrence, ...reste } = dupliquerContenu(p as any, p.date_programmee) as any;
+    try { await sbInsert("bsh_communications", { ...propre({ ...reste, titre: `${p.titre} — ${plateforme === "tiktok" ? "TikTok" : "Snapchat"}`, espace: null }, d.v141), plateforme, nature: (p as any).nature || null }, "return=minimal"); flash(`✅ Adaptation ${plateforme === "tiktok" ? "TikTok" : "Snapchat"} créée en brouillon (visuel Story à préparer dans le Studio)`); recharger(); } catch (e: any) { flash("⚠️ " + e.message); }
+  };
   const etape = etapeDe(p, d); const nEtape = ETAPES_PUBLICATION.findIndex(e => e[0] === etape) + 1;
   const valide = !!dateValidation(p, d.v141);
   const [confirmer, setConfirmer] = useState(false);
@@ -212,7 +218,7 @@ export function CartePublication({ p, d, onModifier, recharger, compacte }: { p:
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: K.creme, cursor: "pointer" }} onClick={() => onModifier(p)}>{p.titre}</div>
           <div style={{ fontSize: 11, color: K.cremeD, marginTop: 2 }}>
-            {libelleInstant(p.date_programmee)} · {ESPACES[p.espace || ""] || "—"}{p.thematique ? ` · ${p.thematique}` : ""}{hote ? ` · 👤 ${nomHote(hote)}` : ""}
+            {libelleInstant(p.date_programmee)} · {(p as any).plateforme && (p as any).plateforme !== "whatsapp" ? PLATEFORMES.find(x => x[0] === (p as any).plateforme)?.[1] : ESPACES[p.espace || ""] || "—"}{(p as any).nature ? ` · ${(p as any).nature}` : ""}{p.thematique ? ` · ${p.thematique}` : ""}{hote ? ` · 👤 ${nomHote(hote)}` : ""}
           </div>
           {p.date_publication_effective && <div style={{ fontSize: 10, color: K.ok, marginTop: 2 }}>Publié le {libelleInstant(p.date_publication_effective)}</div>}
         </div>
@@ -224,6 +230,7 @@ export function CartePublication({ p, d, onModifier, recharger, compacte }: { p:
         {p.visuel_url && <button style={bouton("ghost", true)} onClick={() => telechargerVisuel(p)}>⬇️ Visuel</button>}
         <button style={bouton("ghost", true)} onClick={() => ouvrirWhatsApp(p)}>💬 WhatsApp</button>
         <button style={bouton("ghost", true)} onClick={dupliquer}>⧉ Dupliquer</button>
+        {d.v141 && ((p as any).plateforme || "whatsapp") === "whatsapp" && ["snapchat", "tiktok"].map(pl => <button key={pl} style={bouton("ghost", true)} onClick={() => adapter(pl)}>↻ {pl === "tiktok" ? "TikTok" : "Snapchat"}</button>)}
         <button style={bouton("ghost", true)} onClick={rappel}>⏰ Rappel</button>
         <button style={bouton("ghost", true)} onClick={() => onModifier(p)}>✏️</button>
         {!valide && !["annule", "archive", "publie"].includes(p.statut) && <button style={bouton("or", true)} onClick={valider}>✓ Valider</button>}

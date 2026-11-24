@@ -17,7 +17,9 @@ import React, { useMemo, useState } from "react";
 import { K, FS, champ, bouton, Etiquette, Champ, Carte, Vide, Titre, Feuille, Erreur, grille, ChoixHote, nomHote, sbInsert, sbUpdate, versIso, cleJour, heureCayenne, libelleDate, libelleInstant, aujourdhui, plusJours, ESPACES } from "./bshAgendaLib";
 import type { Donnees, Mission } from "./BshAgendaHub";
 import type { Publication } from "./BshPublications";
-import { alertesContinuite, creneauxPeriode, lireCalendrier, prochainCreneauLibre, STATUTS_EXECUTION, utilisable, type Echeance } from "./continuite";
+import { alertesContinuite, creneauxPeriode, lireCalendrier, prochainCreneauLibre, STATUTS_EXECUTION, utilisable, type Echeance, CHRISTMAS, PERIODES_CHRISTMAS, periodeChristmas, csvCalendrierOfficiel, planFusion, programmationPermanente, GABARIT_JOURNEE } from "./continuite";
+import { SB_URL, SB_KEY, jeton } from "../events/eventsAtelierLib";
+const NATURES = ["affiche", "publication", "animation", "sondage", "relance", "annonce", "pensee"];
 
 const ONGLETS: [string, string][] = [["alertes", "Alertes"], ["missions", "Missions"], ["preparer", "Préparer plusieurs semaines"], ["importer", "Importer un calendrier"], ["reglages", "Mode Continuité"]];
 const libExec = (s?: string) => STATUTS_EXECUTION.find(x => x[0] === (s || "a_faire"))?.[1] || s || "À faire";
@@ -167,13 +169,24 @@ function ReportAnnulation({ d, m, type, onFermer, onFait }: { d: Donnees; m: Mis
 
 function Preparer({ d, recharger, flash }: { d: Donnees; recharger: () => void; flash: (m: string) => void }) {
   const [debut, setDebut] = useState(plusJours(aujourdhui(), 1)); const [semaines, setSemaines] = useState(2); const [espace, setEspace] = useState("chaine"); const [campagne, setCampagne] = useState(""); const [modele, setModele] = useState("");
+  const [gabarit, setGabarit] = useState(false); const [facultatifs, setFacultatifs] = useState(false);
   const textes = d.ressources.filter(r => utilisable(r) && ["texte", "scenario"].includes(r.type));
   const fin = plusJours(debut, semaines * 7 - 1);
   const occupes = useMemo(() => new Set(d.pubs.filter(p => p.date_programmee && p.espace === espace && !["annule", "archive"].includes(p.statut)).map(p => new Date(p.date_programmee!).toISOString())), [d.pubs, espace]);
   const libres = useMemo(() => creneauxPeriode(debut, fin, d.jours).filter(c => !occupes.has(versIso(c.date, c.heure)) && new Date(versIso(c.date, c.heure)).getTime() > Date.now()), [debut, fin, d.jours, occupes]);
+  const jourParJour = useMemo(() => Array.from(new Set(creneauxPeriode(debut, fin, d.jours).map(c => c.date))), [debut, fin, d.jours]);
+  const prevus = useMemo(() => { const deja = new Set(d.pubs.filter(p => p.date_programmee && !["annule", "archive"].includes(p.statut)).map(p => `${new Date(p.date_programmee!).toISOString()}|${p.espace}|${p.titre}`));
+    return jourParJour.flatMap(date => GABARIT_JOURNEE.filter(g => facultatifs || !g.facultatif).map(g => ({ date, g, iso: versIso(date, g.heure), titre: `${g.libelle} — ${libelleDate(date, false)}` })))
+      .filter(x => new Date(x.iso).getTime() > Date.now() && !deja.has(`${new Date(x.iso).toISOString()}|${x.g.espace}|${x.titre}`)); }, [jourParJour, facultatifs, d.pubs]);
   const creer = async () => {
-    if (!libres.length) return flash("⚠️ Aucun créneau libre sur la période.");
     const m = textes.find(r => r.id === modele);
+    if (gabarit) {
+      if (!prevus.length) return flash("⚠️ Rien à préparer sur la période.");
+      const lignes = prevus.map(x => ({ titre: x.titre, contenu: m?.contenu_texte || "", type: "publication", cible: "tous", statut: "brouillon", espace: x.g.espace === "evenement" ? null : x.g.espace, date_programmee: x.iso, creneau: x.g.heure, thematique: (campagne && /christmas secrets/i.test(d.campagnes.find(c => c.id === campagne)?.nom || "") ? periodeChristmas(x.date) : null) || d.jours.find(j => j.jour_semaine === new Date(x.date + "T12:00:00Z").getUTCDay())?.thematique || null, campagne_id: campagne || null, fuseau: "America/Cayenne", ...(d.v141 ? { nature: x.g.nature } : {}) }));
+      try { await sbInsert("bsh_communications", lignes, "return=minimal"); flash(`✅ ${lignes.length} brouillon(s) créés selon le gabarit de journée. Rien n'est publié.`); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); }
+      return;
+    }
+    if (!libres.length) return flash("⚠️ Aucun créneau libre sur la période.");
     const lignes = libres.map(c => ({ titre: `${c.thematique} — ${libelleDate(c.date, false)} ${c.heure.replace(":00", " h")}`, contenu: m?.contenu_texte || "", type: "publication", cible: "tous", statut: "brouillon", espace, date_programmee: versIso(c.date, c.heure), creneau: c.heure, thematique: c.thematique, campagne_id: campagne || null, fuseau: "America/Cayenne" }));
     try { await sbInsert("bsh_communications", lignes, "return=minimal"); flash(`✅ ${lignes.length} brouillon(s) créés (à rédiger, valider puis programmer). Rien n'est publié.`); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); }
   };
@@ -185,8 +198,10 @@ function Preparer({ d, recharger, flash }: { d: Donnees; recharger: () => void; 
       <Champ label="Campagne"><select style={champ} value={campagne} onChange={e => setCampagne(e.target.value)}><option value="">— Aucune —</option>{d.campagnes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}</select></Champ>
       <Champ label="Texte de départ (validé)"><select style={champ} value={modele} onChange={e => setModele(e.target.value)}><option value="">— Vide —</option>{textes.map(r => <option key={r.id} value={r.id}>{r.titre}</option>)}</select></Champ>
     </div>
-    <div style={{ fontSize: 12, color: K.cremeF }}>{libres.length} créneau(x) libre(s) du {libelleDate(debut, false)} au {libelleDate(fin, false)} (8 h et 21 h, samedi en pause, créneaux déjà occupés et passés exclus).</div>
-    <div><button style={bouton("plein")} onClick={creer}>Créer {libres.length} brouillon(s)</button></div>
+    <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, color: K.creme }}><input type="checkbox" checked={gabarit} onChange={e => setGabarit(e.target.checked)} />Gabarit de journée complet (8 h : affiche + publication ; 21 h : affiche + publication + animation du Cercle)</label>
+    {gabarit && <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, color: K.creme }}><input type="checkbox" checked={facultatifs} onChange={e => setFacultatifs(e.target.checked)} />Inclure les créneaux facultatifs (10 h sondage, 12 h 30 Cercle, 18 h annonce, 22 h 30 relance)</label>}
+    <div style={{ fontSize: 12, color: K.cremeF }}>{gabarit ? `${prevus.length} brouillon(s) prévus du ${libelleDate(debut, false)} au ${libelleDate(fin, false)} (samedi fermé ; éléments passés ou déjà présents exclus).` : `${libres.length} créneau(x) libre(s) du ${libelleDate(debut, false)} au ${libelleDate(fin, false)} (8 h et 21 h, samedi en pause, créneaux déjà occupés et passés exclus).`}</div>
+    <div><button style={bouton("plein")} onClick={creer}>Créer {gabarit ? prevus.length : libres.length} brouillon(s)</button></div>
   </Carte>;
 }
 
@@ -194,9 +209,23 @@ function Importer({ d, recharger, flash }: { d: Donnees; recharger: () => void; 
   const [texte, setTexte] = useState(""); const [campagne, setCampagne] = useState(""); const [passees, setPassees] = useState<"historique" | "replanifier">("historique"); const [occupe, setOccupe] = useState(false);
   const lignes = useMemo(() => texte.trim() ? lireCalendrier(texte, { maintenant: new Date(), jours: d.jours, existants: d.pubs }) : [], [texte, d.jours, d.pubs]);
   const christmas = d.campagnes.find(c => /christmas secrets 2026/i.test(c.nom));
-  const noel = d.campagnes.find(c => c.saison === "noel" && c !== christmas);
+  const noel = d.campagnes.find(c => c.saison === "noel" && c !== christmas && c.statut !== "archivee");
+  const plan = planFusion(d.campagnes as any);
+  const [fac, setFac] = useState(false);
+  const descr = "Campagne officielle (17 novembre au 25 décembre 2026). Temps forts : " + PERIODES_CHRISTMAS.map(([a, b, t]) => `${t} (${a.slice(8)}/${a.slice(5, 7)}–${b.slice(8)}/${b.slice(5, 7)})`).join(" ; ") + ".";
   const creerCampagne = async () => {
-    try { const [c] = await sbInsert<any>("bsh_campagnes", { nom: "Christmas Secrets 2026", saison: "noel", date_debut: "2026-11-17", date_fin: "2026-12-25", recurrence_annuelle: false, statut: "brouillon", description: "Calendrier fourni par la fondatrice (17 novembre au 25 décembre 2026)." }); setCampagne(c?.id || ""); flash("✅ Campagne « Christmas Secrets 2026 » créée en brouillon"); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); }
+    try { const [c] = await sbInsert<any>("bsh_campagnes", { nom: CHRISTMAS.nom, saison: "noel", date_debut: CHRISTMAS.debut, date_fin: CHRISTMAS.fin, recurrence_annuelle: false, statut: "brouillon", description: descr }); setCampagne(c?.id || ""); flash(`✅ Campagne « ${CHRISTMAS.nom} » créée en brouillon`); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); }
+  };
+  const fusionner = async () => {
+    try {
+      if (plan.action === "renommer") { await sbUpdate("bsh_campagnes", plan.id, { ...plan.patch, description: descr, updated_at: new Date().toISOString() }); setCampagne(plan.id); }
+      else if (plan.action === "rattacher") {
+        const t = await jeton();
+        for (const table of plan.tables) { const r = await fetch(`${SB_URL}/rest/v1/${table}?campagne_id=eq.${plan.de}`, { method: "PATCH", headers: { apikey: SB_KEY, Authorization: `Bearer ${t}`, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ campagne_id: plan.vers }) }); if (!r.ok && r.status !== 404) throw new Error(`${table} : ${await r.text()}`); }
+        await sbUpdate("bsh_campagnes", plan.de, { ...plan.archive, updated_at: new Date().toISOString() }); setCampagne(plan.vers);
+      } else return;
+      flash("✅ Fusion effectuée : aucune donnée supprimée, ancien état noté dans la campagne."); recharger();
+    } catch (e: any) { flash("⚠️ " + (e?.message || e)); }
   };
   const ok = lignes.filter(l => l.etat !== "erreur" && !l.doublon);
   const importer = async () => {
@@ -204,6 +233,7 @@ function Importer({ d, recharger, flash }: { d: Donnees; recharger: () => void; 
     if (passees === "historique" && !d.v141 && ok.some(l => l.etat === "historique")) return flash("⚠️ L'archivage en « programmation historique » demande la migration 0141. Choisis « replanifier » ou attends la migration.");
     setOccupe(true);
     const occupes = new Set(d.pubs.filter(p => p.date_programmee).map(p => new Date(p.date_programmee!).toISOString()));
+    const estChristmas = /christmas secrets/i.test(d.campagnes.find(c => c.id === campagne)?.nom || "");
     const rows: any[] = [];
     for (const l of ok) {
       let date = l.date, heure = l.heure, historique = false, statut = "brouillon";
@@ -212,7 +242,7 @@ function Importer({ d, recharger, flash }: { d: Donnees; recharger: () => void; 
         else { const c = prochainCreneauLibre(new Date(), d.jours, occupes, heure); if (!c) continue; date = c.date; heure = c.heure; }
       }
       const iso = versIso(date, heure); occupes.add(iso);
-      rows.push({ titre: l.titre, contenu: l.contenu || "", type: "publication", cible: "tous", statut, espace: l.espace, date_programmee: iso, creneau: heure, campagne_id: campagne || null, fuseau: "America/Cayenne", notes_internes: l.etat === "historique" ? (passees === "historique" ? `Programmation historique importée (prévue le ${l.date} à ${l.heure}) : publication non prouvée.` : `Replanifiée depuis le ${l.date} à ${l.heure} (date passée lors de l'import).`) : null, ...(d.v141 ? { historique } : {}) });
+      rows.push({ titre: l.titre, contenu: l.contenu || "", type: "publication", cible: "tous", statut, espace: l.espace, date_programmee: iso, creneau: heure, campagne_id: campagne || null, fuseau: "America/Cayenne", thematique: estChristmas ? periodeChristmas(l.date) : null, ...(d.v141 && NATURES.includes(l.type) ? { nature: l.type } : {}), notes_internes: l.etat === "historique" ? (passees === "historique" ? `Programmation historique importée (prévue le ${l.date} à ${l.heure}) : publication non prouvée.` : `Replanifiée depuis le ${l.date} à ${l.heure} (date passée lors de l'import).`) : null, ...(d.v141 ? { historique } : {}) });
     }
     try { await sbInsert("bsh_communications", rows, "return=minimal"); flash(`✅ ${rows.length} ligne(s) importée(s) : ${rows.filter(r => r.statut === "brouillon").length} brouillon(s) à valider, ${rows.filter(r => r.statut === "archive").length} en historique. Aucune n'est marquée publiée.`); setTexte(""); recharger(); }
     catch (e: any) { flash("⚠️ " + (e?.message || e)); }
@@ -220,10 +250,16 @@ function Importer({ d, recharger, flash }: { d: Donnees; recharger: () => void; 
   };
   return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
     <Carte style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ fontFamily: FS, fontSize: 18, color: K.or }}>Christmas Secrets 2026 · 17 novembre → 25 décembre</div>
-      <div style={{ fontSize: 12, color: K.cremeF }}>Rendez-vous principaux 8 h et 21 h (America/Cayenne), pause du samedi. Le calendrier détaillé n'a pas encore été transmis à Bellaïa : colle-le ci-dessous (une ligne par publication : date ; heure ; espace ; type ; titre ; texte).</div>
-      {christmas ? <div style={{ fontSize: 12, color: K.ok }}>Campagne présente : {christmas.nom} ({christmas.statut}).</div> : <div><button style={bouton("or", true)} onClick={creerCampagne}>Créer la campagne « Christmas Secrets 2026 » (brouillon)</button></div>}
-      {noel && <div style={{ fontSize: 11, color: K.alerte }}>Une campagne « {noel.nom} » ({noel.date_debut} → {noel.date_fin}) existe déjà : choisis laquelle utiliser pour éviter un doublon.</div>}
+      <div style={{ fontFamily: FS, fontSize: 18, color: K.or }}>{CHRISTMAS.nom} · 17 novembre → 25 décembre</div>
+      <div style={{ fontSize: 12, color: K.cremeF }}>Temps forts : {PERIODES_CHRISTMAS.map(p => p[2]).join(" · ")}. Rendez-vous 8 h et 21 h (America/Cayenne), samedi fermé.</div>
+      {christmas && <div style={{ fontSize: 12, color: K.ok }}>Campagne présente : {christmas.nom} ({christmas.statut}).</div>}
+      {noel && plan.action !== "rien" && <div role="note" style={{ fontSize: 12, color: K.alerte }}>Fusion proposée : {plan.motif} {noel ? `(« ${noel.nom} », ${noel.date_debut || "?"} → ${noel.date_fin || "?"})` : ""}</div>}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {(plan.action === "renommer" || plan.action === "rattacher") && <button style={bouton("or", true)} onClick={fusionner}>Fusionner « Noël BSH » dans la campagne officielle</button>}
+        {plan.action === "creer" && <button style={bouton("or", true)} onClick={creerCampagne}>Créer la campagne « {CHRISTMAS.nom} » (brouillon)</button>}
+        <button style={bouton("ghost", true)} onClick={() => { setTexte(csvCalendrierOfficiel(fac)); if (christmas) setCampagne(christmas.id); }}>Charger le calendrier officiel</button>
+        <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11, color: K.cremeD }}><input type="checkbox" checked={fac} onChange={e => setFac(e.target.checked)} />avec les créneaux facultatifs</label>
+      </div>
     </Carte>
     <Champ label="Calendrier à importer" aide="Exemple : 2026-12-01 ; 08:00 ; chaine ; publication ; Le secret du 1er ; Texte…  (JJ/MM/AAAA et « 21h » acceptés)"><textarea aria-label="Calendrier à importer" style={{ ...champ, minHeight: 110, fontFamily: "ui-monospace,monospace" }} value={texte} onChange={e => setTexte(e.target.value)} /></Champ>
     <div style={grille(200)}>
@@ -260,5 +296,22 @@ function Reglages({ d, recharger, flash }: { d: Donnees; recharger: () => void; 
     <div style={{ fontSize: 11, color: K.cremeD }}>Le mode Continuité désigne qui couvre les échéances sans responsable. Il ne publie rien et ne donne aucun droit supplémentaire : chaque hôte ne voit que les missions qui lui sont confiées.</div>
     <Erreur msg={err} />
     <div><button style={bouton("plein")} onClick={enregistrer}>💾 Enregistrer</button></div>
+    <ProgrammationPermanente d={d} recharger={recharger} flash={flash} />
   </Carte>;
+}
+
+/** Programmation permanente : 8 h / 21 h principaux ; 10 h, 12 h 30, 18 h, 22 h 30 facultatifs ; samedi fermé, réouverture facultative à 20 h. Thèmes du jour conservés. */
+function ProgrammationPermanente({ d, recharger, flash }: { d: Donnees; recharger: () => void; flash: (m: string) => void }) {
+  const cible = programmationPermanente(Object.fromEntries(d.jours.map(j => [j.jour_semaine, j.thematique])));
+  const ecarts = cible.filter(c => { const j = d.jours.find(x => x.jour_semaine === c.jour_semaine); return !j || j.en_pause !== c.en_pause || j.creneaux.join() !== c.creneaux.join() || (j.creneaux_facultatifs || []).join() !== (c.creneaux_facultatifs || []).join(); });
+  const appliquer = async () => {
+    try { const t = await jeton();
+      for (const c of ecarts) { const r = await fetch(`${SB_URL}/rest/v1/bsh_programmation_jours?jour_semaine=eq.${c.jour_semaine}`, { method: "PATCH", headers: { apikey: SB_KEY, Authorization: `Bearer ${t}`, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ en_pause: c.en_pause, creneaux: c.creneaux, creneaux_facultatifs: c.creneaux_facultatifs, updated_at: new Date().toISOString() }) }); if (!r.ok) throw new Error(await r.text()); }
+      flash(`✅ Programmation permanente appliquée (${ecarts.length} jour(s) mis à jour)`); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); }
+  };
+  return <div style={{ borderTop: `1px solid ${K.ligne}`, paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ fontSize: 13, fontWeight: 700, color: K.or }}>Programmation permanente</div>
+    <div style={{ fontSize: 12, color: K.cremeF }}>8 h affiche + publication de la chaîne · 10 h sondage (facultatif) · 12 h 30 animation du Cercle (facultatif) · 18 h annonce (facultatif) · 21 h affiche, publication et animation · 22 h 30 relance par un hôte (facultatif) · samedi fermé, réouverture facultative à 20 h · pensée du jour tous les {d.reglages?.pensee_frequence_jours || 2} jours (50 caractères conseillés).</div>
+    {ecarts.length === 0 ? <div style={{ fontSize: 12, color: K.ok }}>✓ La programmation enregistrée correspond déjà.</div> : <div><button style={bouton("or", true)} onClick={appliquer}>Appliquer à {ecarts.length} jour(s)</button></div>}
+  </div>;
 }

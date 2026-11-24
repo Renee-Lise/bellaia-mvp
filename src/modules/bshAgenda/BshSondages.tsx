@@ -11,6 +11,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { K, FS, champ, bouton, Etiquette, Champ, Carte, Vide, Titre, Feuille, Erreur, grille, ChoixHote, sbInsert, sbUpdate, sbDelete, sbRpc, versIso, cleJour, heureCayenne, libelleInstant, ESPACES } from "./bshAgendaLib";
 import type { Donnees, Sondage } from "./BshAgendaHub";
+import { sondagesAManquer } from "./continuite";
 
 const STATUTS: [string, string, string][] = [["brouillon", "Brouillon", K.cremeD], ["programme", "Programmé", "#9085e9"], ["actif", "Actif", K.ok], ["clos", "Clos", K.or], ["archive", "Archivé", K.cremeD]];
 const lettre = (i: number) => String.fromCharCode(97 + i);
@@ -131,9 +132,13 @@ export default function BshSondages({ d, recharger }: { d: Donnees; recharger: (
   const [ouvert, setOuvert] = useState<Sondage | null>(null);
   const [filtre, setFiltre] = useState("actuels");
   const liste = d.sondages.filter(s => filtre === "tous" || (filtre === "actuels" ? s.statut !== "archive" : s.statut === filtre));
+  const reserve = sondagesAManquer(d.sondages); const [msg, setMsg] = useState("");
+  const ajouterReserve = async () => { try { await sbInsert("bsh_sondages", reserve, "return=minimal"); setMsg(`✅ ${reserve.length} sondage(s) de la réserve ajoutés en brouillon (rien n'est publié).`); recharger(); } catch (e: any) { setMsg("⚠️ " + (e?.message || e)); } };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <Titre action={<button style={bouton("plein")} onClick={() => setOuvert({ question: "", choix: [], choix_multiple: false, destination: "chaine", source: "whatsapp", statut: "brouillon", resultats_manuels: {} } as any)}>+ Sondage</button>}>Sondages</Titre>
+      {reserve.length > 0 ? <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span style={{ fontSize: 12, color: K.cremeF }}>Réserve officielle : {reserve.length} sondage(s) pas encore créés.</span><button style={bouton("or", true)} onClick={ajouterReserve}>Ajouter la réserve en brouillon ({reserve.length})</button></div> : <div style={{ fontSize: 11, color: K.ok }}>✓ Les 10 sondages de la réserve sont présents.</div>}
+      {msg && <div style={{ fontSize: 12, color: msg.startsWith("⚠️") ? K.erreur : K.ok }}>{msg}</div>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{[["actuels", "En cours et à venir"], ["actif", "Actifs"], ["clos", "Clos"], ["archive", "Archivés"], ["tous", "Tous"]].map(([v, l]) => <button key={v} style={bouton(filtre === v ? "or" : "ghost", true)} onClick={() => setFiltre(v)}>{l}</button>)}</div>
       {liste.length === 0 ? <Vide>Aucun sondage.</Vide> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(340px,100%),1fr))", gap: 10 }}>{liste.map(s => <CarteSondage key={s.id} s={s} onOuvrir={() => setOuvert(s)} />)}</div>}
       {ouvert && <EditeurSondage s={ouvert} d={d} recharger={recharger} onFermer={() => setOuvert(null)} />}

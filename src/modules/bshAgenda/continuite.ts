@@ -188,5 +188,104 @@ export const FORMATS_STUDIO: Record<string, { libelle: string; l: number; h: num
   affiche: { libelle: "Affiche quotidienne", l: 1080, h: 1350 }, story: { libelle: "Story verticale", l: 1080, h: 1920 }, sondage: { libelle: "Visuel de sondage", l: 1080, h: 1350 },
   carte_jeu: { libelle: "Carte de jeu", l: 750, h: 1050 }, invitation: { libelle: "Invitation privée", l: 1080, h: 1350 }, evenement: { libelle: "Visuel événementiel", l: 1080, h: 1350 },
   campagne: { libelle: "Campagne saisonnière", l: 1080, h: 1350 }, scenographie: { libelle: "Scénographie (planche)", l: 1600, h: 1000 },
+  story_snapchat: { libelle: "Story Snapchat", l: 1080, h: 1920 }, story_tiktok: { libelle: "Story TikTok", l: 1080, h: 1920 },
 };
-export const AMBIANCES: [string, string, string, string][] = [["glamour", "Glamour", "#c6a15b", "#2e1a2e"], ["sensuelle", "Sensuelle", "#e3b9bd", "#5c1522"], ["dark_romance", "Dark romance", "#7a2030", "#0b0709"]];
+/** Exports réels proposés par format (PDF : formats destinés à l'impression). */
+export const EXPORTS_STUDIO: Record<string, ("png" | "jpeg" | "pdf")[]> = {
+  affiche: ["png", "jpeg"], story: ["png", "jpeg"], story_snapchat: ["png", "jpeg"], story_tiktok: ["png", "jpeg"], sondage: ["png", "jpeg"],
+  carte_jeu: ["png", "pdf"], invitation: ["png", "jpeg", "pdf"], evenement: ["png", "jpeg", "pdf"], campagne: ["png", "jpeg"], scenographie: ["png", "pdf"],
+};
+/** Zones à laisser libres (part de la hauteur) : interface des applications par-dessus la Story. */
+export const ZONES_SURES: Record<string, { haut: number; bas: number }> = { story_tiktok: { haut: 0.13, bas: 0.2 }, story_snapchat: { haut: 0.1, bas: 0.15 } };
+export const AMBIANCES: [string, string, string, string][] = [["glamour", "Glamour", "#c6a15b", "#2e1a2e"], ["sensuelle", "Sensuelle", "#e3b9bd", "#5c1522"], ["dark_romance", "Dark romance", "#7a2030", "#0b0709"], ["romantique", "Romantique", "#e8a0b4", "#4a1c2c"], ["mysterieuse", "Mystérieuse", "#9085e9", "#120c1e"], ["festive", "Festive", "#d4af37", "#5a0f14"]];
+/** Description du personnage officiel BSH (repère pour la validation ; ne remplace jamais le visuel officiel). */
+export const PERSONNAGE_OFFICIEL = "Femme adulte noire, glamour, de morphologie généreuse, aux longs cheveux très bouclés bordeaux, au maquillage sophistiqué et au regard cat-eyes.";
+
+// ═══ Campagne officielle « BSH Christmas Secrets 2026 » (données fournies par la fondatrice le 24/11/2026) ═══
+export const CHRISTMAS = { nom: "BSH Christmas Secrets 2026", debut: "2026-11-17", fin: "2026-12-25" } as const;
+export const PERIODES_CHRISTMAS: [string, string, string][] = [
+  ["2026-11-17", "2026-11-22", "Le réveil des fêtes"], ["2026-11-23", "2026-11-29", "Les secrets de Noël"], ["2026-11-30", "2026-12-06", "Les lettres secrètes"],
+  ["2026-12-07", "2026-12-13", "Le bal des mystères"], ["2026-12-14", "2026-12-20", "La semaine des surprises"], ["2026-12-21", "2026-12-25", "La magie finale"],
+];
+export const periodeChristmas = (date: string) => PERIODES_CHRISTMAS.find(([d, f]) => date >= d && date <= f)?.[2] || null;
+/** Programmation quotidienne proposée (null = pause du samedi). */
+export const QUOTIDIEN_CHRISTMAS: [string, string | null][] = [
+  ["2026-11-23", "Le cadeau mystère"], ["2026-11-24", "Le code secret"], ["2026-11-25", "Le dilemme de Noël"], ["2026-11-26", "Le duel des compliments"], ["2026-11-27", "Le mystère du boudoir"], ["2026-11-28", null], ["2026-11-29", "Les confidences de Noël"],
+  ["2026-11-30", "La lettre anonyme fictive"], ["2026-12-01", "Le message codé"], ["2026-12-02", "Vérité ou mystère"], ["2026-12-03", "Le compliment inattendu"], ["2026-12-04", "Silence, on tourne !"], ["2026-12-05", null], ["2026-12-06", "Une lettre à mon futur moi"],
+  ["2026-12-07", "Qui suis-je ?"], ["2026-12-08", "Diamond B Challenge"], ["2026-12-09", "L'enquête du bal masqué"], ["2026-12-10", "Le duo complice"], ["2026-12-11", "Le grand quiz BSH"], ["2026-12-12", null], ["2026-12-13", "Les confidences du bal"],
+  ["2026-12-14", "L'intrus BSH"], ["2026-12-15", "Les trois portes secrètes"], ["2026-12-16", "Le Noël improbable"], ["2026-12-17", "La boîte à compliments"], ["2026-12-18", "La coupe des hôtes"], ["2026-12-19", null], ["2026-12-20", "Le cadeau idéal"],
+  ["2026-12-21", "Les cinq secrets de Noël"], ["2026-12-22", "Le dernier code secret"], ["2026-12-23", "Les vœux mystérieux"], ["2026-12-24", "Le réveillon des Sweeties"], ["2026-12-25", "Message de Noël et clôture festive"],
+];
+
+// ═══ Programmation permanente (America/Cayenne) ═══
+export type CreneauGabarit = { heure: string; espace: string; nature: "affiche" | "publication" | "animation" | "sondage" | "relance" | "annonce"; libelle: string; facultatif: boolean };
+export const GABARIT_JOURNEE: CreneauGabarit[] = [
+  { heure: "08:00", espace: "chaine", nature: "affiche", libelle: "Affiche du matin", facultatif: false },
+  { heure: "08:00", espace: "chaine", nature: "publication", libelle: "Publication éditoriale du matin", facultatif: false },
+  { heure: "10:00", espace: "chaine", nature: "sondage", libelle: "Sondage", facultatif: true },
+  { heure: "12:30", espace: "cercle", nature: "animation", libelle: "Animation du Cercle", facultatif: true },
+  { heure: "18:00", espace: "chaine", nature: "annonce", libelle: "Actualité ou annonce", facultatif: true },
+  { heure: "21:00", espace: "chaine", nature: "affiche", libelle: "Affiche du soir", facultatif: false },
+  { heure: "21:00", espace: "chaine", nature: "publication", libelle: "Publication du soir", facultatif: false },
+  { heure: "21:00", espace: "cercle", nature: "animation", libelle: "Animation communautaire", facultatif: false },
+  { heure: "22:30", espace: "cercle", nature: "relance", libelle: "Relance par un hôte", facultatif: true },
+];
+export const SAMEDI = { ferme: true, reouverture: "20:00" } as const;
+export const PENSEE_MAX = 50;
+/** Programmation par jour attendue (bsh_programmation_jours) : principaux 8 h / 21 h, facultatifs 10 h, 12 h 30, 18 h, 22 h 30 ; samedi fermé, réouverture facultative à 20 h. */
+export function programmationPermanente(themes: Record<number, string>): JourProg[] {
+  return [0, 1, 2, 3, 4, 5, 6].map(j => j === 6
+    ? { jour_semaine: 6, thematique: themes[6] || "Pause", en_pause: true, creneaux: [], creneaux_facultatifs: [SAMEDI.reouverture] }
+    : { jour_semaine: j, thematique: themes[j] || "", en_pause: false, creneaux: ["08:00", "21:00"], creneaux_facultatifs: ["10:00", "12:30", "18:00", "22:30"] });
+}
+
+/** Lignes du calendrier officiel (titre du jour décliné selon le gabarit ; samedis de pause exclus). */
+export function lignesCalendrierOfficiel(avecFacultatifs = false) {
+  const out: { date: string; heure: string; espace: string; nature: string; titre: string; thematique: string | null }[] = [];
+  for (const [date, titre] of QUOTIDIEN_CHRISTMAS) {
+    if (!titre) continue;
+    for (const g of GABARIT_JOURNEE) {
+      if (g.facultatif && !avecFacultatifs) continue;
+      out.push({ date, heure: g.heure, espace: g.espace, nature: g.nature, titre: `${titre} — ${g.libelle.toLowerCase()}`, thematique: periodeChristmas(date) });
+    }
+  }
+  return out;
+}
+/** Même contenu au format texte de l'import (date ; heure ; espace ; nature ; titre ; texte). */
+export const csvCalendrierOfficiel = (avecFacultatifs = false) => ["date;heure;espace;type;titre;contenu", ...lignesCalendrierOfficiel(avecFacultatifs).map(l => `${l.date};${l.heure};${l.espace};${l.nature};${l.titre};`)].join("\n");
+
+/** Plan de fusion « Noël BSH » → « BSH Christmas Secrets 2026 », sans perte : renommage si seule « Noël BSH » existe,
+ *  sinon rattachement des éléments puis archivage de « Noël BSH » (jamais supprimée). */
+export type CampagneF = { id: string; nom: string; saison: string; date_debut: string | null; date_fin: string | null; recurrence_annuelle?: boolean; statut: string; notes_internes?: string | null };
+export function planFusion(campagnes: CampagneF[]) {
+  const cible = campagnes.find(c => /christmas secrets 2026/i.test(c.nom));
+  const noel = campagnes.find(c => c !== cible && c.saison === "noel" && /no[eë]l bsh/i.test(c.nom) && c.statut !== "archivee");
+  const trace = (c: CampagneF) => `Fusion dans « ${CHRISTMAS.nom} » le ${new Date().toISOString().slice(0, 10)} — avant : « ${c.nom} », ${c.date_debut || "?"} → ${c.date_fin || "?"}, récurrence annuelle ${c.recurrence_annuelle ? "oui" : "non"}.`;
+  if (!noel) return cible ? { action: "rien" as const, motif: "Fusion déjà faite ou « Noël BSH » absente." } : { action: "creer" as const, motif: "Aucune des deux campagnes : création de la campagne officielle." };
+  if (!cible) return { action: "renommer" as const, id: noel.id, patch: { nom: CHRISTMAS.nom, date_debut: CHRISTMAS.debut, date_fin: CHRISTMAS.fin, recurrence_annuelle: false, notes_internes: [noel.notes_internes, trace(noel)].filter(Boolean).join("\n") }, motif: "« Noël BSH » devient la campagne officielle (même identifiant : tous ses éléments suivent)." };
+  return { action: "rattacher" as const, de: noel.id, vers: cible.id, archive: { statut: "archivee", notes_internes: [noel.notes_internes, trace(noel)].filter(Boolean).join("\n") }, tables: ["bsh_communications", "bsh_animations", "bsh_sondages", "bsh_rewards_campagnes", "bsh_ressources", "bsh_creations"], motif: "Les éléments de « Noël BSH » sont rattachés à la campagne officielle ; « Noël BSH » est archivée, jamais supprimée." };
+}
+
+// ═══ Réserve de sondages (brouillons) ═══
+export const RESERVE_SONDAGES: [string, string[]][] = [
+  ["Quelle ambiance préférez-vous pour Noël chez BSH ?", ["Romantique", "Mystérieuse", "Festive", "Glamour"]],
+  ["Quelle animation préférez-vous ?", ["Quiz", "Énigmes", "Débats", "Défis collectifs"]],
+  ["Quel univers graphique préférez-vous ?", ["Noir et or", "Bordeaux", "Vieux rose", "Rouge festif"]],
+  ["À quelle heure êtes-vous le plus disponible ?", ["Matin", "Midi", "Soir", "Fin de soirée"]],
+  ["Quelle ambiance pour une Boudoir Session ?", ["Élégante", "Musicale", "Mystérieuse", "Conviviale"]],
+  ["Quel jeu souhaitez-vous découvrir ?", ["Enquête", "Jeu musical", "Jeu de cartes", "Quiz"]],
+  ["Quelle qualité appréciez-vous le plus ?", ["Confiance", "Humour", "Respect", "Attention"]],
+  ["Quel rendez-vous aimeriez-vous retrouver chaque semaine ?", ["Débat", "Quiz", "Confidences", "Soirée musicale"]],
+  ["Quelle récompense autorisée vous intéresse ?", ["Coffret gourmand", "Invitation", "Cadeau de marque", "Privilège membre"]],
+  ["Quel thème souhaitez-vous pour janvier ?", ["Nouveau départ", "Mystère", "Élégance", "Complicité"]],
+];
+const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+/** Sondages de la réserve absents (comparaison sans accents ni casse) → lignes brouillon prêtes à insérer. */
+export function sondagesAManquer(existants: { question: string }[]) {
+  const deja = new Set(existants.map(e => norm(e.question)));
+  return RESERVE_SONDAGES.filter(([q]) => !deja.has(norm(q))).map(([question, rep]) => ({ question, choix: rep.map((libelle, i) => ({ id: String.fromCharCode(97 + i), libelle })), choix_multiple: false, destination: "chaine", source: "whatsapp", statut: "brouillon" }));
+}
+
+// ═══ Catégories BSH Rewards et plateformes ═══
+export const CATEGORIES_REWARDS: [string, string][] = [["sweet_rewards", "BSH Sweet Rewards"], ["golden_ticket", "BSH Golden Ticket"], ["secret_gift", "BSH Secret Gift"], ["members_rewards", "BSH Members Rewards"]];
+export const PLATEFORMES: [string, string][] = [["whatsapp", "WhatsApp"], ["snapchat", "Snapchat"], ["tiktok", "TikTok"]];

@@ -101,3 +101,30 @@ L'automatisation possible reste interne : préparation, rappels (fichier calendr
 3. Déploiement de la branche.
 4. Essai sur ton iPhone.
 5. Transmission du calendrier Christmas Secrets, puis import, puis validation ligne par ligne.
+
+---
+# Complément du 24/11 — finalisation et intégration éditoriale
+Tests (simulateur iPhone 13 et base simulée, ce n'est pas un iPhone réel) : `t_bsh_agenda.js` **65/65** ; unitaires **41/41** ; migration 0141 complétée, **39/39** sur base jetable. **Rien n'est déployé ; aucune migration appliquée.**
+
+| Point | Existant / réutilisé | Ajouté | Testé | Reste à valider |
+|---|---|---|---|---|
+| B. Fusion « Noël BSH » → « BSH Christmas Secrets 2026 » | Campagne « Noël BSH » en production | Plan de fusion sans perte : renommage (même identifiant) ou rattachement puis archivage ; ancien état noté dans la campagne | U, É | Clic de la fondatrice sur « Fusionner » |
+| B. Temps forts et calendrier quotidien | Import de calendrier | 6 temps forts ; 29 jours décliné selon le gabarit (145 brouillons, 261 avec facultatifs) ; samedis de pause exclus ; dates passées historiques ; thème de la semaine | U, É | Import par la fondatrice, puis rédaction et validation ligne par ligne |
+| C. Programmation permanente | `bsh_programmation_jours` (8 h / 21 h) | 10 h, 12 h 30, 18 h, 22 h 30 facultatifs ; samedi fermé, 20 h facultatif ; gabarit de journée (affiches et publications distinctes) ; alerte « pensée du jour » au-delà de 50 caractères | U, É | Bouton « Appliquer » par la fondatrice |
+| C. Snapchat et TikTok | — | Adaptation d'une publication par plateforme (brouillon) ; formats Story Snapchat et TikTok 1080 × 1920 avec zones sûres | U, SQL, É | 0141 |
+| D. Réserve de 10 sondages | Sondages (0103) | Ajout en brouillon, 4 réponses chacun, sans doublon | U, É | Clic de la fondatrice |
+| E. 6 ambiances | 3 ambiances | Romantique, mystérieuse, festive | U, SQL, É | 0141 |
+| E. Personnage officiel | Médiathèque | Fiche avec description, import du visuel, statut « à valider », droits « à vérifier » | É | Visuel officiel à déposer puis valider |
+| E. Exports réels | Export PNG vers la médiathèque | Téléchargement PNG, JPEG et PDF (sans dépendance) après validation ; aperçu marqué « non finalisé » | É (signatures et dimensions vérifiées) | — |
+| F. BSH Rewards : 4 catégories | Rewards (0103), ouverture bloquée sans 3 validations | Catégorie Sweet Rewards, Golden Ticket, Secret Gift, Members Rewards | U, SQL, É | 0141 ; validations juridique, commerciale, réglementaire |
+| G. Diamond B | Bibliothèque musicale, liaisons campagnes, animations, Boudoir | Import des titres, paroles originales, auteurs, liaison aux jeux Secret Games | SQL, É | 0141 ; droits de diffusion |
+| H. Assistant de communication | — | Consignes Meta AI, réponses rapides, FAQ, bienvenue, absence, modèles ; validation, version, refus des données personnelles, export manuel | SQL, É | 0141 ; vérification des fonctions officielles dans le centre d'aide WhatsApp |
+| Ancien onglet « Communication » | Passage direct à « publié » | Renvoi vers la confirmation avec preuve ; validation datée | — | — |
+
+**Défaut corrigé, trouvé par les tests** : dans le studio, juste après la création, le contenu apparaissait vide et la validation restait bloquée. L'atelier se recharge désormais dès que la version 1 est disponible.
+
+**Les cinq espaces et les Boudoir Sessions** :
+- Chaîne, Cercle et Lounge : espaces de publication, de mission et d'import (contrainte de base respectée) ;
+- Members : demandes d'adhésion, contrôlées par la base ;
+- Secret Games : restrictions d'accès inchangées, non-régression 15/15 et 8/8 ;
+- Boudoir Sessions : rubrique conservée, musique liée.

@@ -9,6 +9,7 @@
 import React, { useEffect, useState } from "react";
 import { K, FS, champ, bouton, Etiquette, Champ, Carte, Vide, Titre, Feuille, Erreur, grille, sbSelect, sbInsert, sbUpdate, sbDelete, versIso, cleJour, heureCayenne, libelleInstant } from "./bshAgendaLib";
 import type { Donnees, Reward } from "./BshAgendaHub";
+import { CATEGORIES_REWARDS } from "./continuite";
 
 const STATUTS: [string, string, string][] = [["brouillon", "Brouillon", K.cremeD], ["en_verification", "En vérification", K.alerte], ["validee", "Validée", K.or], ["active", "Active", K.ok], ["cloturee", "Clôturée", "#9085e9"], ["annulee", "Annulée", K.erreur]];
 const REMISES: Record<string, string> = { non_concerne: "—", a_remettre: "À remettre", remis: "Remis", refuse: "Refusé" };
@@ -66,7 +67,7 @@ function EditeurReward({ r: init, d, onFermer, recharger }: { r: Reward; d: Donn
     const x = { ...r, ...patch };
     if (!x.titre?.trim()) return setErreur("Titre obligatoire.");
     if (x.participation_ouverte && !toutValide(x)) return setErreur("Impossible d'ouvrir la participation : les 3 validations sont nécessaires.");
-    const corps = { titre: x.titre.trim(), description: x.description || null, reglement: x.reglement || null, conditions_eligibilite: x.conditions_eligibilite || null, date_debut: deb.j ? versIso(deb.j, deb.h) : null, date_cloture: fin.j ? versIso(fin.j, fin.h) : null, lots: x.lots.filter((l: any) => l.libelle?.trim()), quantite_disponible: x.quantite_disponible === "" || x.quantite_disponible == null ? null : Number(x.quantite_disponible), budget: x.budget === "" || x.budget == null ? null : Number(x.budget), statut: x.statut, validation_fondatrice: !!x.validation_fondatrice, validation_juridique: !!x.validation_juridique, validation_juridique_note: x.validation_juridique_note || null, validation_plateforme: !!x.validation_plateforme, validation_plateforme_note: x.validation_plateforme_note || null, participation_ouverte: !!x.participation_ouverte, campagne_id: x.campagne_id || null, notes_internes: x.notes_internes || null, updated_at: new Date().toISOString() };
+    const corps = { ...(d.v141 ? { categorie: (x as any).categorie || null } : {}), titre: x.titre.trim(), description: x.description || null, reglement: x.reglement || null, conditions_eligibilite: x.conditions_eligibilite || null, date_debut: deb.j ? versIso(deb.j, deb.h) : null, date_cloture: fin.j ? versIso(fin.j, fin.h) : null, lots: x.lots.filter((l: any) => l.libelle?.trim()), quantite_disponible: x.quantite_disponible === "" || x.quantite_disponible == null ? null : Number(x.quantite_disponible), budget: x.budget === "" || x.budget == null ? null : Number(x.budget), statut: x.statut, validation_fondatrice: !!x.validation_fondatrice, validation_juridique: !!x.validation_juridique, validation_juridique_note: x.validation_juridique_note || null, validation_plateforme: !!x.validation_plateforme, validation_plateforme_note: x.validation_plateforme_note || null, participation_ouverte: !!x.participation_ouverte, campagne_id: x.campagne_id || null, notes_internes: x.notes_internes || null, updated_at: new Date().toISOString() };
     try { if (init.id) await sbUpdate("bsh_rewards_campagnes", init.id, corps); else await sbInsert("bsh_rewards_campagnes", corps, "return=minimal"); recharger(); onFermer(); } catch (e: any) { setErreur(/bsh_rewards_ouverture_validee/.test(e.message) ? "Refusé par la base : une campagne active ou ouverte doit avoir les 3 validations." : e.message); }
   };
   return (
@@ -76,6 +77,7 @@ function EditeurReward({ r: init, d, onFermer, recharger }: { r: Reward; d: Donn
       </div>
       <div style={grille(200)}>
         <Champ label="Titre *"><input style={champ} value={r.titre || ""} onChange={e => maj({ titre: e.target.value })} /></Champ>
+        <Champ label="Catégorie" aide={d.v141 ? undefined : "Enregistrée après la migration 0141"}><select style={champ} disabled={!d.v141} value={(r as any).categorie || ""} onChange={e => maj({ categorie: e.target.value || null })}><option value="">—</option>{CATEGORIES_REWARDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Champ>
         <Champ label="Statut"><select style={champ} value={r.statut} onChange={e => maj({ statut: e.target.value })}>{STATUTS.map(([v, l]) => <option key={v} value={v} disabled={v === "active" && !valide}>{l}{v === "active" && !valide ? " (3 validations requises)" : ""}</option>)}</select></Champ>
         <Champ label="Début (Cayenne)"><div style={{ display: "flex", gap: 4 }}><input style={champ} type="date" value={deb.j} onChange={e => setDeb({ ...deb, j: e.target.value })} /><input style={{ ...champ, width: 96 }} type="time" value={deb.h} onChange={e => setDeb({ ...deb, h: e.target.value })} /></div></Champ>
         <Champ label="Clôture (Cayenne)"><div style={{ display: "flex", gap: 4 }}><input style={champ} type="date" value={fin.j} onChange={e => setFin({ ...fin, j: e.target.value })} /><input style={{ ...champ, width: 96 }} type="time" value={fin.h} onChange={e => setFin({ ...fin, h: e.target.value })} /></div></Champ>
@@ -127,12 +129,13 @@ export default function BshRewards({ d, recharger }: { d: Donnees; recharger: ()
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <Titre action={<button style={bouton("plein")} onClick={() => setOuvert({ titre: "", statut: "brouillon", lots: [] } as any)}>+ Campagne Rewards</button>}>BSH Rewards</Titre>
-      <div style={{ fontSize: 11, color: K.cremeD }}>Fidélisation et concours autorisés. Budget total prévu (hors annulées) : <b style={{ color: K.or }}>{eur(budget)}</b>.</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{CATEGORIES_REWARDS.map(([v, l]) => { const n = d.rewards.filter(x => (x as any).categorie === v).length; return <Etiquette key={v} couleur={n ? K.or : K.cremeD}>{l} · {n}</Etiquette>; })}</div>
+      <div style={{ fontSize: 11, color: K.cremeD }}>Les campagnes restent en brouillon jusqu'aux validations juridique, commerciale et réglementaire (la base refuse toute ouverture sans les 3 validations). Fidélisation et concours autorisés. Budget total prévu (hors annulées) : <b style={{ color: K.or }}>{eur(budget)}</b>.</div>
       {d.rewards.length === 0 ? <Vide>Aucune campagne Rewards.</Vide> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(320px,100%),1fr))", gap: 10 }}>
         {d.rewards.map(r => { const st = STATUTS.find(x => x[0] === r.statut) || STATUTS[0]; const nbVal = [r.validation_fondatrice, r.validation_juridique, r.validation_plateforme].filter(Boolean).length; return (
           <Carte key={r.id} style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 6 }}>
             <div onClick={() => setOuvert(r)} style={{ display: "flex", gap: 8 }}>
-              <div style={{ flex: 1 }}><div style={{ fontFamily: FS, fontSize: 17, fontWeight: 700, color: K.creme }}>{r.titre}</div><div style={{ fontSize: 11, color: K.cremeD }}>{libelleInstant(r.date_debut)} → {libelleInstant(r.date_cloture)}</div></div>
+              <div style={{ flex: 1 }}><div style={{ fontFamily: FS, fontSize: 17, fontWeight: 700, color: K.creme }}>{r.titre}</div>{(r as any).categorie && <div style={{ fontSize: 11, color: K.or }}>{CATEGORIES_REWARDS.find(c => c[0] === (r as any).categorie)?.[1]}</div>}<div style={{ fontSize: 11, color: K.cremeD }}>{libelleInstant(r.date_debut)} → {libelleInstant(r.date_cloture)}</div></div>
               <Etiquette couleur={st[2]}>{st[1]}</Etiquette>
             </div>
             <div style={{ fontSize: 11, color: K.cremeF }}>Validations {nbVal}/3 · {(r.lots || []).length} lot(s) · budget {eur(r.budget)} · {r.participation_ouverte ? "participation ouverte" : "participation fermée"}</div>

@@ -67,4 +67,25 @@ ok('27 ressource utilisable seulement si validée ET droits établis', C.utilisa
 ok('28 doublons : même empreinte = même ressource, quel que soit le titre', C.cleDoublon({ empreinte: 'ABC', titre: 'x' }) === C.cleDoublon({ empreinte: 'abc', titre: 'y' }) && C.cleDoublon({ source_media_id: 'm1' }) !== C.cleDoublon({ source_media_id: 'm2' }));
 ok('29 formats du studio : story 1080 × 1920, affiche 1080 × 1350', C.FORMATS_STUDIO.story.h === 1920 && C.FORMATS_STUDIO.affiche.h === 1350);
 
+// ═══ Compléments du 24/11 ═══
+const Q = C.QUOTIDIEN_CHRISTMAS;
+ok('30 calendrier officiel : 33 jours du 23/11 au 25/12, 4 pauses, toutes un samedi', Q.length === 33 && Q.filter(x => !x[1]).length === 4 && Q.filter(x => !x[1]).every(x => C.jourDe(x[0]) === 6) && Q.filter(x => x[1]).every(x => C.jourDe(x[0]) !== 6));
+ok('31 temps forts : 6 périodes contiguës du 17/11 au 25/12', C.PERIODES_CHRISTMAS.length === 6 && C.PERIODES_CHRISTMAS[0][0] === '2026-11-17' && C.PERIODES_CHRISTMAS[5][1] === '2026-12-25' && C.PERIODES_CHRISTMAS.every((p, i) => i === 0 || C.ajouterJours(C.PERIODES_CHRISTMAS[i - 1][1], 1) === p[0]));
+const LO = C.lignesCalendrierOfficiel(false);
+ok('32 déclinaison quotidienne : 29 jours × 5 éléments (affiches 8 h et 21 h, publications, animation 21 h), thème de la semaine', LO.length === 29 * 5 && LO.every(l => ['08:00', '21:00'].includes(l.heure) && !!l.thematique) && LO.find(l => l.date === '2026-12-24').thematique === 'La magie finale');
+ok('33 avec les facultatifs : 10 h, 12 h 30, 18 h, 22 h 30 en plus', C.lignesCalendrierOfficiel(true).length === 29 * 9);
+const LC = C.lireCalendrier(C.csvCalendrierOfficiel(false), { maintenant: new Date('2026-11-24T11:30:00Z'), jours: C.programmationPermanente({}), existants: [] });
+ok('34 import du calendrier officiel le 24/11 à 8 h 30 Cayenne : 23/11 et 24/11 8 h historiques, aucune erreur, aucun doublon', LC.every(l => l.etat !== 'erreur' && !l.doublon) && LC.filter(l => l.etat === 'historique').length === 5 + 2 && LC.find(l => l.date === '2026-11-24' && l.heure === '21:00').etat === 'a_venir');
+const PP = C.programmationPermanente({ 1: 'Mystérieux' });
+ok('35 programmation permanente : 8 h / 21 h, facultatifs 10 h, 12 h 30, 18 h, 22 h 30, samedi fermé avec réouverture 20 h', PP[1].creneaux.join() === '08:00,21:00' && PP[1].creneaux_facultatifs.join() === '10:00,12:30,18:00,22:30' && PP[6].en_pause && PP[6].creneaux_facultatifs.join() === '20:00' && PP[1].thematique === 'Mystérieux');
+const F1 = C.planFusion([{ id: 'n', nom: 'Noël BSH', saison: 'noel', date_debut: '2026-12-01', date_fin: '2026-12-26', recurrence_annuelle: true, statut: 'brouillon' }]);
+ok('36 fusion (seule « Noël BSH ») : renommage, même identifiant, dates officielles, ancien état tracé', F1.action === 'renommer' && F1.id === 'n' && F1.patch.nom === 'BSH Christmas Secrets 2026' && F1.patch.date_debut === '2026-11-17' && /avant : « Noël BSH », 2026-12-01 → 2026-12-26/.test(F1.patch.notes_internes));
+const F2 = C.planFusion([{ id: 'n', nom: 'Noël BSH', saison: 'noel', statut: 'brouillon', date_debut: null, date_fin: null }, { id: 'c', nom: 'BSH Christmas Secrets 2026', saison: 'noel', statut: 'brouillon', date_debut: '2026-11-17', date_fin: '2026-12-25' }]);
+ok('37 fusion (les deux existent) : rattachement vers la campagne officielle, « Noël BSH » archivée et non supprimée', F2.action === 'rattacher' && F2.de === 'n' && F2.vers === 'c' && F2.archive.statut === 'archivee' && F2.tables.includes('bsh_communications'));
+ok('38 fusion déjà faite : aucune action', C.planFusion([{ id: 'c', nom: 'BSH Christmas Secrets 2026', saison: 'noel', statut: 'brouillon', date_debut: null, date_fin: null }]).action === 'rien');
+const S0 = C.sondagesAManquer([]); const S1 = C.sondagesAManquer([{ question: 'quelle ambiance preferez-vous pour noel chez bsh ?' }]);
+ok('39 réserve : 10 sondages en brouillon, 4 réponses chacun ; doublon reconnu sans accents ni casse', S0.length === 10 && S0.every(x => x.statut === 'brouillon' && x.choix.length === 4) && S1.length === 9);
+ok('40 Rewards : 4 catégories officielles', C.CATEGORIES_REWARDS.map(x => x[1]).join('|') === 'BSH Sweet Rewards|BSH Golden Ticket|BSH Secret Gift|BSH Members Rewards');
+ok('41 studio : 6 ambiances, Story Snapchat et TikTok en 1080 × 1920 avec zones sûres, exports PDF pour l\'impression', C.AMBIANCES.length === 6 && C.FORMATS_STUDIO.story_tiktok.h === 1920 && C.ZONES_SURES.story_tiktok.bas > 0 && C.EXPORTS_STUDIO.invitation.includes('pdf') && !C.EXPORTS_STUDIO.story.includes('pdf'));
+
 console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);

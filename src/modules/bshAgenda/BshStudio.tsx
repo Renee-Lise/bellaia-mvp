@@ -8,14 +8,38 @@
 // (ajout seul, garanti par la base), export PNG vers la médiathèque (à valider). Tables 0141.
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { K, FS, champ, bouton, Etiquette, Champ, Carte, Vide, Titre, Feuille, Erreur, grille, sbInsert, sbUpdate, uploadStorage, slug, libelleInstant, BUCKET_BSH } from "./bshAgendaLib";
+import { K, FS, champ, bouton, Etiquette, Champ, Carte, Vide, Titre, Feuille, Erreur, grille, sbInsert, sbUpdate, uploadStorage, slug, libelleInstant, BUCKET_BSH, telecharger } from "./bshAgendaLib";
 import type { Donnees, Creation } from "./BshAgendaHub";
-import { FORMATS_STUDIO, AMBIANCES, utilisable } from "./continuite";
+import { FORMATS_STUDIO, AMBIANCES, utilisable, EXPORTS_STUDIO, ZONES_SURES, PERSONNAGE_OFFICIEL } from "./continuite";
 import { empreinteFichier } from "./BshMediatheque";
 
 type Contenu = { surtitre: string; titre: string; texte: string; mention: string; fond_id: string | null; personnage: boolean; alignement: "haut" | "centre" | "bas"; choix?: string[] };
 const VIDE: Contenu = { surtitre: "Bella'Secret Home", titre: "", texte: "", mention: "", fond_id: null, personnage: false, alignement: "bas", choix: [] };
 const STATUTS: [string, string, string][] = [["brouillon", "Brouillon", K.cremeD], ["a_corriger", "À corriger", K.alerte], ["valide", "Validée", K.ok], ["archive", "Archivée", K.cremeD]];
+
+/** PDF d'une page contenant l'image JPEG (sans librairie) ; page dimensionnée pour une impression à 300 ppp. */
+export function pdfDepuisJpeg(jpeg: Uint8Array, lpx: number, hpx: number): Blob {
+  const w = +(lpx * 72 / 300).toFixed(2), h = +(hpx * 72 / 300).toFixed(2);
+  const enc = new TextEncoder(); const parts: (Uint8Array)[] = []; const offs: number[] = []; let n = 0;
+  const pousser = (b: Uint8Array) => { parts.push(b); n += b.length; };
+  const obj = (i: number, corps: (string | Uint8Array)[]) => { offs[i] = n; pousser(enc.encode(`${i} 0 obj\n`)); corps.forEach(c => pousser(typeof c === "string" ? enc.encode(c) : c)); pousser(enc.encode("\nendobj\n")); };
+  pousser(enc.encode("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n"));
+  const flux = `q ${w} 0 0 ${h} 0 0 cm /Im0 Do Q`;
+  obj(1, ["<< /Type /Catalog /Pages 2 0 R >>"]);
+  obj(2, ["<< /Type /Pages /Kids [3 0 R] /Count 1 >>"]);
+  obj(3, [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`]);
+  obj(4, [`<< /Type /XObject /Subtype /Image /Width ${lpx} /Height ${hpx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`, jpeg, "\nendstream"]);
+  obj(5, [`<< /Length ${flux.length} >>\nstream\n${flux}\nendstream`]);
+  const xref = n; pousser(enc.encode(`xref\n0 6\n0000000000 65535 f \n${offs.slice(1).map(o => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`));
+  return new Blob(parts as BlobPart[], { type: "application/pdf" });
+}
+/** Fichier réel de la création (PNG, JPEG ou PDF), produit depuis le dessin au format exact. */
+export async function fichierCreation(cv: HTMLCanvasElement, sortie: "png" | "jpeg" | "pdf"): Promise<Blob> {
+  const blob = (type: string, q?: number) => new Promise<Blob>((ok, ko) => cv.toBlob(b => b ? ok(b) : ko(new Error("Export impossible (image de fond sans autorisation de partage)")), type, q));
+  if (sortie === "png") return blob("image/png");
+  const jpeg = await blob("image/jpeg", 0.92);
+  return sortie === "jpeg" ? jpeg : pdfDepuisJpeg(new Uint8Array(await jpeg.arrayBuffer()), cv.width, cv.height);
+}
 
 function chargerImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise(ok => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = () => ok(null); i.src = url; });
@@ -56,6 +80,7 @@ export default function BshStudio({ d, recharger }: { d: Donnees; recharger: () 
   return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
     <Titre action={<button style={bouton("plein", true)} onClick={() => setNouvelle(true)}>＋ Nouvelle création</button>}>Studio créatif</Titre>
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button style={bouton(!filtre ? "or" : "ghost", true)} onClick={() => setFiltre("")}>Tout</button>{Object.entries(FORMATS_STUDIO).map(([k, f]) => <button key={k} style={bouton(filtre === k ? "or" : "ghost", true)} onClick={() => setFiltre(k)}>{f.libelle}</button>)}</div>
+    <PersonnageOfficiel d={d} recharger={recharger} flash={setMsg} />
     {msg && <div style={{ fontSize: 12, color: msg.startsWith("⚠️") ? K.erreur : K.ok }}>{msg}</div>}
     {liste.length === 0 ? <Vide>Aucune création.</Vide> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(240px,100%),1fr))", gap: 8 }}>
       {liste.map(c => { const [, l, coul] = STATUTS.find(s => s[0] === c.statut) || STATUTS[0]; const parent = d.creations.find(x => x.id === c.parent_id);
@@ -65,7 +90,7 @@ export default function BshStudio({ d, recharger }: { d: Donnees; recharger: () 
           <div style={{ marginTop: 6 }}><Etiquette couleur={coul}>{l}</Etiquette></div></button></Carte>; })}
     </div>}
     {nouvelle && <NouvelleCreation d={d} onFermer={() => setNouvelle(false)} onFait={(c) => { setNouvelle(false); recharger(); setOuverte(c); }} />}
-    {ouverte && <Atelier key={ouverte.id} d={d} c={d.creations.find(x => x.id === ouverte.id) || ouverte} onFermer={() => setOuverte(null)} recharger={recharger} flash={setMsg} ouvrir={setOuverte} />}
+    {ouverte && <Atelier key={`${ouverte.id}-${d.versions.filter(v => v.creation_id === ouverte.id).length}`} d={d} c={d.creations.find(x => x.id === ouverte.id) || ouverte} onFermer={() => setOuverte(null)} recharger={recharger} flash={setMsg} ouvrir={setOuverte} />}
   </div>;
 }
 
@@ -122,10 +147,21 @@ function Atelier({ d, c, onFermer, recharger, flash, ouvrir }: { d: Donnees; c: 
     try { await sbUpdate("bsh_communications", pub, { visuel_url: finale.url, updated_at: new Date().toISOString() }); await sbUpdate("bsh_creations", c.id, { communication_id: pub }); flash("✅ Visuel associé à la publication (aucune publication n'est envoyée)"); recharger(); } catch (e: any) { setErr(String(e?.message || e)); }
   };
   const [, libS, coulS] = STATUTS.find(s => s[0] === c.statut) || STATUTS[0];
+  const finale = d.ressources.find(r => r.id === c.ressource_finale_id);
+  const finalisee = c.statut === "valide" && !modifie && !!finale;
+  const telechargerFichier = async (sortie: "png" | "jpeg" | "pdf") => {
+    if (!cv.current) return; if (c.statut !== "valide" || modifie) return setErr("Valide la création (version enregistrée) avant de télécharger un fichier final.");
+    try { const b = await fichierCreation(cv.current, sortie); telecharger(b, `${slug(c.titre)}-v${c.version_courante}.${sortie === "jpeg" ? "jpg" : sortie}`); flash(`✅ Fichier ${sortie.toUpperCase()} produit (${Math.round(b.size / 1024)} Ko)`); } catch (e: any) { setErr(String(e?.message || e)); }
+  };
   return <Feuille titre={c.titre} onFermer={onFermer} large>
     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><Etiquette couleur={coulS}>{libS}</Etiquette><span style={{ fontSize: 11, color: K.cremeD }}>{f.libelle} · {f.l} × {f.h} px · version {c.version_courante}</span></div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(280px,100%),1fr))", gap: 12 }}>
-      <div><canvas ref={cv} aria-label="Aperçu au format réel" style={{ width: "100%", maxWidth: f.h > f.l ? 280 : 420, height: "auto", aspectRatio: `${f.l} / ${f.h}`, borderRadius: 10, display: "block", margin: "0 auto", border: `1px solid ${K.ligne}` }} />
+      <div><div style={{ position: "relative", width: "100%", maxWidth: f.h > f.l ? 280 : 420, margin: "0 auto" }}>
+        <canvas ref={cv} aria-label="Aperçu au format réel" style={{ width: "100%", height: "auto", aspectRatio: `${f.l} / ${f.h}`, borderRadius: 10, display: "block", border: `1px solid ${K.ligne}` }} />
+        {ZONES_SURES[c.format] && <><div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: 0, height: `${ZONES_SURES[c.format].haut * 100}%`, borderBottom: `1px dashed ${K.alerte}`, background: "rgba(251,191,36,0.08)" }} /><div aria-hidden style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${ZONES_SURES[c.format].bas * 100}%`, borderTop: `1px dashed ${K.alerte}`, background: "rgba(251,191,36,0.08)" }} /></>}
+        {!finalisee && <div aria-label="Statut de l'aperçu" style={{ position: "absolute", top: 8, left: 8, fontSize: 10, fontWeight: 700, color: K.fond, background: K.alerte, borderRadius: 99, padding: "2px 8px" }}>Aperçu — non finalisé</div>}
+      </div>
+        {ZONES_SURES[c.format] && <div style={{ fontSize: 10, color: K.alerte, textAlign: "center", marginTop: 4 }}>Zones hachurées : recouvertes par l'interface de l'application (aucun texte important).</div>}
         <div style={{ fontSize: 10, color: personnage ? K.cremeD : K.alerte, textAlign: "center", marginTop: 4 }}>{personnage ? `Personnage de référence : ${personnage.titre}` : "Aucun personnage principal validé dans la médiathèque : il n'apparaît pas."}</div></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <Champ label="Surtitre"><input style={champ} value={contenu.surtitre} onChange={e => maj({ surtitre: e.target.value })} /></Champ>
@@ -156,6 +192,7 @@ function Atelier({ d, c, onFermer, recharger, flash, ouvrir }: { d: Donnees; c: 
       <div style={{ fontSize: 12, fontWeight: 700, color: K.or }}>Export et publication</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
         <button style={bouton("or", true)} disabled={!!occupe} onClick={exporter}>⬆️ Exporter vers la médiathèque (PNG {f.l} × {f.h})</button>
+        {(EXPORTS_STUDIO[c.format] || ["png"]).map(x => <button key={x} style={bouton("ghost", true)} onClick={() => telechargerFichier(x)}>⬇️ {x.toUpperCase()}</button>)}
         <select aria-label="Publication à illustrer" style={{ ...champ, width: "auto", maxWidth: 260 }} value={pub} onChange={e => setPub(e.target.value)}><option value="">Publication à illustrer…</option>{d.pubs.filter(p => p.id && !["publie", "annule", "archive"].includes(p.statut)).map(p => <option key={p.id} value={p.id}>{p.titre} · {libelleInstant(p.date_programmee)}</option>)}</select>
         <button style={bouton("ghost", true)} disabled={!pub} onClick={lierPublication}>Associer le visuel</button>
       </div>
@@ -170,4 +207,29 @@ function Atelier({ d, c, onFermer, recharger, flash, ouvrir }: { d: Donnees; c: 
     </Carte>
     <Erreur msg={err} />
   </Feuille>;
+}
+
+/** Personnage officiel BSH : la description guide la validation ; seul le visuel déposé et validé par la fondatrice est utilisé. */
+function PersonnageOfficiel({ d, recharger, flash }: { d: Donnees; recharger: () => void; flash: (t: string) => void }) {
+  const refs = d.ressources.filter(r => r.type === "personnage_reference");
+  const valide = refs.find(r => utilisable(r)); const enAttente = refs.filter(r => r.statut_validation === "a_valider");
+  const [occupe, setOccupe] = useState(false);
+  const deposer = async (f?: File) => {
+    if (!f) return; setOccupe(true);
+    try { const e = await empreinteFichier(f); if (d.ressources.some(r => (r.empreinte || "") === e)) { flash("⚠️ Ce visuel est déjà dans la médiathèque."); setOccupe(false); return; }
+      const ext = (f.name.split(".").pop() || "png").toLowerCase(); const chemin = `personnage/${Date.now().toString(36)}-officiel.${ext}`;
+      const url = await uploadStorage(chemin, f, f.type || "image/png", BUCKET_BSH);
+      await sbInsert("bsh_ressources", { titre: "Personnage officiel BSH", univers: "commun", type: "personnage_reference", url, chemin_storage: chemin, empreinte: e, statut_validation: "a_valider", droits: "a_verifier", droits_note: "Visuel officiel déposé ; droits et validation par la fondatrice." }, "return=minimal");
+      flash("✅ Visuel déposé : à valider par la fondatrice dans la Médiathèque (droits à confirmer)."); recharger(); } catch (er: any) { flash("⚠️ " + (er?.message || er)); }
+    setOccupe(false);
+  };
+  return <Carte style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+    {valide?.url ? <img src={valide.url} alt="Personnage officiel BSH" style={{ width: 54, height: 54, objectFit: "cover", borderRadius: 10 }} /> : <div style={{ width: 54, height: 54, borderRadius: 10, display: "grid", placeItems: "center", background: K.verre2, fontSize: 22 }}>👤</div>}
+    <div style={{ flex: 1, minWidth: 200 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: K.creme }}>Personnage officiel BSH</div>
+      <div style={{ fontSize: 11, color: K.cremeD }}>{PERSONNAGE_OFFICIEL} Cette description ne remplace pas le visuel officiel.</div>
+      <div style={{ fontSize: 11, color: valide ? K.ok : K.alerte }}>{valide ? "Visuel validé : utilisable dans les créations." : enAttente.length ? `${enAttente.length} visuel(s) en attente de validation (Médiathèque).` : "Aucun visuel officiel déposé : le personnage n'apparaît dans aucune création."}</div>
+    </div>
+    <label style={{ ...bouton("or", true), display: "inline-flex", alignItems: "center", opacity: occupe ? 0.6 : 1 }}>Importer le visuel officiel<input type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} disabled={occupe} onChange={e => deposer(e.target.files?.[0] || undefined)} /></label>
+  </Carte>;
 }

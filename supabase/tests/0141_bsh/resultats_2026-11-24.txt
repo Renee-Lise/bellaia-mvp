@@ -1,4 +1,4 @@
-# 0141 — base PostgreSQL 16 jetable, 23/11/2026 (schéma et règles d'accès relevés en production)
+# 0141 — base PostgreSQL 16 jetable, 24/11/2026 (complétée : nature, plateforme, Rewards, Diamond B, assistant, ambiances)
 0141 appliquée deux fois (idempotence)
 01 fondatrice : création de 2 publications en brouillon | accepté
 02 programmation sans validation refusée par la base | t
@@ -34,5 +34,10 @@
 29 studio : variante liée à sa création d'origine | t
 30 hôte et cliente : aucun accès au studio | t
 31 mode Continuité : hôte principal et remplaçant enregistrés | t
+32 publications : nature et plateforme ; adaptation TikTok enregistrée | t
+33 Rewards : 4 catégories acceptées, autre refusée ; ouverture toujours impossible sans validations | t
+34 Diamond B : paroles et auteurs, liaison à un jeu Secret Games | t
+35 studio : ambiances romantique, mystérieuse, festive ; formats Story Snapchat et TikTok | t
+36 assistant de communication : réservé à la fondatrice, raccourci ≤ 25 caractères, validation datée | t
 retour arrière : true
 réapplication sans erreur

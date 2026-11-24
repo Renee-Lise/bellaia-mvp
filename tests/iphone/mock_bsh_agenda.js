@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const F = '00000000-0000-0000-0000-0000000000f0';
 const HOTES_SUB = { '00000000-0000-0000-0000-0000000000b1': 'h1', '00000000-0000-0000-0000-0000000000b2': 'h2' };
 const AVEC_0141 = process.env.MOCK_BSH_0141 !== '0';
-const TABLES_0141 = ['bsh_preuves_publication', 'bsh_ressources', 'bsh_creations', 'bsh_creations_versions'];
+const TABLES_0141 = ['bsh_preuves_publication', 'bsh_ressources', 'bsh_creations', 'bsh_creations_versions', 'bsh_assistant_contenus'];
 const RPC_0141 = ['bsh_confirmer_publication', 'bsh_hote_execution'];
 const iso = (j, h = '08:00') => { const d = new Date(Date.now() + j * 864e5 - 3 * 3600e3); return new Date(`${d.toISOString().slice(0, 10)}T${h}:00-03:00`).toISOString(); };
 const jour = j => new Date(Date.now() + j * 864e5 - 3 * 3600e3).toISOString().slice(0, 10);
@@ -33,8 +33,8 @@ function initial() {
       { id: 'r2', titre: 'Visuel aux droits à vérifier', univers: 'secret_agenda', type: 'affiche', statut_validation: 'valide', valide_le: iso(-2), droits: 'a_verifier', empreinte: 'bb22', url: null, created_at: iso(-3) },
       { id: 'r3', titre: 'Scénario de quiz', univers: 'secret_games', type: 'scenario', statut_validation: 'a_valider', valide_le: null, droits: 'proprietaire', empreinte: null, contenu_texte: 'Question 1…', created_at: iso(-1) },
     ],
-    bsh_creations: [], bsh_creations_versions: [], bsh_preuves_publication: [],
-    bsh_sondages: [], bsh_rewards_campagnes: [], bsh_musique: [], bsh_musique_liens: [], bsh_evenements: [],
+    bsh_creations: [], bsh_creations_versions: [], bsh_preuves_publication: [], bsh_assistant_contenus: [],
+    bsh_sondages: [], bsh_rewards_campagnes: [], bsh_musique: [], bsh_musique_liens: [], bsh_evenements: [], bsh_jeux: [{ id: 'j1', nom: 'Secret Games', icone: '🎴', statut: 'publie' }],
     events_medias: [{ id: 'em1', url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=', chemin_storage: 'x/fond.png', nom_fichier: 'fond-nuit.png', dossier: 'bsh', created_at: iso(-10) }],
     __ecritures: [],
   };
@@ -120,13 +120,15 @@ async function gerer(t, q, u, sub, corps) {
     const b = await corps(q); const rows = (Array.isArray(b) ? b : [b]).map(x => ({ id: crypto.randomUUID(), created_at: new Date().toISOString(), ...x }));
     for (const r of rows) {
       if (!AVEC_0141 && t === 'bsh_missions' && ('remplacant_id' in r || 'ressources' in r)) return erreur(400, "Could not find the 'remplacant_id' column of 'bsh_missions' in the schema cache", 'PGRST204');
-      if (!AVEC_0141 && t === 'bsh_communications' && ('valide_le' in r || 'historique' in r)) return erreur(400, "Could not find the 'valide_le' column of 'bsh_communications' in the schema cache", 'PGRST204');
+      if (!AVEC_0141 && t === 'bsh_communications' && ('valide_le' in r || 'historique' in r || 'nature' in r || 'plateforme' in r)) return erreur(400, "Could not find the 'valide_le' column of 'bsh_communications' in the schema cache", 'PGRST204');
       if (t === 'bsh_communications') { const g = garde(null, r); if (g) return erreur(400, g, 'P0001'); }
       if (t === 'bsh_ressources' && r.empreinte && DB.bsh_ressources.some(x => (x.empreinte || '').toLowerCase() === r.empreinte.toLowerCase())) return erreur(409, 'duplicate key value violates unique constraint "bsh_ressources_empreinte_unique"', '23505');
       if (t === 'bsh_ressources' && r.statut_validation === 'valide' && !r.valide_le) return erreur(400, 'violates check constraint "bsh_ressources_validation_datee"', '23514');
       if (t === 'bsh_creations_versions') { r.numero = DB.bsh_creations_versions.filter(v => v.creation_id === r.creation_id).length + 1; const c = DB.bsh_creations.find(x => x.id === r.creation_id); if (c) c.version_courante = r.numero; }
       if (t === 'bsh_creations') r.version_courante = 0;
       if (t === 'bsh_missions') r.statut_execution = r.statut_execution || 'a_faire';
+      if (t === 'bsh_assistant_contenus' && r.statut === 'valide' && !r.valide_le) return erreur(400, 'violates check constraint "bsh_assistant_validation_datee"', '23514');
+      if (t === 'bsh_rewards_campagnes' && r.categorie && !['sweet_rewards', 'golden_ticket', 'secret_gift', 'members_rewards'].includes(r.categorie)) return erreur(400, 'violates check constraint "bsh_rewards_categorie_check"', '23514');
     }
     DB[t].push(...rows); DB.__ecritures.push(...rows.map(r => ({ table: t, op: 'insert', ...r })));
     return { status: 201, body: (q.headers.prefer || '').includes('return=minimal') ? null : rows };

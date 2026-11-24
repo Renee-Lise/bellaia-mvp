@@ -18,6 +18,7 @@ import BshStatistiques, { BshTableauDeBord } from "./BshStats";
 import BshContinuite from "./BshContinuite";
 import BshStudio from "./BshStudio";
 import BshMediatheque from "./BshMediatheque";
+import BshAssistant, { type ContenuAssistant } from "./BshAssistant";
 
 export type Campagne = { id: string; nom: string; saison: string; description?: string | null; date_debut: string | null; date_fin: string | null; date_cible: string | null; recurrence_annuelle: boolean; couleur_principale: string | null; couleur_secondaire: string | null; visuel_url?: string | null; statut: string; notes_internes?: string | null };
 export type Sondage = { id: string; question: string; choix: { id: string; libelle: string }[]; choix_multiple: boolean; date_debut: string | null; date_fin: string | null; destination: string; source: string; statut: string; resultats_manuels: Record<string, number>; participants_manuels: number | null; hote_id: string | null; campagne_id: string | null; notes_internes: string | null };
@@ -35,6 +36,7 @@ export type Donnees = {
   ressources: Ressource[]; creations: Creation[]; versions: VersionCreation[];
   dispos: { id: string; hote_id: string; jour: string; type: string; note: string | null }[];
   medias: { id: string; url: string; nom_fichier: string; dossier: string }[];
+  assistant: ContenuAssistant[];
   boudoir: { id: string; nom: string; date_evenement: string | null; lieu: string | null; statut: string; capacite: number | null; places_restantes: number | null; description: string | null; publie: boolean | null }[];
   jeux: { id: string; nom: string; icone: string; statut: string }[];
   musique: Musique[]; musiqueLiens: { id: string; musique_id: string; cible_type: string; cible_id: string }[];
@@ -47,7 +49,7 @@ export type VersionCreation = { id: string; creation_id: string; numero: number;
 
 const RUBRIQUES: [string, string, string][] = [
   ["tableau", "◈", "Tableau de bord"], ["agenda", "🗓", "Secret Agenda"], ["publications", "📢", "Publications"], ["sondages", "📊", "Sondages"],
-  ["jeux", "🎲", "Jeux et animations"], ["rewards", "🎁", "BSH Rewards"], ["hotes", "👤", "Hôtes et hôtesses"], ["continuite", "🛡", "Continuité BSH"], ["studio", "🎨", "Studio créatif"], ["mediatheque", "🗂", "Médiathèque"], ["stats", "📈", "Statistiques"], ["boudoir", "🕯", "Boudoir Sessions"],
+  ["jeux", "🎲", "Jeux et animations"], ["rewards", "🎁", "BSH Rewards"], ["hotes", "👤", "Hôtes et hôtesses"], ["continuite", "🛡", "Continuité BSH"], ["studio", "🎨", "Studio créatif"], ["mediatheque", "🗂", "Médiathèque"], ["assistant", "💬", "Assistant de communication"], ["stats", "📈", "Statistiques"], ["boudoir", "🕯", "Boudoir Sessions"],
 ];
 
 async function charger(): Promise<Donnees> {
@@ -70,13 +72,14 @@ async function charger(): Promise<Donnees> {
   // 0141 : présence vérifiée par une lecture réelle de la table des preuves (aucune supposition)
   const v141 = await sbSelect<any>("bsh_preuves_publication", "select=id,communication_id,preuve,preuve_url,publie_le,source&order=publie_le.desc").then(r => ({ ok: true, r })).catch(() => ({ ok: false, r: [] as any[] }));
   const opt = <T,>(t: string, s: string) => v141.ok ? sbSelect<T>(t, s).catch(() => [] as T[]) : Promise.resolve([] as T[]);
-  const [ressources, creations, versions, dispos, medias] = await Promise.all([
+  const [ressources, creations, versions, dispos, medias, assistant] = await Promise.all([
     opt<Ressource>("bsh_ressources", "select=*&order=created_at.desc"), opt<Creation>("bsh_creations", "select=*&order=created_at.desc"),
     opt<VersionCreation>("bsh_creations_versions", "select=*&order=numero.asc"),
     sbSelect<any>("bsh_hotes_disponibilites", "select=id,hote_id,jour,type,note").catch(() => []),
     sbSelect<any>("events_medias", "select=id,url,nom_fichier,dossier&order=created_at.desc&limit=300").catch(() => []),
+    opt<ContenuAssistant>("bsh_assistant_contenus", "select=*&order=updated_at.desc"),
   ]);
-  return { pubs, sondages, animations, campagnes, rewards, hotes, jours, reglages: reglages[0] || null, missions, boudoir, jeux, musique, musiqueLiens, v141: v141.ok, preuves: v141.r, ressources, creations, versions, dispos, medias };
+  return { pubs, sondages, animations, campagnes, rewards, hotes, jours, reglages: reglages[0] || null, missions, boudoir, jeux, musique, musiqueLiens, v141: v141.ok, preuves: v141.r, ressources, creations, versions, dispos, medias, assistant };
 }
 
 function Boudoir({ d, recharger, experiences }: { d: Donnees; recharger: () => void; experiences?: React.ReactNode }) {
@@ -159,6 +162,7 @@ export default function BshAgendaHub({ experiences }: { experiences?: React.Reac
           {rub === "continuite" && <BshContinuite d={d} recharger={recharger} ouvrir={setEdition} />}
           {rub === "studio" && <BshStudio d={d} recharger={recharger} />}
           {rub === "mediatheque" && <BshMediatheque d={d} recharger={recharger} />}
+          {rub === "assistant" && <BshAssistant d={d} recharger={recharger} />}
           {rub === "stats" && <BshStatistiques d={d} />}
           {rub === "boudoir" && <Boudoir d={d} recharger={recharger} experiences={experiences} />}
           {edition && <EditeurPublication key={edition.id || "nouvelle"} initiale={edition} d={d} onFermer={() => setEdition(null)} onEnregistre={recharger} />}

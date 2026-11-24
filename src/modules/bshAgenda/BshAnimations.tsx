@@ -15,7 +15,14 @@ export const CATEGORIES: Record<string, string> = { quiz: "❓ Quiz", enigme: "�
 const STATUTS: [string, string, string][] = [["brouillon", "Brouillon", K.cremeD], ["a_valider", "À valider", K.alerte], ["valide", "Validée", K.or], ["programme", "Programmée", "#9085e9"], ["realise", "Réalisée", K.ok], ["archive", "Archivée", K.cremeD]];
 const AUTORISATIONS: Record<string, [string, string]> = { a_verifier: ["Droits à vérifier", K.alerte], autorisee: ["Diffusion autorisée", K.ok], refusee: ["Diffusion refusée", K.erreur] };
 
-function Liens({ d, cibleType, cibleId, recharger }: { d: Donnees; cibleType: "campagne" | "animation" | "evenement"; cibleId?: string; recharger: () => void }) {
+function Liens({ d, cibleType, cibleId, recharger, musiqueId }: { d: Donnees; cibleType: "campagne" | "animation" | "evenement" | "jeu"; cibleId?: string; recharger: () => void; musiqueId?: string }) {
+  if (musiqueId) { // liaison d'un titre aux jeux Secret Games
+    const lies = d.musiqueLiens.filter(l => l.musique_id === musiqueId && l.cible_type === "jeu");
+    return <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {lies.map(l => <div key={l.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: K.creme }}>🎴 {d.jeux.find(j => j.id === l.cible_id)?.nom || "Jeu"}<div style={{ flex: 1 }} /><button style={bouton("ghost", true)} onClick={async () => { await sbDelete("bsh_musique_liens", l.id); recharger(); }}>Retirer</button></div>)}
+      <select style={champ} value="" onChange={async e => { if (e.target.value) { await sbInsert("bsh_musique_liens", { musique_id: musiqueId, cible_type: "jeu", cible_id: e.target.value }, "return=minimal"); recharger(); } }}><option value="">+ Associer à un jeu…</option>{d.jeux.filter(j => !lies.some(l => l.cible_id === j.id)).map(j => <option key={j.id} value={j.id}>{j.icone} {j.nom}</option>)}</select>
+    </div>;
+  }
   if (!cibleId) return <div style={{ fontSize: 11, color: K.cremeD }}>Enregistre d'abord pour associer des titres Diamond B.</div>;
   const lies = d.musiqueLiens.filter(l => l.cible_type === cibleType && l.cible_id === cibleId);
   const libres = d.musique.filter(m => !lies.some(l => l.musique_id === m.id));
@@ -84,14 +91,14 @@ function EditeurAnimation({ a: init, d, onFermer, recharger }: { a: Animation; d
   );
 }
 
-function EditeurMusique({ m: init, onFermer, recharger }: { m: Musique; onFermer: () => void; recharger: () => void }) {
+function EditeurMusique({ m: init, d, onFermer, recharger }: { m: Musique; d: Donnees; onFermer: () => void; recharger: () => void }) {
   const [m, setM] = useState<any>({ ...init, duree: init.duree_secondes ? `${Math.floor(init.duree_secondes / 60)}:${String(init.duree_secondes % 60).padStart(2, "0")}` : "" });
   const [erreur, setErreur] = useState("");
   const maj = (p: any) => setM((x: any) => ({ ...x, ...p }));
   const enregistrer = async () => {
     if (!m.titre?.trim()) return setErreur("Titre obligatoire.");
     const [mn, sc] = String(m.duree || "").split(":").map(Number);
-    const corps = { titre: m.titre.trim(), artiste: m.artiste || "Diamond B", lien_ecoute: m.lien_ecoute || null, ambiance: m.ambiance || null, duree_secondes: m.duree ? (mn || 0) * 60 + (sc || 0) : null, autorisation_diffusion: m.autorisation_diffusion, autorisation_note: m.autorisation_note || null, notes: m.notes || null, updated_at: new Date().toISOString() };
+    const corps = { titre: m.titre.trim(), artiste: m.artiste || "Diamond B", lien_ecoute: m.lien_ecoute || null, ambiance: m.ambiance || null, duree_secondes: m.duree ? (mn || 0) * 60 + (sc || 0) : null, ...(d.v141 ? { paroles: m.paroles || null, auteurs: m.auteurs || null } : {}), autorisation_diffusion: m.autorisation_diffusion, autorisation_note: m.autorisation_note || null, notes: m.notes || null, updated_at: new Date().toISOString() };
     try { if (init.id) await sbUpdate("bsh_musique", init.id, corps); else await sbInsert("bsh_musique", corps, "return=minimal"); recharger(); onFermer(); } catch (e: any) { setErreur(e.message); }
   };
   return (
@@ -106,6 +113,9 @@ function EditeurMusique({ m: init, onFermer, recharger }: { m: Musique; onFermer
       </div>
       <Champ label="Justificatif / note sur les droits"><textarea style={{ ...champ, minHeight: 50 }} value={m.autorisation_note || ""} onChange={e => maj({ autorisation_note: e.target.value })} placeholder="Ex. accord écrit de l'artiste du …, SACEM…" /></Champ>
       <Champ label="Notes"><textarea style={{ ...champ, minHeight: 50 }} value={m.notes || ""} onChange={e => maj({ notes: e.target.value })} /></Champ>
+      <div style={grille(200)}><Champ label="Auteurs / compositeurs" aide={d.v141 ? undefined : "Enregistré après la migration 0141"}><input style={champ} disabled={!d.v141} value={m.auteurs || ""} onChange={e => maj({ auteurs: e.target.value })} /></Champ></div>
+      <Champ label="Paroles originales" aide={d.v141 ? "Conservées en interne ; diffusion soumise à l'autorisation ci-dessus." : "Enregistrées après la migration 0141"}><textarea style={{ ...champ, minHeight: 90 }} disabled={!d.v141} value={m.paroles || ""} onChange={e => maj({ paroles: e.target.value })} /></Champ>
+      {init.id && d.v141 && <Champ label="Jeux Secret Games associés"><Liens d={d} cibleType="jeu" cibleId={undefined} recharger={recharger} musiqueId={init.id} /></Champ>}
       <Erreur msg={erreur} />
       <div style={{ display: "flex", gap: 8 }}>
         {init.id && <button style={bouton("danger")} onClick={async () => { if (confirm("Supprimer ce titre et ses associations ?")) { await sbDelete("bsh_musique", init.id); recharger(); onFermer(); } }}>Supprimer</button>}
@@ -144,7 +154,8 @@ export default function BshAnimations({ d, recharger }: { d: Donnees; recharger:
       </>}
 
       {onglet === "musique" && <>
-        <div style={{ fontSize: 11, color: K.cremeD, lineHeight: 1.6 }}>Bibliothèque des titres Diamond B, à associer aux campagnes, animations et Boudoir Sessions. Bellaïa ne diffuse aucune musique automatiquement : vérifie l'autorisation de diffusion avant chaque utilisation publique.</div>
+        <ImportMusique d={d} recharger={recharger} />
+        <div style={{ fontSize: 11, color: K.cremeD, lineHeight: 1.6 }}>Bibliothèque des titres Diamond B, à associer aux campagnes, animations, jeux Secret Games et Boudoir Sessions. Bellaïa ne diffuse aucune musique automatiquement : vérifie l'autorisation de diffusion avant chaque utilisation publique.</div>
         {d.musique.length === 0 ? <Vide>Aucun titre pour l'instant.</Vide> : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {d.musique.map(m => { const [lib, c] = AUTORISATIONS[m.autorisation_diffusion]; const n = d.musiqueLiens.filter(l => l.musique_id === m.id).length; return (
             <Carte key={m.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: 12 }}>
@@ -155,7 +166,24 @@ export default function BshAnimations({ d, recharger }: { d: Donnees; recharger:
         </div>}
       </>}
       {anim && <EditeurAnimation a={anim} d={d} recharger={recharger} onFermer={() => setAnim(null)} />}
-      {mus && <EditeurMusique m={mus} recharger={recharger} onFermer={() => setMus(null)} />}
+      {mus && <EditeurMusique m={mus} d={d} recharger={recharger} onFermer={() => setMus(null)} />}
     </div>
   );
+}
+
+/** Import de titres Diamond B : une ligne par titre « titre ; lien d'écoute ; ambiance ; durée (m:s) ; droits (a_verifier, autorisee, refusee) ».
+ *  Les paroles se saisissent ensuite dans chaque titre. Doublons (même titre) ignorés ; droits « à vérifier » par défaut. */
+function ImportMusique({ d, recharger }: { d: Donnees; recharger: () => void }) {
+  const [texte, setTexte] = useState(""); const [msg, setMsg] = useState(""); const [ouvert, setOuvert] = useState(false);
+  const lignes = texte.split("\n").map(l => l.trim()).filter(l => l && !/^titre\b/i.test(l)).map(l => { const [titre = "", lien = "", ambiance = "", duree = "", droits = ""] = l.split(/\t|;/).map(x => x.trim()); const [mn, sc] = duree.split(":").map(Number);
+    return { titre, lien_ecoute: /^https:\/\//i.test(lien) ? lien : null, ambiance: ambiance || null, duree_secondes: duree ? (mn || 0) * 60 + (sc || 0) : null, autorisation_diffusion: ["autorisee", "refusee"].includes(droits) ? droits : "a_verifier", doublon: d.musique.some(m => m.titre.trim().toLowerCase() === titre.toLowerCase()), lienInvalide: !!lien && !/^https:\/\//i.test(lien) }; }).filter(x => x.titre);
+  const ok = lignes.filter(x => !x.doublon);
+  const importer = async () => { try { await sbInsert("bsh_musique", ok.map(({ doublon, lienInvalide, ...x }) => ({ ...x, artiste: "Diamond B" })), "return=minimal"); setMsg(`✅ ${ok.length} titre(s) importé(s), droits à vérifier sauf mention contraire.`); setTexte(""); recharger(); } catch (e: any) { setMsg("⚠️ " + (e?.message || e)); } };
+  if (!ouvert) return <div><button style={bouton("ghost", true)} onClick={() => setOuvert(true)}>⬆️ Importer des titres</button></div>;
+  return <Carte style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <Champ label="Titres à importer" aide="Une ligne par titre : titre ; lien d'écoute (https) ; ambiance ; durée m:s ; droits (a_verifier / autorisee / refusee)"><textarea aria-label="Titres à importer" style={{ ...champ, minHeight: 80 }} value={texte} onChange={e => setTexte(e.target.value)} /></Champ>
+    {lignes.length > 0 && <div style={{ fontSize: 12, color: K.cremeF }}>{ok.length} à importer{lignes.length - ok.length ? ` · ${lignes.length - ok.length} doublon(s) ignoré(s)` : ""}{lignes.some(x => x.lienInvalide) ? " · lien non https ignoré" : ""}</div>}
+    {msg && <div style={{ fontSize: 12, color: msg.startsWith("⚠️") ? K.erreur : K.ok }}>{msg}</div>}
+    <div style={{ display: "flex", gap: 6 }}><button style={bouton("plein", true)} disabled={!ok.length} onClick={importer}>Importer {ok.length} titre(s)</button><button style={bouton("ghost", true)} onClick={() => setOuvert(false)}>Fermer</button></div>
+  </Carte>;
 }
