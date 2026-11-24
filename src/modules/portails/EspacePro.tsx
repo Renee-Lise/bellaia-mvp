@@ -8,6 +8,7 @@
 // de la mission (déjà autorisé à la personne assignée) : la trace est la même pour la fondatrice.
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useMemo, useState } from "react";
+import MissionsAnimationBSH from "../bshHotes/MissionsAnimationBSH";
 import { sbSelect, sbInsert, sbRpc } from "../events/eventsAtelierLib";
 import { deposerPrive, lienPrive, nomFichierSur } from "../equipe/equipeLib";
 import CalendrierPremium from "../calendrier/CalendrierPremium";
@@ -138,7 +139,7 @@ export default function EspacePro({ user, titre = "Mon espace professionnel" }: 
           <button style={{ ...bouton(false), width: "100%" }} onClick={() => setOnglet("agenda")}>Mon agenda professionnel</button>
           <div style={{ ...carte, marginTop: 12, fontSize: 13.5, color: T.doux }}>Messagerie interne : ouverte après sa mise en sécurité. En attendant, échangez dans le fil de chaque mission.</div>
         </>}
-        {onglet === "missions" && <Missions userId={user?.id} />}
+        {onglet === "missions" && <><Missions userId={user?.id} /><MissionsAnimationBSH /></>}
         {onglet === "agenda" && <CalendrierPremium m={{ ...MARQUES.STUDIO, nom: "Bellaïa", logo: MARQUES.GENERAL.logo }} role="assistante" userId={user?.id} titre="Agenda professionnel" />}
         {onglet === "documents" && <Documents userId={user?.id} />}
         {onglet === "profil" && <Profil user={user} />}

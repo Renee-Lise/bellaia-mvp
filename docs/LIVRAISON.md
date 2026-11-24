@@ -50,6 +50,7 @@ Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwr
 | Lecteur de livres : pages au glissement (sens français), jamais pendant un zoom, marque-page, progression, illustration plein écran | Oui (branche) | 16/16 + 8/8 unitaires | Non | Non |
 | Carte « Mo Ti-Péyi » de l'accueil client qui n'ouvrait rien (défaut introduit puis corrigé le jour même, jamais en production) | Corrigé | 16/16 | — | — |
 | Jeux : inventaire | — | Jeux BSH inchangés (Secret Games, Duo, Salons, restrictions d'accès conservées) ; jeu de cartes Mo Ti-Péyi commencé (prototype) ; aucun jeu Odyssée ou jeunesse | — | — |
+| BSH Secret Agenda (24/11) : continuité, publication en 4 étapes avec preuve, missions déléguées avec remplaçant, médiathèque commune, studio versionné, import Christmas Secrets | Branche ; 0141 **non appliquée** | 29/29 unitaires, 34/34 base jetable, 42/42 simulateur iPhone | **Non** | Non |
 
 ## Ce qui rendra Bellaïa réellement opérationnelle, dans l'ordre
 1. **Sauvegarde réelle depuis l'iPhone** : dépôt GitHub privé + tâche « Sauvegarde Bellaïa » (`docs/deploiement/sauvegarde-iphone/PROCEDURE_IPHONE.md`) ; le résultat doit être « COMPLET ».

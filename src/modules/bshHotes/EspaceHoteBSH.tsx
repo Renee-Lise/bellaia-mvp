@@ -51,9 +51,10 @@ export default function EspaceHoteBSH({ apercuHote }: { apercuHote?: string }) {
   if (!d) return <div style={{ color: BSH.doux, padding: 20, fontFamily: SANS }}>Chargement…</div>;
   if (!h) return <div style={{ ...carte, margin: 16, color: BSH.texte, fontFamily: SANS }}>Votre profil hôte n'est pas encore actif. Votre candidature est en cours d'examen par la fondatrice.</div>;
 
-  const mesMissions = d.missions.filter((m: any) => m.hote_id === h.id);
-  const aRepondre = mesMissions.filter((m: any) => m.statut === "proposee");
-  const prochaines = mesMissions.filter((m: any) => ["acceptee", "confirmee"].includes(m.statut)).sort((a: any, b: any) => a.date_mission.localeCompare(b.date_mission));
+  // Titulaire OU remplaçant·e (0141) : la base ne renvoie de toute façon que ces missions
+  const mesMissions = d.missions.filter((m: any) => m.hote_id === h.id || m.remplacant_id === h.id);
+  const aRepondre = mesMissions.filter((m: any) => m.statut === "proposee" && m.hote_id === h.id); // seul·e le ou la titulaire répond
+  const prochaines = mesMissions.filter((m: any) => ["acceptee", "confirmee"].includes(m.statut)).sort((a: any, b: any) => String(a.date_mission || "").localeCompare(String(b.date_mission || "")));
   const nonLus = d.messages.filter((m: any) => m.hote_id === h.id && m.de_fondatrice && !m.lu).length;
   const docsAttente = d.documents.filter((x: any) => x.hote_id === h.id && ["a_fournir", "a_signer"].includes(x.statut)).length;
   const maj = (cle: keyof Donnees, f: (l: any[]) => any[]) => setD(x => x ? ({ ...x, [cle]: f((x as any)[cle]) }) : x);
@@ -90,7 +91,7 @@ export default function EspaceHoteBSH({ apercuHote }: { apercuHote?: string }) {
         {prochaines.length ? prochaines.map((m: any) => <div key={m.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "7px 0", borderTop: `1px solid ${BSH.ligne}` }}><span style={{ fontSize: 14 }}>{TYPES_MISSION.find(t => t[0] === m.role_mission)?.[2]} {m.titre}</span><span style={{ fontSize: 12, color: BSH.doux }}>{dateFr(m.date_mission)} · {m.heure_debut?.slice(0, 5)}</span></div>) : <div style={{ fontSize: 13, color: BSH.doux }}>Aucune mission prévue.</div>}
       </div>
     </>;
-    case "missions": return <>{titre("Mes missions")}{mesMissions.length ? mesMissions.map((m: any) => <CarteMission key={m.id} m={m} d={d} onRepondre={repondre} />) : <div style={{ color: BSH.doux }}>Aucune mission.</div>}</>;
+    case "missions": return <>{titre("Mes missions")}{mesMissions.length ? mesMissions.map((m: any) => <CarteMission key={m.id} m={m} d={d} moi={h.id} onRepondre={repondre} majMission={(id: string, patch: any) => maj("missions", l => l.map(x => x.id === id ? { ...x, ...patch } : x))} majPublication={(id: string, patch: any) => maj("publications" as any, l => (l || []).map((x: any) => x.id === id ? { ...x, ...patch } : x))} avertir={avertir} />) : <div style={{ color: BSH.doux }}>Aucune mission.</div>}</>;
     case "planning": return <>{titre("Mon planning")}{[...prochaines, ...d.disponibilites.filter((x: any) => x.hote_id === h.id)].sort((a: any, b: any) => (a.date_mission || a.jour).localeCompare(b.date_mission || b.jour)).map((x: any) =>
       <div key={x.id} style={{ ...carte, display: "flex", gap: 12, alignItems: "center" }}><div style={{ textAlign: "center", minWidth: 54 }}><div style={{ fontFamily: SERIF, fontSize: 24, color: BSH.orClair }}>{new Date((x.date_mission || x.jour) + "T12:00").getDate()}</div><div style={{ fontSize: 11, color: BSH.doux, textTransform: "uppercase" }}>{new Date((x.date_mission || x.jour) + "T12:00").toLocaleDateString("fr-FR", { month: "short" })}</div></div>
         <div style={{ flex: 1 }}>{x.titre ? <><b>{x.titre}</b><div style={{ fontSize: 12, color: BSH.doux }}>{x.heure_debut?.slice(0, 5)} – {x.heure_fin?.slice(0, 5)} · {x.lieu}</div></> : <><b style={{ color: x.type === "disponible" ? BSH.ok : BSH.rouge }}>{x.type === "disponible" ? "Disponible" : "Indisponible"}</b><div style={{ fontSize: 12, color: BSH.doux }}>{x.debut ? `${x.debut.slice(0, 5)} – ${x.fin?.slice(0, 5)}` : "Journée"}</div></>}</div></div>)}</>;
@@ -149,7 +150,46 @@ export default function EspaceHoteBSH({ apercuHote }: { apercuHote?: string }) {
   );
 }
 
-function CarteMission({ m, d, onRepondre }: { m: any; d: Donnees; onRepondre: (m: any, r: "acceptee" | "refusee") => void }) {
+const EXEC: Record<string, [string, string]> = { a_faire: ["À faire", BSH.or], en_cours: ["En cours", BSH.rose], realisee: ["Réalisée", BSH.ok], non_realisee: ["Non réalisée", BSH.rouge], reportee: ["Reportée", BSH.alerte], annulee: ["Annulée", BSH.doux] };
+const ESP: Record<string, string> = { chaine: "Chaîne BSH", cercle: "Cercle BSH", lounge: "BSH Lounge", evenement: "Événement" };
+/** Exécution et preuve de publication d'une mission d'animation (fonctions contrôlées de 0141). */
+export function SuiviAnimation({ m, d, moi, majMission, majPublication, avertir }: any) {
+  const [cr, setCr] = useState(m.compte_rendu || ""); const [preuve, setPreuve] = useState(""); const [ouvrirPreuve, setOuvrirPreuve] = useState(false);
+  const pub = (d.publications || []).find((p: any) => p.id === m.communication_id);
+  const res = (d.ressources || []).filter((r: any) => (m.ressources || []).includes(r.id));
+  const bloque = ["annulee", "reportee"].includes(m.statut_execution) || ["annulee", "refusee"].includes(m.statut);
+  const declarer = async (statut: string) => {
+    if (["realisee", "non_realisee"].includes(statut) && cr.trim().length < 10) return avertir("Un compte rendu d'au moins 10 caractères est demandé.");
+    try { await rpc("bsh_hote_execution", { p_mission: m.id, p_statut: statut, p_compte_rendu: cr.trim() || null }); majMission(m.id, { statut_execution: statut, compte_rendu: cr.trim() || m.compte_rendu }); avertir("✅ Enregistré."); }
+    catch (e: any) { avertir(/function|schema cache|PGRST202/i.test(String(e?.message || e)) ? "Le suivi d'exécution sera activé prochainement par la fondatrice." : "❌ " + String(e?.message || e)); }
+  };
+  const confirmer = async () => {
+    if (preuve.trim().length < 8) return avertir("Décrivez la preuve (8 caractères au moins) : lien du message, capture conservée…");
+    try { await rpc("bsh_confirmer_publication", { p_communication: pub.id, p_preuve: preuve.trim(), p_url: null }); majPublication(pub.id, { statut: "publie" }); setOuvrirPreuve(false); avertir("✅ Publication confirmée avec votre preuve."); }
+    catch (e: any) { avertir("❌ " + String(e?.message || e)); }
+  };
+  const [le, ce] = EXEC[m.statut_execution || "a_faire"] || EXEC.a_faire;
+  return <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(255,255,255,0.04)", display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><span style={{ fontSize: 13, color: BSH.doux }}>{m.remplacant_id === moi ? "Vous êtes remplaçant·e sur cette mission" : "Vous êtes responsable de cette mission"}{m.espace ? ` · ${ESP[m.espace] || m.espace}` : ""}</span><span style={{ fontSize: 11, fontWeight: 800, color: ce, border: `1px solid ${ce}55`, borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>{le}</span></div>
+    {pub && <div style={{ fontSize: 13 }}>📢 <b>{pub.titre}</b> · {pub.statut === "publie" ? "publication confirmée" : "pas encore publiée"}{pub.contenu ? <div style={{ fontSize: 13, color: BSH.doux, whiteSpace: "pre-wrap", marginTop: 4 }}>{pub.contenu}</div> : null}</div>}
+    {res.length > 0 && <div style={{ fontSize: 13 }}>Ressources autorisées : {res.map((r: any) => r.url ? <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: BSH.orClair, marginRight: 8 }}>{r.titre}</a> : <span key={r.id} style={{ marginRight: 8 }}>{r.titre}</span>)}</div>}
+    {!bloque && <>
+      <textarea aria-label="Compte rendu" value={cr} onChange={e => setCr(e.target.value)} placeholder="Compte rendu : déroulé, participation, incident éventuel…" style={{ width: "100%", boxSizing: "border-box", minHeight: 64, borderRadius: 12, border: `1px solid ${BSH.ligne}`, background: "rgba(255,255,255,0.05)", color: BSH.texte, padding: 10, fontSize: 16, fontFamily: SANS }} />
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {m.statut_execution !== "en_cours" && m.statut_execution !== "realisee" && <button style={bouton()} onClick={() => declarer("en_cours")}>Commencer</button>}
+        <button style={bouton(true)} onClick={() => declarer("realisee")}>Mission réalisée</button>
+        <button style={bouton()} onClick={() => declarer("non_realisee")}>Non réalisée</button>
+      </div>
+      {pub && pub.statut !== "publie" && ["programme", "pret"].includes(pub.statut) && (ouvrirPreuve ? <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <textarea aria-label="Preuve de publication" value={preuve} onChange={e => setPreuve(e.target.value)} placeholder="Ex. Message posté dans le Cercle à 21:02, capture conservée" style={{ width: "100%", boxSizing: "border-box", minHeight: 54, borderRadius: 12, border: `1px solid ${BSH.ligne}`, background: "rgba(255,255,255,0.05)", color: BSH.texte, padding: 10, fontSize: 16, fontFamily: SANS }} />
+        <div style={{ display: "flex", gap: 6 }}><button style={bouton(true)} onClick={confirmer}>Confirmer avec cette preuve</button><button style={bouton()} onClick={() => setOuvrirPreuve(false)}>Annuler</button></div></div>
+        : <button style={bouton()} onClick={() => setOuvrirPreuve(true)}>J'ai publié : confirmer avec une preuve</button>)}
+    </>}
+    {bloque && <div style={{ fontSize: 12, color: BSH.doux }}>{m.statut_execution === "reportee" ? "Mission reportée par la fondatrice." : "Mission annulée."}{m.motif ? ` Motif : ${m.motif}` : ""}</div>}
+  </div>;
+}
+
+function CarteMission({ m, d, onRepondre, moi, majMission, majPublication, avertir }: { m: any; d: Donnees; onRepondre: (m: any, r: "acceptee" | "refusee") => void; moi?: string; majMission?: any; majPublication?: any; avertir?: (t: string) => void }) {
   const t = TYPES_MISSION.find(x => x[0] === m.role_mission); const [l, c] = STATUT_MISSION[m.statut] || [m.statut, BSH.doux];
   const ev = d.evenements.find((e: any) => e.id === m.evenement_id);
   return (
@@ -160,8 +200,9 @@ function CarteMission({ m, d, onRepondre }: { m: any; d: Donnees; onRepondre: (m
       </div>
       <div style={{ fontSize: 13, color: BSH.doux, marginTop: 6 }}>📅 {dateFr(m.date_mission)} · {m.heure_debut?.slice(0, 5)} – {m.heure_fin?.slice(0, 5)}<br />📍 {m.lieu}<br />💶 {Number(m.remuneration || 0).toFixed(0)} € indicatif {m.simulation ? "(simulation)" : ""}</div>
       {m.consignes && <div style={{ fontSize: 13, marginTop: 8, padding: 10, borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>{m.consignes}</div>}
-      {m.statut === "proposee" && <div style={{ display: "flex", gap: 8, marginTop: 10 }}><button style={{ ...bouton(true), flex: 1 }} onClick={() => onRepondre(m, "acceptee")}>Accepter</button><button style={{ ...bouton(), flex: 1 }} onClick={() => onRepondre(m, "refusee")}>Refuser</button></div>}
+      {m.statut === "proposee" && (!moi || m.hote_id === moi) && <div style={{ display: "flex", gap: 8, marginTop: 10 }}><button style={{ ...bouton(true), flex: 1 }} onClick={() => onRepondre(m, "acceptee")}>Accepter</button><button style={{ ...bouton(), flex: 1 }} onClick={() => onRepondre(m, "refusee")}>Refuser</button></div>}
       {m.statut === "acceptee" && <div style={{ fontSize: 12, color: BSH.doux, marginTop: 8 }}>En attente de confirmation par la fondatrice.</div>}
+      {(m.communication_id || m.animation_id || m.statut_execution) && majMission && <SuiviAnimation m={m} d={d} moi={moi} majMission={majMission} majPublication={majPublication} avertir={avertir} />}
     </div>
   );
 }

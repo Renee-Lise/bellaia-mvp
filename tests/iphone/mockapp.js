@@ -51,6 +51,7 @@ http.createServer(async (q, r) => {
   const rpc = u.pathname.includes('/rpc/') ? t : null;
   const json = (o, code = 200) => { r.writeHead(code, h); r.end(JSON.stringify(o)); };
   const unique = (q.headers.accept || '').includes('pgrst.object');
+  if (process.env.MOCK_BSH_AGENDA === '1') { const bsh = await require('./mock_bsh_agenda').gerer(t, q, u, sub, corps); if (bsh) { r.writeHead(bsh.status, h); return r.end(bsh.body === null || bsh.body === undefined ? '' : JSON.stringify(bsh.body)); } } // BSH Secret Agenda (tests t_bsh_agenda)
   if (rpc === 'food_allergenes_produits') { const b = await corps(q); const o = {}; (b?.p_ids || []).forEach(id => { if (FP[id]) o[id] = FP[id].valides || FP[id].allergenes; }); return json(o); }
   if (rpc === 'food_allergenes_valides') { const b = await corps(q); return json(FP[b?.p_produit]?.valides ?? null); }
   if (rpc === 'reduction_apercu' || rpc === 'reduction_consommer') { const b = await corps(q); const c = String(b?.p_code || '').toUpperCase(); const m = Number(b?.p_montant_centimes || b?.p_montant || 0);

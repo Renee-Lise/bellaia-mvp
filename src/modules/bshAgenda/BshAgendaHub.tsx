@@ -15,6 +15,9 @@ import BshAnimations, { LiensDiamondB } from "./BshAnimations";
 import BshRewards from "./BshRewards";
 import BshHotes from "./BshHotes";
 import BshStatistiques, { BshTableauDeBord } from "./BshStats";
+import BshContinuite from "./BshContinuite";
+import BshStudio from "./BshStudio";
+import BshMediatheque from "./BshMediatheque";
 
 export type Campagne = { id: string; nom: string; saison: string; description?: string | null; date_debut: string | null; date_fin: string | null; date_cible: string | null; recurrence_annuelle: boolean; couleur_principale: string | null; couleur_secondaire: string | null; visuel_url?: string | null; statut: string; notes_internes?: string | null };
 export type Sondage = { id: string; question: string; choix: { id: string; libelle: string }[]; choix_multiple: boolean; date_debut: string | null; date_fin: string | null; destination: string; source: string; statut: string; resultats_manuels: Record<string, number>; participants_manuels: number | null; hote_id: string | null; campagne_id: string | null; notes_internes: string | null };
@@ -24,16 +27,27 @@ export type Musique = { id: string; titre: string; artiste: string; lien_ecoute:
 export type Donnees = {
   pubs: Publication[]; sondages: Sondage[]; animations: Animation[]; campagnes: Campagne[]; rewards: Reward[]; hotes: Hote[];
   jours: { jour_semaine: number; thematique: string; en_pause: boolean; creneaux: string[]; creneaux_facultatifs: string[]; note: string | null }[];
-  reglages: { pensee_actif: boolean; pensee_frequence_jours: number; pensee_heure: string; pensee_date_reference: string } | null;
-  missions: { id: string; hote_id: string; titre: string; date_mission: string | null; lieu: string | null; statut: string }[];
+  reglages: { pensee_actif: boolean; pensee_frequence_jours: number; pensee_heure: string; pensee_date_reference: string; continuite_active?: boolean; continuite_principal?: string | null; continuite_remplacant?: string | null; continuite_horizon_jours?: number; continuite_note?: string | null } | null;
+  missions: Mission[];
+  /** Migration 0141 appliquée (preuves, médiathèque, studio, missions déléguées) : détectée, jamais supposée. */
+  v141: boolean;
+  preuves: { id: string; communication_id: string; preuve: string; preuve_url: string | null; publie_le: string; source: string }[];
+  ressources: Ressource[]; creations: Creation[]; versions: VersionCreation[];
+  dispos: { id: string; hote_id: string; jour: string; type: string; note: string | null }[];
+  medias: { id: string; url: string; nom_fichier: string; dossier: string }[];
   boudoir: { id: string; nom: string; date_evenement: string | null; lieu: string | null; statut: string; capacite: number | null; places_restantes: number | null; description: string | null; publie: boolean | null }[];
   jeux: { id: string; nom: string; icone: string; statut: string }[];
   musique: Musique[]; musiqueLiens: { id: string; musique_id: string; cible_type: string; cible_id: string }[];
 };
 
+export type Mission = { id: string; hote_id: string; remplacant_id?: string | null; titre: string; date_mission: string | null; lieu: string | null; statut: string; espace?: string | null; communication_id?: string | null; animation_id?: string | null; ressources?: string[]; statut_execution?: string; compte_rendu?: string | null; compte_rendu_le?: string | null; consignes?: string | null; heure_debut?: string | null; heure_fin?: string | null; reporte_au?: string | null; motif?: string | null; simulation?: boolean };
+export type Ressource = { id: string; titre: string; univers: string; type: string; campagne_id: string | null; espace: string | null; date_ressource: string | null; url: string | null; chemin_storage?: string | null; source_media_id: string | null; empreinte: string | null; contenu_texte: string | null; jeu_id?: string | null; rewards_id?: string | null; auteur: string | null; statut_validation: string; valide_le: string | null; droits: string; droits_note: string | null; created_at: string };
+export type Creation = { id: string; titre: string; format: string; ambiance: string; campagne_id: string | null; parent_id: string | null; personnage_id: string | null; communication_id: string | null; jeu_id: string | null; ressource_finale_id: string | null; statut: string; version_courante: number; created_at: string; updated_at?: string };
+export type VersionCreation = { id: string; creation_id: string; numero: number; contenu: any; note_correction: string | null; created_at: string };
+
 const RUBRIQUES: [string, string, string][] = [
   ["tableau", "◈", "Tableau de bord"], ["agenda", "🗓", "Secret Agenda"], ["publications", "📢", "Publications"], ["sondages", "📊", "Sondages"],
-  ["jeux", "🎲", "Jeux et animations"], ["rewards", "🎁", "BSH Rewards"], ["hotes", "👤", "Hôtes et hôtesses"], ["stats", "📈", "Statistiques"], ["boudoir", "🕯", "Boudoir Sessions"],
+  ["jeux", "🎲", "Jeux et animations"], ["rewards", "🎁", "BSH Rewards"], ["hotes", "👤", "Hôtes et hôtesses"], ["continuite", "🛡", "Continuité BSH"], ["studio", "🎨", "Studio créatif"], ["mediatheque", "🗂", "Médiathèque"], ["stats", "📈", "Statistiques"], ["boudoir", "🕯", "Boudoir Sessions"],
 ];
 
 async function charger(): Promise<Donnees> {
@@ -47,13 +61,22 @@ async function charger(): Promise<Donnees> {
     q<Hote>("bsh_hotes", "select=id,nom,prenom,statut,profile_id&order=prenom.asc"),
     q<any>("bsh_programmation_jours", "select=*"),
     q<any>("bsh_agenda_reglages", "select=*&id=eq.1"),
-    q<any>("bsh_missions", "select=id,hote_id,titre,date_mission,lieu,statut"),
+    q<any>("bsh_missions", "select=*&order=date_mission.asc.nullslast"),
     q<any>("bsh_evenements", "select=id,nom,date_evenement,lieu,statut,capacite,places_restantes,description,publie&categorie=eq.boudoir_session&order=date_evenement.asc.nullslast"),
     q<any>("bsh_jeux", "select=id,nom,icone,statut&order=ordre.asc"),
     q<Musique>("bsh_musique", "select=*&order=titre.asc"),
     q<any>("bsh_musique_liens", "select=id,musique_id,cible_type,cible_id"),
   ]);
-  return { pubs, sondages, animations, campagnes, rewards, hotes, jours, reglages: reglages[0] || null, missions, boudoir, jeux, musique, musiqueLiens };
+  // 0141 : présence vérifiée par une lecture réelle de la table des preuves (aucune supposition)
+  const v141 = await sbSelect<any>("bsh_preuves_publication", "select=id,communication_id,preuve,preuve_url,publie_le,source&order=publie_le.desc").then(r => ({ ok: true, r })).catch(() => ({ ok: false, r: [] as any[] }));
+  const opt = <T,>(t: string, s: string) => v141.ok ? sbSelect<T>(t, s).catch(() => [] as T[]) : Promise.resolve([] as T[]);
+  const [ressources, creations, versions, dispos, medias] = await Promise.all([
+    opt<Ressource>("bsh_ressources", "select=*&order=created_at.desc"), opt<Creation>("bsh_creations", "select=*&order=created_at.desc"),
+    opt<VersionCreation>("bsh_creations_versions", "select=*&order=numero.asc"),
+    sbSelect<any>("bsh_hotes_disponibilites", "select=id,hote_id,jour,type,note").catch(() => []),
+    sbSelect<any>("events_medias", "select=id,url,nom_fichier,dossier&order=created_at.desc&limit=300").catch(() => []),
+  ]);
+  return { pubs, sondages, animations, campagnes, rewards, hotes, jours, reglages: reglages[0] || null, missions, boudoir, jeux, musique, musiqueLiens, v141: v141.ok, preuves: v141.r, ressources, creations, versions, dispos, medias };
 }
 
 function Boudoir({ d, recharger, experiences }: { d: Donnees; recharger: () => void; experiences?: React.ReactNode }) {
@@ -133,6 +156,9 @@ export default function BshAgendaHub({ experiences }: { experiences?: React.Reac
           {rub === "jeux" && <BshAnimations d={d} recharger={recharger} />}
           {rub === "rewards" && <BshRewards d={d} recharger={recharger} />}
           {rub === "hotes" && <BshHotes d={d} ouvrirPublication={setEdition} />}
+          {rub === "continuite" && <BshContinuite d={d} recharger={recharger} ouvrir={setEdition} />}
+          {rub === "studio" && <BshStudio d={d} recharger={recharger} />}
+          {rub === "mediatheque" && <BshMediatheque d={d} recharger={recharger} />}
           {rub === "stats" && <BshStatistiques d={d} />}
           {rub === "boudoir" && <Boudoir d={d} recharger={recharger} experiences={experiences} />}
           {edition && <EditeurPublication key={edition.id || "nouvelle"} initiale={edition} d={d} onFermer={() => setEdition(null)} onEnregistre={recharger} />}

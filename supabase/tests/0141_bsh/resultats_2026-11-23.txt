@@ -23,7 +23,7 @@
 20 fondatrice confirme P1 avec preuve → publiée ; preuve tracée (source, auteur) | t
 20b … preuves tracées : 1 de la fondatrice, 1 de l'hôte, avec leur auteur | t
 21 publication confirmée : retour en « programmé » refusé | t
-22 visiteur anonyme : lit les 2 textes publiés, mais plus les notes internes ni l'hôte | t
+22 visiteur anonyme : lit les 2 textes publiés, et seulement les colonnes publiques | t
 23 anonyme : aucune preuve, ressource, création ni version | t
 24 hôte : insertion directe d'une preuve refusée | t
 25 médiathèque : doublon (même empreinte, casse différente) refusé | t

@@ -135,7 +135,9 @@ export async function chargerEspace(): Promise<Donnees> {
     g("bsh_interventions", "select=*&order=created_at.desc"), g("bsh_hotes_documents", "select=*&order=created_at.desc"), g("bsh_remunerations", "select=*&order=created_at.desc"),
     g("bsh_hotes_messages", "select=*&order=created_at.asc"), g("bsh_invitations", "select=id,evenement_id,nom_destinataire,categorie,code,utilisee,annulee"),
   ]);
-  return { simulation: false, hotes: hotes.map((h: any) => ({ ...h, etapes: etapesDe(h) })), evenements, missions, candidatures, disponibilites, presences, interventions, documents, remunerations, messages, invitations, historique: [] } as any;
+  // Secret Agenda (0103/0141) : la base ne renvoie que les publications et ressources des missions de l'hôte
+  const [publications, ressources] = await Promise.all([g("bsh_communications", "select=id,titre,contenu,espace,date_programmee,statut,visuel_url"), g("bsh_ressources", "select=id,titre,type,url,contenu_texte")]);
+  return { simulation: false, hotes: hotes.map((h: any) => ({ ...h, etapes: etapesDe(h) })), evenements, missions, candidatures, disponibilites, presences, interventions, documents, remunerations, messages, invitations, historique: [], publications, ressources } as any;
 }
 export function etapesDe(h: any): string[] {
   const e = ["candidature"];

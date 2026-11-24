@@ -3,7 +3,10 @@
 // BSH Secret Agenda — Publications (table bsh_communications)
 // Préparer, modifier, prévisualiser, valider. Aucune publication
 // automatique : on copie le texte / télécharge le visuel / ouvre
-// WhatsApp, puis on « marque comme publié » (date effective).
+// WhatsApp. Quatre étapes distinctes (continuite.ts) : génération,
+// validation, programmation, puis publication CONFIRMÉE avec preuve
+// (fonction bsh_confirmer_publication, migration 0141). Une
+// programmation interne n'est jamais présentée comme publiée.
 // Duplication et récurrences (série de copies liées par serie_id).
 // ═══════════════════════════════════════════════════════════
 import React, { useMemo, useState } from "react";
@@ -13,13 +16,22 @@ import {
   versIso, cleJour, heureCayenne, aujourdhui, plusJours, jourSemaine, libelleInstant, ESPACES, STATUTS_PUB, statutPub, JOURS_COURTS, BUCKET_BSH,
 } from "./bshAgendaLib";
 import type { Donnees } from "./BshAgendaHub";
+import { sbRpc } from "./bshAgendaLib";
+import { controleTransition, etapePublication, dupliquer as dupliquerContenu, preuveSuffisante, ETAPES_PUBLICATION } from "./continuite";
 
 export type Publication = {
   id?: string; titre: string; contenu: string; type: string; cible: string; statut: string; espace: string | null;
   date_programmee: string | null; visuel_url: string | null; lien_externe: string | null; jeu_id?: string | null;
   thematique: string | null; fuseau?: string; hote_id: string | null; notes_internes: string | null; date_publication_effective: string | null;
   creneau: string | null; campagne_id: string | null; serie_id?: string | null; recurrence?: any; rappel_le?: string | null; publiee_le?: string | null;
+  valide_le?: string | null; valide_par?: string | null; historique?: boolean;
 };
+/** Validation constatée : date de validation (0141), ou statut déjà validé dans une base antérieure à 0141. */
+export const dateValidation = (p: Publication, v141: boolean) => v141 ? (p.valide_le || null) : (["valide", "programme", "pret", "publie"].includes(p.statut) ? "statut" : null);
+export function etapeDe(p: Publication, d: Donnees) {
+  const preuve = d.preuves.find(x => x.communication_id === p.id);
+  return etapePublication({ ...p, valide_le: dateValidation(p, d.v141), preuve_publication: preuve?.preuve || null, confirme_le: preuve?.publie_le || null });
+}
 
 export function nouvellePublication(date?: string, heure?: string, thematique?: string | null): Publication {
   return { titre: "", contenu: "", type: "publication", cible: "tous", statut: "brouillon", espace: "chaine", date_programmee: date ? versIso(date, heure || "08:00") : null, visuel_url: null, lien_externe: null, thematique: thematique || null, hote_id: null, notes_internes: null, date_publication_effective: null, creneau: heure || null, campagne_id: null };
@@ -54,7 +66,7 @@ function datesRecurrence(debut: string, r: Recurrence): string[] {
 }
 
 const CHAMPS_ENREG = ["titre", "contenu", "type", "cible", "statut", "espace", "date_programmee", "visuel_url", "lien_externe", "thematique", "hote_id", "notes_internes", "date_publication_effective", "creneau", "campagne_id", "serie_id", "recurrence", "rappel_le", "jeu_id"];
-const propre = (p: any) => { const o: any = {}; CHAMPS_ENREG.forEach(k => { if (p[k] !== undefined) o[k] = p[k] === "" ? null : p[k]; }); o.fuseau = "America/Cayenne"; o.updated_at = new Date().toISOString(); return o; };
+const propre = (p: any, v141 = false) => { const o: any = {}; [...CHAMPS_ENREG, ...(v141 ? ["valide_le", "valide_par", "historique"] : [])].forEach(k => { if (p[k] !== undefined) o[k] = p[k] === "" ? null : p[k]; }); o.fuseau = "America/Cayenne"; o.updated_at = new Date().toISOString(); return o; };
 
 // ── Éditeur ──────────────────────────────────────────────────
 export function EditeurPublication({ initiale, d, onFermer, onEnregistre }: { initiale: Publication; d: Donnees; onFermer: () => void; onEnregistre: () => void }) {
@@ -81,9 +93,13 @@ export function EditeurPublication({ initiale, d, onFermer, onEnregistre }: { in
 
   const enregistrer = async () => {
     if (!p.titre.trim()) return setErreur("Le titre est obligatoire.");
-    setErreur(""); setOccupe("Enregistrement…");
     const datep = date ? versIso(date, heure) : null;
-    const base = propre({ ...p, date_programmee: datep, creneau: date ? heure : p.creneau, recurrence: rec.type === "aucune" ? null : rec });
+    // Étapes : valider fixe la date de validation ; programmer exige une validation ; « publié » passe par la confirmation avec preuve
+    const validation = p.statut === "valide" && !dateValidation(initiale, d.v141) ? new Date().toISOString() : (initiale.valide_le || null);
+    const refus = p.statut === initiale.statut ? null : p.statut === "publie" ? "Pour déclarer une publication, utilise « Confirmer la publication » : une preuve est demandée." : controleTransition({ ...initiale, ...p, date_programmee: datep, valide_le: validation || dateValidation(initiale, d.v141) }, p.statut);
+    if (refus) return setErreur(refus);
+    setErreur(""); setOccupe("Enregistrement…");
+    const base = propre({ ...p, date_programmee: datep, creneau: date ? heure : p.creneau, recurrence: rec.type === "aucune" ? null : rec, ...(d.v141 ? { valide_le: validation } : {}) }, d.v141);
     try {
       if (p.id) await sbUpdate("bsh_communications", p.id, base);
       else {
@@ -105,7 +121,7 @@ export function EditeurPublication({ initiale, d, onFermer, onEnregistre }: { in
     <Feuille titre={p.id ? "Modifier la publication" : "Nouvelle publication"} onFermer={onFermer} large>
       <div style={grille(220)}>
         <Champ label="Titre *"><input style={champ} value={p.titre} onChange={e => maj({ titre: e.target.value })} placeholder="Ex. Mystère du lundi" /></Champ>
-        <Champ label="Statut"><select style={champ} value={p.statut} onChange={e => maj({ statut: e.target.value })}>{STATUTS_PUB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Champ>
+        <Champ label="Statut"><select style={champ} value={p.statut} onChange={e => maj({ statut: e.target.value })}>{STATUTS_PUB.filter(([v]) => v !== "publie" || initiale.statut === "publie").map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Champ>
         <Champ label="Date (heure de Cayenne)"><input style={champ} type="date" value={date} onChange={e => choisirDate(e.target.value)} /></Champ>
         <Champ label="Heure" aide="Fuseau America/Cayenne (UTC−3)"><div style={{ display: "flex", gap: 6 }}><input style={champ} type="time" value={heure} onChange={e => setHeure(e.target.value)} />{["08:00", "21:00"].map(h => <button key={h} style={bouton(heure === h ? "or" : "ghost", true)} onClick={() => setHeure(h)}>{h.replace(":00", " h")}</button>)}</div></Champ>
         <Champ label="Thématique"><input style={champ} list="bsh-themes" value={p.thematique || ""} onChange={e => maj({ thematique: e.target.value })} /><datalist id="bsh-themes">{themes.map(t => <option key={t} value={t} />)}</datalist></Champ>
@@ -176,9 +192,14 @@ export function CartePublication({ p, d, onModifier, recharger, compacte }: { p:
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 2200); };
   const action = async (patch: any, m: string) => { try { await sbUpdate("bsh_communications", p.id!, { ...patch, updated_at: new Date().toISOString() }); flash(m); recharger(); } catch (e: any) { flash("⚠️ " + e.message); } };
   const dupliquer = async () => {
-    const { id, serie_id, recurrence, date_publication_effective, publiee_le, ...reste } = p as any;
-    try { await sbInsert("bsh_communications", propre({ ...reste, titre: p.titre + " (copie)", statut: "brouillon" }), "return=minimal"); flash("✅ Dupliquée en brouillon"); recharger(); } catch (e: any) { flash("⚠️ " + e.message); }
+    const { recurrence, ...reste } = dupliquerContenu(p as any, p.date_programmee) as any; // brouillon, sans validation ni preuve
+    try { await sbInsert("bsh_communications", propre(reste, d.v141), "return=minimal"); flash("✅ Dupliquée en brouillon (à valider)"); recharger(); } catch (e: any) { flash("⚠️ " + e.message); }
   };
+  const etape = etapeDe(p, d); const nEtape = ETAPES_PUBLICATION.findIndex(e => e[0] === etape) + 1;
+  const valide = !!dateValidation(p, d.v141);
+  const [confirmer, setConfirmer] = useState(false);
+  const valider = () => { const r = controleTransition({ ...p, valide_le: null }, "valide"); if (r) return flash("⚠️ " + r); action(d.v141 ? { statut: "valide", valide_le: new Date().toISOString() } : { statut: "valide" }, "✅ Validée (étape 2/4)"); };
+  const programmer = () => { const r = controleTransition({ ...p, valide_le: valide ? "ok" : null }, "programme"); if (r) return flash("⚠️ " + r); action({ statut: "programme" }, "🗓 Programmée (étape 3/4) : rien n'est envoyé automatiquement"); };
   const rappel = async () => {
     const quand = p.date_programmee || new Date(Date.now() + 3600000).toISOString();
     telecharger(fichierRappel(p.titre, quand, `${ESPACES[p.espace || ""] || ""}\n\n${p.contenu || ""}`), `rappel-${slug(p.titre)}.ics`);
@@ -205,8 +226,15 @@ export function CartePublication({ p, d, onModifier, recharger, compacte }: { p:
         <button style={bouton("ghost", true)} onClick={dupliquer}>⧉ Dupliquer</button>
         <button style={bouton("ghost", true)} onClick={rappel}>⏰ Rappel</button>
         <button style={bouton("ghost", true)} onClick={() => onModifier(p)}>✏️</button>
-        {p.statut !== "publie" && <button style={bouton("or", true)} onClick={() => action({ statut: "publie", date_publication_effective: new Date().toISOString(), publiee_le: new Date().toISOString() }, "✅ Marquée comme publiée")}>✅ Marquer comme publié</button>}
+        {!valide && !["annule", "archive", "publie"].includes(p.statut) && <button style={bouton("or", true)} onClick={valider}>✓ Valider</button>}
+        {valide && !["programme", "pret", "publie", "annule", "archive"].includes(p.statut) && <button style={bouton("or", true)} onClick={programmer}>🗓 Programmer</button>}
+        {["programme", "pret"].includes(p.statut) && <button style={bouton("or", true)} onClick={() => setConfirmer(true)}>✅ Confirmer la publication…</button>}
       </div>
+      <div aria-label="Étape de publication" style={{ fontSize: 10, color: etape === "publication" ? K.ok : K.cremeD }}>
+        Étape {nEtape}/4 · {ETAPES_PUBLICATION[nEtape - 1][1].replace(/^\d\. /, "")}{etape === "programmation" ? " — rien n'est publié tant que la publication n'est pas confirmée" : ""}{p.historique ? " · programmation historique (publication non prouvée)" : ""}
+      </div>
+      {p.statut === "publie" && etape !== "publication" && <div style={{ fontSize: 10, color: K.alerte }}>⚠️ Statut « publié » sans preuve enregistrée : à confirmer ou à corriger.</div>}
+      {confirmer && <ConfirmerPublication p={p} d={d} onFermer={() => setConfirmer(false)} onFait={() => { setConfirmer(false); recharger(); }} />}
       {msg && <div style={{ fontSize: 11, color: msg.startsWith("⚠️") ? K.erreur : K.ok }}>{msg}</div>}
     </div>
   );
@@ -242,4 +270,26 @@ export default function BshPublications({ d, recharger, ouvrir }: { d: Donnees; 
       {liste.length === 0 ? <Vide>Aucune publication pour ce filtre.</Vide> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(360px,100%),1fr))", gap: 10 }}>{liste.map(p => <CartePublication key={p.id} p={p} d={d} onModifier={ouvrir} recharger={recharger} />)}</div>}
     </div>
   );
+}
+
+// ── Confirmation d'une publication (étape 4) : preuve obligatoire ──
+export function ConfirmerPublication({ p, d, onFermer, onFait }: { p: Publication; d: Donnees; onFermer: () => void; onFait: () => void }) {
+  const [preuve, setPreuve] = useState(""); const [url, setUrl] = useState(""); const [err, setErr] = useState(""); const [occupe, setOccupe] = useState(false);
+  const envoyer = async () => {
+    if (!preuveSuffisante(preuve)) return setErr("Décris la preuve (8 caractères au moins) : lien du message, capture conservée, confirmation de l'hôte.");
+    if (url && !/^https:\/\//i.test(url)) return setErr("Le lien doit commencer par https://");
+    if (!d.v141) return setErr("La confirmation avec preuve sera disponible après la migration 0141 (en attente de ton accord). Rien n'a été modifié.");
+    setOccupe(true); setErr("");
+    try { await sbRpc("bsh_confirmer_publication", { p_communication: p.id, p_preuve: preuve.trim(), p_url: url.trim() || null }); onFait(); }
+    catch (e: any) { setErr(String(e?.message || e)); }
+    setOccupe(false);
+  };
+  return <Feuille titre="Confirmer la publication" onFermer={onFermer}>
+    <div style={{ fontSize: 12, color: K.cremeF }}>« {p.titre} » · {libelleInstant(p.date_programmee)} · {ESPACES[p.espace || ""] || "—"}</div>
+    <div style={{ fontSize: 12, color: K.cremeD }}>À remplir uniquement après l'envoi réel dans l'espace BSH. Bellaïa ne publie rien elle-même et ne simule aucun envoi.</div>
+    <Champ label="Preuve de publication *" aide="Ex. « Message posté dans la Chaîne BSH à 08:02, capture conservée »"><textarea style={{ ...champ, minHeight: 70 }} value={preuve} onChange={e => setPreuve(e.target.value)} /></Champ>
+    <Champ label="Lien (facultatif)"><input style={champ} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" inputMode="url" /></Champ>
+    <Erreur msg={err} />
+    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}><button style={bouton("ghost")} onClick={onFermer}>Annuler</button><button style={bouton("plein")} disabled={occupe} onClick={envoyer}>✅ Confirmer avec cette preuve</button></div>
+  </Feuille>;
 }

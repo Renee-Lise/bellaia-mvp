@@ -11,7 +11,7 @@
 --     autorisées ; il ne déclare que l'exécution (en cours / réalisée / non réalisée) et le compte rendu, par
 --     fonction contrôlée. Report et annulation restent à la fondatrice.
 --  3. Les versions du studio sont en ajout seul (ni modification ni suppression).
---  4. Le visiteur anonyme ne lit plus que les colonnes publiques d'une publication (plus les notes internes).
+--  4. La lecture publique d'une publication est limitée aux colonnes destinées au public.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 -- ── 1. Publications : validation + garde du statut ─────────────────────────────
@@ -49,7 +49,7 @@ end $$;
 drop trigger if exists bsh_garde_publication on public.bsh_communications;
 create trigger bsh_garde_publication before insert or update on public.bsh_communications for each row execute function public.bsh_garde_publication();
 
--- Colonnes lisibles par un visiteur anonyme (les notes internes, l'hôte et la validation ne le sont plus)
+-- Colonnes lisibles par un visiteur anonyme : uniquement celles destinées au public
 revoke select on public.bsh_communications from anon;
 grant select (id, titre, contenu, type, cible, statut, created_at, publiee_le, espace, date_programmee, jeu_id, visuel_url, lien_externe, thematique, date_publication_effective, campagne_id) on public.bsh_communications to anon;
 

@@ -51,6 +51,18 @@ Aucune fonctionnalité n'a encore été vérifiée sur un iPhone réel : tous le
 | Inventaire BSH | Non développée | Fonctionnelle (lot 7) | 13/13 |
 | Mo Ti-Péyi (5 articles) | — | Bloquée (brouillons sans prix) | 17/17 |
 
+## BSH Secret Agenda (complément du 24/11 ; détail dans `docs/bsh/MATRICE_SECRET_AGENDA.md`)
+| Fonctionnalité | Prod | Branche | Tests (branche) |
+|---|---|---|---|
+| Publications : 4 étapes (génération, validation, programmation, publication confirmée avec preuve) | **Défectueuse** (« Marquer comme publié » sans preuve) | Bloquée (0141 ; avant 0141, la confirmation est refusée avec explication) | 29/29 + 34/34 + 42/42 |
+| Continuité BSH : alertes sans responsable | Non développée | Fonctionnelle (affichage seul, aucune notification) | 42/42 |
+| Continuité : mode absence, missions déléguées (remplaçant, ressources, compte rendu), reports et annulations | Non développée | Bloquée (0141) | 34/34 + 42/42 |
+| Préparation sur plusieurs semaines | Incomplète (« Préparer la semaine ») | Fonctionnelle | 42/42 |
+| Import du calendrier Christmas Secrets 2026 | Non développée | Incomplète (import prêt ; **calendrier non transmis** ; l'archivage historique demande 0141) | 29/29 + 42/42 |
+| Médiathèque éditoriale commune (anti-doublons, droits) | Non développée | Bloquée (0141) | 34/34 + 42/42 |
+| Studio créatif (8 formats, versions, variantes, export) | Non développée | Bloquée (0141 ; personnage principal à fournir et à valider) | 34/34 + 42/42 |
+| Missions BSH dans l'espace réel de l'hôte | Non développée (espace hôte complet visible en aperçu seulement) | Bloquée (0141 pour les déclarations) | 42/42 |
+
 ## Portails professionnels
 | Fonctionnalité | Prod | Branche | Tests |
 |---|---|---|---|
