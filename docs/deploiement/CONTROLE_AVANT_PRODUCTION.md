@@ -30,7 +30,33 @@ Chaque migration a son retour arrière. Tests sur base jetable : 0133 (44/44), 0
 - **Consignes** : contrôlées avec les règles réelles de production (16/16).
 
 ## 4. Non-régression (simulateur iPhone et base simulée ; ce n'est pas un iPhone réel)
-Voir la section « Résultats » ci-dessous.
+Batterie complète lancée le 23/11 au soir sur la branche (commit 3b86442), puis reprise des cas à examiner le 24/11.
+
+**Tests unitaires : 12 fichiers, tous au vert.**
+Actions 8/8, allergènes 17/17, atelier GS 34/34, balayage 8/8, candidatures 12/12, consignes 12/12, disponibilités 15/15, éditeur légal 9/9, jeu Mo Ti-Péyi 23/23, plan du site 9/9, sécurité du compte 12/12, BSH continuité 29/29.
+
+**Tests d'écran (simulateur iPhone 13), tous au vert :**
+| Domaine | Tests et résultats |
+|---|---|
+| Alertes et comptes | alertes fondatrice 5/5, candidatures 16/16, compte et espaces 17/17, sécurité du compte 14/14 |
+| Contenus | consignes 14/14, lecteur 16/16, jeu de cartes 16/16 |
+| Affichage | en-têtes 3/3 |
+| Espaces | espace pro 18/18, portails mobiles 12/12, messagerie verrouillée 5/5 |
+| Registre et BSH | registre 16/16, inventaire 13/13, photos BSH 15/15 |
+| Secret Games | 15/15 et 8/8 (robustesse) |
+| Bella'Food | photo Food 8/8 ; commandes : cliente 17/17, assistante 17/17, fondatrice 19/19 |
+| Odyssée | 9/9 |
+| Pages légales | 15 contrôles sur 15 (le 16ᵉ est une mesure informative) |
+| Boutons de l'accueil | fondatrice 74/74, cliente 49/49, assistante 42/42, 0 bouton sans effet |
+| Agenda | 3 profils sans erreur ; catalogue sans erreur |
+
+**Écarts examinés : aucune régression du code.**
+- `t_photos_plan` (12/15 au premier passage) : environnement incomplet. Relancé dans l'environnement prévu : 15/15.
+- `t_cal` et `t_boutons` assistante : scripts antérieurs au parcours « Mes espaces » (6e2bf15). Adaptés : sans erreur, 42/42.
+- `t_valid` : remplacé par `t_photos_plan` depuis 7160a7b ; il dépend d'un téléchargement externe bloqué. Retiré de la batterie et signalé dans `tests/iphone/LISEZMOI.md`.
+- `t_legal_accessibilite` 15/16 : le 16ᵉ contrôle est une mesure (taille d'un champ sous WebKit simulé), à vérifier sur un iPhone réel.
+
+**Bases jetables :** 0133 44/44 ; 0134 13/13 ; 0135 à 0137 65/65 ; 0139 8/8 ; 0140 11/11 ; 0141 34/34 ; consignes 16/16.
 
 ## 5. Ce qui bloque, et ce qui peut partir sans migration
 - **Sans migration**, déployable après ton essai sur iPhone :

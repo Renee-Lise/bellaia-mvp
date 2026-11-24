@@ -1,0 +1,38 @@
+# 0141 — base PostgreSQL 16 jetable, 23/11/2026 (schéma et règles d'accès relevés en production)
+0141 appliquée deux fois (idempotence)
+01 fondatrice : création de 2 publications en brouillon | accepté
+02 programmation sans validation refusée par la base | t
+03 validation puis programmation acceptées | t
+04 « publié » sans preuve refusé, même pour la fondatrice | t
+05 publication programmée : invisible au visiteur anonyme (rien n'est publié) | t
+06 mission : H1 titulaire, H2 remplaçante, ressources autorisées | t
+07 remplaçant identique au titulaire refusé | t
+08 H1 titulaire : voit sa mission, sa publication, son animation ; pas la publication P1 | t
+09 H2 remplaçante : voit la même mission et ses éléments | t
+10 ressources : l'hôte ne voit que la ressource validée, aux droits établis, autorisée dans sa mission | t
+11 H3 inactive et cliente : ni mission, ni publication interne, ni ressource | t
+12 hôte : modification directe de la mission refusée (aucune ligne modifiée) | t
+13 hôte : report et annulation refusés (réservés à la fondatrice) | t
+14 hôte : « réalisée » sans compte rendu refusée ; avec compte rendu acceptée | t
+15 compte rendu et auteur enregistrés | t
+16 hôte d'une autre mission : déclaration refusée | t
+17 confirmation sans preuve suffisante refusée | t
+18 H1 confirme sa publication avec preuve → publiée | t
+18b … et la publication est bien au statut « publié » | t
+19 hôte : confirmation d'une publication qui ne lui est pas confiée refusée | t
+20 fondatrice confirme P1 avec preuve → publiée ; preuve tracée (source, auteur) | t
+20b … preuves tracées : 1 de la fondatrice, 1 de l'hôte, avec leur auteur | t
+21 publication confirmée : retour en « programmé » refusé | t
+22 visiteur anonyme : lit les 2 textes publiés, mais plus les notes internes ni l'hôte | t
+23 anonyme : aucune preuve, ressource, création ni version | t
+24 hôte : insertion directe d'une preuve refusée | t
+25 médiathèque : doublon (même empreinte, casse différente) refusé | t
+26 ressource « validée » sans date de validation refusée | t
+27 studio : création + 2 versions numérotées automatiquement | t
+27b … version courante = 2, numéros 1 et 2 | t
+28 studio : une version ne se modifie ni ne se supprime | t
+29 studio : variante liée à sa création d'origine | t
+30 hôte et cliente : aucun accès au studio | t
+31 mode Continuité : hôte principal et remplaçant enregistrés | t
+retour arrière : true
+réapplication sans erreur

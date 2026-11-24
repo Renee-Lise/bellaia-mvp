@@ -5,7 +5,7 @@ const jwt = sub => { const b = o => Buffer.from(JSON.stringify(o)).toString('bas
   const out = process.argv[2]; const b = await chromium.launch();
   for (const role of ['fondatrice', 'assistante', 'cliente']) {
     const ctx = await b.newContext({ ...devices['iPhone 13'] });
-    await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id: UID[role], role, prenom: role === 'fondatrice' ? 'Renée-Lise' : null, email: 'test@example.invalid' }, jwt(UID[role])]);
+    await ctx.addInitScript(([u, t]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', t); if (u.role === 'assistante') localStorage.setItem('bellaia_espace_' + u.id, 'assistante'); /* depuis 6e2bf15 : accueil commun, espace assistante choisi dans « Mes espaces » (mémorisé) */ localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7200)); }, [{ id: UID[role], role, prenom: role === 'fondatrice' ? 'Renée-Lise' : null, email: 'test@example.invalid' }, jwt(UID[role])]);
     const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
     await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 120000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await p.waitForTimeout(2500);
     if (role === 'fondatrice') { await p.locator('text=Agenda').first().click(); }
