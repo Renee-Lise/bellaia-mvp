@@ -39,6 +39,10 @@ const D = {
   business_units: units,
 };
 const MEM = { bsh_parties: [], bsh_parties_participants: [], bsh_parties_tirages: [] };
+// Offre du jour Bella'Food (24/11) : journée publiée d'aujourd'hui (heure de Guyane) cochant les produits de test.
+// MOCK_OFFRE_FOOD=0 : aucune offre publiée (catalogue client vide, commandes refusées).
+const JOUR_GUYANE = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+MEM.food_menu_jour = process.env.MOCK_OFFRE_FOOD === '0' ? [] : [{ id: 'mj1', date: JOUR_GUYANE, statut: 'publie', lieux: [], items: ['fp1', 'fp2', 'fp3', 'cp1', 'cp2'].map(id => ({ cle: 'p:' + id, type: 'plat', produit_id: id, nom: id, prix: null, quantite: null })) }];
 const CARTES_AV = [{ id: 'av1', emoji: '🎭', nom: 'Action', question: 'Offrez un compliment sincère à la personne à votre gauche.' }, { id: 'av2', emoji: '💬', nom: 'Vérité', question: 'Quel est votre plus joli souvenir de cette année ?' }];
 const filtres = qs => [...new URLSearchParams(qs).entries()].filter(([k, v]) => /^(eq|in)\./.test(v)).map(([k, v]) => [k, v.slice(3)]);
 const corps = q => new Promise(ok => { let d = ''; q.on('data', c => d += c); q.on('end', () => { try { ok(JSON.parse(d || 'null')); } catch { ok(null); } }); });

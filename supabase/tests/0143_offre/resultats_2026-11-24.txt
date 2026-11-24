@@ -1,0 +1,11 @@
+0143 appliquée deux fois (idempotence)
+01 anonyme : seul A (coché, publié aujourd'hui) est lisible | t
+02 anonyme : C (brouillon), B (hier), D (menu seul) illisibles | t
+03 anonyme : variantes de A seulement | t
+04 cliente connectée : même restriction | t
+05 fondatrice : catalogue complet (4) | t
+06 tables toujours fermées au public | t
+07 élément texte libre / identifiant invalide ignoré sans erreur | t
+08 offre retirée : plus rien de lisible | t
+retour arrière : true
+réapplication sans erreur
