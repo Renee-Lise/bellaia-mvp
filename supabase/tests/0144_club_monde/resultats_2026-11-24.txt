@@ -1,0 +1,123 @@
+# 0144 — base PostgreSQL 16 jetable, 9 comptes distincts (fondatrice, 2 hôtes, 3 joueurs, mineur, âge non vérifié, sans charte), 2026-11-24
+# Base fictive : ce n'est PAS une restauration des données de production.
+0144 appliquée deux fois (idempotence)
+01 charte acceptée par H1, H2, J1, J2, J3 (et par le compte mineur) | t
+02 accepter la charte au nom d'un autre compte refusé | t
+03 adulte vérifié avec charte : 8 salles du club visibles | t
+04 mineur (charte acceptée), âge non vérifié, adulte sans charte, visiteur : aucune salle | t
+05 Secret Duo relié à la page existante (non recréé) | t
+06 un joueur ne peut pas proposer de nomination | t
+07 fondatrice : proposition à H1 (titulaire + modérateur, Red Room, 24 h) | t
+08 nomination d'un compte mineur refusée | t
+09 permissions interdites (nommer, lire le privé) refusées par la base | t
+10 nomination créée directement « acceptée » refusée | t
+11 avant acceptation : aucune permission active | t
+12 un tiers ne peut pas accepter à la place de H1 | t
+13 H1 accepte : permissions actives dans la Red Room seulement | t
+14 élévation de privilèges : H1 ne peut pas modifier sa nomination (0 ligne) | t
+15 H1 ne peut pas nommer H2 | t
+16 usurpation : proposition signée au nom de la fondatrice par un autre compte refusée | t
+17 fondatrice : remplaçant H2 (7 jours, tout le monde) lié à N1 | t
+18 chacun ne voit que ses nominations | t
+19 H2 refuse : aucune permission ; une nomination refusée ne peut être rouverte | t
+20 proposition échue : l'acceptation tardive la marque expirée, sans permission | t
+20b … statut « expirée » et aucune permission | t
+21 modification des permissions d'une nomination acceptée → repasse en proposition | t
+21b … H1 perd ses droits jusqu'à sa nouvelle acceptation | t
+22 suspension : droits retirés immédiatement | t
+23 levée de la suspension par la fondatrice | t
+(simulation du passage du temps : mandat de N1 échu) | t
+24 expiration automatique d'un mandat accepté (date de fin dépassée) | t
+25 révocation immédiate puis réouverture refusée | t
+26 historique des nominations tracé (H1 ne voit que le sien) | t
+27 nouvelle nomination de H1 (hôte principal, Red Room, sans fin) acceptée | t
+28 scénario publié sans validation humaine refusé | t
+29 scénario validé puis publié (3 participants max) | t
+30 intensité 7 refusée | t
+31 atelier réservé à la fondatrice (hôte : 0 modification, création refusée) | t
+32 scénario publié lisible par un adulte autorisé, pas par le compte mineur | t
+33 H1 ouvre une session sur invitation dans la Red Room | t
+34 session refusée à un joueur et hors salle attribuée | t
+35 J1 rejoint seul une session sur invitation → simple demande (même s'il écrit « admis ») | t
+35b … enregistré au statut « demande » | t
+36 mineur, âge non vérifié, sans charte : participation refusée | t
+37 J1 ne peut pas s'admettre lui-même | t
+38 H1 admet J1 ; invite J2 (forcé « invité ») ; J2 accepte | t
+38b … J2 enregistrée « invitée », puis J2 accepte elle-même | t
+39 pseudonyme déjà pris dans la session refusé | t
+40 J3 demande puis est admis ; H2 demande, admission refusée (session complète à 3) | t
+41 liste des participants : visible des participants, pas d'un adulte extérieur | t
+42 déconnexion puis reconnexion : la place est conservée (parti → présent) | t
+43 réponse avant le lancement refusée | t
+44 un joueur ne lance pas d'acte (0 ligne) | t
+45 H1 lance l'acte I | t
+45b … heure de début de l'acte enregistrée par le serveur | t
+46 réponses à l'acte en cours acceptées ; à un autre acte refusée | t
+47 répondre au nom d'un autre refusé ; une seule réponse par acte | t
+48 passer l'épreuve accepté | t
+49 réponses visibles des participants, pas d'un adulte extérieur | t
+50 un joueur ne masque pas sa réponse ; H1 masque celle de J2 | t
+51 réponse masquée : invisible des autres joueurs, visible de son auteur et de l'hôte | t
+52 la modération ne réécrit pas une réponse | t
+53 acte suivant : la réponse de l'acte précédent n'est plus modifiable | t
+54 vote refusé tant que les votes sont fermés | t
+55 H1 ouvre les votes | t
+56 vote valide, puis double vote, vote pour soi, vote pour un non-admis, vote extérieur refusés | t
+57 vote au nom d'un autre refusé | t
+58 vote ni modifiable ni supprimable (0 ligne) | t
+59 secret du vote : chacun ne voit que le sien | t
+60 J3 vote ; dépouillement agrégé pour l'hôte (J2 : 2 voix), rien pour un joueur | t
+61 exclusion sans motif refusée ; avec motif acceptée | t
+62 votes d'un exclu retirés du dépouillement (J2 : 1 voix) | t
+63 un exclu ne revient pas, ne vote plus | t
+64 titre refusé tant que les votes sont ouverts ; attribué après fermeture | t
+65 un joueur n'attribue pas de titre | t
+66 profil : affichage facultatif choisi par la personne ; voix non modifiables | t
+67 classement saisonnier | t
+68 fin de session avec compte rendu ; réouverture refusée | t
+69 canal temps réel de la session : participants et hôte oui ; extérieur et exclu non | t
+70 avatar de J1 avec un masque de bal ordinaire | t
+71 masque signature refusé à un membre (porté ou dans une tenue enregistrée) | t
+72 badge ou personnage officiel dans l'apparence d'un membre refusé | t
+73 fondatrice : masque Golden Secret porté, trois tenues enregistrées, changement de masque | t
+74 un membre ne modifie pas l'avatar d'un autre (0 ligne) | t
+75 ressources exclusives invisibles des membres (1 accessoire visible), toutes visibles par la fondatrice | t
+76 compte mineur : pas d'avatar ; aucun avatar visible | t
+77 message dans le Grand Hall visible des autres membres | t
+78 Golden Room : entrée refusée sans autorisation, acceptée après autorisation de la fondatrice | t
+79 un membre ne s'autorise pas lui-même la Golden Room | t
+80 J2 bloque J1 : les messages de J1 disparaissent pour J2 | t
+81 blocage invisible pour la personne bloquée | t
+82 J1 ouvre une conversation privée avec J3 ; J3 accepte | t
+83 message privé échangé | t
+84 conversation privée illisible pour un autre membre, un hôte modérateur et la fondatrice | t
+85 écrire dans une conversation dont on n'est pas membre refusé | t
+86 inviter une personne qui vous a bloqué dans un groupe refusé | t
+87 s'ajouter soi-même à la conversation d'autrui refusé | t
+88 H1 masque un message de la Red Room (sa salle), pas du Grand Hall | t
+89 la modération ne réécrit pas un message | t
+90 invitation à danser envoyée ; catégorie désactivée par J3 → refusée | t
+91 invitation vers une personne qui vous a bloqué refusée | t
+92 anti-harcèlement : 3 invitations en 10 minutes au maximum vers la même personne | t
+93 J3 refuse une invitation ; J1 ne peut pas répondre à sa place | t
+94 demande d'amitié J1 → J3 acceptée par J3 | t
+95 salon personnel de J1 (amis uniquement) ; type « publique » refusé | t
+96 accès au salon : l'amie J3 oui, J2 non | t
+97 déplacer les meubles : propriétaire oui, autre membre 0 ligne | t
+98 demande d'accès de H2 ; H2 ne s'autorise pas lui-même | t
+99 retrait d'un invité : J3 ne peut plus entrer | t
+100 écriture directe de Secret Coins refusée | t
+101 H1 attribue 50 coins à J1 (Red Room) ; pour lui-même et hors salle refusé | t
+102 plafond journalier (200) et retrait par un hôte refusés | t
+103 solde : 50 pour J1, invisible pour J2 ; un joueur n'attribue pas | t
+104 inventaire : objet ordinaire offert ; masque signature refusé ; insertion directe refusée | t
+105 signalements : public (Red Room) et privé (extrait transmis) | t
+106 H1 voit le signalement public de sa salle, pas le privé ; fondatrice : les deux ; personne visée : aucun | t
+107 canal temps réel d'une salle : membre oui, mineur non ; Golden Room seulement si autorisé | t
+108 purge de conservation : non appelable par un compte (ni fondatrice via l'API) | t
+(retour à l'administrateur de la base) | t
+109 purge exécutée par l'administrateur de la base : messages récents conservés | t
+110 visiteur anonyme : aucune donnée du club ni du monde | t
+retour arrière : true
+réapplication sans erreur
+TOTAL : 115/115 contrôles numérotés réussis (+ idempotence, retour arrière, réapplication)

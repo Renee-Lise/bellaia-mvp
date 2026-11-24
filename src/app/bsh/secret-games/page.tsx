@@ -18,6 +18,7 @@ import type { Metadata } from "next";
 import { getCartesBSH } from "./getCartes";
 import { getJeuxBSH } from "./getJeux";
 import SecretGamesClient from "./SecretGamesClient";
+import Link from "next/link";
 import BshFooter from "../BshFooter";
 
 export const metadata: Metadata = {
@@ -37,6 +38,17 @@ export default async function BshSecretGamesPage() {
         cartesInitiales={cartes}
         diagnostic={diagnostic || diagnosticJeux}
       />
+      {/* Extensions réservées aux adultes : BSH Private Club (THE RED ROOM) et Secret World (maquette). Les jeux existants ci-dessus restent inchangés. */}
+      <nav aria-label="Extensions BSH Secret Games" style={{ maxWidth: 760, margin: "8px auto 24px", padding: "0 16px", display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))" }}>
+        <Link data-testid="lien-private-club" href="/bsh/private-club" style={{ display: "block", padding: 16, borderRadius: 14, border: "1px solid rgba(198,161,91,0.35)", background: "linear-gradient(150deg, #5a0f1c, #0b0709)", color: "#f1e7e2", textDecoration: "none" }}>
+          <div style={{ fontSize: 20, color: "#e0c17e" }}>BSH Private Club</div>
+          <div style={{ fontSize: 13, opacity: 0.85 }}>THE RED ROOM — le club des tentations · 8 univers</div>
+        </Link>
+        <Link data-testid="lien-secret-world" href="/bsh/secret-world" style={{ display: "block", padding: 16, borderRadius: 14, border: "1px solid rgba(198,161,91,0.2)", background: "linear-gradient(150deg, #2e1a2e, #0b0709)", color: "#f1e7e2", textDecoration: "none" }}>
+          <div style={{ fontSize: 20, color: "#e0c17e" }}>BSH Secret World</div>
+          <div style={{ fontSize: 13, opacity: 0.85 }}>Monde virtuel — maquette (joueur seul)</div>
+        </Link>
+      </nav>
       <BshFooter />
     </>
   );
