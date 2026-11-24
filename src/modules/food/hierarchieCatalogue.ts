@@ -26,7 +26,7 @@ export type Produit = { id?: string; nom: string; categorie_slug?: string | null
 export type Classement = { categorie: CategorieId; sous_categorie: string; motif: string; a_valider: boolean };
 export type Alerte = { type: "porc" | "alcool"; motif: string };
 
-const sansAccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const sansAccent = (s: string) => s.replace(/œ/g, "oe").replace(/Œ/g, "OE").replace(/æ/g, "ae").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // Préparations techniques : jamais vendues comme « dessert » (la ganache n'est PAS un dessert).
 const TECHNIQUES = /\b(ganache|creme patissiere|creme au beurre|pate a choux|pate sucree|pate brisee|pate feuilletee|genoise|biscuit joconde|praline pate|marinade|fond blanc|fond brun|sirop a puncher|nappage|glacage|insert|coulis de base|appareil a)\b/;

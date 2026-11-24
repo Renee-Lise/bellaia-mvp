@@ -4,6 +4,8 @@ import {
   MAX_QTE_LIGNE, MAX_LIGNES, BASES_FRITES_VALIDES, BASES_LABELS,
   verifierHorairesEtJour, verifierSuspension,
 } from "@/lib/foodCommandeRegles";
+// Offre du jour (24/11) : un produit ou un menu absent de l'offre PUBLIÉE de la date n'est jamais commandable.
+import { dateCayenne, controlerLigne, controlerSauce, estElementProduit, cleProduit, type ElementOffre } from "@/modules/food/offreFood";
 
 // ══════════════════════════════════════════════════════════
 // CRÉATION DE COMMANDE — Bella'Food (ClientFood)
@@ -124,7 +126,30 @@ export async function POST(req: NextRequest) {
   // Allergènes repris des fiches (produit + recette liée), TELS QU'ÉCRITS ;
   // un produit sans information est marqué « à vérifier » — jamais
   // considéré comme sans allergène.
-  const lignesVerifiees: { libelle: string; qte: number; prixUnitaire: number; total: number; allergenes: string[]; allergenesAVerifier: boolean }[] = [];
+  const lignesVerifiees: { libelle: string; qte: number; prixUnitaire: number; total: number; allergenes: string[]; allergenesAVerifier: boolean; ref?: string }[] = [];
+
+  // ── Offre du jour : seule l'offre publiée pour la date (Guyane) est commandable ──
+  const aujourdhuiGuyane = dateCayenne();
+  const dateOffre = typeof dateLivraison === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateLivraison) ? dateLivraison : aujourdhuiGuyane;
+  if (dateOffre < aujourdhuiGuyane) return NextResponse.json({ error: "Cette date est passée : l'offre n'est plus disponible.", code: "OFFRE_EXPIREE" }, { status: 409 });
+  const { data: journees } = await SB.from("food_menu_jour").select("items, statut, date").eq("date", dateOffre).eq("statut", "publie");
+  const offre: ElementOffre[] = (journees || []).flatMap((j: any) => Array.isArray(j.items) ? j.items.filter(estElementProduit) : []);
+  if (!offre.length) return NextResponse.json({ error: "Aucune offre n'est publiée pour cette date : rien n'est commandable.", code: "AUCUNE_OFFRE" }, { status: 409 });
+  const dejaCommande: Record<string, number> = {};
+  if (offre.some(i => i.quantite != null)) {
+    const { data: cmds } = await SB.from("bellaia_commandes").select("lignes").eq("bu", "FOOD").eq("date_livraison", dateOffre).neq("statut", "ANNULE");
+    for (const c of cmds || []) { const ls = typeof c.lignes === "string" ? (() => { try { return JSON.parse(c.lignes); } catch { return []; } })() : c.lignes; for (const l of Array.isArray(ls) ? ls : []) if (l?.ref) dejaCommande[l.ref] = (dejaCommande[l.ref] || 0) + (Number(l.qte) || 0); }
+  }
+  const ambiguAllergene = /(à déterminer|a determiner|inconnu|à vérifier|a verifier|selon (composition|fabrication))/i;
+  const allergenesDe = async (produit: any): Promise<{ allergenes: string[]; ficheValidee: boolean } | { erreur: string }> => {
+    let al: string[] = Array.isArray(produit.allergenes) ? produit.allergenes.filter(Boolean) : [];
+    if (produit.recette_id) { const { data: rec } = await SB.from("food_recettes").select("allergenes").eq("id", produit.recette_id).maybeSingle(); if (Array.isArray(rec?.allergenes)) al = [...al, ...rec!.allergenes.filter(Boolean)]; }
+    al = Array.from(new Set(al.map((a: string) => String(a).trim()).filter(Boolean)));
+    const { data: valides } = await SB.rpc("food_allergenes_valides", { p_produit: produit.id });
+    const ficheValidee = Array.isArray(valides); if (ficheValidee) al = (valides as string[]).filter(Boolean);
+    if (!ficheValidee && (al.length === 0 || al.some(a => ambiguAllergene.test(a)))) return { erreur: `« ${produit.nom} » : fiche produit en cours de finalisation (informations allergènes obligatoires manquantes). Ce produit ne peut pas encore être commandé.` };
+    return { allergenes: al, ficheValidee };
+  };
 
   for (const l of lignes) {
     const idBrut = String(l?.id || "");
@@ -136,6 +161,22 @@ export async function POST(req: NextRequest) {
     if (!idBrut || !Number.isFinite(qte) || qte < 1 || qte > MAX_QTE_LIGNE) {
       return NextResponse.json({ error: `Quantité invalide (1 à ${MAX_QTE_LIGNE} par produit).` }, { status: 400 });
     }
+    if (idBrut.startsWith("menu::")) {
+      const cleM = idBrut.slice(6);
+      const dec = controlerLigne(offre, { cleMenu: cleM, qte }, dejaCommande[cleM] || 0);
+      if ("erreur" in dec) return NextResponse.json({ error: dec.erreur, code: "HORS_OFFRE" }, { status: 409 });
+      if (!(typeof dec.prix === "number" && dec.prix > 0)) return NextResponse.json({ error: `Menu « ${dec.element.nom} » sans prix : non commandable.` }, { status: 409 });
+      let alM: string[] = [];
+      for (const c of dec.element.composition || []) {
+        const { data: pc } = await SB.from("catalogue_produits").select("id, nom, statut, allergenes, recette_id").eq("id", c.produit_id).eq("business_unit", "FOOD").single();
+        if (!pc || pc.statut !== "actif") return NextResponse.json({ error: `Menu « ${dec.element.nom} » : un élément n'est plus disponible.` }, { status: 409 });
+        const a = await allergenesDe(pc); if ("erreur" in a) return NextResponse.json({ error: a.erreur, code: "ALLERGENES_MANQUANTS" }, { status: 409 });
+        alM = [...alM, ...a.allergenes];
+      }
+      dejaCommande[cleM] = (dejaCommande[cleM] || 0) + qte;
+      lignesVerifiees.push({ libelle: `Menu « ${dec.element.nom} » (${(dec.element.composition || []).map(c => c.nom).join(" + ")})`, qte, prixUnitaire: dec.prix, total: parseFloat((dec.prix * qte).toFixed(2)), allergenes: Array.from(new Set(alM)), allergenesAVerifier: false, ref: cleM });
+      continue;
+    }
     const [produitId, varianteId, baseId] = idBrut.split("::");
 
     if (baseId && !BASES_FRITES_VALIDES.includes(baseId)) {
@@ -144,7 +185,7 @@ export async function POST(req: NextRequest) {
 
     const { data: produit } = await SB
       .from("catalogue_produits")
-      .select("id, nom, prix, statut, visible_client, disponible, allergenes, recette_id")
+      .select("id, nom, prix, statut, visible_client, disponible, allergenes, recette_id, metadata")
       .eq("id", produitId)
       .eq("business_unit", "FOOD")
       .single();
@@ -152,6 +193,12 @@ export async function POST(req: NextRequest) {
     if (!produit || produit.statut !== "actif" || !produit.visible_client || !produit.disponible) {
       return NextResponse.json({ error: `Produit indisponible : ${produit?.nom || produitId}. Rafraîchissez le catalogue et réessayez.` }, { status: 409 });
     }
+
+    const decision = controlerLigne(offre, { produitId, qte }, dejaCommande[cleProduit(produitId)] || 0);
+    if ("erreur" in decision) return NextResponse.json({ error: `« ${produit.nom} » : ${decision.erreur}`, code: "HORS_OFFRE" }, { status: 409 });
+    const sauceChoisie = typeof l?.sauce === "string" ? l.sauce.slice(0, 60) : null;
+    const sauceOk = controlerSauce(produit, sauceChoisie);
+    if (!sauceOk.ok) return NextResponse.json({ error: sauceOk.erreur }, { status: 400 });
 
     // "Frites maison" exige une base valide — sans base, la commande
     // serait ambiguë pour la préparation (rejet plutôt que supposer
@@ -182,26 +229,15 @@ export async function POST(req: NextRequest) {
       }
       prixReel = parseFloat(produit.prix);
     }
+    // Prix du jour fixé dans l'offre (sans variante choisie) : il prime sur le prix du catalogue
+    if (!varianteId && decision.prix != null) prixReel = decision.prix;
+    if (sauceChoisie) libelle += ` — sauce ${sauceChoisie} (incluse)`;
 
-    let allergenes: string[] = Array.isArray(produit.allergenes) ? produit.allergenes.filter(Boolean) : [];
-    if (produit.recette_id) {
-      const { data: rec } = await SB.from("food_recettes").select("allergenes").eq("id", produit.recette_id).maybeSingle();
-      if (Array.isArray(rec?.allergenes)) allergenes = [...allergenes, ...rec!.allergenes.filter(Boolean)];
-    }
-    allergenes = Array.from(new Set(allergenes.map((a: string) => String(a).trim()).filter(Boolean)));
-    // Fiche allergènes validée par la fondatrice (assistant de régularisation) :
-    // elle fait foi, y compris « aucun des 14 allergènes » validé explicitement.
-    const { data: valides } = await SB.rpc("food_allergenes_valides", { p_produit: produit.id });
-    const ficheValidee = Array.isArray(valides);
-    if (ficheValidee) allergenes = (valides as string[]).filter(Boolean);
-    // Blocage réglementaire : aucune commande d'un produit dont les
-    // informations allergènes obligatoires manquent ou restent à
-    // déterminer (même règle que v_catalogue_food_public.commandable).
-    const ambigu = /(à déterminer|a determiner|inconnu|à vérifier|a verifier|selon (composition|fabrication))/i;
-    if (!ficheValidee && (allergenes.length === 0 || allergenes.some(a => ambigu.test(a)))) {
-      return NextResponse.json({ error: `« ${produit.nom} » : fiche produit en cours de finalisation (informations allergènes obligatoires manquantes). Ce produit ne peut pas encore être commandé.`, code: "ALLERGENES_MANQUANTS" }, { status: 409 });
-    }
-    lignesVerifiees.push({ libelle, qte, prixUnitaire: prixReel, total: parseFloat((prixReel * qte).toFixed(2)), allergenes, allergenesAVerifier: !ficheValidee && allergenes.length === 0 });
+    const infosAl = await allergenesDe(produit);
+    if ("erreur" in infosAl) return NextResponse.json({ error: infosAl.erreur, code: "ALLERGENES_MANQUANTS" }, { status: 409 });
+    const allergenes = infosAl.allergenes; const ficheValidee = infosAl.ficheValidee;
+    dejaCommande[cleProduit(produitId)] = (dejaCommande[cleProduit(produitId)] || 0) + qte;
+    lignesVerifiees.push({ libelle, qte, prixUnitaire: prixReel!, total: parseFloat((prixReel! * qte).toFixed(2)), allergenes, allergenesAVerifier: !ficheValidee && allergenes.length === 0, ref: cleProduit(produitId) });
   }
 
   const totalAvantRemise = parseFloat(lignesVerifiees.reduce((s, l) => s + l.total, 0).toFixed(2));
@@ -245,7 +281,7 @@ export async function POST(req: NextRequest) {
       total,
       acompte: Math.round(total * 0.3),
       date_commande: new Date().toISOString().split("T")[0],
-      date_livraison: dateLivraison || null,
+      date_livraison: dateLivraison || dateOffre,
       lignes: JSON.stringify(lignesVerifiees),
       total_avant_remise: totalAvantRemise,
       remise_montant: remiseCentimes / 100,

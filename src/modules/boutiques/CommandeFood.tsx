@@ -17,7 +17,7 @@ import { getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction, type 
 import { jeton } from "../events/eventsAtelierLib";
 
 export const BASES_FRITES = [{ id: "manioc", l: "Manioc" }, { id: "patate_douce", l: "Patate douce" }, { id: "plantain", l: "Plantain" }, { id: "pomme_terre", l: "Pomme de terre" }];
-export type LigneFood = { cle: string; produitId: string; libelle: string; prix: number; qte: number; photo?: string | null };
+export type LigneFood = { cle: string; produitId: string; libelle: string; prix: number; qte: number; photo?: string | null; sauce?: string };
 const euros = (n: number) => n.toFixed(2).replace(".", ",") + " €";
 
 /** Données complémentaires (variantes, allergènes) chargées une fois pour la vitrine Food. */
@@ -36,7 +36,8 @@ export function useDonneesFood(produits: Produit[]) {
 /** Choix dans la fiche produit : taille, base des frites, puis ajout au panier.
  *  Identifiant de ligne au format attendu par le serveur : produit::variante::base. */
 export function OptionsFood({ t, p, variantes, allergenes, ajouter }: { t: Theme; p: Produit; variantes: VariantePublicFood[]; allergenes?: string[]; ajouter: (l: Omit<LigneFood, "qte">) => void }) {
-  const [v, setV] = useState<string>(""); const [base, setBase] = useState<string>("");
+  const [v, setV] = useState<string>(""); const [base, setBase] = useState<string>(""); const [sauce, setSauce] = useState<string>("");
+  const sauces = p.sauces || [];
   const vsPrix = variantes.filter(x => x.prix != null);
   const avecTailles = vsPrix.length > 0; const frites = p.nom === "Frites maison" && avecTailles; // même règle que la boutique actuelle
   const choix = avecTailles ? vsPrix.find(x => x.id === v) : null;
@@ -50,7 +51,8 @@ export function OptionsFood({ t, p, variantes, allergenes, ajouter }: { t: Theme
       </div>
       {frites && <div><div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>Base (obligatoire)</div><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{BASES_FRITES.map(b => <button key={b.id} onClick={() => setBase(b.id)} style={pastille(base === b.id)}>{b.l}</button>)}</div></div>}
       {avecTailles && <div><div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>Taille / portion</div><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{vsPrix.map(x => <button key={x.id} onClick={() => setV(x.id)} style={pastille(v === x.id)}>{x.nom} · {euros(Number(x.prix))}</button>)}</div></div>}
-      <button disabled={!pret} onClick={() => { const b = BASES_FRITES.find(x => x.id === base); ajouter({ cle: choix ? `${p.id}::${choix.id}${base ? `::${base}` : ""}` : p.id, produitId: p.id, libelle: `${p.nom}${b ? ` (${b.l})` : ""}${choix ? ` — ${choix.nom}` : ""}`, prix: Number(prix), photo: p.photo }); }}
+      {sauces.length > 0 && <div><div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>Sauce incluse (une au choix, facultative)</div><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{sauces.map(x => <button key={x} onClick={() => setSauce(sauce === x ? "" : x)} style={pastille(sauce === x)}>{x}</button>)}</div></div>}
+      <button disabled={!pret} onClick={() => { const b = BASES_FRITES.find(x => x.id === base); ajouter({ sauce: sauce || undefined, cle: (choix ? `${p.id}::${choix.id}${base ? `::${base}` : ""}` : p.id) + (sauce ? `|${sauce}` : ""), produitId: p.id, libelle: `${p.nom}${b ? ` (${b.l})` : ""}${choix ? ` — ${choix.nom}` : ""}${sauce ? ` — sauce ${sauce}` : ""}`, prix: Number(prix), photo: p.photo }); }}
         style={{ height: 52, borderRadius: 99, border: "none", background: pret ? t.accent : t.ligne, color: "#fff", fontWeight: 900, fontSize: 15 }}>
         {!p.commandable ? "Indisponible pour l'instant" : avecTailles && !choix ? "Choisissez une taille" : frites && !base ? "Choisissez une base" : `Ajouter au panier · ${euros(Number(prix))}`}
       </button>
@@ -76,7 +78,7 @@ export function PanierFood({ t, lignes, setLignes, onSuivi }: { t: Theme; lignes
     cleIdem.current ||= (typeof crypto !== "undefined" && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : `food-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
       const r = await fetch("/api/food/commandes/create", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await jeton()}` },
-        body: JSON.stringify({ lignes: lignes.map(l => ({ id: l.cle, qte: l.qte })), clientNom: form.nom.trim(), clientTel: form.tel.trim(), dateLivraison: form.date || null, notes: form.message, idempotencyKey: cleIdem.current, codeReduction: promo?.valide ? code.trim() : null }) });
+        body: JSON.stringify({ lignes: lignes.map(l => ({ id: l.cle.split("|")[0], qte: l.qte, ...(l.sauce ? { sauce: l.sauce } : {}) })), clientNom: form.nom.trim(), clientTel: form.tel.trim(), dateLivraison: form.date || null, notes: form.message, idempotencyKey: cleIdem.current, codeReduction: promo?.valide ? code.trim() : null }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) { setErreur(d.error || `Commande refusée (HTTP ${r.status}).`); setEnvoi(false); enCours.current = false; return; }
       setConfirme(d); setLignes(() => []); cleIdem.current = null;

@@ -13,8 +13,9 @@ import { THEMES, type Theme } from "./boutiquesThemes";
 import { Illustration } from "./illustrations";
 import { sbSelect } from "../events/eventsAtelierLib";
 import { useDonneesFood, OptionsFood, PanierFood, type LigneFood } from "./CommandeFood";
+import { getOffrePublique, appliquerOffre } from "../food/menuJourApi";
 
-export type Produit = { commandableVue?: boolean; id: string; nom: string; categorie: string; prix: number | null; prixPromo?: number | null; description?: string | null; photo?: string | null; commandable: boolean; mention?: string | null; prixNote?: string | null; unite?: string | null; nouveau?: boolean };
+export type Produit = { sauces?: string[]; commandableVue?: boolean; id: string; nom: string; categorie: string; prix: number | null; prixPromo?: number | null; description?: string | null; photo?: string | null; commandable: boolean; mention?: string | null; prixNote?: string | null; unite?: string | null; nouveau?: boolean };
 const euros = (n: number) => n.toFixed(2).replace(".", ",") + " €";
 
 export async function chargerProduits(code: string): Promise<Produit[]> {
@@ -24,9 +25,13 @@ export async function chargerProduits(code: string): Promise<Produit[]> {
     return r.map(x => ({ id: x.id, nom: x.nom, categorie: x.categorie || "Autres", prix: x.prix_vente != null ? Number(x.prix_vente) : null, photo: x.image_url, description: x.usage_conseils || x.composition, commandable: x.prix_vente > 0, nouveau: recents.includes(x.id) }));
   }
   if (code === "FOOD") {
-    const r = await sbSelect<any>("v_catalogue_food_public", "select=id,nom,categorie_slug,description_courte,prix,prix_promotion,galerie_photos,commandable,mention&order=ordre.asc.nullslast&limit=300");
-    return r.map(x => ({ id: x.id, nom: x.nom, categorie: x.categorie_slug || "autre", prix: x.prix != null ? Number(x.prix) : null, prixPromo: x.prix_promotion, description: x.description_courte, photo: Array.isArray(x.galerie_photos) ? x.galerie_photos[0] : null, commandableVue: x.commandable !== false, commandable: x.commandable !== false && x.prix > 0, mention: x.mention }));
+    // Offre du jour (24/11) : la cliente ne voit QUE les plats cochés et les menus publiés pour aujourd'hui
+    const [r, o] = await Promise.all([sbSelect<any>("v_catalogue_food_public", "select=id,nom,categorie_slug,description_courte,prix,prix_promotion,galerie_photos,commandable,mention&order=ordre.asc.nullslast&limit=300"), getOffrePublique()]);
+    const { produits: retenus, menus } = appliquerOffre(r, o.offre);
+    const prods: Produit[] = retenus.map(x => ({ id: x.id, nom: x.nom, categorie: x.categorie_slug || "autre", prix: x.prix != null ? Number(x.prix) : null, prixPromo: x.prix_promotion, description: x.description_courte, photo: Array.isArray(x.galerie_photos) ? x.galerie_photos[0] : null, commandableVue: x.commandable !== false, commandable: x.commandable !== false && x.prix > 0, mention: x.mention }));
+    return [...prods.map((p, k) => ({ ...p, sauces: retenus[k].offre.sauces || [] })), ...menus.map(m => ({ id: `menu::${m.cle}`, nom: m.nom, categorie: "menus", prix: m.prix ?? null, description: (m.composition || []).map(c => c.nom).join(" + "), photo: null, commandable: (m.prix ?? 0) > 0, commandableVue: true }) as Produit)];
   }
+
   const r = await sbSelect<any>("events_catalogue", "statut=eq.actif&visible_client=eq.true&select=id,nom,categorie,description,prix_unitaire,unite,prix_note&order=ordre.asc.nullslast&limit=300");
   return r.map(x => ({ id: x.id, nom: x.nom, categorie: x.categorie, prix: x.prix_unitaire != null ? Number(x.prix_unitaire) : null, description: x.description, prixNote: x.prix_note, unite: x.unite, commandable: true }));
 }

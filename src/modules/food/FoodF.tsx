@@ -20,6 +20,7 @@ import FoodCourses      from "./FoodCourses";
 import FoodAssistant    from "./FoodAssistant";
 import FoodMenus        from "./FoodMenus";
 import FoodMenuJour     from "./FoodMenuJour";
+import FoodPilotage     from "./FoodPilotage";
 import FoodPlanning     from "./FoodPlanning";
 import FoodDevis        from "./FoodDevis";
 import FoodRecherche    from "./FoodRecherche";
@@ -52,7 +53,7 @@ import BibliothequeFiches from "./BibliothequeFiches";
 
 type Section =
   | "dashboard" | "catalogue" | "recettes" | "recherche"
-  | "commandes" | "horaires" | "devis" | "menus" | "menu_jour" | "planning"
+  | "pilotage" | "commandes" | "horaires" | "devis" | "menus" | "menu_jour" | "planning"
   | "stocks" | "materiel" | "consommables"
   | "calculateur" | "import" | "courses" | "assistant"
   | "fournisseurs" | "achats"
@@ -67,12 +68,13 @@ const NAV = [
     {id:"exports"        as Section, ico:"📤", label:"Exports"},
   ]},
   {groupe:"VENTES",     items:[
+    {id:"pilotage"     as Section, ico:"☀️", label:"Offre & tarifs"},
     {id:"commandes"    as Section, ico:"📋", label:"Commandes"},
     {id:"revente"      as Section, ico:"🎄", label:"Collection saisonnière"},
     {id:"horaires"     as Section, ico:"⏰", label:"Horaires & quotas"},
     {id:"devis"        as Section, ico:"📄", label:"Devis"},
     {id:"menus"        as Section, ico:"🍽",  label:"Menus"},
-    {id:"menu_jour"    as Section, ico:"☀️", label:"Menu du jour"},
+    {id:"menu_jour"    as Section, ico:"📍", label:"Lieux de vente"},
   ]},
   {groupe:"PRODUCTION", items:[
     {id:"recettes"    as Section, ico:"📖", label:"Recettes"},
@@ -118,7 +120,7 @@ export default function FoodF({ user }: { user?: any }) {
   const titres: Record<Section, string> = {
     dashboard:"Dashboard", catalogue:"Catalogue", recettes:"Recettes",
     recherche:"Rechercher", commandes:"Commandes", revente:"Collection saisonnière (revente)", allergenes:"Allergènes — suivi des fiches", horaires:"Horaires & quotas", devis:"Devis",
-    menus:"Menus", menu_jour:"Menu du jour", planning:"Planning", stocks:"Stocks",
+    pilotage:"Offre du jour, catégories, sauces, tarifs, conformité", menus:"Menus", menu_jour:"Menu du jour et lieux de vente", planning:"Planning", stocks:"Stocks",
     materiel:"Matériel", consommables:"Consommables",
     calculateur:"Calculateur", import:"Import recette",
     courses:"Liste de courses", assistant:"Assistant",
@@ -197,6 +199,7 @@ export default function FoodF({ user }: { user?: any }) {
         {section==="alertes"       && <FoodAlertes/>}
         {section==="predictif"     && <FoodPredictif/>}
         {section==="exports"       && <FoodExports/>}
+        {section==="pilotage"      && <FoodPilotage/>}
         {section==="catalogue"     && <FoodCatalogue/>}
         {section==="recettes"      && <FoodRecettes/>}
         {section==="versions"      && <FoodVersions/>}

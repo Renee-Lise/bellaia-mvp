@@ -6,7 +6,7 @@ import { PREMIUM_ACTIF, COQUE_PREMIUM } from "@/design/premium";
 import { pushSupporte, statutPermissionPush, activerNotificationsPush } from "@/modules/push/pushClient";
 import { FOOD_CATEGORIES, SERVICES_EVENEMENT } from "@/modules/food/foodConsts";
 import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic, apercuReduction } from "@/modules/food/catalogueApi";
-import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
+import { getMenuJourPublicAujourdhui, getOffrePublique, appliquerOffre } from "@/modules/food/menuJourApi";
 import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
 import { useRetourNavigateur, installerBalayageRetour } from "@/lib/navigationRetour";
 import { signalerEchecModule, memoriserEcran, ecranMemorise, journaliser, VERSION_APP } from "@/lib/versionApp";
@@ -3209,22 +3209,25 @@ function ClientFood({ user, onBack }: any) {
   React.useEffect(() => {
     let actif = true;
     (async () => {
-      const { produits, diagnostic } = await getCatalogueFoodPublic();
+      // Offre du jour (24/11) : seuls les plats cochés et les menus publiés aujourd'hui sont proposés
+      const [{ produits: tous, diagnostic }, o] = await Promise.all([getCatalogueFoodPublic(), getOffrePublique()]);
       if (!actif) return;
-      const mapped = produits.map(p => {
+      const { produits, menus } = appliquerOffre(tous, o.offre);
+      const mapped = [...menus.map(m => ({ id: "menu::" + m.cle, ico: "🍱", nom: m.nom, cat: "Menus du jour", desc: (m.composition || []).map(c => c.nom).join(" + "), prix: m.prix, tags: [], photo: null, variantes: [], commandable: (m.prix ?? 0) > 0 })), ...produits.map(p => {
         const catInfo = FOOD_CATEGORIES.find(c => c.id === p.categorie);
         return { id: p.id, ico: catInfo?.ico || "🍽", nom: p.nom, cat: catInfo?.nom || "Autres", desc: p.description || "", prix: p.prix, tags: p.tags || [], photo: p.photo || null, variantes: [], commandable: (p as any).commandable !== false, mention: (p as any).mention || null };
-      });
+      })];
       setCatalogueFood(mapped);
       setCatalogueDiag(diagnostic);
       setCatalogueCharge(false);
       // Variantes (tailles/formats à prix différents) — requête séparée
       // pour ne jamais bloquer l'affichage du catalogue si elle échoue.
-      if (mapped.length > 0) {
+      const idsProduits = mapped.filter(p => !String(p.id).startsWith("menu::")).map(p => p.id);
+      if (idsProduits.length > 0) {
         // Allergènes (fiche + recette) : affichés avant l'achat ; liste
         // vide = non renseignés (jamais « sans allergène »).
-        getAllergenesFoodPublic(mapped.map(p => p.id)).then(al => { if (actif) setAllergenesFood(al || {}); }).catch(() => {});
-        const variantes = await getVariantesFoodPublic(mapped.map(p => p.id));
+        getAllergenesFoodPublic(idsProduits).then(al => { if (actif) setAllergenesFood(al || {}); }).catch(() => {});
+        const variantes = await getVariantesFoodPublic(idsProduits);
         if (!actif || variantes.length === 0) return;
         setCatalogueFood(prev => prev.map(p => ({ ...p, variantes: variantes.filter(v => v.produitId === p.id) })));
       }
@@ -3409,7 +3412,7 @@ function ClientFood({ user, onBack }: any) {
               <div style={{fontSize:10,color:"#f87171",fontFamily:"monospace"}}>{catalogueDiag}</div>
             )}
             {!catalogueCharge && !catalogueDiag && CATALOGUE_FOOD.length===0 && (
-              <div style={{textAlign:"center",padding:"28px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Le catalogue se prépare — revenez bientôt.</div>
+              <div style={{textAlign:"center",padding:"28px",color:"rgba(245,240,232,0.5)",fontStyle:"italic"}}>Aucun plat n'est proposé aujourd'hui — revenez bientôt.</div>
             )}
             {Array.from(new Set(CATALOGUE_FOOD.map(p=>p.cat))).map(cat=>(
               <div key={cat}>
