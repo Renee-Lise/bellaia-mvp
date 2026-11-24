@@ -41,3 +41,38 @@ Causes probables, relevées dans le code (ni reproduites ni confirmées sur iPho
 - après la sélection, les fichiers étaient seulement **mis en file** : il fallait encore appuyer sur « Lancer l'envoi », sans indication immédiate qu'une sélection avait été reçue.
 
 Les corrections et les tests sont décrits dans le compte rendu de livraison.
+
+## 4. Procédure pour obtenir une copie modifiable (complément du 24/11)
+
+**Duplication autorisée** :
+- Les 9 patrons « Golden Graduation » et le « Pack n°1 » sont des **liens de consultation** (`…/view`). Ce n'est pas la même chose qu'un lien de modèle : selon le réglage du vendeur, Canva affiche ou non un bouton « Utiliser comme modèle » / « Modifier une copie ».
+- Le « Pack n°2 » est un **lien de modèle** (`mode=preview`) : la duplication y est explicitement prévue.
+- Les conditions d'usage exactes (personnel ou commercial) figurent dans le PDF d'achat et dans la colonne « Licence » du registre. Elles doivent être relues pour chaque pack avant toute vente.
+
+**Étapes, sur iPhone ou ordinateur, connectée à son compte Canva** :
+1. Ouvrir le lien depuis Atelier papeterie › Packs achetés › « Ouvrir ↗ ».
+   - Sur iPhone : si l'application Canva s'ouvre en visionneuse, appuyer sur « … » puis « Ouvrir dans le navigateur ».
+2. Choisir « Utiliser comme modèle » (ou « Modifier une copie »). Une copie modifiable est alors créée dans **son** compte.
+   - Si aucun de ces boutons n'apparaît, le vendeur n'autorise que la consultation : il faut lui demander le lien de modèle.
+3. Dans la copie : Partager › Télécharger.
+   - PNG, case « Taille » à ×2 ou ×3 (au moins 300 dpi au format réel), toutes les pages ;
+   - ou « PDF pour impression », qui sert à l'impression directe.
+4. Dans Bellaïa :
+   - Médiathèque › « Importer des fichiers » : choisir les PNG ;
+   - puis Atelier › « Nouvelle création / patron » › « Patron depuis une image », en indiquant la **largeur réelle imprimée** en mm.
+5. Dans l'éditeur, ajouter les zones modifiables (prénom, âge, photo, textes) au-dessus du modèle, puis exporter en « PDF imprimeur » (échelle réelle, fond perdu, traits de coupe).
+
+**Ce qui est modifiable directement dans Bellaïa** :
+- tous les éléments ajoutés dans l'éditeur : textes (police, taille, couleur, contour), images de la médiathèque, formes, position, rotation et opacité ;
+- les zones nommées pour les kits clients ;
+- le fond perdu, la marge de sécurité, les traits de coupe, de pli et de collage.
+
+**Ce qui ne l'est pas** :
+- le contenu interne d'un modèle Canva importé en image. Il devient un **fond figé** : on écrit par-dessus, mais on ne modifie pas ses textes d'origine.
+- Un PDF importé n'est pas affiché dans l'éditeur. Il faut utiliser les exports PNG.
+
+**Patrons originaux de Bellaïa** (pour remplacer ce qui ne peut pas être édité) :
+- sac cadeau, boîte cube, étiquette cadeau, étiquette, tube avec couvercle, canette, fanion ;
+- ainsi que les boîtes popcorn et gable déjà présentes.
+
+Ce sont des formes géométriques génériques dessinées pour Bellaïa. Elles ne reprennent ni le dessin ni les visuels des modèles achetés, et sont entièrement modifiables. Le **T-shirt** n'est pas un support papier : il passe par un transfert textile, qui n'est pas couvert par l'atelier.
