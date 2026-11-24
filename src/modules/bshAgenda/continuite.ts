@@ -289,3 +289,23 @@ export function sondagesAManquer(existants: { question: string }[]) {
 // ═══ Catégories BSH Rewards et plateformes ═══
 export const CATEGORIES_REWARDS: [string, string][] = [["sweet_rewards", "BSH Sweet Rewards"], ["golden_ticket", "BSH Golden Ticket"], ["secret_gift", "BSH Secret Gift"], ["members_rewards", "BSH Members Rewards"]];
 export const PLATEFORMES: [string, string][] = [["whatsapp", "WhatsApp"], ["snapchat", "Snapchat"], ["tiktok", "TikTok"]];
+
+// ── Personnage officiel : référence principale + références secondaires (24/11) ──
+export type RefPersonnage = { id: string; type: string; url?: string | null; statut_validation: string; droits: string; role_reference?: string | null; created_at?: string };
+/** Classe les visuels du personnage : la principale (une seule), les secondaires, ceux en attente. */
+export function referencesPersonnage<T extends RefPersonnage>(ressources: T[]): { principale: T | null; secondaires: T[]; enAttente: T[]; toutes: T[] } {
+  const toutes = ressources.filter(r => r.type === "personnage_reference" && r.statut_validation !== "archive");
+  const valides = toutes.filter(r => utilisable(r as any));
+  const principale = valides.find(r => r.role_reference === "principale") || null;
+  return { principale, secondaires: valides.filter(r => r !== principale), enAttente: toutes.filter(r => r.statut_validation === "a_valider" || r.statut_validation === "brouillon"), toutes };
+}
+/** Écritures pour désigner une nouvelle principale (ordre imposé : l'ancienne d'abord, contrainte d'unicité en base). */
+export function patchsPrincipale<T extends RefPersonnage>(toutes: T[], nouvelleId: string): { id: string; role_reference: "principale" | "secondaire" }[] {
+  const anciennes = toutes.filter(r => r.role_reference === "principale" && r.id !== nouvelleId).map(r => ({ id: r.id, role_reference: "secondaire" as const }));
+  return [...anciennes, { id: nouvelleId, role_reference: "principale" as const }];
+}
+/** Personnage à utiliser dans une création : celui choisi, sinon la référence principale ; jamais un visuel non validé. */
+export function personnageCreation<T extends RefPersonnage>(ressources: T[], choisiId?: string | null): T | null {
+  const { principale, secondaires } = referencesPersonnage(ressources);
+  return [principale, ...secondaires].find(r => r && r.id === choisiId) || principale || null;
+}

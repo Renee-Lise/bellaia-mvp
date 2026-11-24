@@ -271,3 +271,13 @@ do $$ begin
     create policy bsh_assistant_contenus_fondatrice on public.bsh_assistant_contenus for all to authenticated using (public.is_fondatrice()) with check (public.is_fondatrice());
   end if;
 end $$;
+
+-- ── 8. Personnage officiel (complément du 24/11, suite) : une référence PRINCIPALE et des références secondaires ──
+alter table public.bsh_ressources add column if not exists role_reference text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'bsh_ressources_role_reference') then
+    alter table public.bsh_ressources add constraint bsh_ressources_role_reference check (role_reference is null or (type = 'personnage_reference' and role_reference in ('principale', 'secondaire')));
+  end if;
+end $$;
+-- une seule référence principale active à la fois (les archivées ne comptent pas)
+create unique index if not exists bsh_ressources_personnage_principale on public.bsh_ressources(type) where role_reference = 'principale' and statut_validation <> 'archive';

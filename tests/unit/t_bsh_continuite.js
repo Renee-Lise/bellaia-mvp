@@ -88,4 +88,12 @@ ok('39 réserve : 10 sondages en brouillon, 4 réponses chacun ; doublon reconnu
 ok('40 Rewards : 4 catégories officielles', C.CATEGORIES_REWARDS.map(x => x[1]).join('|') === 'BSH Sweet Rewards|BSH Golden Ticket|BSH Secret Gift|BSH Members Rewards');
 ok('41 studio : 6 ambiances, Story Snapchat et TikTok en 1080 × 1920 avec zones sûres, exports PDF pour l\'impression', C.AMBIANCES.length === 6 && C.FORMATS_STUDIO.story_tiktok.h === 1920 && C.ZONES_SURES.story_tiktok.bas > 0 && C.EXPORTS_STUDIO.invitation.includes('pdf') && !C.EXPORTS_STUDIO.story.includes('pdf'));
 
+// Personnage officiel : principale + secondaires
+const RP = (id, role, st = 'valide', dr = 'proprietaire') => ({ id, type: 'personnage_reference', role_reference: role, statut_validation: st, droits: dr, url: 'u' + id });
+const LP = [RP('a', 'principale'), RP('b', 'secondaire'), RP('c', 'secondaire'), RP('d', 'secondaire', 'a_valider', 'a_verifier'), RP('e', 'secondaire', 'archive'), { id: 'x', type: 'affiche', statut_validation: 'valide', droits: 'proprietaire' }];
+const rp = C.referencesPersonnage(LP);
+ok('42 personnage : 1 principale, 2 secondaires validées, 1 à valider, archivée ignorée', rp.principale.id === 'a' && rp.secondaires.map(x => x.id).join() === 'b,c' && rp.enAttente.map(x => x.id).join() === 'd' && rp.toutes.length === 4);
+ok('43 nouvelle principale : l\'ancienne repasse en secondaire AVANT (unicité en base)', JSON.stringify(C.patchsPrincipale(rp.toutes, 'c')) === JSON.stringify([{ id: 'a', role_reference: 'secondaire' }, { id: 'c', role_reference: 'principale' }]));
+ok('44 création : principale par défaut, secondaire choisie respectée, visuel non validé jamais utilisé', C.personnageCreation(LP).id === 'a' && C.personnageCreation(LP, 'b').id === 'b' && C.personnageCreation(LP, 'd').id === 'a');
+ok('45 sans principale validée : aucun personnage imposé', C.personnageCreation([RP('d', 'principale', 'a_valider', 'a_verifier')]) === null);
 console.log(R.join('\n')); console.log(`${R.filter(x => x.endsWith('OK')).length}/${R.length}`);

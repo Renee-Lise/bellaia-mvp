@@ -10,10 +10,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { K, FS, champ, bouton, Etiquette, Champ, Carte, Vide, Titre, Feuille, Erreur, grille, sbInsert, sbUpdate, uploadStorage, slug, libelleInstant, BUCKET_BSH, telecharger } from "./bshAgendaLib";
 import type { Donnees, Creation } from "./BshAgendaHub";
-import { FORMATS_STUDIO, AMBIANCES, utilisable, EXPORTS_STUDIO, ZONES_SURES, PERSONNAGE_OFFICIEL } from "./continuite";
+import { FORMATS_STUDIO, AMBIANCES, utilisable, EXPORTS_STUDIO, ZONES_SURES, PERSONNAGE_OFFICIEL, referencesPersonnage, patchsPrincipale, personnageCreation } from "./continuite";
 import { empreinteFichier } from "./BshMediatheque";
 
-type Contenu = { surtitre: string; titre: string; texte: string; mention: string; fond_id: string | null; personnage: boolean; alignement: "haut" | "centre" | "bas"; choix?: string[] };
+type Contenu = { surtitre: string; titre: string; texte: string; mention: string; fond_id: string | null; personnage: boolean; personnage_id?: string | null; alignement: "haut" | "centre" | "bas"; choix?: string[] };
 const VIDE: Contenu = { surtitre: "Bella'Secret Home", titre: "", texte: "", mention: "", fond_id: null, personnage: false, alignement: "bas", choix: [] };
 const STATUTS: [string, string, string][] = [["brouillon", "Brouillon", K.cremeD], ["a_corriger", "À corriger", K.alerte], ["valide", "Validée", K.ok], ["archive", "Archivée", K.cremeD]];
 
@@ -98,7 +98,7 @@ function NouvelleCreation({ d, onFermer, onFait }: { d: Donnees; onFermer: () =>
   const [titre, setTitre] = useState(""); const [format, setFormat] = useState("affiche"); const [ambiance, setAmbiance] = useState("glamour"); const [campagne, setCampagne] = useState(""); const [err, setErr] = useState("");
   const creer = async () => {
     if (!titre.trim()) return setErr("Titre obligatoire.");
-    try { const [c] = await sbInsert<Creation>("bsh_creations", { titre: titre.trim(), format, ambiance, campagne_id: campagne || null, statut: "brouillon" }); await sbInsert("bsh_creations_versions", { creation_id: c.id, contenu: { ...VIDE, titre: titre.trim() }, note_correction: "Création" }, "return=minimal"); onFait({ ...c, version_courante: 1 }); }
+    try { const [c] = await sbInsert<Creation>("bsh_creations", { titre: titre.trim(), format, ambiance, campagne_id: campagne || null, statut: "brouillon", personnage_id: (referencesPersonnage(d.ressources as any[]).principale as any)?.id || null }); await sbInsert("bsh_creations_versions", { creation_id: c.id, contenu: { ...VIDE, titre: titre.trim() }, note_correction: "Création" }, "return=minimal"); onFait({ ...c, version_courante: 1 }); }
     catch (e: any) { setErr(String(e?.message || e)); }
   };
   return <Feuille titre="Nouvelle création" onFermer={onFermer}>
@@ -120,14 +120,16 @@ function Atelier({ d, c, onFermer, recharger, flash, ouvrir }: { d: Donnees; c: 
   const cv = useRef<HTMLCanvasElement>(null);
   const maj = (x: Partial<Contenu>) => setContenu(v => ({ ...v, ...x }));
   const fonds = d.ressources.filter(r => utilisable(r) && r.url && r.type !== "personnage_reference");
-  const personnage = d.ressources.find(r => r.type === "personnage_reference" && utilisable(r) && r.url);
+  // Cohérence du personnage : référence choisie pour cette création, sinon la référence PRINCIPALE validée
+  const refsPerso = referencesPersonnage(d.ressources as any[]);
+  const personnage = personnageCreation(d.ressources as any[], (contenu as any).personnage_id || c.personnage_id) as any;
   const fond = fonds.find(r => r.id === contenu.fond_id);
   useEffect(() => { if (cv.current) dessiner(cv.current, c.format, c.ambiance, contenu, { fond: fond?.url, personnage: personnage?.url }); }, [contenu, c.format, c.ambiance, fond?.url, personnage?.url]);
   const f = FORMATS_STUDIO[c.format] || FORMATS_STUDIO.affiche;
   const modifie = JSON.stringify(contenu) !== JSON.stringify({ ...VIDE, ...(versions[0]?.contenu || {}) });
   const sauver = async () => { try { await sbInsert("bsh_creations_versions", { creation_id: c.id, contenu, note_correction: note || null }, "return=minimal"); setNote(""); flash(`✅ Version ${c.version_courante + 1} enregistrée`); recharger(); } catch (e: any) { setErr(String(e?.message || e)); } };
   const statut = async (s: string, t: string) => { try { await sbUpdate("bsh_creations", c.id, { statut: s, updated_at: new Date().toISOString() }); flash(t); recharger(); } catch (e: any) { setErr(String(e?.message || e)); } };
-  const variante = async (format: string) => { try { const [v] = await sbInsert<Creation>("bsh_creations", { titre: `${c.titre} – ${FORMATS_STUDIO[format].libelle}`, format, ambiance: c.ambiance, campagne_id: c.campagne_id, parent_id: c.id, statut: "brouillon" }); await sbInsert("bsh_creations_versions", { creation_id: v.id, contenu, note_correction: `Variante de « ${c.titre} » v${c.version_courante}` }, "return=minimal"); flash("✅ Variante créée en brouillon"); recharger(); ouvrir({ ...v, version_courante: 1 }); } catch (e: any) { setErr(String(e?.message || e)); } };
+  const variante = async (format: string) => { try { const [v] = await sbInsert<Creation>("bsh_creations", { titre: `${c.titre} – ${FORMATS_STUDIO[format].libelle}`, format, ambiance: c.ambiance, campagne_id: c.campagne_id, parent_id: c.id, personnage_id: personnage?.id || c.personnage_id || null, statut: "brouillon" }); await sbInsert("bsh_creations_versions", { creation_id: v.id, contenu, note_correction: `Variante de « ${c.titre} » v${c.version_courante}` }, "return=minimal"); flash("✅ Variante créée en brouillon"); recharger(); ouvrir({ ...v, version_courante: 1 }); } catch (e: any) { setErr(String(e?.message || e)); } };
   const exporter = async () => {
     if (!cv.current) return; if (c.statut !== "valide") return setErr("Valide la création avant de l'exporter vers la médiathèque.");
     setOccupe("Export…"); setErr("");
@@ -173,7 +175,8 @@ function Atelier({ d, c, onFermer, recharger, flash, ouvrir }: { d: Donnees; c: 
           <Champ label="Fond (ressource validée)"><select style={champ} value={contenu.fond_id || ""} onChange={e => maj({ fond_id: e.target.value || null })}><option value="">Dégradé d'ambiance</option>{fonds.map(r => <option key={r.id} value={r.id}>{r.titre}</option>)}</select></Champ>
           <Champ label="Texte placé"><select style={champ} value={contenu.alignement} onChange={e => maj({ alignement: e.target.value as any })}><option value="haut">En haut</option><option value="centre">Au centre</option><option value="bas">En bas</option></select></Champ>
         </div>
-        <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, color: personnage ? K.creme : K.cremeD }}><input type="checkbox" disabled={!personnage} checked={contenu.personnage && !!personnage} onChange={e => maj({ personnage: e.target.checked })} />Afficher le personnage principal</label>
+        <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, color: personnage ? K.creme : K.cremeD }}><input type="checkbox" disabled={!personnage} checked={contenu.personnage && !!personnage} onChange={e => maj({ personnage: e.target.checked })} />Afficher le personnage officiel</label>
+        {contenu.personnage && refsPerso.principale && <Champ label="Référence du personnage (cohérence entre les créations)"><select aria-label="Référence du personnage" style={champ} value={(contenu as any).personnage_id || personnage?.id || ""} onChange={e => maj({ personnage_id: e.target.value })}>{[refsPerso.principale, ...refsPerso.secondaires].map((r: any) => <option key={r.id} value={r.id}>{r.role_reference === "principale" ? "★ Principale — " : ""}{r.titre}</option>)}</select></Champ>}
         <Champ label="Note de correction (enregistrée avec la version)"><input style={champ} value={note} onChange={e => setNote(e.target.value)} /></Champ>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button style={bouton("plein", true)} disabled={!modifie && !note} onClick={sauver}>💾 Enregistrer la version {c.version_courante + 1}</button>
@@ -211,25 +214,47 @@ function Atelier({ d, c, onFermer, recharger, flash, ouvrir }: { d: Donnees; c: 
 
 /** Personnage officiel BSH : la description guide la validation ; seul le visuel déposé et validé par la fondatrice est utilisé. */
 function PersonnageOfficiel({ d, recharger, flash }: { d: Donnees; recharger: () => void; flash: (t: string) => void }) {
-  const refs = d.ressources.filter(r => r.type === "personnage_reference");
-  const valide = refs.find(r => utilisable(r)); const enAttente = refs.filter(r => r.statut_validation === "a_valider");
-  const [occupe, setOccupe] = useState(false);
-  const deposer = async (f?: File) => {
-    if (!f) return; setOccupe(true);
-    try { const e = await empreinteFichier(f); if (d.ressources.some(r => (r.empreinte || "") === e)) { flash("⚠️ Ce visuel est déjà dans la médiathèque."); setOccupe(false); return; }
-      const ext = (f.name.split(".").pop() || "png").toLowerCase(); const chemin = `personnage/${Date.now().toString(36)}-officiel.${ext}`;
-      const url = await uploadStorage(chemin, f, f.type || "image/png", BUCKET_BSH);
-      await sbInsert("bsh_ressources", { titre: "Personnage officiel BSH", univers: "commun", type: "personnage_reference", url, chemin_storage: chemin, empreinte: e, statut_validation: "a_valider", droits: "a_verifier", droits_note: "Visuel officiel déposé ; droits et validation par la fondatrice." }, "return=minimal");
-      flash("✅ Visuel déposé : à valider par la fondatrice dans la Médiathèque (droits à confirmer)."); recharger(); } catch (er: any) { flash("⚠️ " + (er?.message || er)); }
-    setOccupe(false);
+  // Personnage officiel : plusieurs visuels de référence (ex. 10), dont UNE référence principale.
+  // Fichiers stockés dans l'espace privé BSH (jamais dans le dépôt public) ; chacun reste « à valider » et
+  // « droits à vérifier » jusqu'à la décision de la fondatrice.
+  const { principale, secondaires, enAttente, toutes } = referencesPersonnage(d.ressources as any[]);
+  const [occupe, setOccupe] = useState(""); const [ouvert, setOuvert] = useState(false);
+  const deposer = async (fichiers: File[]) => {
+    if (!fichiers.length) return; let faits = 0, doublons = 0; const erreurs: string[] = [];
+    let aPrincipale = toutes.some((r: any) => r.role_reference === "principale");
+    for (const [k, f] of fichiers.entries()) {
+      setOccupe(`Envoi ${k + 1} / ${fichiers.length}…`);
+      try { const e = await empreinteFichier(f); if (d.ressources.some(r => (r.empreinte || "") === e)) { doublons++; continue; }
+        const ext = (f.name.split(".").pop() || "png").toLowerCase(); const chemin = `personnage/${Date.now().toString(36)}-${k}-reference.${ext}`;
+        const url = await uploadStorage(chemin, f, f.type || "image/png", BUCKET_BSH);
+        await sbInsert("bsh_ressources", { titre: `Personnage officiel BSH — référence ${toutes.length + faits + 1}`, univers: "commun", type: "personnage_reference", role_reference: aPrincipale ? "secondaire" : "principale", url, chemin_storage: chemin, empreinte: e, statut_validation: "a_valider", droits: "a_verifier", droits_note: "Visuel officiel déposé par la fondatrice — droits à confirmer" }, "return=minimal");
+        aPrincipale = true; faits++;
+      } catch (er: any) { if (/duplicate key|23505|empreinte_unique/.test(String(er?.message || er))) doublons++; else erreurs.push(`${f.name} : ${er?.message || er}`); }
+    }
+    setOccupe(""); flash(`✅ ${faits} visuel(s) déposé(s)${doublons ? `, ${doublons} déjà présent(s)` : ""} — à valider ci-dessous.${erreurs.length ? " ⚠️ " + erreurs.join(" ; ") : ""}`); setOuvert(true); recharger();
   };
-  return <Carte style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-    {valide?.url ? <img src={valide.url} alt="Personnage officiel BSH" style={{ width: 54, height: 54, objectFit: "cover", borderRadius: 10 }} /> : <div style={{ width: 54, height: 54, borderRadius: 10, display: "grid", placeItems: "center", background: K.verre2, fontSize: 22 }}>👤</div>}
-    <div style={{ flex: 1, minWidth: 200 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: K.creme }}>Personnage officiel BSH</div>
-      <div style={{ fontSize: 11, color: K.cremeD }}>{PERSONNAGE_OFFICIEL} Cette description ne remplace pas le visuel officiel.</div>
-      <div style={{ fontSize: 11, color: valide ? K.ok : K.alerte }}>{valide ? "Visuel validé : utilisable dans les créations." : enAttente.length ? `${enAttente.length} visuel(s) en attente de validation (Médiathèque).` : "Aucun visuel officiel déposé : le personnage n'apparaît dans aucune création."}</div>
+  const definirPrincipale = async (id: string) => { setOccupe("…"); try { for (const pt of patchsPrincipale(toutes as any[], id)) await sbUpdate("bsh_ressources", pt.id, { role_reference: pt.role_reference, updated_at: new Date().toISOString() }); flash("✅ Référence principale mise à jour : elle sera utilisée par défaut dans toutes les créations."); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); } setOccupe(""); };
+  const valider = async (id: string) => { try { await sbUpdate("bsh_ressources", id, { statut_validation: "valide", valide_le: new Date().toISOString(), droits: "proprietaire", droits_note: "Visuel officiel validé par la fondatrice (droits confirmés)", updated_at: new Date().toISOString() }); flash("✅ Visuel validé (droits confirmés)."); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); } };
+  const archiver = async (id: string) => { if (!confirm("Retirer ce visuel des références ? Il est archivé, jamais supprimé.")) return; try { await sbUpdate("bsh_ressources", id, { statut_validation: "archive", role_reference: null, updated_at: new Date().toISOString() }); recharger(); } catch (e: any) { flash("⚠️ " + (e?.message || e)); } };
+  return <Carte style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      {principale?.url ? <img src={principale.url} alt="Référence principale du personnage officiel" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 12 }} /> : <div style={{ width: 64, height: 64, borderRadius: 12, display: "grid", placeItems: "center", background: K.verre, fontSize: 26 }}>👤</div>}
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: K.creme }}>Personnage officiel BSH</div>
+        <div style={{ fontSize: 11, color: K.cremeD }}>{PERSONNAGE_OFFICIEL} Cette description ne remplace pas les visuels officiels.</div>
+        <div data-testid="etat-personnage" style={{ fontSize: 12, color: principale ? K.ok : K.alerte }}>{principale ? `Référence principale validée + ${secondaires.length} référence(s) secondaire(s).` : "Aucune référence principale validée."}{enAttente.length ? ` ${enAttente.length} visuel(s) à valider.` : ""}</div>
+      </div>
+      <label data-testid="importer-personnage" style={{ ...bouton("or", true), position: "relative", display: "inline-flex", alignItems: "center", opacity: occupe ? 0.6 : 1 }}>{occupe || "Importer les visuels (plusieurs possibles)"}<input type="file" multiple accept="image/png,image/jpeg,image/webp" disabled={!!occupe} style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", fontSize: 16 }} onChange={e => { deposer(Array.from(e.target.files || [])); e.target.value = ""; }} /></label>
+      {toutes.length > 0 && <button style={bouton("ghost", true)} onClick={() => setOuvert(o => !o)}>{ouvert ? "Masquer" : `Gérer les ${toutes.length} référence(s)`}</button>}
     </div>
-    <label style={{ ...bouton("or", true), display: "inline-flex", alignItems: "center", opacity: occupe ? 0.6 : 1 }}>Importer le visuel officiel<input type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} disabled={occupe} onChange={e => deposer(e.target.files?.[0] || undefined)} /></label>
+    {ouvert && <div data-testid="galerie-personnage" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+      {[...(toutes as any[])].sort((a, b) => Number(b.role_reference === "principale") - Number(a.role_reference === "principale")).map(r => <div key={r.id} style={{ borderRadius: 12, border: `2px solid ${r.role_reference === "principale" ? K.or : K.bord}`, padding: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+        {r.url ? <img src={r.url} alt={r.titre} style={{ width: "100%", aspectRatio: "3 / 4", objectFit: "cover", borderRadius: 8 }} /> : null}
+        <div style={{ fontSize: 11, fontWeight: 700, color: r.role_reference === "principale" ? K.or : K.cremeD }}>{r.role_reference === "principale" ? "★ Principale" : "Secondaire"} · {r.statut_validation === "valide" ? "validée" : "à valider"}</div>
+        {r.statut_validation !== "valide" && <button style={bouton("plein", true)} onClick={() => valider(r.id)}>Valider (droits confirmés)</button>}
+        {r.role_reference !== "principale" && <button style={bouton("ghost", true)} disabled={!!occupe} onClick={() => definirPrincipale(r.id)}>Définir comme principale</button>}
+        <button style={bouton("ghost", true)} onClick={() => archiver(r.id)}>Retirer</button>
+      </div>)}
+    </div>}
   </Carte>;
 }

@@ -1,4 +1,3 @@
-# 0141 — base PostgreSQL 16 jetable, 24/11/2026 (complétée : nature, plateforme, Rewards, Diamond B, assistant, ambiances)
 0141 appliquée deux fois (idempotence)
 01 fondatrice : création de 2 publications en brouillon | accepté
 02 programmation sans validation refusée par la base | t
@@ -39,5 +38,11 @@
 34 Diamond B : paroles et auteurs, liaison à un jeu Secret Games | t
 35 studio : ambiances romantique, mystérieuse, festive ; formats Story Snapchat et TikTok | t
 36 assistant de communication : réservé à la fondatrice, raccourci ≤ 25 caractères, validation datée | t
+40 personnage : une principale et plusieurs secondaires acceptées | t
+41 personnage : une seconde principale est refusée par la base | t
+42 rôle de référence interdit hors personnage | t
+43a changement de principale (ancienne → secondaire, puis nouvelle → principale) | t
+43b la nouvelle principale est enregistrée | t
+44 références du personnage invisibles des visiteurs | t
 retour arrière : true
 réapplication sans erreur
