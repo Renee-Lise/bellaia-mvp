@@ -1,4 +1,4 @@
-# Ordre de déploiement sécurisé des migrations en attente (24/11/2026)
+# Ordre de déploiement sécurisé des migrations en attente (24/11/2026, complété le soir : 0144 et 0145)
 **Aucune n'est appliquée. Chaque étape demande ton accord explicite.** Après chaque étape : avis de sécurité Supabase, puis contrôle rapide sur iPhone.
 
 | Étape | Quoi | Pourquoi à ce rang | Dépend de | Retour arrière | Test |
@@ -12,6 +12,8 @@
 | 6 | **0141** : BSH Secret Agenda (+ rôle principale/secondaire du personnage officiel, une seule principale garantie) | Continuité, preuves, studio, médiathèque, personnage | 0103 et 0128 (production) ; compatible après 0142 (vérifié) | `rollback/0141…` | 45/45 (24/11) |
 | 6 bis | **0143** : vues publiques Bella'Food limitées à l'offre publiée du jour | Lot 5 : un produit non coché n'est plus lisible publiquement (le serveur refuse déjà de le vendre dès l'étape 1) | 0060 (production), `is_fondatrice()`, `food_produit_commandable()` | `rollback/0143…` (vues d'origine relevées en production) | 8/8, idempotence, retour arrière, réapplication |
 | 7 | **0135**, puis **0136**, puis **0137** | Candidatures, suspensions | 0134 avant 0135 ; 0137 après 0135 et 0136 | Fichiers de retour | 65/65 |
+| 7 bis | **0145** : répertoire central, unicité des fonctions (index sur compte + fonction + organisation), auteur dans le journal des droits | Corrige l'absence de contrainte d'unicité de `bellaia_roles` (le « on conflict do nothing » de `fondatrice_lier_compte` était inopérant) ; ouvre la recherche par e-mail sur tous les comptes (fondatrice seule) | **Après 0137** : l'acceptation d'invitation de 0137 a été rendue compatible (`on conflict do nothing`, 24/11) ; 0 doublon en production vérifié le 24/11 | `rollback/0145…` | 19/19 ; chaîne 0134→0145→0144 : 65/65 + 5/5 |
+| 7 ter | **0144** : BSH Private Club, Secret World, nominations des hôtes, masques signature, Secret Coins, canaux temps réel | Club et monde en ligne (sans elle : mode local et maquette seulement) | Objets de production (`profiles`, `bsh_hotes`, `bsh_evenements`, `bsh_musique`, `bellaia_missions`, `realtime.messages`) ; ne modifie ni `a_permission` (0136) ni le journal ; testée après 0145 dans la chaîne | `rollback/0144…` | 115/115 (9 comptes) ; chaîne : sans erreur |
 | 8 | **0139**, **0131**, **0130**, **0132**, **0129** | Fonctions secondaires | 0132 : 0128 (production) | Fichiers de retour | 8/8 ; testés |
 
 **Effets à connaître dès l'étape 1 (code seul, sans migration)** :

@@ -1,0 +1,6 @@
+-- Contrôles après la chaîne complète 0134 → 0137 → 0145 → 0144.
+select 'C1 toutes les migrations présentes', to_regclass('public.bellaia_candidatures') is not null and to_regclass('public.bellaia_suspensions') is not null and to_regclass('public.bellaia_invitations') is not null and to_regclass('public.bellaia_repertoire') is not null and to_regclass('public.bsh_hotes_nominations') is not null and to_regclass('public.bellaia_roles_unique_fonction') is not null;
+select 'C2 a_permission de 0136 conservée (suspensions prises en compte), non écrasée par 0144/0145', pg_get_functiondef('public.a_permission(text,text)'::regprocedure) like '%est_suspendu%';
+select 'C3 journal des droits : auteur enregistré (0145) et toujours branché sur les suspensions (0136)', pg_get_functiondef('public.journaliser_droits()'::regprocedure) like '%auth.uid()%' and exists (select 1 from pg_trigger where tgname = 'trg_journal_suspensions');
+select 'C4 acceptation d''invitation (0137) compatible avec l''unicité (on conflict do nothing)', pg_get_functiondef(p.oid) like '%Invitation%on conflict do nothing%' from pg_proc p where p.proname = 'accepter_invitation' limit 1;
+select 'C5 doublons de fonctions en base après la chaîne', (select count(*) from (select user_id, role, organisation_id from public.bellaia_roles group by 1,2,3 having count(*) > 1) d) = 0;

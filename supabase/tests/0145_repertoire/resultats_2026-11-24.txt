@@ -1,0 +1,24 @@
+# 0145 — base PostgreSQL 16 jetable, comptes fictifs, 2026-11-24. Base fictive : ce n'est PAS une restauration de la production.
+0145 appliquée deux fois (idempotence)
+01 doublon de fonction refusé par la base (même compte, fonction, organisation) | t
+02 même fonction dans un autre pôle (équipe interne) acceptée | t
+03 … et une seule fois (doublon interne refusé) | t
+04 journal : l'auteur du changement est enregistré | t
+05 auto-attribution refusée : une partenaire ne s'ajoute pas de fonction | t
+06 élévation refusée : une partenaire ne modifie pas ses fonctions (0 ligne) | t
+07 répertoire complet : fondatrice (comptes + e-mails, fondatrice exclue) | t
+08 catégories et pôles déduits (Lina : hôtes, assistants, collaborateurs, partenaires ; Vil'Dor et FOOD) | t
+09 répertoire refusé aux autres comptes (partenaire, assistante, cliente) : liste vide | t
+10 visiteur anonyme : fonction inaccessible | t
+11 contact externe (fournisseur) créé sans compte | t
+11b … présent dans le répertoire comme contact externe, aucun compte créé | t
+12 catégorie inconnue refusée ; nouvelle catégorie créée puis utilisable | t
+13 renommer une catégorie | t
+14 fiche sans identité (ni nom, prénom, e-mail, entreprise) refusée ; e-mail invalide refusé | t
+15 fiche complémentaire d'un compte (pseudo, entreprise) visible dans la recherche | t
+16 une seule fiche par compte | t
+17 répertoire illisible pour les autres comptes (lecture directe) | t
+18 modifications du répertoire journalisées (sans les notes internes) | t
+19 archivage : la fiche passe en « Contacts archivés » sans être supprimée | t
+retour arrière : true
+réapplication sans erreur

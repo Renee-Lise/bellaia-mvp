@@ -151,6 +151,30 @@ async function sauver(p, attendu = /enregistrée|interrompu/) {
   t('aucune erreur JavaScript (fondatrice)', err.length === 0); if (err.length) console.log(err);
   await ctx.close();
 
+  // ── Répertoire (Organisation › Répertoire)
+  const ctx3 = await b.newContext({ ...devices['iPhone 13'], acceptDownloads: true });
+  await ctx3.addInitScript(([u, tk]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', tk); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7000)); localStorage.setItem('bellaia-nav', JSON.stringify({ 'f:fondatrice': { v: 'repertoire', t: Date.now() } })); }, [{ id: F, role: 'fondatrice', prenom: 'Fondatrice' }, jwt(F)]);
+  await baseSimulee(ctx3);
+  const r3 = await ctx3.newPage(); const err3 = []; r3.on('pageerror', e => err3.push(e.message));
+  await r3.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 180000 }); await r3.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
+  await r3.waitForSelector('[data-testid=repertoire-recherche]', { timeout: 60000 });
+  t('répertoire : 4 comptes, mode consultation signalé avant 0145', (await r3.getByTestId('ligne-contact').count()) === 4 && (await r3.getByTestId('repertoire-repli').count()) === 1);
+  await r3.getByTestId('cat-clients').tap();
+  t('répertoire : filtre par catégorie (Clients : 1 après le rattachement de Marie)', (await r3.getByTestId('ligne-contact').count()) === 1);
+  await r3.getByTestId('cat-clients').tap(); await r3.getByTestId('repertoire-recherche').fill('paul');
+  t('répertoire : recherche', (await r3.getByTestId('ligne-contact').count()) === 1);
+  await r3.getByTestId('repertoire-recherche').fill('');
+  await r3.getByTestId('import-repertoire').setInputFiles({ name: 'contacts.csv', mimeType: 'text/csv', buffer: Buffer.from('Prénom;Nom;E-mail;Société\nAnna;Martin;anna@exemple.invalid;Fournil\nLina;Testeur;lina.testeur@exemple.invalid;\n') });
+  t('import CSV : aperçu, doublon avec un compte existant détecté', /2 contact\(s\) lu/.test(await r3.getByTestId('apercu-import').innerText()) && /1 doublon/.test(await r3.getByTestId('apercu-import').innerText()));
+  await r3.locator('button', { hasText: "Enregistrer l'import" }).tap();
+  t('import : enregistrement refusé honnêtement avant 0145 (aperçu conservé)', /0145/.test(await r3.getByTestId('message-repertoire').innerText()) && (await r3.getByTestId('apercu-import').count()) === 1);
+  const [dl] = await Promise.all([r3.waitForEvent('download'), r3.getByTestId('export-vcf').tap()]);
+  const vcf = fs.readFileSync(await dl.path(), 'utf8');
+  t('export VCF : 4 fiches', (vcf.match(/BEGIN:VCARD/g) || []).length === 4);
+  t('répertoire : aucun débordement horizontal, aucune erreur', await r3.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1) && err3.length === 0);
+  await r3.screenshot({ path: out + '/repertoire.png' });
+  await ctx3.close();
+
   // ── Côté partenaire : « Mes espaces » et rôle relu sans déconnexion
   const ctx2 = await b.newContext({ ...devices['iPhone 13'] });
   await ctx2.addInitScript(([u, tk]) => { localStorage.setItem('bellaia_user', JSON.stringify(u)); localStorage.setItem('bellaia_token', tk); localStorage.setItem('bellaia_expiry', String(Math.floor(Date.now() / 1000) + 7000)); }, [{ id: A, role: 'cliente', prenom: 'Lina' }, jwt(A)]);

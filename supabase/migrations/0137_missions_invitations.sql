@@ -115,7 +115,8 @@ begin
   select lower(email) into mel from auth.users where id = auth.uid();
   if mel is distinct from i.email then raise exception 'Cette invitation est destinée à une autre adresse'; end if;
   foreach r in array i.roles loop
-    insert into public.bellaia_roles(user_id, role, statut, libelle) values (auth.uid(), r, 'actif', 'Invitation ' || i.id);
+    -- « on conflict do nothing » : compatible avec l'index d'unicité des fonctions de 0145 (une fonction déjà détenue n'est pas recréée).
+    insert into public.bellaia_roles(user_id, role, statut, libelle) values (auth.uid(), r, 'actif', 'Invitation ' || i.id) on conflict do nothing;
   end loop;
   foreach p in array i.permissions loop
     insert into public.bellaia_permissions(user_id, permission, univers, accorde_par) values (auth.uid(), p, i.univers, i.cree_par) on conflict do nothing;
