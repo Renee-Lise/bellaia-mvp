@@ -56,7 +56,7 @@ declare m public.bellaia_missions;
 begin
   select * into m from public.bellaia_missions where id = p_id for update;
   if not found then raise exception 'Mission introuvable'; end if;
-  if not public.a_permission('missions.gerer', m.pole) then raise exception 'Non autorisé'; end if;
+  if not public.a_permission('missions.gerer', coalesce(m.univers, m.pole)) then raise exception 'Non autorisé'; end if;   -- pôle réel de la mission (VILDOR ≠ FOOD)
   if length(btrim(coalesce(p_motif,''))) < 3 then raise exception 'Motif obligatoire'; end if;
   if p_destinataire is null or public.est_suspendu(p_destinataire, m.pole) then raise exception 'Destinataire suspendu ou inconnu'; end if;
   update public.bellaia_missions set assigne_a = p_destinataire, accuse_reception_le = null, transmis_par = auth.uid(), updated_at = now() where id = p_id;

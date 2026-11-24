@@ -52,12 +52,21 @@ t('rétablir une fonction révoquée : réactivation, aucun doublon', !p3.ajoute
 const p4 = Rp.planAffectations(base, [...base.slice(0, 2), { role: 'assistante', organisation_id: null, statut: 'actif' }, { role: 'assistante', organisation_id: null, statut: 'actif' }]);
 t('second pôle : un seul ajout même si saisi deux fois', p4.ajouter.length === 1 && p4.ajouter[0].organisation_id === null);
 // Permissions
-const pp = Rp.planPermissions([{ id: 'p1', permission: 'food.consulter', univers: 'FOOD' }], ['food.commandes']);
+const pp = Rp.planPermissions([{ id: 'p1', permission: 'food.consulter', univers: 'FOOD' }], ['food.commandes@FOOD']);
 t('permissions : ajout avec le bon univers, retrait par identifiant', pp.accorder[0].univers === 'FOOD' && pp.retirer.join() === 'p1');
-const md = Rp.appliquerModele(['bsh.membres_emails'], 'assistant_commercial');
-t('modèle : ajoute sans retirer une autorisation d’un autre pôle', md.permissions.includes('bsh.membres_emails') && md.ajoutees.includes('food.commandes'));
-t('aucun modèle n’accorde d’autorisation critique', Rp.MODELES.every(x => Rp.appliquerModele([], x.id).permissions.every(c => Rp.PERMISSIONS.find(p => p.code === c).sensibilite !== 'critique')));
+const md = Rp.appliquerModele(['bsh.membres_emails@BSH'], 'assistant_commercial');
+t('modèle : ajoute sans retirer une autorisation d’un autre pôle', md.permissions.includes('bsh.membres_emails@BSH') && md.ajoutees.includes('food.commandes@FOOD'));
+t('aucun modèle n’accorde d’autorisation critique', Rp.MODELES.every(x => Rp.appliquerModele([], x.id).permissions.every(k => Rp.PERMISSIONS.find(p => p.code === Rp.decomposer(k).code).sensibilite !== 'critique')));
+// Portée des missions : un pôle, plusieurs pôles, tout Bellaïa
+const ORG = 'VILDOR';
+const scope = Rp.planPermissions([{ id: 'm1', permission: 'missions.gerer', univers: '*' }], ['missions.gerer@' + ORG]);
+t('missions : passer de « tout Bellaïa » à Vil’Dor seul = retrait global + ajout limité', scope.retirer.join() === 'm1' && scope.accorder.length === 1 && scope.accorder[0].univers === ORG);
+const multi = Rp.planPermissions([], ['missions.gerer@FOOD', 'missions.gerer@' + ORG]);
+t('missions : plusieurs pôles = plusieurs lignes', multi.accorder.length === 2);
+const md2 = Rp.appliquerModele([], 'assistant_administratif', ORG);
+t('modèle appliqué à un pôle : la mission est limitée à ce pôle', md2.permissions.includes('missions.gerer@' + ORG) && !md2.permissions.includes('missions.gerer@*') && md2.permissions.includes('notifications.commandes@*'));
+t('libellés de portée', Rp.libellePortee('*') === 'Tout Bellaïa' && Rp.libellePortee('FOOD') === 'Bella’Food' && Rp.libellePortee('VILDOR') === 'Vil’Dor Pâtisse');
 t('finances, coûts, marges, coordonnées et crédits IA : autorisations critiques distinctes', ['food.revente.marges', 'paiements.creer_lien', 'ia.utiliser', 'bsh.membres_emails', 'acces_complet'].every(c => Rp.PERMISSIONS.find(p => p.code === c).sensibilite === 'critique'));
-t('missions.gerer signalée comme transversale (tous les pôles)', /TOUS LES PÔLES/.test(Rp.PERMISSIONS.find(p => p.code === 'missions.gerer').portee));
-t('14 catégories initiales, 9 pôles', Rp.CATEGORIES_INITIALES.length === 14 && Rp.POLES.length === 9);
+t('missions.gerer : permission limitable par pôle', Rp.PERMISSIONS.find(p => p.code === 'missions.gerer').limitable === true);
+t('14 catégories initiales, 12 pôles (codes de la base)', Rp.CATEGORIES_INITIALES.length === 14 && Rp.POLES.length === 12);
 console.log(`RÉSULTAT : ${ok}/${n}`); if (ok !== n) process.exit(1);

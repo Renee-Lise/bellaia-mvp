@@ -28,21 +28,31 @@ export const CATEGORIES_INITIALES: [string, string][] = [
 
 /** Pôles Bellaïa. `univers` = code utilisé par la base pour les permissions (a_permission(p, univers)). */
 export const POLES: { id: string; nom: string; univers: string | null }[] = [
+  // Codes identiques à la table `business_units` de la base (pôle d'une mission, portée d'une permission).
+  { id: "STUDIO", nom: "Bella’Studio", univers: "STUDIO" },
   { id: "BSH", nom: "Bella’Secret Home", univers: "BSH" },
   { id: "FOOD", nom: "Bella’Food", univers: "FOOD" },
-  { id: "VILDOR", nom: "Vil’Dor Pâtisse", univers: null },   // organisation partenaire : accès par fonctions rattachées (RLS 0112)
+  { id: "VILDOR", nom: "Vil’Dor Pâtisse", univers: "VILDOR" },
   { id: "EVENTS", nom: "Bella’Events", univers: "EVENTS" },
   { id: "ODYSSEE", nom: "Bella’Odyssée", univers: "ODYSSEE" },
   { id: "VILO", nom: "Vilo’Assistance", univers: "VILO" },
   { id: "MOTIPY", nom: "Mo Ti-Péyi", univers: "MOTIPY" },
   { id: "EDITIONS", nom: "Bella’Studio Éditions", univers: "EDITIONS" },
+  { id: "STRUCTURE", nom: "Bella’Structure", univers: "STRUCTURE" },
+  { id: "INVEST", nom: "BellaInvest", univers: "INVEST" },
   { id: "DIAMONDB", nom: "Diamond B", univers: "DIAMONDB" },
 ];
 
 export const FONCTIONS: [string, string][] = [["assistante", "Assistante"], ["collaborateur", "Collaboratrice / collaborateur"], ["hote", "Hôte / hôtesse"], ["prestataire", "Prestataire"], ["fournisseur", "Fournisseur"], ["qualite", "Responsable qualité"], ["autre", "Autre"]];
 
 export type Sensibilite = "standard" | "sensible" | "critique";
-export type DefPermission = { code: string; libelle: string; univers: string; domaine: string; sensibilite: Sensibilite; portee: string };
+export type DefPermission = { code: string; libelle: string; univers: string; domaine: string; sensibilite: Sensibilite; portee: string; limitable?: boolean };
+
+/** Une permission accordée = un code + une portée (« * » = tout Bellaïa ; « FOOD », « BSH »… = un pôle ;
+ *  « ORG:<id> » = une organisation partenaire, ex. Vil'Dor Pâtisse). Plusieurs portées = plusieurs pôles. */
+export const cle = (code: string, univers: string) => `${code}@${univers}`;
+export const decomposer = (k: string): { code: string; univers: string } => { const i = k.lastIndexOf("@"); return { code: k.slice(0, i), univers: k.slice(i + 1) }; };
+export const clesDe = (l: { permission: string; univers: string }[]) => l.map(p => cle(p.permission, p.univers || "*"));
 
 /** Catalogue des permissions réellement vérifiées par la base. `univers` « * » = transversal (tous les pôles). */
 export const PERMISSIONS: DefPermission[] = [
@@ -53,7 +63,7 @@ export const PERMISSIONS: DefPermission[] = [
   { code: "food.revente.gerer", libelle: "Gérer la collection de revente (sans les marges)", univers: "FOOD", domaine: "Catalogue", sensibilite: "sensible", portee: "Bella’Food uniquement" },
   { code: "food.revente.marges", libelle: "Voir prix d’achat et marges de revente", univers: "FOOD", domaine: "Comptabilité", sensibilite: "critique", portee: "Bella’Food — coûts et marges" },
   { code: "bsh.membres_emails", libelle: "Voir les e-mails des membres BSH", univers: "BSH", domaine: "Coordonnées personnelles", sensibilite: "critique", portee: "Bella’Secret Home — données personnelles" },
-  { code: "missions.gerer", libelle: "Créer et attribuer des missions", univers: "*", domaine: "Missions", sensibilite: "sensible", portee: "TOUS LES PÔLES : toutes les missions de l’équipe" },
+  { code: "missions.gerer", libelle: "Créer et attribuer des missions", univers: "*", domaine: "Missions", sensibilite: "sensible", portee: "Portée au choix : un pôle, plusieurs pôles ou tout Bellaïa", limitable: true },
   { code: "notifications.commandes", libelle: "Recevoir les alertes de nouvelles commandes", univers: "*", domaine: "Commandes", sensibilite: "standard", portee: "Tous les pôles (alertes)" },
   { code: "ia.utiliser", libelle: "Utiliser l’IA Bellaïa (consomme vos crédits)", univers: "*", domaine: "Intelligence artificielle", sensibilite: "critique", portee: "Tous les pôles — crédits IA" },
   { code: "paiements.creer_lien", libelle: "Créer des liens de paiement", univers: "*", domaine: "Paiements", sensibilite: "critique", portee: "Tous les pôles — paiements" },
@@ -63,6 +73,7 @@ export const PERMISSIONS: DefPermission[] = [
 export const DOMAINES = ["Commandes", "Catalogue", "Recettes", "Stocks", "Fournisseurs", "Événements", "Missions", "Communication", "Comptabilité", "Paiements", "Intelligence artificielle", "Administration", "Coordonnées personnelles", "Jeux et animation communautaire"];
 
 export function groupeDePermission(p: DefPermission): string {
+  if (p.limitable) return "Missions (portée au choix)";
   return p.univers === "*" ? "Transversal (tous les pôles)" : (POLES.find(x => x.univers === p.univers)?.nom || p.univers);
 }
 
@@ -82,7 +93,8 @@ export const MODELES: { id: string; nom: string; fonctions: string[]; permission
 
 /** Application d'un modèle : AJOUTE les permissions du modèle au brouillon, ne retire rien (aucune autorisation
  *  d'un autre pôle n'est écrasée). Les permissions critiques ne sont jamais ajoutées par un modèle. */
-export function appliquerModele(brouillon: string[], modeleId: string): { permissions: string[]; ajoutees: string[]; ignorees: string[] } {
+/** `brouillon` : clés « code@portée ». `portee` : pôle choisi pour les permissions limitables (« * » = tout Bellaïa). */
+export function appliquerModele(brouillon: string[], modeleId: string, portee = "*"): { permissions: string[]; ajoutees: string[]; ignorees: string[] } {
   const m = MODELES.find(x => x.id === modeleId);
   if (!m) return { permissions: brouillon, ajoutees: [], ignorees: [] };
   const ajoutees: string[] = [], ignorees: string[] = [];
@@ -90,7 +102,8 @@ export function appliquerModele(brouillon: string[], modeleId: string): { permis
   for (const code of m.permissions) {
     const d = PERMISSIONS.find(p => p.code === code);
     if (!d || d.sensibilite === "critique") { ignorees.push(code); continue; }
-    if (!res.has(code)) { res.add(code); ajoutees.push(code); }
+    const k = cle(code, d.limitable ? portee : d.univers);
+    if (!res.has(k)) { res.add(k); ajoutees.push(k); }
   }
   return { permissions: [...res], ajoutees, ignorees };
 }
@@ -247,8 +260,17 @@ export function planAffectations(enregistre: Affectation[], brouillon: Affectati
 
 export type PlanPermissions = { accorder: { permission: string; univers: string }[]; retirer: string[] };
 /** Écritures de permissions entre l'état enregistré (avec id) et le brouillon (codes). */
+/** Écritures entre l'état enregistré et le brouillon (clés « code@portée ») : chaque portée est une ligne distincte. */
 export function planPermissions(enregistre: { id: string; permission: string; univers: string }[], brouillon: string[]): PlanPermissions {
-  const accorder = brouillon.filter(code => !enregistre.some(e => e.permission === code)).map(code => ({ permission: code, univers: PERMISSIONS.find(p => p.code === code)?.univers || "*" }));
-  const retirer = enregistre.filter(e => !brouillon.includes(e.permission)).map(e => e.id);
+  const base = new Set(clesDe(enregistre));
+  const accorder = [...new Set(brouillon)].filter(k => !base.has(k)).map(k => { const d = decomposer(k); return { permission: d.code, univers: d.univers }; });
+  const retirer = enregistre.filter(e => !brouillon.includes(cle(e.permission, e.univers || "*"))).map(e => e.id);
   return { accorder, retirer };
+}
+
+/** Libellé d'une portée : « Tout Bellaïa », nom du pôle, ou nom de l'organisation. */
+export function libellePortee(univers: string, organisations: { id: string; nom_commercial: string }[] = []): string {
+  if (univers === "*") return "Tout Bellaïa";
+  if (univers.startsWith("ORG:")) return organisations.find(o => o.id === univers.slice(4))?.nom_commercial || "Organisation partenaire";
+  return POLES.find(p => p.univers === univers)?.nom || univers;
 }

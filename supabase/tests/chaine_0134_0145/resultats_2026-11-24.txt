@@ -1,8 +1,9 @@
-# Chaîne 0134 → 0135 → 0136 → 0137 → 0145 → 0144 — PostgreSQL 16 jetable, comptes fictifs, 2026-11-24. Base fictive : ce n'est PAS une restauration de la production.
+# Chaîne 0134 → 0135 → 0136 → 0137 → 0146 → 0145 → 0144 — PostgreSQL 16 jetable, comptes fictifs, 2026-11-24. Base fictive : ce n'est PAS une restauration de la production.
 0134_profils_privileges : appliquée puis relancée sans erreur
 0135_candidatures : appliquée puis relancée sans erreur
 0136_acces_suspensions : appliquée puis relancée sans erreur
 0137_missions_invitations : appliquée puis relancée sans erreur
+0146_missions_par_pole : appliquée puis relancée sans erreur
 0145_repertoire_central : appliquée puis relancée sans erreur
 0144_bsh_club_monde_nominations : appliquée puis relancée sans erreur
 — scénarios 0135–0137 rejoués avec 0145 et 0144 en place
@@ -13,3 +14,9 @@ C2 a_permission de 0136 conservée (suspensions prises en compte), non écrasée
 C3 journal des droits : auteur enregistré (0145) et toujours branché sur les suspensions (0136) | t
 C4 acceptation d'invitation (0137) compatible avec l'unicité (on conflict do nothing) | t
 C5 doublons de fonctions en base après la chaîne | t
+M1 permission VILDOR : voit la mission Vil'Dor, pas la mission Bella'Food | t
+M2 permission « tout Bellaïa » : voit les deux | t
+M3 permission VILDOR : crée une mission Vil'Dor, création Bella'Food refusée | t
+M4 permission VILDOR : ne peut pas déplacer une mission vers un autre pôle | t
+M5 fil de discussion : lecture et écriture limitées au pôle | t
+M6 livrable : refusé sur une mission d'un autre pôle | t

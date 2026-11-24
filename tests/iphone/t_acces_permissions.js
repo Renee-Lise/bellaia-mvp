@@ -22,7 +22,7 @@ const DB = {
     { id: nid(), user_id: A, role: 'assistante', statut: 'actif', organisation_id: ORG },
     { id: nid(), user_id: A, role: 'collaborateur', statut: 'actif', organisation_id: ORG },
   ],
-  perms: [{ id: nid(), user_id: A, permission: 'food.consulter', univers: 'FOOD', expire_le: null }],
+  perms: [{ id: nid(), user_id: A, permission: 'food.consulter', univers: 'FOOD', expire_le: null }, { id: nid(), user_id: A, permission: 'missions.gerer', univers: '*', expire_le: null }],
 };
 const ecritures = []; let echecPerm = false;
 const equipe = () => DB.profiles.filter(p => p.role !== 'fondatrice' && (!['cliente', 'client'].includes(p.role) || DB.roles.some(r => r.user_id === p.id))).map(p => ({
@@ -115,12 +115,20 @@ async function sauver(p, attendu = /enregistrée|interrompu/) {
   t('second pôle (équipe interne) ajouté, Vil’Dor intact', DB.roles.some(r => r.user_id === A && r.role === 'assistante' && r.organisation_id === null) && DB.roles.filter(r => r.user_id === A && r.organisation_id === ORG && r.statut === 'actif').length === 3);
   t('fonction déjà présente : non proposée (pas de doublon)', (await groupeVildor.locator('[data-testid=ajouter-fonction] option[value=hote]').count()) === 0);
   // Permissions par pôle
-  t('permissions rangées par pôle (Transversal, Bella’Food, BSH)', (await p.getByTestId('groupe-permissions').count()) === 3);
+  t('permissions rangées par pôle (Missions, Transversal, Bella’Food, BSH)', (await p.getByTestId('groupe-permissions').count()) === 4);
   await p.locator('[data-testid=groupe-permissions][data-groupe="Bella’Food"] summary').tap();
   await p.getByTestId('perm-food.commandes').check();
   await p.getByTestId('perm-food.consulter').uncheck();
   await sauver(p);
-  t('permissions : ajout et retrait indépendants, univers FOOD', DB.perms.filter(x => x.user_id === A).map(x => `${x.permission}:${x.univers}`).join(',') === 'food.commandes:FOOD');
+  t('permissions : ajout et retrait indépendants, univers FOOD', DB.perms.filter(x => x.user_id === A && x.univers === 'FOOD').map(x => `${x.permission}:${x.univers}`).join(',') === 'food.commandes:FOOD');
+  // Missions : limiter « tout Bellaïa » à Vil’Dor Pâtisse seulement
+  await p.locator('[data-testid=groupe-permissions][data-groupe^="Missions"] summary').tap();
+  t('missions : portée actuelle « Tout Bellaïa » affichée', (await p.getByTestId('portee-missions.gerer-*').getAttribute('aria-pressed')) === 'true');
+  await p.getByTestId('portee-missions.gerer-*').tap();
+  await p.getByTestId('portee-missions.gerer-VILDOR').tap();
+  t('missions : avertissement honnête (effectif après 0146)', (await p.getByTestId('avertissement-portee').count()) === 1);
+  await sauver(p);
+  t('missions : permission globale retirée, permission Vil’Dor seule enregistrée, autres autorisations conservées', DB.perms.filter(x => x.user_id === A && x.permission === 'missions.gerer').map(x => x.univers).join() === 'VILDOR' && DB.perms.some(x => x.user_id === A && x.permission === 'food.commandes'));
   // Autorisation critique : confirmation explicite
   await p.locator('[data-testid=groupe-permissions][data-groupe^="Transversal"] summary').tap();
   await p.getByTestId('perm-ia.utiliser').check();

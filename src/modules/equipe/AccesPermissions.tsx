@@ -16,7 +16,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { sbSelect } from "../events/eventsAtelierLib";
 import { C, SA, btn, champ, lbl, carte, heure } from "./equipeLib";
 import SelecteurContact from "../repertoire/SelecteurContact";
-import { FONCTIONS, MODELES, PERMISSIONS, appliquerModele, groupeDePermission, planAffectations, planPermissions, type Affectation, type Contact } from "../repertoire/repertoire";
+import { FONCTIONS, MODELES, PERMISSIONS, POLES, appliquerModele, cle, clesDe, decomposer, groupeDePermission, libellePortee, planAffectations, planPermissions, type Affectation, type Contact } from "../repertoire/repertoire";
 import { chargerRepertoire, enregistrerAffectations, enregistrerPermissions, relireMembre, type Membre, type Organisation, type SourceRepertoire } from "../repertoire/repertoireApi";
 
 const nomFonction = (r: string) => FONCTIONS.find(f => f[0] === r)?.[1] || r;
@@ -92,7 +92,8 @@ function FicheAcces({ fiche, orgs, onFermer }: { fiche: Fiche; orgs: Organisatio
   const [base, setBase] = useState<Membre | null>(fiche.base);
   const affBase = (b: Membre | null): Affectation[] => (b?.roles || []).map(r => ({ id: r.id, role: r.role, organisation_id: r.organisation_id, statut: r.statut as Affectation["statut"] }));
   const [aff, setAff] = useState<Affectation[]>(() => affBase(fiche.base).filter(a => a.statut !== "revoque"));
-  const [perms, setPerms] = useState<string[]>(() => (fiche.base?.permissions || []).map(p => p.permission));
+  const [perms, setPerms] = useState<string[]>(() => clesDe(fiche.base?.permissions || []));
+  const [porteeModele, setPorteeModele] = useState("*");
   const [msg, setMsg] = useState<{ ok: boolean; texte: string } | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [nouvelleOrg, setNouvelleOrg] = useState("");
@@ -113,12 +114,15 @@ function FicheAcces({ fiche, orgs, onFermer }: { fiche: Fiche; orgs: Organisatio
   const setStatut = (a: Affectation, statut: Affectation["statut"]) => setAff(l => l.map(x => x.role === a.role && x.organisation_id === a.organisation_id ? { ...x, statut } : x));
   const retirer = (a: Affectation) => setAff(l => l.filter(x => !(x.role === a.role && x.organisation_id === a.organisation_id)));
   const ajouter = (role: string, org: string | null) => { if (!role) return; if (aff.some(x => x.role === role && x.organisation_id === org)) { setMsg({ ok: false, texte: "Cette fonction existe déjà pour ce pôle." }); return; } setAff(l => [...l, { role, organisation_id: org, statut: "actif" }]); setMsg(null); };
-  const basculerPerm = (code: string) => {
+  const basculerPerm = (code: string, univers?: string) => {
     const d = PERMISSIONS.find(p => p.code === code);
-    if (!perms.includes(code) && d?.sensibilite === "critique" && !confirm(`« ${d.libelle} » est une autorisation critique (${d.portee}). L'ajouter au brouillon ?`)) return;
-    setPerms(l => l.includes(code) ? l.filter(x => x !== code) : [...l, code]);
+    const k = cle(code, univers ?? d?.univers ?? "*");
+    if (!perms.includes(k) && d?.sensibilite === "critique" && !confirm(`« ${d.libelle} » est une autorisation critique (${d.portee}). L'ajouter au brouillon ?`)) return;
+    setPerms(l => l.includes(k) ? l.filter(x => x !== k) : [...l, k]);
   };
-  const restaurer = () => { setAff(affBase(base).filter(a => a.statut !== "revoque")); setPerms((base?.permissions || []).map(p => p.permission)); setMsg({ ok: true, texte: "Dernières valeurs enregistrées restaurées." }); };
+  // Portées proposées pour une permission limitable : tout Bellaïa, chaque pôle, chaque organisation partenaire.
+  const portees = useMemo(() => ["*", ...POLES.filter(p => p.univers).map(p => p.univers as string)], []);
+  const restaurer = () => { setAff(affBase(base).filter(a => a.statut !== "revoque")); setPerms(clesDe(base?.permissions || [])); setMsg({ ok: true, texte: "Dernières valeurs enregistrées restaurées." }); };
 
   const enregistrer = async () => {
     if (estFondatrice) { setMsg({ ok: false, texte: "Les droits de la fondatrice ne se modifient pas ici." }); return; }
@@ -129,7 +133,7 @@ function FicheAcces({ fiche, orgs, onFermer }: { fiche: Fiche; orgs: Organisatio
       await enregistrerPermissions(fiche.id, planP);
       const relu = await relireMembre(fiche.id);
       setBase(relu);
-      setAff(affBase(relu).filter(a => a.statut !== "revoque")); setPerms((relu?.permissions || []).map(p => p.permission));
+      setAff(affBase(relu).filter(a => a.statut !== "revoque")); setPerms(clesDe(relu?.permissions || []));
       const actives = (relu?.roles || []).filter(r => r.statut === "actif").length;
       setMsg({ ok: true, texte: `✅ ${nb} modification${nb > 1 ? "s" : ""} enregistrée${nb > 1 ? "s" : ""} à ${heure()}. Relu en base : ${actives} fonction${actives > 1 ? "s" : ""} active${actives > 1 ? "s" : ""}, ${relu?.permissions.length || 0} permission${(relu?.permissions.length || 0) > 1 ? "s" : ""}.` });
     } catch (e: any) {
@@ -187,20 +191,31 @@ function FicheAcces({ fiche, orgs, onFermer }: { fiche: Fiche; orgs: Organisatio
         <div style={{ fontWeight: 800 }}>Permissions</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <select aria-label="Modèle de permissions" data-testid="modele" style={{ ...champ, flex: 1 }} value={modele} onChange={e => setModele(e.target.value)}><option value="">Appliquer un modèle…</option>{MODELES.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}</select>
-          <button style={btn()} disabled={!modele} onClick={() => { const r = appliquerModele(perms, modele); setPerms(r.permissions); setMsg({ ok: true, texte: `Modèle appliqué au brouillon : ${r.ajoutees.length} ajout(s), aucune autorisation retirée${r.ignorees.length ? ` ; ${r.ignorees.length} autorisation(s) critique(s) non ajoutée(s)` : ""}. Vérifiez puis enregistrez.` }); }}>Appliquer</button>
+          <select aria-label="Portée du modèle" data-testid="portee-modele" style={{ ...champ, flex: 1 }} value={porteeModele} onChange={e => setPorteeModele(e.target.value)}>{portees.map(u => <option key={u} value={u}>Pour : {libellePortee(u, orgs)}</option>)}</select>
+          <button style={btn()} disabled={!modele} onClick={() => { const r = appliquerModele(perms, modele, porteeModele); setPerms(r.permissions); setMsg({ ok: true, texte: `Modèle appliqué au brouillon : ${r.ajoutees.length} ajout(s), aucune autorisation retirée${r.ignorees.length ? ` ; ${r.ignorees.length} autorisation(s) critique(s) non ajoutée(s)` : ""}. Vérifiez puis enregistrez.` }); }}>Appliquer</button>
         </div>
         {groupesPerms.map(gp => {
           const liste = PERMISSIONS.filter(p => groupeDePermission(p) === gp);
-          const nb = liste.filter(p => perms.includes(p.code)).length;
+          const nb = liste.filter(p => perms.some(k => decomposer(k).code === p.code)).length;
           return (
             <details key={gp} data-testid="groupe-permissions" data-groupe={gp} style={{ border: `1px solid ${C.ligne}`, borderRadius: 12, padding: "6px 10px" }}>
               <summary style={{ fontWeight: 700, cursor: "pointer", minHeight: 40, display: "flex", alignItems: "center" }}>{gp} — {nb}/{liste.length} accordée{nb > 1 ? "s" : ""}</summary>
               {[...new Set(liste.map(p => p.domaine))].map(dom => (
                 <div key={dom} style={{ marginTop: 6 }}>
                   <div style={{ fontSize: 12, color: C.doux, textTransform: "uppercase", letterSpacing: 1 }}>{dom}</div>
-                  {liste.filter(p => p.domaine === dom).map(p => (
+                  {liste.filter(p => p.domaine === dom).map(p => p.limitable ? (
+                    <div key={p.code} data-testid={`perm-limitable-${p.code}`} style={{ padding: "6px 0" }}>
+                      <div style={{ fontSize: 14 }}>{p.libelle}<br /><span style={{ fontSize: 12, color: COUL_SENS[p.sensibilite] }}>{LIB_SENS[p.sensibilite]}</span><span style={{ fontSize: 12, color: C.doux }}> · {p.portee}</span></div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                        {portees.map(u => { const on = perms.includes(cle(p.code, u)); return (
+                          <button key={u} type="button" data-testid={`portee-${p.code}-${u}`} aria-pressed={on} style={btn(on)} onClick={() => basculerPerm(p.code, u)}>{on ? "✓ " : ""}{libellePortee(u, orgs)}</button>); })}
+                      </div>
+                      {perms.some(k => decomposer(k).code === p.code && decomposer(k).univers !== "*") && <div data-testid="avertissement-portee" style={{ fontSize: 12, color: C.orange, marginTop: 6 }}>Portée limitée : effective après la mise à jour de la base 0146. D'ici là, une permission limitée n'ouvre aucune mission (elle ne donne jamais plus de droits que prévu).</div>}
+                      {perms.includes(cle(p.code, "*")) && <div style={{ fontSize: 12, color: C.doux, marginTop: 4 }}>« Tout Bellaïa » : toutes les missions de tous les pôles.</div>}
+                    </div>
+                  ) : (
                     <label key={p.code} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14, minHeight: 44, padding: "6px 0" }}>
-                      <input type="checkbox" data-testid={`perm-${p.code}`} checked={perms.includes(p.code)} onChange={() => basculerPerm(p.code)} style={{ width: 22, height: 22, flexShrink: 0, marginTop: 1 }} />
+                      <input type="checkbox" data-testid={`perm-${p.code}`} checked={perms.includes(cle(p.code, p.univers))} onChange={() => basculerPerm(p.code)} style={{ width: 22, height: 22, flexShrink: 0, marginTop: 1 }} />
                       <span>{p.libelle}<br /><span style={{ fontSize: 12, color: COUL_SENS[p.sensibilite] }}>{LIB_SENS[p.sensibilite]}</span><span style={{ fontSize: 12, color: C.doux }}> · {p.portee}</span></span>
                     </label>))}
                 </div>))}

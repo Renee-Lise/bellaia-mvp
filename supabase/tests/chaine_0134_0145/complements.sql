@@ -8,3 +8,5 @@ create or replace function realtime.topic() returns text language sql stable as 
 create table if not exists realtime.messages (id bigserial primary key, topic text, payload jsonb);
 alter table realtime.messages enable row level security;
 alter table public.bellaia_organisations add column if not exists nom_commercial text;   -- présent en production
+insert into public.business_units(code) values ('VILDOR'),('ODYSSEE'),('VILO'),('MOTIPY'),('EDITIONS'),('STRUCTURE'),('INVEST'),('DIAMONDB') on conflict do nothing;   -- codes présents en production (relevés le 24/11)
+alter table public.bellaia_missions add column if not exists livrables jsonb not null default '[]'::jsonb, add column if not exists lien_canva text;   -- colonnes présentes en production
