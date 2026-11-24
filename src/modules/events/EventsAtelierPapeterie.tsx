@@ -500,6 +500,17 @@ function ZonesARemplir({ doc, majCalque, choisirImage }: { doc: ContenuPapeterie
 
 // ── Registre des packs achetés (Canva / Google Drive) ────────
 const ETATS_PACK: [string, string, string][] = [["a_ouvrir", "À ouvrir", C.muted], ["copie_canva", "Copié dans mon Canva", C.bleu], ["exporte", "Exporté (PDF/PNG)", C.gold], ["importe", "Importé dans la médiathèque", C.ok], ["inaccessible", "Inaccessible", C.rouge]];
+/** Nature RÉELLE d'un lien acheté (audit du 24/11) : jamais « modifiable » si ce n'est qu'une consultation. */
+export function natureLien(l: { source?: string; lien?: string; element?: string }): { libelle: string; detail: string; alerte?: string } {
+  const u = String(l.lien || "");
+  const marque = /^Logos\b/i.test(String(l.element || "")) ? "Marque déposée d'un tiers : ne pas l'utiliser sur des articles vendus sans autorisation de son titulaire." : undefined;
+  if (/canva\.link\//.test(u) || /canva\.com\/design\/.*mode=preview/.test(u)) return { libelle: "Lien de modèle Canva", detail: "« Utiliser le modèle » crée TA copie modifiable dans Canva ; télécharge-la ensuite en PDF/PNG.", alerte: marque };
+  if (/canva\.com\/design\/.*\/view/.test(u)) return { libelle: "Consultation seule (Canva)", detail: "S'ouvre dans la visionneuse Canva (les pages défilent : ce n'est pas une vidéo). Non modifiable ici ni exportable tant qu'aucune copie n'existe dans ton compte Canva : « Modifier une copie » / « Utiliser le modèle », puis Télécharger.", alerte: marque };
+  if (/drive\.google\.com\/drive\/folders/.test(u)) return { libelle: "Dossier Google Drive", detail: "Fichiers statiques (images/PDF) : télécharger puis importer dans la Médiathèque.", alerte: marque };
+  if (/drive\.google\.com\/file\//.test(u)) return { libelle: "Fichier Google Drive", detail: "Fichier statique : télécharger puis importer dans la Médiathèque.", alerte: marque };
+  return { libelle: "Lien externe", detail: "Nature non vérifiée.", alerte: marque };
+}
+
 function PacksAchetes() {
   const [lignes, setLignes] = useState<any[]>([]);
   const [erreur, setErreur] = useState("");
@@ -519,7 +530,8 @@ function PacksAchetes() {
           <div style={{ fontSize: 10, color: C.muted }}>Licence : {lignes.find(l => l.pack === p)?.licence}</div>
           {lignes.filter(l => l.pack === p).map(l => { const e = ETATS_PACK.find(x => x[0] === l.etat) || ETATS_PACK[0]; return (
             <div key={l.id} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${e[2]}`, borderRadius: 10, padding: "8px 10px" }}>
-              <div style={{ flex: "1 1 180px", fontSize: 12, color: C.cream }}>{l.source === "canva" ? "🎨" : "📁"} {l.element}</div>
+              <div style={{ flex: "1 1 180px", fontSize: 12, color: C.cream }}>{l.source === "canva" ? "🎨" : "📁"} {l.element}
+                {(() => { const n = natureLien(l); return <div data-testid="nature-lien" style={{ fontSize: 10, color: C.muted, marginTop: 3, lineHeight: 1.4 }}><b style={{ color: C.gold }}>{n.libelle}</b> — {n.detail}{n.alerte && <div style={{ color: C.rouge, marginTop: 2 }}>⚠️ {n.alerte}</div>}</div>; })()}</div>
               <a href={l.lien} target="_blank" rel="noopener noreferrer" style={{ ...bouton(), textDecoration: "none", fontSize: 11 }}>Ouvrir ↗</a>
               <select style={{ ...champ, width: "auto", fontSize: 11 }} value={l.etat} onChange={ev => maj(l, { etat: ev.target.value })}>{ETATS_PACK.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select>
             </div>); })}

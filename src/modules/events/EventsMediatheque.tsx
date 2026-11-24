@@ -19,6 +19,8 @@ const SA = "Inter,system-ui,sans-serif";
 const QUOTA = 1_000_000_000; // offre Supabase gratuite : 1 Go de stockage
 const IGNORES = /(^|\/)(\.DS_Store|Thumbs\.db|desktop\.ini|__MACOSX)(\/|$)|(^|\/)\._/i;
 const ACCEPTE = /\.(jpe?g|png|webp|gif|svg|heic|heif|pdf)$/i;
+// Champ de fichier recouvrant son libellé, invisible mais touchable (et non display:none, que Safari iOS peut ignorer)
+const CHAMP_CACHE: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", fontSize: 16 };
 
 type Media = { id: string; url: string; chemin_storage: string; nom_fichier: string; dossier: string; type_mime: string; taille_octets: number; taille_stockee: number; largeur?: number; hauteur?: number; created_at: string;
   type_support?: string | null; theme?: string | null; couleurs?: string[]; nature?: string | null };
@@ -67,6 +69,9 @@ export default function EventsMediatheque({ mode = "gerer", onChoisir }: { mode?
   const pauseRef = useRef(false);
   const refDossier = useRef<HTMLInputElement>(null);
   const refFichiers = useRef<HTMLInputElement>(null);
+  const [aLancer, setALancer] = useState(false);
+  // Safari iOS ne gère pas le choix d'un dossier entier (webkitdirectory) : bouton masqué sur iPhone/iPad
+  const ios = typeof navigator !== "undefined" && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1));
 
   const charger = async () => {
     setCharge(true); setErreur("");
@@ -139,11 +144,14 @@ export default function EventsMediatheque({ mode = "gerer", onChoisir }: { mode?
   };
 
   const ajouterALaFile = (entrees: Entree[]) => {
-    const ok = entrees.filter(e => !IGNORES.test(`${e.dossier}/${e.file.name}`) && ACCEPTE.test(e.file.name));
+    const ok = entrees.filter(e => !IGNORES.test(`${e.dossier}/${e.file.name}`) && (ACCEPTE.test(e.file.name) || /^image\/|^application\/pdf$/.test(e.file.type || "")));
     const refuses = entrees.length - ok.length;
     setFile(f => [...f, ...ok]);
     setStats(s => ({ ...s, total: s.total + ok.length }));
-    if (refuses) setJournal(j => [`${refuses} fichier(s) ignoré(s) : format non pris en charge ou fichier système`, ...j].slice(0, 50));
+    if (refuses) setJournal(j => [`⚠️ ${refuses} fichier(s) ignoré(s) : format non pris en charge (accepté : JPG, PNG, WEBP, GIF, SVG, HEIC, PDF) ou fichier système`, ...j].slice(0, 50));
+    if (ok.length) setJournal(j => [`📥 ${ok.length} fichier(s) reçu(s) — envoi automatique`, ...j].slice(0, 50));
+    else if (!entrees.length) setJournal(j => ["Aucun fichier reçu : la sélection est vide.", ...j].slice(0, 50));
+    if (ok.length) setALancer(true);
   };
 
   const depuisInput = (lst: FileList | null) => {
@@ -209,6 +217,8 @@ export default function EventsMediatheque({ mode = "gerer", onChoisir }: { mode?
     if (!pauseRef.current) setJournal(j => ["✅ Import terminé", ...j].slice(0, 50));
   };
 
+  useEffect(() => { if (aLancer && file_.length && etat !== "envoi") { setALancer(false); lancer(); } }, [aLancer, file_.length, etat]);
+
   const supprimer = async (m: Media) => {
     if (!confirm(`Supprimer « ${m.nom_fichier} » de la médiathèque ?`)) return;
     try { await supprimerStorage(m.chemin_storage); await sbDelete("events_medias", m.id); setMedias(x => x.filter(y => y.id !== m.id)); }
@@ -229,15 +239,15 @@ export default function EventsMediatheque({ mode = "gerer", onChoisir }: { mode?
             <div style={{ fontSize: 12, color: C.cream, fontWeight: 700, marginBottom: 4 }}>Glisse ici tes dossiers entiers (ordinateur)</div>
             <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Les sous-dossiers sont conservés. Photos, PNG transparents, SVG, PDF acceptés.</div>
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-              <button style={btn()} onClick={() => refDossier.current?.click()} disabled={enCours}>📁 Choisir un dossier</button>
-              <button style={btn()} onClick={() => refFichiers.current?.click()} disabled={enCours}>🖼️ Choisir des fichiers</button>
+              {!ios && <label style={{ ...btn(), position: "relative", display: "inline-flex", alignItems: "center", opacity: enCours ? 0.5 : 1 }}>📁 Choisir un dossier
+                <input ref={refDossier} type="file" multiple disabled={enCours} style={CHAMP_CACHE} {...({ webkitdirectory: "", directory: "" } as any)} onChange={e => { depuisInput(e.target.files); e.target.value = ""; }} /></label>}
+              <label data-testid="mediatheque-importer" style={{ ...btn(true), position: "relative", display: "inline-flex", alignItems: "center", opacity: enCours ? 0.5 : 1 }}>🖼️ Importer des fichiers
+                <input ref={refFichiers} type="file" multiple disabled={enCours} accept="image/*,.svg,.pdf,.heic,.heif" style={CHAMP_CACHE} onChange={e => { depuisInput(e.target.files); e.target.value = ""; }} /></label>
             </div>
-            <input ref={refDossier} type="file" multiple style={{ display: "none" }} {...({ webkitdirectory: "", directory: "" } as any)} onChange={e => { depuisInput(e.target.files); e.target.value = ""; }} />
-            <input ref={refFichiers} type="file" multiple accept="image/*,.svg,.pdf" style={{ display: "none" }} onChange={e => { depuisInput(e.target.files); e.target.value = ""; }} />
-            <div style={{ fontSize: 10, color: C.muted, marginTop: 8 }}>Sur iPhone : « Choisir des fichiers » → Sélectionner → tout sélectionner dans le dossier (l'app Fichiers ne permet pas de choisir un dossier entier).</div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 8 }}>Sur iPhone : « Importer des fichiers » → Photos ou Fichiers → sélectionner un ou plusieurs fichiers ; l'envoi démarre tout seul. (L'iPhone ne permet pas de choisir un dossier entier.)</div>
           </div>
 
-          {(stats.total > 0 || file_.length > 0) && (
+          {(stats.total > 0 || file_.length > 0 || journal.length > 0) && (
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.cream }}>
                 <span>{enCours ? "Envoi en cours…" : etat === "pause" ? "En pause" : file_.length ? `${file_.length} fichier(s) prêts` : "Terminé"}</span>
@@ -267,6 +277,14 @@ export default function EventsMediatheque({ mode = "gerer", onChoisir }: { mode?
       )}
 
       {erreur && <div style={{ color: C.rouge, fontSize: 12 }}>⚠️ {erreur}</div>}
+      {mode === "choisir" && (
+        // Depuis l'atelier : importer sans quitter l'écran ; le fichier envoyé apparaît aussitôt et peut être choisi
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label data-testid="mediatheque-importer-choix" style={{ ...btn(true), position: "relative", display: "inline-flex", alignItems: "center", alignSelf: "flex-start", opacity: enCours ? 0.5 : 1 }}>{enCours ? `⏳ Envoi… ${pct}%` : "＋ Importer depuis l'appareil"}
+            <input type="file" multiple disabled={enCours} accept="image/*,.svg,.pdf,.heic,.heif" style={CHAMP_CACHE} onChange={e => { depuisInput(e.target.files); e.target.value = ""; }} /></label>
+          {journal.length > 0 && <div style={{ fontSize: 11, color: C.muted }}>{journal[0]}</div>}
+        </div>
+      )}
 
       <Niveau titre="1 · Support" valeur={fSupport} onChange={v => { setFSupport(v); setFTheme("__tous"); setFCouleur("__tous"); setLimite(120); }}
         options={[...cSupports.keys()].sort((a, b) => (cSupports.get(b) || 0) - (cSupports.get(a) || 0)).map(k => [k, k === "__aucun" ? "Non classé" : `${supportDe(k)?.ico || ""} ${supportDe(k)?.libelle || k}`, cSupports.get(k) || 0])} total={nivSupport.length} />

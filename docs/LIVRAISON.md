@@ -1,9 +1,12 @@
-# Bellaïa — Tableau de livraison (mis à jour le 23/11/2026, fin de nuit — sprint du 26/11)
+# Bellaïa — Tableau de livraison (mis à jour le 24/11/2026 — sprint du 26/11)
 
 Légende : **Testé** précise le type de test. « Simulateur iPhone » = Playwright, profil iPhone 13 ; ce n'est **pas** un iPhone physique. **Déployé** = en production. Production actuelle : commit `0bfd765` (18/11) — **rien n'a été déployé depuis**.
 
 | Fonction | Développé | Testé | Déployé | Vérifié sur iPhone réel |
 |---|---|---|---|---|
+| **P0 (24/11) — BSH Secret Agenda inaccessible : plus de rechargement silencieux** (cause : version restée ouverte pendant une mise en ligne ; voir `docs/bsh/ANOMALIE_P0_SECRET_AGENDA.md`). Message explicite « Mettre à jour et rouvrir Secret Agenda », écran mémorisé et restauré, nouvelle version détectée, version affichée, journal de diagnostic | Oui (branche) | 17/17 simulateur iPhone (anomalie reproduite avec l'ancien code, corrigée avec le nouveau) ; non-régression complète | **Non** | **Non — essai de la fondatrice attendu ; clôture après sa confirmation** |
+| Atelier papeterie : import de la Médiathèque sur iPhone (bouton natif, envoi automatique, fichiers sans extension, refus expliqués, import depuis l'atelier) ; nature réelle des liens des packs achetés (consultation seule / modèle / Drive, alerte marques déposées) | Oui (branche) | `t_mediatheque_import.js` simulateur iPhone ; audit des 11 patrons Canva en lecture seule (`docs/events/AUDIT_PATRONS_ET_IMPORT_2026-11-24.md`) | Non | Non |
+| Bella'Food : aperçu des tarifs et des imports des affiches (`docs/food/APERCU_TARIFS_ET_IMPORTS_2026-11-24.md`) | Aperçu seulement — **aucun prix modifié** | Prix actuels relevés en lecture seule | — | — |
 | Compteur exact des actions requises (fin du « 50 ») + onglet « En attente » cohérent | Oui (paquet lot 7) | Unitaires 8/8 ; écran 7/7 simulateur iPhone et ordinateur, sur la compilation de production | **Non** — attend votre autorisation | Non |
 | Messagerie réservée à la fondatrice (verrou d'interface) | Oui (paquet lot 7) | Écran 5/5 simulateur iPhone | **Non** | Non |
 | Inventaire physique BSH (fiche, saisie, correction tracée, annulation) | Oui (paquet lot 7) | Écran 13/13 simulateur iPhone + 13/13 ordinateur ; défaut corrigé : bas de page masqué par la barre de navigation sur iPhone | **Non** | Non |

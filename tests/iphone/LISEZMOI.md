@@ -20,3 +20,9 @@ Notes du 24/11 :
 - `t_valid.js` est **remplacé par `t_photos_plan.js`** depuis le commit 7160a7b : il attend l'ancienne source privée de Concorde Pro et télécharge des images réelles. Il est conservé pour l'historique, mais retiré de la batterie de non-régression.
 - `t_photos_plan.js` demande la base simulée avec `MOCK_STOCKS_BSH=<390 produits de test>` et un serveur `next dev` lancé avec `CONCORDE_PLAN_DU_SITE_URL` / `CONCORDE_NEGOCE_URL` pointant vers un serveur local (plan du site et fichier négoce de test).
 - Depuis le commit 6e2bf15, l'assistante arrive sur l'accueil commun et ouvre son espace par « Mes espaces ». `t_boutons.js` et `t_cal.js` mémorisent ce choix pour le profil assistante.
+
+Notes du 24/11 (anomalie P0) :
+- L'écran ouvert est désormais mémorisé (`localStorage['bellaia-nav']`) et restauré au rechargement. `t_boutons.js` l'efface avant chaque bouton (chaque bouton est testé depuis l'accueil).
+- `t_p0_version.js` : changement de version pendant que l'application est ouverte (3 compilations : ancienne, corrigée, corrigée modifiée) — 17/17.
+- `t_mediatheque_import.js` : import de la Médiathèque sur iPhone simulé et nature des liens des packs achetés.
+- `t_bsh_agenda.js` : le calcul du « prochain samedi » de l'étape 17 dépendait de l'heure (vendredi après 12 h UTC) ; corrigé.

@@ -9,6 +9,7 @@ import { getCatalogueFoodPublic, getVariantesFoodPublic, getAllergenesFoodPublic
 import { getMenuJourPublicAujourdhui } from "@/modules/food/menuJourApi";
 import { REQUETE_ACTIONS, compterActions } from "@/lib/actionsRequises";
 import { useRetourNavigateur, installerBalayageRetour } from "@/lib/navigationRetour";
+import { signalerEchecModule, memoriserEcran, ecranMemorise, journaliser, VERSION_APP } from "@/lib/versionApp";
 import { sbSelect } from "@/modules/events/eventsAtelierLib";
 import type { MenuJour } from "@/modules/food/foodTypes";
 // ═══════════════════════════════════════════════════════════
@@ -6408,7 +6409,10 @@ function DocumentsP1({ user }: any) {
 // ═══════════════════════════════════════════════════════════
 
 function BSHF({produits,setProduits,commandes,setCommandes,clientes,setClientes,evenements,setEvenements}: any) {
-  const[sec,setSec]=useState("dash");const[modal,setModal]=useState(null);const[form,setForm]=useState<any>({});
+  // Onglet BSH mémorisé : après une mise à jour, une actualisation ou une réouverture, Secret Agenda (ou
+  // l'onglet ouvert) est rouvert au lieu de l'accueil BSH.
+  const[sec,setSecBrut]=useState(()=>ecranMemorise("bsh-sec")||"dash");
+  const setSec=(id:string)=>{ setSecBrut(id); memoriserEcran("bsh-sec", id); memoriserEcran("dernier", "bsh/"+id); };const[modal,setModal]=useState(null);const[form,setForm]=useState<any>({});
   const[detailCmd,setDetailCmd]=useState(null);
   const majStatut=async(cmd,nouveauStatut)=>{
     setCommandes(p=>p.map(x=>x.id===cmd.id?{...x,statut:nouveauStatut}:x));
@@ -7721,28 +7725,54 @@ function DocumentsBSHWrapper() {
 }
 
 // ── Wrapper BSH Secret Circle & Experiences
-// Après une mise en ligne, une page restée ouverte réclame d'anciens
-// fichiers JavaScript qui n'existent plus ("Loading chunk … failed") :
-// on recharge alors la page une fois (garde anti-boucle en sessionStorage).
-function rechargerSiVersionObsolete(e) {
-  const msg = String(e?.message || e || "");
-  if (typeof window !== "undefined" && /Loading chunk|ChunkLoadError|dynamically imported module|Importing a module script failed/i.test(msg)) {
-    try { if (!sessionStorage.getItem("bellaia-rechargement")) { sessionStorage.setItem("bellaia-rechargement", "1"); window.location.reload(); return true; } } catch {}
-  }
-  return false;
+// Après une mise en ligne, une page restée ouverte réclame d'anciens fichiers JavaScript qui
+// n'existent plus (« Loading chunk … failed »). AVANT le 24/11 : rechargement silencieux → retour à
+// l'accueil (anomalie P0 « Secret Agenda inaccessible »). DÉSORMAIS : aucune recharge automatique ;
+// une alerte explicite propose « Mettre à jour et rouvrir cet écran » (l'écran est mémorisé en continu),
+// et l'incident est noté dans le journal de diagnostic (src/lib/versionApp.ts).
+function rechargerSiVersionObsolete(e: any, module?: string, alerteGlobale = true) {
+  return signalerEchecModule(e, module, alerteGlobale);
 }
-if (typeof window !== "undefined") window.addEventListener("load", () => setTimeout(() => { try { sessionStorage.removeItem("bellaia-rechargement"); } catch {} }, 15000));
+
+// Garde-fou : une erreur dans un module affiche un message et « Réessayer », jamais un retour silencieux.
+class GardeModule extends React.Component<{ nom: string; children: React.ReactNode }, { erreur: string | null }> {
+  state = { erreur: null as string | null };
+  static getDerivedStateFromError(e: any) { return { erreur: String(e?.message || e || "erreur inconnue") }; }
+  componentDidCatch(e: any) { journaliser("ecran_erreur", { module: this.props.nom, detail: String(e?.message || e || "") }); }
+  render() {
+    if (!this.state.erreur) return this.props.children;
+    return <div role="alert" style={{margin:16,padding:16,borderRadius:12,border:"1px solid rgba(248,113,113,0.5)",background:"rgba(248,113,113,0.08)",color:"#f4f0e8",fontSize:13,lineHeight:1.5}}>
+      <div style={{fontWeight:800,color:"#fca5a5",marginBottom:6}}>« {this.props.nom} » a rencontré une erreur</div>
+      <div>L'écran reste ouvert : rien n'a été modifié. Détail technique : {this.state.erreur}</div>
+      <div style={{fontSize:11,opacity:0.6,marginTop:4}}>Version {VERSION_APP}</div>
+      <button onClick={()=>this.setState({erreur:null})} style={{marginTop:10,minHeight:44,padding:"8px 14px",borderRadius:10,border:"1px solid #c9a84c",background:"rgba(201,168,76,0.15)",color:"#f5c76a",fontWeight:700}}>Réessayer</button>
+    </div>;
+  }
+}
 
 // ── BSH Secret Agenda & Rewards (cahier des charges du 17/11) — chargé à la demande
 function BshAgendaWrapper() {
   const [Comp, setComp] = React.useState<any>(null);
-  const [err, setErr] = React.useState("");
+  const [err, setErr] = React.useState<{ texte: string; version: boolean } | null>(null);
+  const [essai, setEssai] = React.useState(0);
   React.useEffect(() => {
-    import("../modules/bshAgenda/BshAgendaHub").then(m => setComp(()=>m.default)).catch(e => { if (!rechargerSiVersionObsolete(e)) setErr(String(e?.message||e)); });
-  }, []);
-  if (err) return <div style={{color:"#f87171",fontSize:12,padding:16}}>⚠️ Chargement impossible : {err}</div>;
+    let vivant = true; setErr(null);
+    import("../modules/bshAgenda/BshAgendaHub").then(m => { if (vivant) setComp(()=>m.default); }).catch(e => { if (vivant) setErr({ texte: String(e?.message||e), version: rechargerSiVersionObsolete(e, "bshAgenda", false) }); });
+    return () => { vivant = false; };
+  }, [essai]);
+  if (err) return <div role="alert" data-testid="agenda-erreur" style={{margin:16,padding:16,borderRadius:12,border:"1px solid rgba(201,168,76,0.5)",background:"rgba(201,168,76,0.08)",color:"#f4f0e8",fontSize:13,lineHeight:1.5}}>
+    <div style={{fontWeight:800,color:"#f5c76a",marginBottom:6}}>BSH Secret Agenda n'a pas pu s'ouvrir</div>
+    {err.version
+      ? <div>Cet écran appartient à une version plus ancienne que celle aujourd'hui en ligne. Appuyez sur « Mettre à jour » : Bellaïa rouvrira directement Secret Agenda.</div>
+      : <div>Le chargement a échoué (réseau ou erreur). Détail : {err.texte}</div>}
+    <div style={{fontSize:11,opacity:0.6,marginTop:4}}>Version {VERSION_APP}</div>
+    <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+      {err.version && <button onClick={()=>{ journaliser("mise_a_jour_acceptee",{module:"bshAgenda"}); window.location.reload(); }} style={{minHeight:44,padding:"8px 14px",borderRadius:10,border:"1px solid #c9a84c",background:"rgba(201,168,76,0.2)",color:"#f5c76a",fontWeight:700}}>Mettre à jour et rouvrir Secret Agenda</button>}
+      <button onClick={()=>setEssai(n=>n+1)} style={{minHeight:44,padding:"8px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.25)",background:"transparent",color:"#f4f0e8",fontWeight:700}}>Réessayer</button>
+    </div>
+  </div>;
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement du Secret Agenda…</div>;
-  return <Comp experiences={<ExperiencesBSHWrapper/>}/>;
+  return <GardeModule nom="BSH Secret Agenda"><Comp experiences={<ExperiencesBSHWrapper/>}/></GardeModule>;
 }
 
 // ── Centre des hôtes BSH (prévisualisation ; simulation tant que 0128 n'est pas appliquée)
@@ -14770,7 +14800,19 @@ export default function BellaiaApp() {
   const [activeF, setActiveF] = useState("dashboard");
   const roleNav = (user as any)?.role;
   const groupes = roleNav === "assistante" ? NAV_GROUPES_ASSISTANTE : NAV_GROUPES;
-  useEffect(() => { if (roleNav === "assistante") setActiveF("equipe"); }, [roleNav]);
+  // Rubrique mémorisée PAR RÔLE et restaurée seulement si elle figure dans la navigation autorisée
+  // de ce rôle (une assistante ne peut jamais rouvrir une page de la fondatrice).
+  const restaureF = useRef<string | null>(null);
+  useEffect(() => {
+    if (!roleNav) return;
+    const accueil = roleNav === "assistante" ? "equipe" : "dashboard";
+    const m = ecranMemorise("f:" + roleNav);
+    const permis = !!m && groupes.some(g => g.pages.some(([id]) => id === m));
+    restaureF.current = roleNav;
+    setActiveF(permis ? m! : accueil);
+    if (permis && m !== accueil) journaliser("ecran_restaure", { module: m! });
+  }, [roleNav]);
+  useEffect(() => { if (roleNav && restaureF.current === roleNav) { memoriserEcran("f:" + roleNav, activeF); memoriserEcran("dernier", activeF === "bsh" ? "bsh/" + (ecranMemorise("bsh-sec") || "dash") : activeF); } }, [activeF, roleNav]);
   // Retour (bouton du navigateur, geste Safari, balayage dans l'application installée) : rubrique → accueil
   const accueilF = roleNav === "assistante" ? "equipe" : "dashboard";
   useRetourNavigateur(activeF !== accueilF, () => setActiveF(accueilF), "rubrique");
@@ -15112,6 +15154,9 @@ export default function BellaiaApp() {
       )}
       <div style={{flex:1,overflowY:"auto",padding:activeF==="bsh"||(PREMIUM_ACTIF&&activeF==="dashboard")?"0 0 70px":"14px 12px 84px"}}>
         {views[activeF] ?? <PlaceholderModule ico="🔧" nom={activeF} desc="Module en construction"/>}
+        <div style={{textAlign:"center",fontSize:10,color:K.muted,padding:"18px 0 6px"}}>
+          Bellaïa · version {VERSION_APP} · <button onClick={()=>window.dispatchEvent(new Event("bellaia-ouvrir-diagnostic"))} style={{background:"none",border:"none",color:K.muted,textDecoration:"underline",fontSize:10,padding:"6px 2px",cursor:"pointer"}}>Diagnostic</button>
+        </div>
       </div>
 
       {/* Bottom nav fixe — scrollable horizontalement pour 10 modules */}

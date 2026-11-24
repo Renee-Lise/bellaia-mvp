@@ -1,0 +1,19 @@
+✅ ANCIEN code : après une mise en ligne, « Secret Agenda » recharge la page en silence et ramène au Centre de direction (anomalie reproduite ; rechargements : 2)
+✅ La version de l'application est affichée (« version aaaaaaa »)
+✅ CORRIGÉ : aucun rechargement silencieux
+✅ CORRIGÉ : pas de retour à l'accueil
+✅ CORRIGÉ : message explicite « BSH Secret Agenda n'a pas pu s'ouvrir » avec la cause (version plus ancienne)
+✅ CORRIGÉ : bouton « Mettre à jour et rouvrir Secret Agenda » (un seul message, pas de doublon)
+✅ Journal local : incident module_version_obsolete (bshAgenda) noté, sans courriel ni jeton
+✅ Journal serveur [diagnostic-client] reçu (type, module, versions, appareil résumé)
+✅ Après « Mettre à jour » : nouvelle version chargée ET Secret Agenda rouvert directement (13 rubriques)
+✅ Les 13 rubriques sont présentes
+✅ Actualisation : Secret Agenda reste ouvert
+✅ Fermeture puis réouverture : Secret Agenda rouvert
+✅ Autre onglet BSH (Centre hôtes) conservé après actualisation (onglets BSH visibles, pas d’accueil)
+✅ /api/diagnostic : type inconnu refusé (400) ; courriel masqué et champs hors liste ignorés
+✅ Retour dans l'application : nouvelle version détectée et proposée AVANT tout échec
+✅ « Plus tard » ferme l'alerte sans recharger
+✅ Panneau Diagnostic : version, appareil et journal des incidents
+
+RÉSULTAT : 17/17

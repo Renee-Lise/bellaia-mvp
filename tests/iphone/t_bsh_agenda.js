@@ -105,7 +105,8 @@ const onglet = async (p, nom) => { await p.getByRole('tab', { name: nom }).click
   ok('16 campagne officielle BSH Christmas Secrets 2026 (fusion de « Noël BSH »), 17/11 → 25/12, brouillon, une seule campagne', cs && cs.id === 'cnoel' && cs.date_debut === '2026-11-17' && cs.date_fin === '2026-12-25' && cs.statut === 'brouillon' && E.bsh_campagnes.length === 1);
   const futur = new Date(Date.now() + 12 * 864e5); while (new Date(futur.getTime() - 3 * 3600e3).getUTCDay() === 6) futur.setTime(futur.getTime() + 864e5);
   const fj = futur.toISOString().slice(0, 10);
-  let sam = new Date(Date.now() + 864e5); while (new Date(sam.getTime() + 12 * 3600e3).getUTCDay() !== 6) sam.setTime(sam.getTime() + 864e5); const sj = sam.toISOString().slice(0, 10);
+  // prochain samedi (date calendaire) — l'ancien calcul donnait un vendredi l'après-midi (UTC ≥ 12 h)
+  let sam = new Date(Date.now() + 864e5); while (sam.getUTCDay() !== 6) sam.setTime(sam.getTime() + 864e5); const sj = sam.toISOString().slice(0, 10);
   await p.locator('[role=group][aria-label="Campagne"] select').last().selectOption(cs.id);
   await p.locator('textarea[aria-label="Calendrier à importer"]').fill(`date;heure;espace;type;titre;contenu\n2026-11-17;08:00;chaine;publication;Ouverture des secrets;Texte\n${fj};21h;cercle;publication;Secret à venir;Texte\n${fj};21h;cercle;publication;Secret à venir;Texte\n${sj};21:00;chaine;publication;Secret du samedi;Texte`);
   await attendre(500); t = await texte(p);

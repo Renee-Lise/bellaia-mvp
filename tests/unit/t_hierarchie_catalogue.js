@@ -1,0 +1,31 @@
+// Lots 3 et 4 (24/11) : hiérarchie du catalogue Bella'Food et familles de sauces — règles pures.
+// Usage : node tests/unit/t_hierarchie_catalogue.js
+const path = require('path'); const ts = require('typescript'); const fs = require('fs');
+const src = fs.readFileSync(path.join(__dirname, '../../src/modules/food/hierarchieCatalogue.ts'), 'utf8');
+const js = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+const m = { exports: {} }; new Function('module', 'exports', 'require', js)(m, m.exports, require); const H = m.exports;
+let ok = 0, n = 0; const t = (nom, v) => { n++; if (v) ok++; else console.log('ÉCHEC', nom); };
+t('12 catégories', H.CATEGORIES.length === 12);
+t('ganache → préparations techniques (jamais dessert)', H.classer({ nom: 'Ganache chocolat noir', categorie_slug: 'dessert' }).categorie === 'preparations_techniques');
+t('marinade → préparations techniques', H.classer({ nom: 'Marinade créole au citron', categorie_slug: 'sauce' }).categorie === 'preparations_techniques');
+t('soupe → repas / Soupes', H.classer({ nom: 'Soupe créole', categorie_slug: 'soupe' }).sous_categorie === 'Soupes');
+t('barquette → restauration rapide', H.classer({ nom: 'Barquette poulet boucané (frites nature)', categorie_slug: 'street_food' }).categorie === 'restauration_rapide');
+t('crêpe Nutella → desserts (crêpes sucrées)', H.classer({ nom: 'Crêpe Nutella', categorie_slug: 'crepe' }).categorie === 'desserts');
+t('crêpe jambon → restauration rapide', H.classer({ nom: 'Crêpe Jambon + Fromage', categorie_slug: 'crepe' }).categorie === 'restauration_rapide');
+t('cupcake, entremet, gâteau, pâtisserie : catégories distinctes', ['cupcake', 'entremet', 'cake', 'patisserie'].map(s => H.classer({ nom: 'x', categorie_slug: s }).categorie).join() === 'cupcakes,entremets,gateaux,patisseries');
+t('catégorie inconnue → « À classer », à valider', H.classer({ nom: 'Truc', categorie_slug: 'zzz' }).a_valider === true);
+t('supplément → repas / Suppléments', H.classer({ nom: 'Supplément frites maison', categorie_slug: 'accompagnement' }).sous_categorie === 'Suppléments');
+t('alerte porc : jambon', H.alertes({ nom: 'Crêpe Jambon + Fromage' }).some(a => a.type === 'porc'));
+t('alerte porc : lardons', H.alertes({ nom: 'Crêpe Lardon + Fromage + Béchamel' }).some(a => a.type === 'porc'));
+t('pas d\'alerte : jambon de dinde', H.alertes({ nom: 'Bokit jambon de dinde-fromage' }).length === 0);
+t('alerte alcool : liqueur, punch, Chandon', ['Liqueur de Cerise', 'Punch Coco', 'Chandon Brut (Argentine)'].every(x => H.alertes({ nom: x }).some(a => a.type === 'alcool')));
+t('pas d\'alerte alcool : « sans alcool »', H.alertes({ nom: 'Festillant Saveur Spritz sans alcool' }).length === 0 && H.alertes({ nom: 'Banoffee pie sans alcool' }).length === 0);
+t('merguez : à vérifier (porc possible dans le boyau)', H.alertes({ nom: 'Barquette de frites nature + merguez' }).some(a => a.type === 'porc'));
+t('sauces repas pour une barquette, aucune sauce dessert', (() => { const s = H.saucesCompatibles({ nom: 'Barquette', categorie_slug: 'street_food' }); return s.includes('Sauce chien') && !s.includes('Caramel'); })());
+t('sauces dessert pour un gâteau, aucune sauce repas', (() => { const s = H.saucesCompatibles({ nom: 'Gâteau chocolat', categorie_slug: 'cake' }); return s.includes('Caramel beurre salé') && !s.includes('Ketchup'); })());
+t('plusieurs sauces compatibles associées à un produit', H.associationValide({ nom: 'Brownie', categorie_slug: 'dessert' }, ['Vanille', 'Chocolat', 'Caramel au sel']).ok);
+t('association refusée : ketchup sur un dessert', H.associationValide({ nom: 'Brownie', categorie_slug: 'dessert' }, ['Ketchup']).refusees.join() === 'Ketchup');
+t('boissons : aucune sauce proposée', H.saucesCompatibles({ nom: 'Jus de gingembre', categorie_slug: 'jus' }).length === 0);
+const ap = H.apercuReclassement([{ nom: 'Soupe créole', categorie_slug: 'soupe' }, { nom: 'Ganache', categorie_slug: 'dessert' }, { nom: 'Punch Coco', categorie_slug: 'cocktail' }]);
+t('aperçu : compteurs réels par catégorie, alertes comptées, rien écrit', ap.compteurs.repas === 1 && ap.compteurs.preparations_techniques === 1 && ap.compteurs.boissons === 1 && ap.alertes === 1);
+console.log(`${ok}/${n}`);

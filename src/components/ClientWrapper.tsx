@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import AlerteVersion from "./AlerteVersion";
+import { journaliser, estErreurVersion, signalerEchecModule } from "@/lib/versionApp";
 
 const BellaiaApp = dynamic(
   () => import("./BellaiaApp"),
@@ -38,6 +40,7 @@ export default function ClientWrapper() {
 
   useEffect(() => {
     const surErreur = (e: ErrorEvent) => {
+      journaliser("ecran_erreur", { detail: e.message || "" });
       setErreur(
         (e.error?.stack || e.message || "Erreur inconnue") +
         "\n\n(fichier: " + (e.filename || "?") + ":" + (e.lineno || "?") + ")"
@@ -45,6 +48,9 @@ export default function ClientWrapper() {
     };
     const surRejet = (e: PromiseRejectionEvent) => {
       const r = e.reason;
+      // Module d'une ancienne version introuvable : alerte explicite (mise à jour proposée), pas d'écran d'erreur
+      if (estErreurVersion(r)) { e.preventDefault(); signalerEchecModule(r); return; }
+      journaliser("ecran_erreur", { detail: String(r?.message || r || "") });
       setErreur(
         "Promesse rejetée : " + (r?.stack || r?.message || String(r))
       );
@@ -84,5 +90,5 @@ export default function ClientWrapper() {
     );
   }
 
-  return <BellaiaApp />;
+  return <><BellaiaApp /><AlerteVersion /></>;
 }
