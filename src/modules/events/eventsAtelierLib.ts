@@ -158,7 +158,7 @@ export type Calque = {
 };
 /** Trait technique d'un patron : coupe (noir plein), pli (pointillé), collage (zone hachurée). */
 export type Trait = { type: "coupe" | "pli" | "collage"; points: [number, number][]; ferme?: boolean };
-export type ContenuPapeterie = { fond: string; calques: Calque[]; reperes?: { zone_sure_mm?: number; pliage?: { orientation: "h" | "v"; position_mm: number }[]; traits?: Trait[] };
+export type ContenuPapeterie = { fond: string; calques: Calque[]; reperes?: { zone_sure_mm?: number; /** fond perdu (mm) ajouté autour du format fini à l'export imprimeur */ fond_perdu_mm?: number; pliage?: { orientation: "h" | "v"; position_mm: number }[]; traits?: Trait[] };
   /** true : seules les zones (textes, images nommés) se modifient ; le reste est figé */ remplissage?: boolean; parametres?: any };
 
 /** Dessine les traits techniques (coupe, pli, collage) d'un patron. */
@@ -244,7 +244,7 @@ export function tracerForme(ctx: CanvasRenderingContext2D, forme: string, x: num
 }
 
 // Rendu d'une création sur un canvas (unités : mm × pxParMm)
-export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: number, pxParMm: number, ctxCible?: CanvasRenderingContext2D, ox = 0, oy = 0, options: { traits?: boolean } = {}) {
+export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: number, pxParMm: number, ctxCible?: CanvasRenderingContext2D, ox = 0, oy = 0, options: { traits?: boolean; fondPerdu?: number } = {}) {
   const c = ctxCible ? null : document.createElement("canvas");
   if (c) { c.width = Math.round(L * pxParMm); c.height = Math.round(H * pxParMm); }
   const ctx = ctxCible || c!.getContext("2d")!;
@@ -252,9 +252,12 @@ export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: numbe
   ctx.save();
   ctx.translate(ox, oy);
   ctx.scale(pxParMm, pxParMm);
-  ctx.beginPath(); ctx.rect(0, 0, L, H); ctx.clip();
-  ctx.fillStyle = doc.fond || "#ffffff"; ctx.fillRect(0, 0, L, H);
-  for (const k of doc.calques || []) {
+  // Fond perdu : la zone de rendu déborde de `b` mm ; les éléments qui touchent un bord sont prolongés dans le débord
+  const b = Math.max(0, options.fondPerdu || 0);
+  ctx.beginPath(); ctx.rect(-b, -b, L + 2 * b, H + 2 * b); ctx.clip();
+  ctx.fillStyle = doc.fond || "#ffffff"; ctx.fillRect(-b, -b, L + 2 * b, H + 2 * b);
+  for (const k0 of doc.calques || []) {
+    const k = b > 0 && k0.type !== "texte" ? etendreAuDebord(k0, L, H, b) : k0;
     ctx.save();
     ctx.globalAlpha = k.opacite ?? 1;
     const cx = k.x + k.w / 2, cy = k.y + k.h / 2;
@@ -298,6 +301,51 @@ export async function rendreSurCanvas(doc: ContenuPapeterie, L: number, H: numbe
   if (options.traits && doc.reperes?.traits?.length) dessinerTraits(ctx, doc.reperes.traits);
   ctx.restore();
   return c;
+}
+
+/** Prolonge dans le fond perdu un élément (image, forme) qui touche un bord du format fini. */
+export function etendreAuDebord(k: Calque, L: number, H: number, b: number, tol = 0.5): Calque {
+  if (k.rotation) return k;
+  let { x, y, w, h } = k;
+  if (x <= tol) { w += x + b; x = -b; } if (y <= tol) { h += y + b; y = -b; }
+  if (x + w >= L - tol) w = L + b - x; if (y + h >= H - tol) h = H + b - y;
+  return { ...k, x, y, w, h };
+}
+
+/** Éléments de lecture (textes, images nommées) trop près du bord : risque d'être coupés au massicot. */
+export function horsZoneSure(doc: ContenuPapeterie, L: number, H: number, marge = doc.reperes?.zone_sure_mm ?? 3): { id: string; nom: string }[] {
+  return (doc.calques || []).filter(k => (k.type === "texte" || (k.type === "image" && k.zone)) && !k.verrou)
+    .filter(k => k.x < marge - 0.01 || k.y < marge - 0.01 || k.x + k.w > L - marge + 0.01 || k.y + k.h > H - marge + 0.01)
+    .map(k => ({ id: k.id, nom: k.type === "texte" ? `Texte « ${(k.texte?.contenu || "").slice(0, 24)} »` : `Image ${k.zone}` }));
+}
+
+/** Géométrie de la page imprimeur : format fini + fond perdu + marge pour les traits de coupe. */
+export function pageImprimeur(L: number, H: number, fondPerdu = 3, margeTraits = 10) {
+  const o = fondPerdu + margeTraits;
+  return { largeurMm: L + 2 * o, hauteurMm: H + 2 * o, decalage: o, fondPerdu };
+}
+
+/** Export imprimeur à l'ÉCHELLE RÉELLE : fond perdu, traits de coupe aux coins (hors fond perdu), repères de pliage dans la marge. */
+export async function rendreImprimeur(doc: ContenuPapeterie, L: number, H: number, options: { fondPerdu?: number; traits?: boolean } = {}) {
+  const g = pageImprimeur(L, H, options.fondPerdu ?? doc.reperes?.fond_perdu_mm ?? 3);
+  const k = pxParMmExport(g.largeurMm, g.hauteurMm);
+  const c = document.createElement("canvas"); c.width = Math.round(g.largeurMm * k); c.height = Math.round(g.hauteurMm * k);
+  const ctx = c.getContext("2d")!; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+  await rendreSurCanvas(doc, L, H, k, ctx, g.decalage * k, g.decalage * k, { traits: options.traits, fondPerdu: g.fondPerdu });
+  ctx.save(); ctx.scale(k, k); ctx.translate(g.decalage, g.decalage); ctx.strokeStyle = "#000"; ctx.lineWidth = 0.25;
+  const e = g.fondPerdu + 1.5, l = 6;                                     // traits de coupe : commencent après le fond perdu
+  for (const [px, py, sx, sy] of [[0, 0, -1, -1], [L, 0, 1, -1], [0, H, -1, 1], [L, H, 1, 1]]) {
+    ctx.beginPath(); ctx.moveTo(px + sx * e, py); ctx.lineTo(px + sx * (e + l), py); ctx.moveTo(px, py + sy * e); ctx.lineTo(px, py + sy * (e + l)); ctx.stroke();
+  }
+  ctx.setLineDash([1.5, 1]);                                               // repères de pliage : dans la marge, jamais sur le visuel
+  for (const p of doc.reperes?.pliage || []) {
+    if (p.orientation === "h") { ctx.beginPath(); ctx.moveTo(-e - l, p.position_mm); ctx.lineTo(-e, p.position_mm); ctx.moveTo(L + e, p.position_mm); ctx.lineTo(L + e + l, p.position_mm); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.moveTo(p.position_mm, -e - l); ctx.lineTo(p.position_mm, -e); ctx.moveTo(p.position_mm, H + e); ctx.lineTo(p.position_mm, H + e + l); ctx.stroke(); }
+  }
+  ctx.setLineDash([]); ctx.fillStyle = "#000"; ctx.font = "2.2px Inter, sans-serif";
+  ctx.fillText(`Format fini ${L} × ${H} mm · fond perdu ${g.fondPerdu} mm · imprimer à 100 % (sans « ajuster à la page »)`, 0, -g.fondPerdu - 3);
+  ctx.restore();
+  return { canvas: c, largeurMm: g.largeurMm, hauteurMm: g.hauteurMm };
 }
 
 // ── PDF minimal (une ou plusieurs pages JPEG) — pas de librairie ─

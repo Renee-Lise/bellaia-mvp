@@ -17,10 +17,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import EventsMediatheque from "./EventsMediatheque";
 import { composerPieces, ageTexte, type BriefKit } from "./kitComposer";
 import { patronPopcorn, patronGable } from "./patronsBoites";
+import { PATRONS_ORIGINAUX } from "./patronsOriginaux";
 import { SUPPORTS, THEMES, COULEURS, PRESTATIONS, proposerPack, supportDuPatron, supportDe, themeDe, nommerCouleur, type Proposition } from "./classement";
 import {
   sbSelect, sbInsert, sbUpdate, sbDelete, uploadStorage, compresserImage, slug,
-  chargerPolices, POLICES, rendreSurCanvas, mesurerTexte, TAILLE_MIN_LISIBLE, canvasVersPdf, pxParMmExport, rendreImpositionA4, partagerFichier, telecharger,
+  chargerPolices, POLICES, rendreSurCanvas, rendreImprimeur, horsZoneSure, mesurerTexte, TAILLE_MIN_LISIBLE, canvasVersPdf, pxParMmExport, rendreImpositionA4, partagerFichier, telecharger,
   type Calque, type ContenuPapeterie,
 } from "./eventsAtelierLib";
 
@@ -189,7 +190,12 @@ export default function EventsAtelierPapeterie() {
   const creerLibre = async () => {
     const base = { est_modele: !!nouveau.modele, collection: nouveau.modele ? nouveau.collection || "Mes patrons" : null, client_nom: nouveau.client || null, statut: "brouillon" };
     let ligne: any;
-    if (nouveau.type === "popcorn" || nouveau.type === "gable") {
+    const orig = PATRONS_ORIGINAUX.find(o => o.id === nouveau.type);
+    if (orig) {
+      const v = Object.fromEntries(orig.champs.map(([k, , def]) => [k, Number(nouveau["o_" + k]) || def]));
+      const g = orig.creer(v);
+      ligne = { ...base, nom: nouveau.nom?.trim() || g.nom, type_support: g.type_support, largeur_mm: g.largeur_mm, hauteur_mm: g.hauteur_mm, contenu: g.contenu };
+    } else if (nouveau.type === "popcorn" || nouveau.type === "gable") {
       const prm = paramsBoite(nouveau);
       const g = nouveau.type === "popcorn" ? patronPopcorn(prm) : patronGable(prm);
       ligne = { ...base, nom: nouveau.nom?.trim() || g.nom, type_support: g.type_support, largeur_mm: g.largeur_mm, hauteur_mm: g.hauteur_mm, contenu: g.contenu };
@@ -372,6 +378,11 @@ export default function EventsAtelierPapeterie() {
         <Feuille titre="Nouvelle création" onFermer={() => setNouveau(null)}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 6 }}>
             {([["libre", "📄 Page vierge"], ["popcorn", "🍿 Patron boîte popcorn"], ["gable", "🎁 Patron gable box"], ["image", "🖼️ Patron depuis une image"]] as const).map(([t, l]) => <button key={t} style={bouton((nouveau.type || "libre") === t)} onClick={() => setNouveau({ ...nouveau, type: t })}>{l}</button>)}
+          <div style={{ fontSize: 11, color: C.muted }}>Patrons originaux Bellaïa (formes génériques, modifiables, aucune reprise de modèle acheté) :</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{PATRONS_ORIGINAUX.map(o => <button key={o.id} data-testid={`patron-${o.id}`} style={bouton(nouveau.type === o.id)} onClick={() => setNouveau({ ...nouveau, type: o.id })}>{o.libelle}</button>)}</div>
+          {(() => { const o = PATRONS_ORIGINAUX.find(x => x.id === nouveau.type); if (!o) return null; const v = Object.fromEntries(o.champs.map(([k, , d]) => [k, Number(nouveau["o_" + k]) || d])); const g = o.creer(v);
+            return <><div style={{ fontSize: 11, color: C.muted }}>Dimensions de l'objet fini, en mm. Patron généré : {g.largeur_mm} × {g.hauteur_mm} mm (coupe, plis, collage, zones de décor).</div>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${o.champs.length},1fr)`, gap: 6 }}>{o.champs.map(([k, l, d]) => <label key={k} style={{ fontSize: 11, color: C.muted }}>{l}<input aria-label={l} style={champ} type="number" value={nouveau["o_" + k] ?? d} onChange={e => setNouveau({ ...nouveau, ["o_" + k]: e.target.value })} /></label>)}</div></>; })()}
           </div>
           <input style={champ} placeholder={nouveau.type === "popcorn" || nouveau.type === "gable" ? "Nom (facultatif, sinon généré)" : "Nom (ex. Menu de table)"} value={nouveau.nom} onChange={e => setNouveau({ ...nouveau, nom: e.target.value })} />
           {(nouveau.type === "popcorn" || nouveau.type === "gable") && <>
@@ -695,12 +706,15 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
   }, [doc, meta, modifie]);
   const fermer = () => { if (modifie && !confirm("Des modifications ne sont pas enregistrées. Quitter quand même ?")) return; onFermer(); };
 
-  const exporter = async (format: "png" | "pdf" | "a4", action: "partager" | "telecharger") => {
+  const exporter = async (format: "png" | "pdf" | "a4" | "imprimeur", action: "partager" | "telecharger") => {
     setMessage("⏳ Préparation du fichier…");
     try {
       const base = slug(meta.nom);
       let blob: Blob; let nom: string;
-      if (format === "a4") {
+      if (format === "imprimeur") {
+        const imp = await rendreImprimeur(doc, L, H, { fondPerdu: doc.reperes?.fond_perdu_mm ?? 3, traits: avecTraits });
+        blob = await canvasVersPdf([imp]); nom = `${base}-imprimeur-${L}x${H}mm.pdf`;
+      } else if (format === "a4") {
         const imp = await rendreImpositionA4(doc, L, H, { traits: avecTraits });
         if (!imp) throw new Error("Ce format est plus grand qu'une feuille A4 : utilise « PDF taille réelle ».");
         blob = await canvasVersPdf([imp]); nom = `${base}-A4-x${imp.exemplaires}.pdf`;
@@ -875,9 +889,14 @@ function Editeur({ creation, onFermer, onDupliquer }: { creation: Creation; onFe
           </select>
         </div>
         <div style={lbl}>Imprimer · télécharger · partager</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12, color: C.cream }}>
+          <span>Fond perdu</span>{[0, 3, 5].map(b => <button key={b} data-testid={`fond-perdu-${b}`} style={bouton((doc.reperes?.fond_perdu_mm ?? 3) === b)} onClick={() => changerDoc(d => { d.reperes = { ...(d.reperes || {}), fond_perdu_mm: b }; })}>{b} mm</button>)}
+          <span>Marge de sécurité</span>{[3, 5].map(m => <button key={m} style={bouton(zs === m)} onClick={() => changerDoc(d => { d.reperes = { ...(d.reperes || {}), zone_sure_mm: m }; })}>{m} mm</button>)}
+        </div>
+        {(() => { const h = horsZoneSure(doc, L, H, zs); return h.length ? <div data-testid="alerte-zone-sure" style={{ fontSize: 12, color: "#fbbf24" }}>⚠️ {h.length} élément(s) à moins de {zs} mm du bord (risque de coupe) : {h.map(x => x.nom).join(", ")}.</div> : <div style={{ fontSize: 11, color: C.muted }}>Tous les textes et images sont dans la marge de sécurité ({zs} mm).</div>; })()}
         {traits.length > 0 && <label style={{ fontSize: 12, color: C.cream, display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={avecTraits} onChange={e => setAvecTraits(e.target.checked)} /> Inclure les traits de coupe, de pli et la zone de collage dans le PDF (pour découper à la main)</label>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 6, alignItems: "center", fontSize: 12, color: C.cream }}>
-          {([["pdf", "PDF taille réelle"], ["a4", "PDF sur A4 (plusieurs exemplaires + traits de coupe)"], ["png", "Image PNG 300 dpi"]] as const).map(([f, l]) => (
+          {([["imprimeur", `PDF imprimeur : échelle réelle, fond perdu ${doc.reperes?.fond_perdu_mm ?? 3} mm, traits de coupe et de pliage`], ["pdf", "PDF taille réelle (format fini)"], ["a4", "PDF sur A4 (plusieurs exemplaires + traits de coupe)"], ["png", "Image PNG 300 dpi"]] as const).map(([f, l]) => (
             <React.Fragment key={f}>
               <span>{l}</span>
               <button style={bouton()} onClick={() => exporter(f, "telecharger")}>⬇️</button>
