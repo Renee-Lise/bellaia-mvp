@@ -3812,6 +3812,25 @@ async function getTokenAsync() {
 // security policy" malgré une session active.
 if (typeof window !== "undefined") (window as any).getTokenAsync = getTokenAsync;
 
+/** Relit le rôle, le prénom et le nom du profil en base. Renvoie le nouvel utilisateur s'il a changé
+ *  (rôle modifié par la fondatrice depuis la dernière connexion), sinon null. N'élève jamais un droit :
+ *  les données restent protégées par la base (RLS) quel que soit le rôle affiché. */
+async function actualiserProfilServeur(u: any): Promise<any | null> {
+  try {
+    if (!u?.id) return null;
+    const tok = await getTokenAsync(); if (!tok || tok === SB_KEY) return null;
+    const r = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(u.id)}&select=role,prenom,nom`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${tok}` }, cache: "no-store" });
+    if (!r.ok) return null;
+    const p = (await r.json())?.[0]; if (!p?.role) return null;
+    // Seuls les rôles que cette version sait router sont repris ; un rôle inconnu laisse l'affichage inchangé.
+    if (!["fondatrice", "cliente", "client", "partenaire", "hote", "prestataire"].includes(p.role)) return null;
+    if (p.role === u.role && (p.prenom ?? u.prenom) === u.prenom && (p.nom ?? u.nom) === u.nom) return null;
+    const n = { ...u, role: p.role, prenom: p.prenom ?? u.prenom, nom: p.nom ?? u.nom };
+    localStorage.setItem("bellaia_user", JSON.stringify(n));
+    return n;
+  } catch { return null; }
+}
+
 // Compatibilité synchrone (pour les rares cas qui ne peuvent pas await)
 function getToken() {
   if (typeof window === "undefined") return SB_KEY;
@@ -13915,7 +13934,7 @@ const NAV_GROUPES: {id:string; ico:string; l:string; pages:[string,string][]}[] 
   {id:"g_accueil",  ico:"◈",  l:"Accueil",      pages:[["dashboard","Tableau de bord"],["actions","📌 Actions requises"],["notifications","Notifications"],["messagerie","Messages"],["recherche","Recherche"]]},
   {id:"g_clients",  ico:"👥", l:"Clients",      pages:[["crm","Clientes"],["crm_central","CRM central"]]},
   {id:"g_gestion",  ico:"🧾", l:"Gestion",      pages:[["administratif","Documents & factures"],["reductions","🎁 Réductions"],["finances","Finances"],["compta","Compta"],["workflow_erp","Suivi factures ERP"],["documents","Fichiers"]]},
-  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
+  {id:"g_orga",     ico:"📅", l:"Organisation", pages:[["equipe","🤝 Équipe"],["partenaires","✨ Vil'Dor Pâtisse"],["acces","🔐 Accès & permissions"],["repertoire","📇 Répertoire"],["planning","Planning"],["calendrier","Calendrier"],["erp_projets","Projets"],["erp_taches","Tâches"]]},
   {id:"g_events",   ico:"✨", l:"Events",       pages:[["events","Bella'Even's"]]},
   {id:"g_food",     ico:"🍃", l:"Food",         pages:[["food","Bella'Food"]]},
   {id:"g_bsh",      ico:"✦",  l:"BSH",          pages:[["bsh","Bella'Secret Home"],["bsh_members","Membres"]]},
@@ -14324,7 +14343,7 @@ function MessagerieWrapper({ user }: any) {
 function ModuleEquipe({ nom, props, libelle }: { nom: string; props: any; libelle: string }) {
   const [Comp, setComp] = React.useState<any>(null);
   React.useEffect(() => {
-    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : nom === "ReductionsF" ? import("../modules/admin/ReductionsF") : import("../modules/equipe/AccesPermissions");
+    const charge = nom === "EspaceVildor" ? import("../modules/equipe/EspaceVildor") : nom === "ReductionsF" ? import("../modules/admin/ReductionsF") : nom === "Repertoire" ? import("../modules/repertoire/Repertoire") : import("../modules/equipe/AccesPermissions");
     charge.then(m => setComp(()=>m.default)).catch(rechargerSiVersionObsolete);
   }, [nom]);
   if (!Comp) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.4)",padding:40}}>Chargement {libelle}…</div>;
@@ -14560,7 +14579,7 @@ export default function BellaiaApp() {
     if (typeof window !== "undefined") {
       try {
         const s = localStorage.getItem("bellaia_user");
-        if (s) setUser(JSON.parse(s));
+        if (s) { const u = JSON.parse(s); setUser(u); actualiserProfilServeur(u).then(n => { if (n) setUser(n); }); }
         // PWA : lien direct espace client (?espace=client)
         const params = new URLSearchParams(window.location.search);
         if (params.get("espace") === "client") {
@@ -14569,6 +14588,14 @@ export default function BellaiaApp() {
       } catch {}
     }
     setHydrated(true);
+  }, []);
+
+  // Le rôle se lit en base, pas seulement sur l'appareil : une fonction accordée (ou retirée) par la fondatrice
+  // s'applique à la prochaine ouverture ou au retour dans l'application, sans déconnexion.
+  useEffect(() => {
+    const surRetour = () => { if (document.visibilityState !== "visible") return; try { const s = localStorage.getItem("bellaia_user"); if (s) actualiserProfilServeur(JSON.parse(s)).then(n => { if (n) setUser(n); }); } catch {} };
+    document.addEventListener("visibilitychange", surRetour);
+    return () => document.removeEventListener("visibilitychange", surRetour);
   }, []);
 
   const deconnexion = async () => {
@@ -14669,6 +14696,7 @@ export default function BellaiaApp() {
     food_equipe: <FoodEquipeWrapper user={user}/>,
     partenaires: <ModuleEquipe nom="EspaceVildor" props={{ user, mode: "fondatrice" }} libelle="de l'espace partenaire"/>,
     acces:       <ModuleEquipe nom="AccesPermissions" props={{}} libelle="des accès"/>,
+    repertoire:  <ModuleEquipe nom="Repertoire" props={{}} libelle="du répertoire"/>,
     calendrier:  <CalendrierP1 user={user}/>,
     documents:   <DocumentsP1 user={user}/>,
     biblio:      <BibliothequeF user={user}/>,
