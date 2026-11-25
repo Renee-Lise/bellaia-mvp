@@ -37,3 +37,12 @@ union all select '17 après remboursement, le téléchargement est refusé', pg_
 union all select '18 la facture et le paiement restent (pièces comptables)', (select count(*) from bellaia_factures where business_unit = 'BOUTIQUE') = 1 and (select count(*) from bellaia_paiements where module = 'boutique') = 1
 union all select '19 type de produit invalide refusé par la base', pg_temp.essai(:'F', $q$update catalogue_produits set type_produit = 'autre' where reference = 'ED-TEST-1'$q$) = 'refusé'
 union all select '20 public « adulte » accepté, valeur inconnue refusée', pg_temp.essai(:'F', $q$update catalogue_produits set public_age = 'adulte' where reference = 'ED-TEST-1'$q$) = 'accepté' and pg_temp.essai(:'F', $q$update catalogue_produits set public_age = 'enfants' where reference = 'ED-TEST-1'$q$) = 'refusé';
+insert into public.catalogue_produits (id, reference, business_unit, nom, prix, type_produit, fichier_chemin, version_fichier, visible_client, disponible, statut)
+  values ('00000000-0000-0000-0000-00000000e002', 'OD-GRATUIT', 'ODYSSEE', 'Fiche gratuite fictive', 0, 'numerique', 'odyssee/fiche.pdf', 'v1', true, true, 'publie'),
+         ('00000000-0000-0000-0000-00000000e003', 'OD-PAYANT', 'ODYSSEE', 'Fiche payante fictive', 4, 'numerique', 'odyssee/payante.pdf', 'v1', true, true, 'publie');
+select pg_temp.essai(:'X', $q$select public.boutique_obtenir_gratuit('00000000-0000-0000-0000-00000000e002')$q$) as g1 \gset
+select pg_temp.essai(:'X', $q$select public.boutique_obtenir_gratuit('00000000-0000-0000-0000-00000000e002')$q$) as g2 \gset
+select '21 produit gratuit : obtenu par la personne connectée, sans facture', :'g1' = 'accepté' and (select count(*) from boutique_droits where user_id = :'X' and prix_paye_cts = 0) = 1 and (select count(*) from bellaia_factures where business_unit = 'BOUTIQUE') = 1
+union all select '22 produit payant : impossible de l''obtenir « gratuitement »', pg_temp.essai(:'X', $q$select public.boutique_obtenir_gratuit('00000000-0000-0000-0000-00000000e003')$q$) = 'refusé'
+union all select '23 visiteur non connecté : refusé', pg_temp.essai(null, $q$select public.boutique_obtenir_gratuit('00000000-0000-0000-0000-00000000e002')$q$) <> 'accepté'
+union all select '24 deuxième demande : acceptée sans doublon de droit', :'g2' = 'accepté' and (select count(*) from boutique_droits where user_id = :'X' and produit_id = '00000000-0000-0000-0000-00000000e002') = 1;

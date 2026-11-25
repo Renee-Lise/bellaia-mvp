@@ -132,9 +132,27 @@ begin
   return chemin;
 end $$;
 
+
+-- Produits GRATUITS : la personne connectée obtient le droit elle-même, seulement pour un produit numérique
+-- publié dont le prix est exactement 0 (adulte : âge vérifié requis). Aucune facture (aucune vente).
+create or replace function public.boutique_obtenir_gratuit(p_produit uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare c public.catalogue_produits; d uuid;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  select * into c from public.catalogue_produits where id = p_produit;
+  if not found or c.type_produit <> 'numerique' or c.statut <> 'publie' or c.visible_client is not true or c.disponible is not true
+     or c.fichier_chemin is null or coalesce(c.prix, -1) <> 0 then raise exception 'Produit non disponible gratuitement'; end if;
+  if c.public_age = 'adulte' and not exists (select 1 from public.profiles where id = auth.uid() and age_verifi is true) then raise exception 'Âge non vérifié'; end if;
+  select id into d from public.boutique_droits where user_id = auth.uid() and produit_id = p_produit and revoque_le is null;
+  if d is not null then return d; end if;
+  insert into public.boutique_droits (user_id, produit_id, prix_paye_cts, version_achetee) values (auth.uid(), p_produit, 0, c.version_fichier) returning id into d;
+  return d;
+end $$;
+
 revoke all on function public.boutique_accorder_droits(uuid, text), public.boutique_retirer_droits(uuid, text, text) from public, anon, authenticated;
-revoke all on function public.boutique_noter_telechargement(uuid) from public, anon;
-grant execute on function public.boutique_noter_telechargement(uuid) to authenticated;
+revoke all on function public.boutique_noter_telechargement(uuid), public.boutique_obtenir_gratuit(uuid) from public, anon;
+grant execute on function public.boutique_noter_telechargement(uuid), public.boutique_obtenir_gratuit(uuid) to authenticated;
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'service_role') then
     grant execute on function public.boutique_accorder_droits(uuid, text), public.boutique_retirer_droits(uuid, text, text) to service_role;

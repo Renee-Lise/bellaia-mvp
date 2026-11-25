@@ -42,7 +42,7 @@
   0144 : 117/117 conformes, 0 erreur(s)
   0145 : 20/20 conformes, 0 erreur(s)
   0147 : 10/10 conformes, 0 erreur(s)
-  0148 : 20/20 conformes, 0 erreur(s)
+  0148 : 24/24 conformes, 0 erreur(s)
   0139 : 8/8 conformes, 0 erreur(s)
   0131 : 17/17 conformes, 0 erreur(s)
   0130 : 20/20 conformes, 0 erreur(s)

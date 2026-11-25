@@ -71,7 +71,7 @@ L'ordre demandé `0134 → 0135 → 0136 → 0137 → 0145 → 0144` est respect
 | Contrôle | Résultat |
 |---|---|
 | 19 migrations du dépôt appliquées dans l'ordre du §3, chacune deux fois (idempotence) | **19/19 sans erreur** |
-| Scénarios, chacun sur une base neuve (réplique + chaîne complète) | 0134 : 13/13 · 0135–0137 : 65/65 · accès et pôles : 11/11 · 0133 : 38/38 · 0140 : 10/10 · 0141 : 44/44 · 0143 : 8/8 · 0144 : 117/117 · 0145 : 20/20 · 0147 : 10/10 · 0148 : 20/20 · 0139 : 8/8 · 0131 : 17/17 · 0130 : 20/20 — **401/401** (plus 2 étapes de préparation) |
+| Scénarios, chacun sur une base neuve (réplique + chaîne complète) | 0134 : 13/13 · 0135–0137 : 65/65 · accès et pôles : 11/11 · 0133 : 38/38 · 0140 : 10/10 · 0141 : 44/44 · 0143 : 8/8 · 0144 : 117/117 · 0145 : 20/20 · 0147 : 10/10 · 0148 : 24/24 · 0139 : 8/8 · 0131 : 17/17 · 0130 : 20/20 — **405/405** (plus 2 étapes de préparation) |
 | Retours arrière des 19 migrations en ordre inverse | **Tous appliqués sans erreur** (0138 : fichier de retour dans le Drive privé, non testé ici) |
 | Comparaison de 7 734 objets avant la chaîne et après tous les retours arrière | Identiques, sauf : (a) **27 colonnes et 13 contraintes conservées volontairement** (dont `bellaia_roles.pole`) ; tables et colonnes de la boutique conservées après retour arrière (pièces comptables), pour ne perdre aucune donnée saisie entre-temps ; (b) les 3 politiques de 0138 (retour privé) |
 | Réapplication complète après les retours arrière | **19/19 sans erreur** |

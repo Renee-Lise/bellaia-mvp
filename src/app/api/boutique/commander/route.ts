@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     client_reference_id: suivi.id, metadata: { paiement_boutique: suivi.id },
     payment_intent_data: { metadata: { paiement_boutique: suivi.id } },
     line_items: v.lignes.map(l => ({ quantity: 1, price_data: { currency: "eur", unit_amount: l.prix_cts, product_data: { name: l.nom, metadata: { produit_id: l.produit_id } } } })),
-    success_url: `${base}/?achat=confirme&commande=${suivi.id}`,
-    cancel_url: `${base}/?achat=annule&commande=${suivi.id}`,
+    success_url: `${base}/boutique?achat=confirme&commande=${suivi.id}`,
+    cancel_url: `${base}/boutique?achat=annule&commande=${suivi.id}`,
     expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
   });
   await sb.from("stripe_payment_intents").update({ stripe_checkout_session_id: session.id, checkout_url: session.url, expire_at: new Date((session.expires_at || 0) * 1000).toISOString() }).eq("id", suivi.id);
