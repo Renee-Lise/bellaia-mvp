@@ -65,7 +65,7 @@ end $$;
 
 -- Lecture par la personne destinataire : refusée si son compte ou le pôle de la mission est suspendu
 drop policy if exists missions_assignee_lecture on public.bellaia_missions;
-create policy missions_assignee_lecture on public.bellaia_missions for select using (assigne_a = auth.uid() and not public.est_suspendu(auth.uid(), pole));
+create policy missions_assignee_lecture on public.bellaia_missions for select to authenticated using (assigne_a = auth.uid() and not public.est_suspendu(auth.uid(), pole));
 
 -- 2. Invitations sécurisées
 create table if not exists public.bellaia_invitations (

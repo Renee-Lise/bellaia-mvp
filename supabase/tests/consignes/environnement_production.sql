@@ -1,6 +1,6 @@
 -- Reproduction fidèle (relevé de production du 23/11/2026) de ce qui gouverne bellaia_documents.
 create table if not exists auth.users (id uuid primary key);
-insert into auth.users values ('00000000-0000-0000-0000-0000000000f1'),('00000000-0000-0000-0000-0000000000a1'),('00000000-0000-0000-0000-0000000000a2'),('00000000-0000-0000-0000-0000000000c1'),('00000000-0000-0000-0000-0000000000b1');
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000f1'),('00000000-0000-0000-0000-0000000000a1'),('00000000-0000-0000-0000-0000000000a2'),('00000000-0000-0000-0000-0000000000c1'),('00000000-0000-0000-0000-0000000000b1');
 insert into public.profiles(id, role) values ('00000000-0000-0000-0000-0000000000f1','fondatrice'),('00000000-0000-0000-0000-0000000000a1','assistante'),('00000000-0000-0000-0000-0000000000a2','assistante'),('00000000-0000-0000-0000-0000000000c1','cliente'),('00000000-0000-0000-0000-0000000000b1','hote');
 -- assistante a2 : permission « acces_complet » (équivalent fondatrice) ; a1 : aucune
 insert into public.bellaia_permissions(user_id, permission) values ('00000000-0000-0000-0000-0000000000a2','acces_complet');

@@ -6,6 +6,11 @@ drop trigger if exists trg_bmsg_champs_figes on public.bellaia_messages;
 drop trigger if exists trg_bmbr_champs_figes on public.bellaia_conv_membres;
 drop policy if exists msg_pj_lecture on storage.objects;
 drop policy if exists msg_pj_depot on storage.objects;
+-- Rétablit les deux règles antérieures, telles que relevées en production le 25/11
+drop policy if exists msg_read_participant on storage.objects;
+create policy msg_read_participant on storage.objects as permissive for select to authenticated using (((bucket_id = 'messaging-attachments'::text) and (((storage.foldername(name))[1] = (auth.uid())::text) or (exists (select 1 from public.profiles where ((profiles.id = auth.uid()) and (profiles.role = 'fondatrice'::text)))) or (exists (select 1 from public.bellaia_conv_membres cm where ((cm.user_id = auth.uid()) and ((cm.conversation_id)::text = (storage.foldername(objects.name))[2])))))));
+drop policy if exists msg_upload_participant on storage.objects;
+create policy msg_upload_participant on storage.objects as permissive for insert to authenticated with check (((bucket_id = 'messaging-attachments'::text) and ((storage.foldername(name))[1] = (auth.uid())::text)));
 
 drop policy if exists bconv_insert on public.bellaia_conversations;
 drop policy if exists bconv_select on public.bellaia_conversations;

@@ -17,3 +17,5 @@ drop function if exists public.bsh_version_suivante();
 drop table if exists public.bsh_assistant_contenus;
 alter table public.bsh_musique_liens drop constraint if exists bsh_musique_liens_cible_type_check;
 alter table public.bsh_musique_liens add constraint bsh_musique_liens_cible_type_check check (cible_type in ('campagne', 'animation', 'evenement')) not valid;
+-- Contrainte revalidée comme en production si aucun lien créé depuis 0141 ne la contredit (sinon elle reste « not valid » : les lignes existantes sont conservées).
+do $$ begin alter table public.bsh_musique_liens validate constraint bsh_musique_liens_cible_type_check; exception when check_violation then raise notice 'Liens postérieurs à 0141 conservés : contrainte laissée non validée'; end $$;

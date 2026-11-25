@@ -1,0 +1,3 @@
+-- Comptes fictifs nécessaires quand la base impose, comme la production, que chaque demande appartienne à un compte existant.
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000f1','f@exemple.invalid'), ('00000000-0000-0000-0000-0000000000c1','c@exemple.invalid'), ('00000000-0000-0000-0000-0000000000e9','x@exemple.invalid') on conflict do nothing;
+insert into public.profiles (id, prenom, role) values ('00000000-0000-0000-0000-0000000000f1','Fondatrice','fondatrice'), ('00000000-0000-0000-0000-0000000000c1','Cliente','cliente'), ('00000000-0000-0000-0000-0000000000e9','Autre','cliente') on conflict do nothing;

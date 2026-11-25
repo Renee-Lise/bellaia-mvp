@@ -140,6 +140,10 @@ do $$ begin
     execute $q$update storage.buckets set file_size_limit = 26214400 where id = 'messaging-attachments'$q$;
   end if;
 end $$;
+-- Règles antérieures relevées en production le 25/11 (lecture et dépôt), remplacées par les deux règles ci-dessous :
+-- des règles permissives s'additionnent, elles doivent donc être retirées. La règle de suppression (auteur ou fondatrice) est conservée.
+drop policy if exists msg_read_participant on storage.objects;
+drop policy if exists msg_upload_participant on storage.objects;
 drop policy if exists msg_pj_lecture on storage.objects;
 drop policy if exists msg_pj_depot on storage.objects;
 create policy msg_pj_lecture on storage.objects for select to authenticated

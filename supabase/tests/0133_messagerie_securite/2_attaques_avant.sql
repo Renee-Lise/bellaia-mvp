@@ -4,7 +4,7 @@
 \set X '00000000-0000-0000-0000-0000000000c9'
 \set C '11111111-1111-1111-1111-111111111111'
 \set L '22222222-2222-2222-2222-222222222222'
-insert into auth.users values (:'A'), (:'B'), (:'X'), ('00000000-0000-0000-0000-0000000000f1') on conflict do nothing;
+insert into auth.users (id) values (:'A'), (:'B'), (:'X'), ('00000000-0000-0000-0000-0000000000f1') on conflict do nothing;
 insert into public.profiles(id, role) values (:'A','assistante'), (:'B','assistante'), (:'X','cliente'), ('00000000-0000-0000-0000-0000000000f1','fondatrice') on conflict do nothing;
 -- Préparation : conversation privée A–B avec un message de A (comme le ferait l'application)
 select 'préparation conversation A–B' t, pg_temp.essai(:'A', format($q$insert into public.bellaia_conversations(id, nom) values (%L, 'Direction')$q$, :'C')) = 'accepté'

@@ -1,0 +1,123 @@
+— environnement (états de production relevés)
+  0134_profils_privileges/1_etat_actuel.sql : 0 avertissement(s) de recouvrement
+  0135_0137_acces/1_etat_production.sql : 0 avertissement(s) de recouvrement
+  chaine_0134_0145/complements.sql : 0 avertissement(s) de recouvrement
+  0133_messagerie_securite/1_tables_existantes.sql : 0 avertissement(s) de recouvrement
+  0130_editions_pedagogiques/1_tables_existantes.sql : 1 avertissement(s) de recouvrement
+  consignes/environnement_production.sql : 6 avertissement(s) de recouvrement
+  0141_bsh/environnement_production.sql : 10 avertissement(s) de recouvrement
+  0143_offre/environnement.sql : 0 avertissement(s) de recouvrement
+  0144_club_monde/environnement.sql : 8 avertissement(s) de recouvrement
+  0145_repertoire/environnement.sql : 12 avertissement(s) de recouvrement
+  réplique des tables de production : 203 tables, 0 erreur(s)
+  réplique des fonctions, vues, politiques et déclencheurs de production : 1 erreur(s) de dépendance
+— application dans l'ordre du plan (chacune deux fois)
+  OK  0134_profils_privileges
+  OK  0133_messagerie_securite
+  OK  0138_regles_role_assistante
+  OK  0140_tables_manquantes
+  OK  0141_bsh_continuite_studio
+  OK  0143_food_offre_du_jour
+  OK  0135_candidatures
+  OK  0136_acces_suspensions
+  OK  0137_missions_invitations
+  OK  0146_missions_par_pole
+  OK  0145_repertoire_central
+  OK  0144_bsh_club_monde_nominations
+  OK  0139_demandes_clients
+  OK  0131_agenda_disponibilites
+  OK  0130_editions_pedagogiques
+  OK  0132_hotes_documents
+  OK  0129_bsh_secret_stories
+— scénarios : pour chacun, base neuve = environnement minimal + données fictives de CE test + réplique de production + chaîne complète
+  0134 : 13/13 conformes, 0 erreur(s)
+  0135-0137 : 65/65 conformes, 0 erreur(s)
+  chaine-acces : 11/11 conformes, 0 erreur(s)
+  0133 : 38/38 conformes, 0 erreur(s)
+  0140 : 10/11 conformes, 0 erreur(s)
+  0141 : 44/45 conformes, 0 erreur(s)
+  0143 : 8/8 conformes, 0 erreur(s)
+  0144 : 117/117 conformes, 0 erreur(s)
+  0145 : 20/20 conformes, 0 erreur(s)
+  0139 : 8/8 conformes, 0 erreur(s)
+  0131 : 17/17 conformes, 0 erreur(s)
+  0130 : 20/20 conformes, 0 erreur(s)
+— retours arrière en ordre inverse
+  OK  retour 0129_bsh_secret_stories
+  OK  retour 0132_hotes_documents
+  OK  retour 0130_editions_pedagogiques
+  OK  retour 0131_agenda_disponibilites
+  OK  retour 0139_demandes_clients
+  OK  retour 0144_bsh_club_monde_nominations
+  OK  retour 0145_repertoire_central
+  OK  retour 0146_missions_par_pole
+  OK  retour 0137_missions_invitations
+  OK  retour 0136_acces_suspensions
+  OK  retour 0135_candidatures
+  OK  retour 0143_food_offre_du_jour
+  OK  retour 0141_bsh_continuite_studio
+  OK  retour 0140_tables_manquantes
+  (pas de fichier public) 0138_regles_role_assistante
+  OK  retour 0133_messagerie_securite
+  OK  retour 0134_profils_privileges
+— comparaison de structure : état initial / état après tous les retours arrière
+  7734 objets comparés (fonctions, politiques, colonnes, index, contraintes, déclencheurs, vues, RLS, droits)
+  ÉCARTS : 44 ligne(s)
+    > colonne|public.bellaia_conversations.cree_par
+    > colonne|public.bellaia_conversations.type
+    > colonne|public.bsh_agenda_reglages.continuite_active
+    > colonne|public.bsh_agenda_reglages.continuite_horizon_jours
+    > colonne|public.bsh_agenda_reglages.continuite_note
+    > colonne|public.bsh_agenda_reglages.continuite_principal
+    > colonne|public.bsh_agenda_reglages.continuite_remplacant
+    > colonne|public.bsh_communications.historique
+    > colonne|public.bsh_communications.nature
+    > colonne|public.bsh_communications.plateforme
+    > colonne|public.bsh_communications.valide_le
+    > colonne|public.bsh_communications.valide_par
+    > colonne|public.bsh_missions.animation_id
+    > colonne|public.bsh_missions.communication_id
+    > colonne|public.bsh_missions.compte_rendu
+    > colonne|public.bsh_missions.compte_rendu_le
+    > colonne|public.bsh_missions.espace
+    > colonne|public.bsh_missions.execute_par
+    > colonne|public.bsh_missions.motif
+    > colonne|public.bsh_missions.remplacant_id
+    > colonne|public.bsh_missions.reporte_au
+    > colonne|public.bsh_missions.ressources
+    > colonne|public.bsh_missions.statut_execution
+    > colonne|public.bsh_musique.auteurs
+    > colonne|public.bsh_musique.paroles
+    > colonne|public.bsh_rewards_campagnes.categorie
+    > contrainte|bellaia_conversations.bconv_type_valide
+    > contrainte|bsh_agenda_reglages.bsh_agenda_reglages_continuite_principal_fkey
+    > contrainte|bsh_agenda_reglages.bsh_agenda_reglages_continuite_remplacant_fkey
+    > contrainte|bsh_communications.bsh_communications_nature_check
+    > contrainte|bsh_communications.bsh_communications_plateforme_check
+    > contrainte|bsh_missions.bsh_missions_animation_id_fkey
+    > contrainte|bsh_missions.bsh_missions_communication_id_fkey
+    > contrainte|bsh_missions.bsh_missions_espace_check
+    > contrainte|bsh_missions.bsh_missions_execution_check
+    > contrainte|bsh_missions.bsh_missions_remplacant_distinct
+    > contrainte|bsh_missions.bsh_missions_remplacant_id_fkey
+    > contrainte|bsh_rewards_campagnes.bsh_rewards_categorie_check
+    < politique|public.reservations_experiences.reservations_select_staff
+    < politique|public.reservations_experiences.reservations_update_staff
+— réapplication complète après retours arrière
+  OK  0134_profils_privileges
+  OK  0133_messagerie_securite
+  OK  0138_regles_role_assistante
+  OK  0140_tables_manquantes
+  OK  0141_bsh_continuite_studio
+  OK  0143_food_offre_du_jour
+  OK  0135_candidatures
+  OK  0136_acces_suspensions
+  OK  0137_missions_invitations
+  OK  0146_missions_par_pole
+  OK  0145_repertoire_central
+  OK  0144_bsh_club_monde_nominations
+  OK  0139_demandes_clients
+  OK  0131_agenda_disponibilites
+  OK  0130_editions_pedagogiques
+  OK  0132_hotes_documents
+  OK  0129_bsh_secret_stories

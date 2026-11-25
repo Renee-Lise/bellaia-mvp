@@ -60,6 +60,13 @@ async function baseSimulee(ctx) {
 }
 
 
+
+// Ouvre une page de l'espace fondatrice : par l'écran mémorisé (branche) ou, à défaut, par les menus (version de production).
+async function ouvrirPage(p, selecteur, libelle) {
+  if (await p.waitForSelector(selecteur, { timeout: 8000 }).then(() => true).catch(() => false)) return;
+  await p.getByText('Organisation', { exact: true }).last().tap().catch(() => {}); await attendre(1200);
+  await p.getByText(libelle).first().tap(); await p.waitForSelector(selecteur, { timeout: 60000 });
+}
 async function sauver(p, attendu = /enregistrée|interrompu/) {
   await p.getByTestId('enregistrer').tap();
   await p.waitForFunction(() => !document.querySelector('[data-testid=message-acces]'), null, { timeout: 5000 }).catch(() => {});
@@ -73,7 +80,7 @@ async function sauver(p, attendu = /enregistrée|interrompu/) {
   const p = await ctx.newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
   const dialogues = []; p.on('dialog', d => { dialogues.push(d.message()); d.accept(); });
   await p.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 180000 }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
-  await p.waitForSelector('[data-testid=selecteur-acces]', { timeout: 60000 });
+  await ouvrirPage(p, '[data-testid=selecteur-acces]', '🔐 Accès & permissions');
   const saisie = p.getByTestId('selecteur-acces-saisie'); const options = p.getByTestId('selecteur-acces-option');
   t('écran ouvert : plus de champ e-mail obligatoire, sélecteur de contacts présent', (await p.locator('input[type=email]').count()) === 0 && (await saisie.count()) === 1);
   t('repli avant 0145 signalé honnêtement', (await p.getByTestId('source-repli').count()) === 1);
@@ -145,7 +152,7 @@ async function sauver(p, attendu = /enregistrée|interrompu/) {
   await p.screenshot({ path: out + '/acces_2_fiche.png', fullPage: true });
   t('barre d’enregistrement visible à l’écran (bas de page iPhone)', await p.evaluate(() => { const r = document.querySelector('[data-testid=enregistrer]').getBoundingClientRect(); return r.bottom <= innerHeight && r.top >= 0; }));
   // Persistance après rechargement
-  await p.reload({ waitUntil: 'networkidle' }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await p.waitForSelector('[data-testid=carte-membre]');
+  await p.reload({ waitUntil: 'networkidle' }); await p.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await ouvrirPage(p, '[data-testid=carte-membre]', '🔐 Accès & permissions');
   await p.locator('[data-testid=carte-membre][data-id="' + A + '"]').tap();
   t('après rechargement : affectations et permissions relues (4 fonctions)', (await p.locator('[data-testid=fonction][data-statut=actif]').count()) === 4 && await p.getByTestId('perm-food.commandes').isChecked());
   await p.getByTestId('annuler').tap();
@@ -165,7 +172,8 @@ async function sauver(p, attendu = /enregistrée|interrompu/) {
   await baseSimulee(ctx3);
   const r3 = await ctx3.newPage(); const err3 = []; r3.on('pageerror', e => err3.push(e.message));
   await r3.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 180000 }); await r3.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
-  await r3.waitForSelector('[data-testid=repertoire-recherche]', { timeout: 60000 });
+  await ouvrirPage(r3, '[data-testid=repertoire-recherche]', '📇 Répertoire');
+  await r3.waitForFunction(() => document.querySelectorAll('[data-testid=ligne-contact]').length > 0, null, { timeout: 20000 }).catch(() => {});
   t('répertoire : 4 comptes, mode consultation signalé avant 0145', (await r3.getByTestId('ligne-contact').count()) === 4 && (await r3.getByTestId('repertoire-repli').count()) === 1);
   await r3.getByTestId('cat-clients').tap();
   t('répertoire : filtre par catégorie (Clients : 1 après le rattachement de Marie)', (await r3.getByTestId('ligne-contact').count()) === 1);
@@ -189,8 +197,18 @@ async function sauver(p, attendu = /enregistrée|interrompu/) {
   await ctx2.route(/\/rest\/v1\/profiles\?id=eq\./, r => json(r, [{ role: 'partenaire', prenom: 'Lina', nom: 'TESTEUR' }]));
   await ctx2.route(/\/rest\/v1\/bellaia_roles\?/, r => json(r, DB.roles.filter(x => x.user_id === A && x.statut !== 'revoque').map(x => ({ role: x.role, statut: x.statut, organisation_id: x.organisation_id, bellaia_organisations: x.organisation_id ? { nom_commercial: "Vil'Dor Pâtisse" } : null }))));
   await ctx2.route(/\/rest\/v1\/bsh_hotes\?/, r => json(r, []));
+  await ctx2.route(/\/rest\/v1\/rpc\/mes_acces/, r => json(r, { fondatrice: false, roles: DB.roles.filter(x => x.user_id === A && x.organisation_id && x.statut === 'actif').map(x => ({ role: x.role, organisation: "Vil'Dor Pâtisse", organisation_id: x.organisation_id, statut_organisation: 'en_creation' })), permissions: [], hote_bsh: false }));
+  await ctx2.route(/\/rest\/v1\/bellaia_organisations\?/, r => json(r, [{ id: ORG, nom_commercial: "Vil'Dor Pâtisse", type: 'partenaire', statut_admin: 'en_creation', activites: [] }]));
   const q = await ctx2.newPage(); const err2 = []; q.on('pageerror', e => err2.push(e.message));
   await q.goto('http://localhost:3160/', { waitUntil: 'networkidle', timeout: 180000 }); await q.addStyleTag({ content: 'nextjs-portal{display:none!important}' }); await attendre(2500);
+  if (process.env.SANS_MES_ESPACES) {
+    // Version de production ciblée (sans sélecteur « Mes espaces ») : le rôle relu ouvre directement l'espace partenaire.
+    await attendre(2500);
+    t('rôle relu en base sans déconnexion (cliente → partenaire) : espace professionnel Vil’Dor ouvert', /partenaire/.test(await q.evaluate(() => localStorage.getItem('bellaia_user'))) && /Espace professionnel/.test(await q.evaluate(() => document.body.innerText)));
+    await q.screenshot({ path: out + '/acces_3_espace_partenaire.png' });
+    t('aucune erreur JavaScript (partenaire)', err2.length === 0); if (err2.length) console.log(err2);
+    await b.close(); console.log(R.join('\n') + `\n\nRÉSULTAT : ${ok}/${n}`); return;
+  }
   t('rôle relu en base sans déconnexion (cliente → partenaire) : « Mes espaces » apparaît', (await q.locator('button[aria-label="Mes espaces"]').count()) === 1 && /partenaire/.test(await q.evaluate(() => localStorage.getItem('bellaia_user'))));
   await q.locator('button[aria-label="Mes espaces"]').tap(); await attendre(400);
   const menu = await q.locator('[role=menu]').innerText();

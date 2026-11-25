@@ -5,7 +5,7 @@
 \set F '00000000-0000-0000-0000-0000000000f1'
 \set C '11111111-1111-1111-1111-111111111111'
 \set D '33333333-3333-3333-3333-333333333333'
-insert into auth.users values (:'A'), (:'B'), (:'X'), (:'F') on conflict do nothing;
+insert into auth.users (id) values (:'A'), (:'B'), (:'X'), (:'F') on conflict do nothing;
 insert into public.profiles(id, role) values (:'A','assistante'), (:'B','assistante'), (:'X','cliente'), (:'F','fondatrice') on conflict do nothing;
 
 -- Parcours légitimes (comme l'application : création avec retour de la ligne, puis membres en une requête)

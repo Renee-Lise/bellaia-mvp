@@ -3872,6 +3872,8 @@ async function actualiserProfilServeur(u: any): Promise<any | null> {
     const r = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(u.id)}&select=role,prenom,nom`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${tok}` }, cache: "no-store" });
     if (!r.ok) return null;
     const p = (await r.json())?.[0]; if (!p?.role) return null;
+    // Seuls les rôles que l'application sait router sont repris ; un rôle inconnu laisse l'affichage inchangé.
+    if (!["fondatrice", "assistante", "cliente", "client", "partenaire", "hote", "prestataire"].includes(p.role)) return null;
     if (p.role === u.role && (p.prenom ?? u.prenom) === u.prenom && (p.nom ?? u.nom) === u.nom) return null;
     const n = { ...u, role: p.role, prenom: p.prenom ?? u.prenom, nom: p.nom ?? u.nom };
     localStorage.setItem("bellaia_user", JSON.stringify(n));

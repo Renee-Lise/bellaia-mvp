@@ -7,9 +7,9 @@
 -- is_fondatrice(), journaliser_droits(). Idempotente. Retour arrière : rollback/0145_repertoire_central_rollback.sql.
 --
 -- Ce que corrige ou ajoute 0145 :
---  1. bellaia_roles n'avait AUCUNE contrainte d'unicité : le « on conflict do nothing » de
---     fondatrice_lier_compte ne protégeait de rien (une même fonction pouvait être créée deux fois).
---     → index unique (compte, fonction, organisation). Vérifié avant préparation : 0 doublon en production.
+--  1. Unicité (compte, fonction, organisation) de bellaia_roles. CORRIGÉ le 25/11 : la production possède
+--     DÉJÀ cet index (bellaia_roles_unique, relevé sur la réplique de production). L'index n'est donc créé
+--     que si aucun index équivalent n'existe (aucun doublon d'index en production).
 --  2. Le journal des droits n'enregistrait pas l'AUTEUR du changement → user_id = auth.uid().
 --  3. Répertoire central unique (comptes Bellaïa + contacts externes sans compte), catégories
 --     modifiables, recherche serveur avec e-mails réservée à la fondatrice.
@@ -17,8 +17,13 @@
 -- ═══════════════════════════════════════════════════════════
 
 -- 1. Une fonction n'existe qu'une fois par compte et par organisation
-create unique index if not exists bellaia_roles_unique_fonction
-  on public.bellaia_roles (user_id, role, coalesce(organisation_id, '00000000-0000-0000-0000-000000000000'::uuid));
+do $$ begin
+  if not exists (select 1 from pg_indexes where schemaname = 'public' and tablename = 'bellaia_roles'
+                 and indexdef ilike 'CREATE UNIQUE INDEX % (user_id, role, COALESCE(organisation_id,%') then
+    create unique index bellaia_roles_unique_fonction
+      on public.bellaia_roles (user_id, role, coalesce(organisation_id, '00000000-0000-0000-0000-000000000000'::uuid));
+  end if;
+end $$;
 
 -- 2. Auteur des changements de rôles et de permissions (colonne déjà présente en production ; ajoutée si absente)
 alter table public.bellaia_journal add column if not exists user_id uuid;
