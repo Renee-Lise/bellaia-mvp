@@ -26,9 +26,11 @@
 | 0144 | BSH Private Club, Secret World, nominations | Non | table `bsh_club_charte` absente |
 | 0145 | Répertoire central | Non | table `bellaia_repertoire` absente |
 | 0146 | Missions cloisonnées par pôle | Non | fonction `peut_gerer_mission` absente ; politique `missions_equipe` = portée « * » seule |
+| 0134a | **Correctif d'urgence** (sous-ensemble de 0134 ; fichier, retour arrière et test dans le Drive privé) | Non | — |
+| 0148 | Boutique numérique : droits d'accès, téléchargements, facture automatique (numérotation FAC existante) | Non | table `boutique_droits` absente |
 | 0147 | Fonctions rattachées à un pôle ; fonction « fondatrice de pôle » (préparée le 25/11) | Non | colonne `bellaia_roles.pole` absente |
 
-**20 migrations en attente** (0129 à 0147, dont 0142 hors dépôt public).
+**22 migrations en attente** (0129 à 0148 et 0134a ; 0142 et 0134a hors dépôt public).
 
 ## 2. Suivi des migrations par Supabase : mécanisme réel
 
@@ -42,6 +44,7 @@
 | Rang | Migration | Raison du rang |
 |---|---|---|
 | 0 | Sauvegarde complète restaurée : « COMPLET » | Condition de tout le reste |
+| 0 bis | **0134a** (Drive privé) | Correctif d'urgence réversible en une instruction, sans modification de données : peut précéder la sauvegarde **si la fondatrice le décide** |
 | 1 | **0142** (Drive privé) | Sécurité |
 | 2 | **0134** | Sécurité des rôles ; prérequis de 0135 et de 0138 |
 | 3 | **0133** | Sécurité de la messagerie |
@@ -53,6 +56,7 @@
 | 9 | **0146** | Après 0137 (même politique de missions) |
 | 10 | **0145** | Après 0137 (acceptation d'invitation rendue compatible) |
 | 10 bis | **0147** | Après 0145 (remplace l'index d'unicité des fonctions par un index incluant le pôle) |
+| 10 ter | **0148** | Boutique ; indépendante (testée après 0147) |
 | 11 | **0144** | Après 0145 et 0147 (testée dans cet ordre) |
 | 12 | **0139, 0131, 0130, 0132, 0129** | Fonctions secondaires ; 0132 dépend de 0128 (en production) |
 
@@ -66,11 +70,11 @@ L'ordre demandé `0134 → 0135 → 0136 → 0137 → 0145 → 0144` est respect
 
 | Contrôle | Résultat |
 |---|---|
-| 18 migrations du dépôt appliquées dans l'ordre du §3, chacune deux fois (idempotence) | **18/18 sans erreur** |
-| Scénarios, chacun sur une base neuve (réplique + chaîne complète) | 0134 : 13/13 · 0135–0137 : 65/65 · accès et pôles : 11/11 · 0133 : 38/38 · 0140 : 10/10 · 0141 : 44/44 · 0143 : 8/8 · 0144 : 117/117 · 0145 : 20/20 · 0147 : 10/10 · 0139 : 8/8 · 0131 : 17/17 · 0130 : 20/20 — **381/381** (plus 2 étapes de préparation) |
-| Retours arrière des 18 migrations en ordre inverse | **Tous appliqués sans erreur** (0138 : fichier de retour dans le Drive privé, non testé ici) |
-| Comparaison de 7 734 objets avant la chaîne et après tous les retours arrière | Identiques, sauf : (a) **27 colonnes et 13 contraintes conservées volontairement** (dont `bellaia_roles.pole`), pour ne perdre aucune donnée saisie entre-temps ; (b) les 3 politiques de 0138 (retour privé) |
-| Réapplication complète après les retours arrière | **18/18 sans erreur** |
+| 19 migrations du dépôt appliquées dans l'ordre du §3, chacune deux fois (idempotence) | **19/19 sans erreur** |
+| Scénarios, chacun sur une base neuve (réplique + chaîne complète) | 0134 : 13/13 · 0135–0137 : 65/65 · accès et pôles : 11/11 · 0133 : 38/38 · 0140 : 10/10 · 0141 : 44/44 · 0143 : 8/8 · 0144 : 117/117 · 0145 : 20/20 · 0147 : 10/10 · 0148 : 20/20 · 0139 : 8/8 · 0131 : 17/17 · 0130 : 20/20 — **401/401** (plus 2 étapes de préparation) |
+| Retours arrière des 19 migrations en ordre inverse | **Tous appliqués sans erreur** (0138 : fichier de retour dans le Drive privé, non testé ici) |
+| Comparaison de 7 734 objets avant la chaîne et après tous les retours arrière | Identiques, sauf : (a) **27 colonnes et 13 contraintes conservées volontairement** (dont `bellaia_roles.pole`) ; tables et colonnes de la boutique conservées après retour arrière (pièces comptables), pour ne perdre aucune donnée saisie entre-temps ; (b) les 3 politiques de 0138 (retour privé) |
+| Réapplication complète après les retours arrière | **19/19 sans erreur** |
 
 ### Défauts trouvés grâce à la réplique, et corrigés
 1. **0133** : 2 anciennes règles d'accès aux pièces jointes existent en production. Comme ces règles s'additionnent, elles auraient affaibli les nouvelles règles de 0133. → 0133 les retire, et son retour arrière les rétablit à l'identique. Résultat : 38/38.

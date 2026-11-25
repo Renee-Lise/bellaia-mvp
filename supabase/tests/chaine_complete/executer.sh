@@ -23,7 +23,7 @@ done
 # conservée hors du dépôt public : les tables absentes des environnements de test (ex. stripe_payment_intents) sont ainsi présentes.
 if [ -n "$REPLIQUE" ] && [ -f "$REPLIQUE" ]; then n=$($P -d essai -f "$REPLIQUE" 2>&1 | grep -c ERROR || true); echo "  réplique des tables de production : $(grep -c 'create table' "$REPLIQUE") tables, $n erreur(s)";   $P -d essai -f "$(dirname "$REPLIQUE")/replique_colonnes.sql" >/dev/null 2>&1; $P -d essai -f "$(dirname "$REPLIQUE")/replique_contraintes.sql" >/dev/null 2>&1; O2="$(dirname "$REPLIQUE")/replique_objets_production.sql"; if [ -f "$O2" ]; then n=$($P -d essai -f "$O2" 2>&1 | grep -c ERROR || true); $P -d essai -f "$(dirname "$REPLIQUE")/replique_identites.sql" >/dev/null 2>&1; [ -f "$(dirname "$REPLIQUE")/replique_nettoyage.sql" ] && $P -d essai -f "$(dirname "$REPLIQUE")/replique_nettoyage.sql" >/dev/null 2>&1; echo "  réplique des fonctions, vues, politiques et déclencheurs de production : $n erreur(s) de dépendance"; fi
 else echo "  (sans réplique de production : variable REPLIQUE non fournie)"; fi
-ORDRE="0134_profils_privileges 0133_messagerie_securite 0138_regles_role_assistante 0140_tables_manquantes 0141_bsh_continuite_studio 0143_food_offre_du_jour 0135_candidatures 0136_acces_suspensions 0137_missions_invitations 0146_missions_par_pole 0145_repertoire_central 0147_fonctions_par_pole 0144_bsh_club_monde_nominations 0139_demandes_clients 0131_agenda_disponibilites 0130_editions_pedagogiques 0132_hotes_documents 0129_bsh_secret_stories"
+ORDRE="0134_profils_privileges 0133_messagerie_securite 0138_regles_role_assistante 0140_tables_manquantes 0141_bsh_continuite_studio 0143_food_offre_du_jour 0135_candidatures 0136_acces_suspensions 0137_missions_invitations 0146_missions_par_pole 0145_repertoire_central 0147_fonctions_par_pole 0148_boutique_numerique 0144_bsh_club_monde_nominations 0139_demandes_clients 0131_agenda_disponibilites 0130_editions_pedagogiques 0132_hotes_documents 0129_bsh_secret_stories"
 DUMP="$B/pg_dump -h $T -p 55449 -U postgres -s --no-owner essai"
 EMP="$P -d essai -A -t -F | -f $D/empreinte.sql"
 $DUMP > "$T/schema_avant.sql"; $EMP > "$T/empreinte_avant.txt"
@@ -58,6 +58,7 @@ scenario 0143 "0143_offre/environnement.sql" "$TS/0143_offre/scenarios.sql"
 scenario 0144 "0144_club_monde/environnement.sql" "$TS/0144_club_monde/outils_temps_reel.sql" "$TS/0144_club_monde/scenarios.sql"
 scenario 0145 "0145_repertoire/environnement.sql" "$TS/0145_repertoire/scenarios.sql"
 scenario 0147 "0145_repertoire/environnement.sql" "$TS/0147_fonctions_pole/scenarios.sql"
+scenario 0148 "" "$TS/0148_boutique/scenarios.sql"
 scenario 0139 "chaine_complete/comptes_0139.sql" "$TS/0139_demandes/scenarios.sql"
 scenario 0131 "" "$TS/0131_agenda_disponibilites/test_scenarios.sql"
 scenario 0130 "0130_editions_pedagogiques/1_tables_existantes.sql" "$TS/0130_editions_pedagogiques/test_scenarios.sql"

@@ -6,6 +6,8 @@
 #   SUPABASE_DB_PASSWORD   mot de passe de la base (Project Settings › Database)
 #   SUPABASE_DB_URL        chaîne de connexion « Session pooler » (bouton Connect du projet), mot de passe inclus
 #   BACKUP_PASSPHRASE      phrase de chiffrement de l'archive (longue, conservée hors ligne par la fondatrice)
+# Contenu : structure, données, rôles, comptes Auth, fichiers des 8 compartiments, suivi des migrations,
+# configuration du stockage, extensions, version de PostgreSQL, code source complet (historique Git).
 # Résultat : résumé « COMPLET » ou « ÉCARTS » dans la page de l'exécution + archive CHIFFRÉE téléchargeable 7 jours.
 # Lecture seule pour la production : aucune écriture, aucune migration.
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -43,6 +45,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/sauv" && cd "$RUNNER_TEMP/sauv"
           bash "$GITHUB_WORKSPACE/outils/supabase/sauvegarde/sauvegarde_complete.sh" "$RUNNER_TEMP/sauv" > journal.txt 2>&1 || { tail -30 journal.txt; exit 1; }
           echo "DOSSIER=$(ls -d "$RUNNER_TEMP"/sauv/bellaia_sauvegarde_*)" >> "$GITHUB_ENV"
+      - name: Suivi des migrations, configuration du stockage et code source
+        run: |
+          cd "$DOSSIER"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --schema supabase_migrations -f migrations_suivi.sql || echo "suivi des migrations : non exporté" >> manques.txt
+          psql "$SUPABASE_DB_URL" -c "\\copy (select id, name, public, file_size_limit, allowed_mime_types from storage.buckets order by id) to 'configuration_compartiments.csv' csv header"
+          psql "$SUPABASE_DB_URL" -At -c "select extname || ' ' || extversion from pg_extension order by 1" > configuration_extensions.txt
+          psql "$SUPABASE_DB_URL" -At -c "select version()" > configuration_version_postgres.txt
+          git clone --quiet --mirror https://github.com/Renee-Lise/bellaia-mvp.git code.git && git -C code.git bundle create ../code_bellaia-mvp.bundle --all && rm -rf code.git
+          sha256sum migrations_suivi.sql configuration_* code_bellaia-mvp.bundle > empreintes_complements.txt
       - name: Références relevées en production (lecture seule)
         run: |
           R="$RUNNER_TEMP/ref"; mkdir -p "$R"

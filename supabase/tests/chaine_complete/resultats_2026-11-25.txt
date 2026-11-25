@@ -24,6 +24,7 @@
   OK  0146_missions_par_pole
   OK  0145_repertoire_central
   OK  0147_fonctions_par_pole
+  OK  0148_boutique_numerique
   OK  0144_bsh_club_monde_nominations
   OK  0139_demandes_clients
   OK  0131_agenda_disponibilites
@@ -41,6 +42,7 @@
   0144 : 117/117 conformes, 0 erreur(s)
   0145 : 20/20 conformes, 0 erreur(s)
   0147 : 10/10 conformes, 0 erreur(s)
+  0148 : 20/20 conformes, 0 erreur(s)
   0139 : 8/8 conformes, 0 erreur(s)
   0131 : 17/17 conformes, 0 erreur(s)
   0130 : 20/20 conformes, 0 erreur(s)
@@ -51,6 +53,7 @@
   OK  retour 0131_agenda_disponibilites
   OK  retour 0139_demandes_clients
   OK  retour 0144_bsh_club_monde_nominations
+  OK  retour 0148_boutique_numerique
   OK  retour 0147_fonctions_par_pole
   OK  retour 0145_repertoire_central
   OK  retour 0146_missions_par_pole
@@ -65,10 +68,24 @@
   OK  retour 0134_profils_privileges
 — comparaison de structure : état initial / état après tous les retours arrière
   7734 objets comparés (fonctions, politiques, colonnes, index, contraintes, déclencheurs, vues, RLS, droits)
-  ÉCARTS : 46 ligne(s)
+  ÉCARTS : 111 ligne(s)
     > colonne|public.bellaia_conversations.cree_par
     > colonne|public.bellaia_conversations.type
     > colonne|public.bellaia_roles.pole
+    > colonne|public.boutique_droits.accorde_le
+    > colonne|public.boutique_droits.facture_id
+    > colonne|public.boutique_droits.id
+    > colonne|public.boutique_droits.motif_revocation
+    > colonne|public.boutique_droits.paiement_stripe_id
+    > colonne|public.boutique_droits.prix_paye_cts
+    > colonne|public.boutique_droits.produit_id
+    > colonne|public.boutique_droits.revoque_le
+    > colonne|public.boutique_droits.user_id
+    > colonne|public.boutique_droits.version_achetee
+    > colonne|public.boutique_telechargements.droit_id
+    > colonne|public.boutique_telechargements.id
+    > colonne|public.boutique_telechargements.le
+    > colonne|public.boutique_telechargements.user_id
     > colonne|public.bsh_agenda_reglages.continuite_active
     > colonne|public.bsh_agenda_reglages.continuite_horizon_jours
     > colonne|public.bsh_agenda_reglages.continuite_note
@@ -92,20 +109,6 @@
     > colonne|public.bsh_missions.statut_execution
     > colonne|public.bsh_musique.auteurs
     > colonne|public.bsh_musique.paroles
-    > colonne|public.bsh_rewards_campagnes.categorie
-    > contrainte|bellaia_conversations.bconv_type_valide
-    > contrainte|bellaia_roles.bellaia_roles_pole_fkey
-    > contrainte|bsh_agenda_reglages.bsh_agenda_reglages_continuite_principal_fkey
-    > contrainte|bsh_agenda_reglages.bsh_agenda_reglages_continuite_remplacant_fkey
-    > contrainte|bsh_communications.bsh_communications_nature_check
-    > contrainte|bsh_communications.bsh_communications_plateforme_check
-    > contrainte|bsh_missions.bsh_missions_animation_id_fkey
-    > contrainte|bsh_missions.bsh_missions_communication_id_fkey
-    > contrainte|bsh_missions.bsh_missions_espace_check
-    > contrainte|bsh_missions.bsh_missions_execution_check
-    > contrainte|bsh_missions.bsh_missions_remplacant_distinct
-    > contrainte|bsh_missions.bsh_missions_remplacant_id_fkey
-    > contrainte|bsh_rewards_campagnes.bsh_rewards_categorie_check
 — réapplication complète après retours arrière
   OK  0134_profils_privileges
   OK  0133_messagerie_securite
@@ -119,6 +122,7 @@
   OK  0146_missions_par_pole
   OK  0145_repertoire_central
   OK  0147_fonctions_par_pole
+  OK  0148_boutique_numerique
   OK  0144_bsh_club_monde_nominations
   OK  0139_demandes_clients
   OK  0131_agenda_disponibilites

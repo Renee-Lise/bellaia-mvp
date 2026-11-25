@@ -3,6 +3,20 @@
 ## Principe
 Un dépôt GitHub **privé** (gratuit) exécute, à la demande, la sauvegarde complète puis le contrôle de restauration dans une base jetable. Vous déclenchez et lisez le résultat depuis l'application GitHub ou Safari. Les secrets sont saisis **uniquement** dans les réglages du dépôt privé : jamais dans un fichier, jamais dans le dépôt public, jamais transmis à Claude.
 
+## Mise en place accélérée (25/11) — ce qui reste à faire par la fondatrice
+Claude ne peut pas créer de dépôt sur votre compte GitHub (droit refusé par GitHub à l'intégration). Étapes, sur iPhone, dans Safari (github.com) :
+1. **Créer le dépôt vide** : github.com › bouton « + » › *New repository* › nom `bellaia-sauvegardes` › cocher **Private** › cocher *Add a README file* › *Create repository*.
+2. **Dire à Claude « dépôt créé »** : Claude y dépose la tâche `.github/workflows/sauvegarde.yml` (aucun secret dedans). (Ou bien : *Add file › Create new file*, chemin `.github/workflows/sauvegarde.yml`, coller le contenu de `docs/deploiement/sauvegarde-iphone/sauvegarde.yml`.)
+3. **Les 4 secrets** : dans le dépôt `bellaia-sauvegardes` › *Settings* (en version ordinateur dans Safari : « aA » › *Version pour ordinateur* si l'onglet n'apparaît pas) › *Secrets and variables* › *Actions* › *New repository secret*, quatre fois :
+   | Nom exact | Où trouver la valeur |
+   |---|---|
+   | `SUPABASE_ACCESS_TOKEN` | supabase.com › votre avatar › *Account preferences* › *Access Tokens* › *Generate new token* (nom : sauvegarde) |
+   | `SUPABASE_DB_PASSWORD` | supabase.com › projet Bellaïa › *Project Settings* › *Database* › *Database password* (le réinitialiser si inconnu : l'application n'utilise pas ce mot de passe) |
+   | `SUPABASE_DB_URL` | projet Bellaïa › bouton **Connect** (en haut) › *Session pooler* › copier la chaîne `postgresql://…` et remplacer `[YOUR-PASSWORD]` par le mot de passe ci-dessus |
+   | `BACKUP_PASSPHRASE` | une longue phrase inventée par vous (au moins 6 mots), **notée sur papier** : sans elle, l'archive ne peut pas être ouverte |
+   Les valeurs ne sont jamais à transmettre à Claude ni dans une conversation.
+4. **Lancer** : onglet *Actions* › *Sauvegarde Bellaïa* › *Run workflow*. Résultat attendu en fin de page : **COMPLET**.
+
 ## Mise en place (une fois, ≈ 15 minutes, sur iPhone)
 1. **Dépôt privé** : github.com › New repository › nom « bellaia-sauvegardes » › **Private** › Create.
 2. **Fichier de la tâche** : dans ce dépôt, Add file › Create new file › nom `.github/workflows/sauvegarde.yml` › coller le contenu de `docs/deploiement/sauvegarde-iphone/sauvegarde.yml` › Commit.
